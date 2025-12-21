@@ -1,8 +1,10 @@
+// 📁 api/send-verification.js
+
 import nodemailer from 'nodemailer';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 
-// Initialize Firebase Admin only once
+// Init Firebase Admin
 if (!getApps().length) {
   initializeApp({
     credential: cert({
@@ -20,28 +22,35 @@ if (!getApps().length) {
   });
 }
 
-// Basic CORS middleware
-function setCorsHeaders(res) {
+// CORS headers for fetch from frontend
+function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 export default async function handler(req, res) {
-  setCorsHeaders(res);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
     const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'Missing email' });
 
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
+    const auth = getAuth();
+
+    let user;
+    try {
+      user = await auth.getUserByEmail(email);
+    } catch (err) {
+      if (err.code === 'auth/user-not-found') {
+        user = await auth.createUser({ email });
+      } else {
+        throw err;
+      }
     }
 
-    const link = await getAuth().generateEmailVerificationLink(email);
+    const link = await auth.generateEmailVerificationLink(email);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -56,28 +65,20 @@ export default async function handler(req, res) {
       to: email,
       subject: 'Verify your email for Elora',
       html: `
-        <div style="font-family: Arial, sans-serif; line-height:1.5; padding:20px;">
-          <h2 style="color:#6c63ff;">Welcome to Elora 👋</h2>
+        <div style="font-family: Arial, sans-serif; padding:20px; line-height:1.6;">
+          <h2 style="color: #6c63ff;">Welcome to Elora 👋</h2>
           <p>Click below to verify your email:</p>
           <a href="${link}" style="
-            display:inline-block;
-            padding:12px 20px;
-            background:#6c63ff;
-            color:white;
-            border-radius:6px;
-            text-decoration:none;
-            font-weight:bold;
+            background:#6c63ff;color:white;padding:12px 20px;border-radius:6px;
+            text-decoration:none;font-weight:bold;
           ">Verify Email</a>
-          <p style="font-size:12px; color:#555; margin-top:15px;">
-            If you didn’t request this, ignore this email.
-          </p>
         </div>
       `,
     });
 
-    res.status(200).json({ success: true, message: 'Email sent!' });
-  } catch (error) {
-    console.error('send-verification error:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('send-verification error:', err);
+    return res.status(500).json({ error: err.message });
   }
 }

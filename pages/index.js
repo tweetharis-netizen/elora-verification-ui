@@ -4,72 +4,84 @@ import React, { useState } from 'react';
 
 export default function Home() {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('Sending...');
 
     try {
-      const res = await fetch(`https://elora-website.vercel.app/api/send-verification?email=${encodeURIComponent(email)}`);
+      const res = await fetch(
+        `https://elora-website.vercel.app/api/send-verification?email=${encodeURIComponent(
+          email
+        )}`
+      );
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setStatus('✅ Email sent! Please check your inbox.');
+        setStatus('✅ Email sent! Check your inbox.');
       } else {
         setStatus('❌ ' + (data.error || 'Failed to send email.'));
       }
     } catch (err) {
-      console.error('Send error:', err);
       setStatus('❌ ' + (err.message || 'Error sending email.'));
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#f9fafb',
-      fontFamily: 'sans-serif',
-      padding: '2rem'
-    }}>
-      <img src="https://elora-static.vercel.app/elora-logo.svg" alt="Elora Logo" width="100" style={{ marginBottom: '1rem' }} />
-      <h1 style={{ color: '#1f2937' }}>Verify Your Email</h1>
-      <form onSubmit={handleSubmit} style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        maxWidth: '400px',
-        marginTop: '1rem'
-      }}>
-        <input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{
-            padding: '0.75rem',
-            fontSize: '1rem',
-            marginBottom: '1rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem'
-          }}
-        />
-        <button type="submit" style={{
-          padding: '0.75rem',
-          backgroundColor: '#3b82f6',
-          color: '#fff',
-          fontSize: '1rem',
-          border: 'none',
-          borderRadius: '0.375rem',
-          cursor: 'pointer'
-        }}>Send Verification</button>
-      </form>
-      {status && <p style={{ marginTop: '1rem', color: '#4b5563' }}>{status}</p>}
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center px-4">
+      {/* Logo / Header */}
+      <div className="text-center mb-8">
+        {/* Inline SVG Logo (simple stylized Elora symbol) */}
+        <svg
+          width="100"
+          height="100"
+          viewBox="0 0 512 512"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="256" cy="256" r="200" fill="#6c63ff" />
+          <path
+            d="M176 176H336V336H176z"
+            fill="white"
+          />
+        </svg>
+        <h1 className="text-3xl font-bold text-gray-900 mt-2">Elora</h1>
+        <p className="text-gray-600">Your AI Teacher Assistant</p>
+      </div>
+
+      {/* Form Card */}
+      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          Verify Your Email
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="you@example.com"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+
+          <button
+            type="submit"
+            className="w-full bg-indigo-500 text-white py-2 rounded-lg font-semibold hover:bg-indigo-600 transition"
+          >
+            Send Verification
+          </button>
+        </form>
+
+        {status && (
+          <p className="mt-4 text-center text-sm text-gray-700">{status}</p>
+        )}
+      </div>
+
+      <footer className="text-xs text-gray-500 mt-8">
+        &copy; {new Date().getFullYear()} Elora • All rights reserved.
+      </footer>
     </div>
   );
 }

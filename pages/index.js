@@ -17,10 +17,11 @@ export default function Home() {
       if (res.ok && data.success) {
         setStatus('✅ Email sent! Please check your inbox.');
       } else {
-        setStatus('❌ Failed to send email.');
+        setStatus('❌ ' + (data.error || 'Failed to send email.'));
       }
     } catch (err) {
-      setStatus('❌ Error sending email.');
+      console.error('Send error:', err);
+      setStatus('❌ ' + (err.message || 'Error sending email.'));
     }
   };
 

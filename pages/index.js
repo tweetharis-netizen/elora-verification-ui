@@ -11,10 +11,10 @@ export default function Home() {
     setStatus('Sending...');
 
     try {
-      const res = await fetch(`/api/send-verification?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`https://elora-website.vercel.app/api/send-verification?email=${encodeURIComponent(email)}`);
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success) {
         setStatus('✅ Email sent! Please check your inbox.');
       } else {
         setStatus('❌ Failed to send email.');

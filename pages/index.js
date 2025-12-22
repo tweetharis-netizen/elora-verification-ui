@@ -1,4 +1,5 @@
 // pages/index.js
+
 import React, { useState } from 'react';
 
 export default function EmailVerification() {
@@ -10,28 +11,23 @@ export default function EmailVerification() {
     setStatus('Sending...');
 
     try {
-      const res = await fetch(
-        `https://elora-website.vercel.app/api/send-verification?email=${encodeURIComponent(email)}`
-      );
+      const res = await fetch('/api/send-verification?email=' + encodeURIComponent(email));
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setStatus('✅ Email sent! Please check your inbox.');
+      if (data.success) {
+        setStatus('✅ Verification email sent! Please check your inbox.');
       } else {
         setStatus('❌ ' + (data.error || 'Failed to send email.'));
       }
     } catch (err) {
-      console.error('Send error:', err);
       setStatus('❌ ' + (err.message || 'Error sending email.'));
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 text-center">
-        <div className="flex justify-center mb-4">
-          <img src="/elora-logo.svg" alt="Elora Logo" className="w-12 h-12" />
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-white to-blue-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl text-center border border-gray-200">
+        <img src="/elora-logo.svg" alt="Elora Logo" className="w-14 h-14 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-800 mb-1">Verify Your Email</h1>
         <p className="text-sm text-gray-500 mb-6">2026 Elora • Your AI Teaching Assistant</p>
 
@@ -42,7 +38,7 @@ export default function EmailVerification() {
             placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
           <button
             type="submit"

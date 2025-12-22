@@ -1,11 +1,16 @@
-/** @type {import('tailwindcss').Config} */
+// 📁 File: tailwind.config.js
+
 module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        elora: '#6c63ff'
+      },
+    },
   },
   plugins: [],
-}
+};

@@ -1,9 +1,10 @@
-// 📁 File: pages/api/send-verification.js
+// 📁 File: api/send-verification.js
 
-import { getAuth } from 'firebase-admin/auth';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import nodemailer from 'nodemailer';
+import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
 
+// Initialize Firebase Admin
 if (!getApps().length) {
   initializeApp({
     credential: cert({
@@ -17,47 +18,66 @@ if (!getApps().length) {
       token_uri: process.env.FIREBASE_TOKEN_URI,
       auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
       client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
-    })
+    }),
   });
 }
 
 export default async function handler(req, res) {
-  const { email } = req.query;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Missing email' });
-  }
-
   try {
-    const link = await getAuth().generateEmailVerificationLink(email);
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+
+    const auth = getAuth();
+
+    // Create or get user
+    let user;
+    try {
+      user = await auth.getUserByEmail(email);
+    } catch (err) {
+      if (err.code === "auth/user-not-found") {
+        user = await auth.createUser({ email });
+      } else {
+        throw err;
+      }
+    }
+
+    const link = await auth.generateEmailVerificationLink(email);
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
     await transporter.sendMail({
-      from: `Elora <${process.env.EMAIL_USERNAME}>`,
+      from: `"Elora" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Verify your email for Elora',
+      subject: "Verify your Elora email",
       html: `
-        <div style="font-family: sans-serif; line-height: 1.5; text-align: center;">
-          <img src="https://elora-static.vercel.app/elora-logo.svg" alt="Elora Logo" width="50" style="margin-bottom: 1rem;" />
-          <h2 style="color: #333;">Verify Your Email</h2>
-          <p>Click the button below to verify your email address:</p>
-          <a href="${link}" style="display: inline-block; padding: 10px 20px; background: #3b82f6; color: white; border-radius: 5px; text-decoration: none;">Verify Email</a>
-          <p>If you didn’t request this, you can ignore this email.</p>
-          <p style="color: #aaa; font-size: 12px; margin-top: 2rem;">&copy; 2026 Elora. All rights reserved.</p>
+        <div style="font-family:Arial,sans-serif; text-align:center; padding:20px;">
+          <h2 style="color:#6c63ff;">Welcome to Elora 👋</h2>
+          <p>Click below to verify your email:</p>
+          <a href="${link}" style="
+            display:inline-block;
+            padding:12px 20px;
+            background:#6c63ff;
+            color:white;
+            border-radius:6px;
+            text-decoration:none;
+            font-weight:bold;
+          ">Verify Email</a>
+          <p style="margin-top:15px; font-size:12px; color:#555;">
+            If you didn't request this, ignore this email.
+          </p>
         </div>
       `,
     });
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Email send error:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error("send-verification error:", error);
+    res.status(500).json({ error: error.message });
   }
 }

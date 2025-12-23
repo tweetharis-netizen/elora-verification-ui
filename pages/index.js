@@ -1,16 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function VerifyPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
-  const [type, setType] = useState(""); // success | error
+  const [type, setType] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [dark, setDark] = useState(false);
+
+  /* ---------- Theme Toggle ---------- */
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [dark]);
 
   const sendVerification = async () => {
     if (!email) {
       setType("error");
-      setStatus("Please enter a valid email address.");
+      setStatus("Please enter a valid email.");
       return;
     }
 
@@ -35,17 +45,16 @@ export default function VerifyPage() {
       }
 
       setType("success");
-      setStatus("Verification email sent. Please check your inbox.");
+      setStatus("Verification email sent. Check your inbox.");
 
-      // Start resend cooldown (45s)
-      setCooldown(45);
-      const interval = setInterval(() => {
-        setCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
+      setCooldown(30);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) {
+            clearInterval(timer);
             return 0;
           }
-          return prev - 1;
+          return c - 1;
         });
       }, 1000);
     } catch (err) {
@@ -57,24 +66,29 @@ export default function VerifyPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 dark:from-[#0b0f19] dark:to-[#0b0f19] px-4">
+      <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#111827] shadow-2xl p-8">
+
+        {/* Theme Toggle */}
+        <button
+          onClick={() => setDark(!dark)}
+          className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-600 text-indigo-700 dark:text-white transition"
+          aria-label="Toggle theme"
+        >
+          {dark ? "☀️" : "🌙"}
+        </button>
+
         {/* Logo */}
-        <div className="mb-4">
-          <img
-            src="/elora-logo.svg"
-            alt="Elora Logo"
-            className="mx-auto h-12"
-          />
+        <div className="flex justify-center mb-4">
+          <img src="/elora-logo.svg" alt="Elora Logo" className="h-12" />
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-gray-900">
+        <h1 className="text-2xl font-semibold text-center">
           Verify your email
         </h1>
-        <p className="text-gray-500 mt-2 text-sm">
-          Elora is your AI teaching assistant.  
-          Let’s get you set up.
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
+          Elora is your AI teaching assistant.
         </p>
 
         {/* Input */}
@@ -84,7 +98,7 @@ export default function VerifyPage() {
             placeholder="teacher@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0b0f19] focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 
@@ -92,7 +106,7 @@ export default function VerifyPage() {
         <button
           onClick={sendVerification}
           disabled={loading || cooldown > 0}
-          className={`mt-4 w-full py-3 rounded-lg text-white font-medium transition ${
+          className={`mt-4 w-full py-3 rounded-lg font-medium text-white transition ${
             loading || cooldown > 0
               ? "bg-indigo-300 cursor-not-allowed"
               : "bg-indigo-600 hover:bg-indigo-700"
@@ -110,8 +124,8 @@ export default function VerifyPage() {
           <div
             className={`mt-4 text-sm px-4 py-3 rounded-lg ${
               type === "success"
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
+                ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
             }`}
           >
             {status}
@@ -119,7 +133,7 @@ export default function VerifyPage() {
         )}
 
         {/* Footer */}
-        <p className="mt-6 text-xs text-gray-400">
+        <p className="mt-6 text-center text-xs text-gray-400">
           © 2026 Elora · Built for educators
         </p>
       </div>

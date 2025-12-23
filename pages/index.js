@@ -7,6 +7,7 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [dark, setDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   /* ---------- Theme Toggle ---------- */
   useEffect(() => {
@@ -16,6 +17,11 @@ export default function VerifyPage() {
       document.documentElement.classList.remove("dark");
     }
   }, [dark]);
+
+  /* ---------- Page Entrance Animation ---------- */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sendVerification = async () => {
     if (!email) {
@@ -67,14 +73,18 @@ export default function VerifyPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 dark:from-[#0b0f19] dark:to-[#0b0f19] px-4">
-      <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#111827] shadow-2xl p-8">
-
-        {/* Theme Toggle with Label */}
+      <div
+        className={`relative w-full max-w-md rounded-2xl bg-white dark:bg-[#111827] shadow-2xl p-8
+        transform transition-all duration-700 ease-out
+        ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+      >
+        {/* Theme Toggle */}
         <button
           onClick={() => setDark(!dark)}
           title="Toggle light / dark mode"
-          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full bg-indigo-100 dark:bg-indigo-600 text-indigo-700 dark:text-white hover:scale-105 transition text-sm font-medium"
-          aria-label="Toggle light and dark mode"
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full
+          bg-indigo-100 dark:bg-indigo-600 text-indigo-700 dark:text-white
+          hover:scale-105 active:scale-95 transition text-sm font-medium"
         >
           <span>{dark ? "☀️" : "🌙"}</span>
           <span className="hidden sm:inline">
@@ -83,16 +93,12 @@ export default function VerifyPage() {
         </button>
 
         {/* Logo */}
-        <div className="flex justify-center mb-4">
-          <img
-            src="/elora-logo.svg"
-            alt="Elora Logo"
-            className="h-12"
-          />
+        <div className="flex justify-center mb-4 transition-transform duration-300 hover:scale-105">
+          <img src="/elora-logo.svg" alt="Elora Logo" className="h-12" />
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-center">
           Verify your email
         </h1>
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
@@ -106,7 +112,10 @@ export default function VerifyPage() {
             placeholder="teacher@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0b0f19] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700
+            bg-white dark:bg-[#0b0f19]
+            focus:outline-none focus:ring-2 focus:ring-indigo-500
+            transition"
           />
         </div>
 
@@ -114,10 +123,12 @@ export default function VerifyPage() {
         <button
           onClick={sendVerification}
           disabled={loading || cooldown > 0}
-          className={`mt-4 w-full py-3 rounded-lg font-medium text-white transition ${
+          className={`mt-4 w-full py-3 rounded-lg font-medium text-white
+          transition-all duration-200
+          ${
             loading || cooldown > 0
               ? "bg-indigo-300 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700"
+              : "bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0"
           }`}
         >
           {loading
@@ -127,10 +138,12 @@ export default function VerifyPage() {
             : "Send verification email"}
         </button>
 
-        {/* Status */}
+        {/* Status Message */}
         {status && (
           <div
-            className={`mt-4 text-sm px-4 py-3 rounded-lg ${
+            className={`mt-4 text-sm px-4 py-3 rounded-lg
+            transform transition-all duration-300
+            ${
               type === "success"
                 ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                 : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"

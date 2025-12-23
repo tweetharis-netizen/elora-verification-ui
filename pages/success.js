@@ -15,11 +15,7 @@ export default function SuccessPage() {
         ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
       >
         <div className="flex justify-center mb-4">
-          <img
-            src="/elora-logo.png"
-            alt="Elora"
-            className="h-14"
-          />
+          <img src="/elora-logo.png" alt="Elora" className="h-14" />
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -27,12 +23,11 @@ export default function SuccessPage() {
         </h1>
 
         <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          You’re all set. Your email has been successfully verified.
+          Your email has been successfully verified.
         </p>
 
         <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-          You can now continue to Elora and begin your journey as an educator
-          empowered by AI.
+          You can now continue to Elora.
         </p>
 
         <button

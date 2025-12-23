@@ -47,7 +47,6 @@ export default function VerifyPage() {
         throw new Error(data.error || "Failed to send verification email.");
       }
 
-      // ✅ ONLY show message — no redirect
       setType("success");
       setStatus("Verification email sent. Please check your inbox.");
     } catch (err) {
@@ -65,6 +64,7 @@ export default function VerifyPage() {
         transition-all duration-700 ease-out
         ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
       >
+        {/* Theme Toggle */}
         <button
           onClick={() => setDark(!dark)}
           className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full
@@ -74,18 +74,22 @@ export default function VerifyPage() {
           {dark ? "☀️ Light" : "🌙 Dark"}
         </button>
 
+        {/* Logo */}
         <div className="flex justify-center mb-4">
           <img src="/elora-logo.png" alt="Elora" className="h-14" />
         </div>
 
+        {/* Title */}
         <h1 className="text-2xl font-semibold tracking-tight text-center">
           Verify your email
         </h1>
 
+        {/* ✅ UPDATED SLOGAN */}
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Elora is your AI teaching assistant.
+          Built to empower educators.
         </p>
 
+        {/* Input */}
         <div className="mt-6">
           <input
             type="email"
@@ -97,6 +101,7 @@ export default function VerifyPage() {
           />
         </div>
 
+        {/* Button */}
         <button
           onClick={sendVerification}
           disabled={loading}
@@ -106,6 +111,7 @@ export default function VerifyPage() {
           {loading ? "Sending..." : "Send verification email"}
         </button>
 
+        {/* Status */}
         {status && (
           <div
             className={`mt-4 text-sm px-4 py-3 rounded-lg ${
@@ -118,8 +124,9 @@ export default function VerifyPage() {
           </div>
         )}
 
+        {/* Footer */}
         <p className="mt-6 text-center text-xs text-gray-400">
-          © 2026 Elora · Built for educators
+          © 2026 Elora · Built to empower educators
         </p>
       </div>
     </main>

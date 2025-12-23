@@ -5,7 +5,6 @@ export default function VerifyPage() {
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -48,13 +47,9 @@ export default function VerifyPage() {
         throw new Error(data.error || "Failed to send verification email.");
       }
 
+      // ✅ ONLY show message — no redirect
       setType("success");
-      setStatus("Verification email sent. Check your inbox.");
-
-      // Redirect to success screen after short pause
-      setTimeout(() => {
-        window.location.href = "/success";
-      }, 1200);
+      setStatus("Verification email sent. Please check your inbox.");
     } catch (err) {
       setType("error");
       setStatus(err.message);
@@ -70,7 +65,6 @@ export default function VerifyPage() {
         transition-all duration-700 ease-out
         ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
       >
-        {/* Theme Toggle */}
         <button
           onClick={() => setDark(!dark)}
           className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full
@@ -80,18 +74,14 @@ export default function VerifyPage() {
           {dark ? "☀️ Light" : "🌙 Dark"}
         </button>
 
-        {/* Logo */}
         <div className="flex justify-center mb-4">
-          <img
-            src="/elora-logo.png"
-            alt="Elora"
-            className="h-14"
-          />
+          <img src="/elora-logo.png" alt="Elora" className="h-14" />
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight text-center">
           Verify your email
         </h1>
+
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
           Elora is your AI teaching assistant.
         </p>
@@ -109,7 +99,7 @@ export default function VerifyPage() {
 
         <button
           onClick={sendVerification}
-          disabled={loading || cooldown > 0}
+          disabled={loading}
           className="mt-4 w-full py-3 rounded-lg font-medium text-white
           bg-indigo-600 hover:bg-indigo-700 transition"
         >

@@ -69,18 +69,26 @@ export default function VerifyPage() {
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 dark:from-[#0b0f19] dark:to-[#0b0f19] px-4">
       <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#111827] shadow-2xl p-8">
 
-        {/* Theme Toggle */}
+        {/* Theme Toggle with Label */}
         <button
           onClick={() => setDark(!dark)}
-          className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-600 text-indigo-700 dark:text-white transition"
-          aria-label="Toggle theme"
+          title="Toggle light / dark mode"
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full bg-indigo-100 dark:bg-indigo-600 text-indigo-700 dark:text-white hover:scale-105 transition text-sm font-medium"
+          aria-label="Toggle light and dark mode"
         >
-          {dark ? "☀️" : "🌙"}
+          <span>{dark ? "☀️" : "🌙"}</span>
+          <span className="hidden sm:inline">
+            {dark ? "Light" : "Dark"}
+          </span>
         </button>
 
         {/* Logo */}
         <div className="flex justify-center mb-4">
-          <img src="/elora-logo.svg" alt="Elora Logo" className="h-12" />
+          <img
+            src="/elora-logo.svg"
+            alt="Elora Logo"
+            className="h-12"
+          />
         </div>
 
         {/* Title */}

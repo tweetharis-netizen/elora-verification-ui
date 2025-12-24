@@ -1,8 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../lib/firebase";
 
 export default function Assistant() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  // 🔐 VERIFICATION GUARD
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace("/");
+        return;
+      }
+
+      if (!user.emailVerified) {
+        router.replace("/verify");
+        return;
+      }
+
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // ⏳ Prevent flash before redirect
+  if (loading) {
+    return <p style={{ textAlign: "center", marginTop: 50 }}>Checking verification…</p>;
+  }
+
+  // ============================
+  // Elora Guided Prompt Engine
+  // ============================
 
   const [step, setStep] = useState(0);
   const [subject, setSubject] = useState("");
@@ -13,20 +44,20 @@ export default function Assistant() {
 
   function handleGenerate() {
     const prompt = `
-You are an expert teacher assistant.
+You are an expert education assistant.
 
-Create a ${subject} lesson for:
-- Education level: ${level}
-- Country syllabus: ${country}
-- Teaching goal: ${goal}
+Create a ${goal} for:
+• Subject: ${subject}
+• Education Level: ${level}
+• Country syllabus: ${country}
 
-Structure the response as:
-1. Learning Objectives
-2. Warm-up Activity
-3. Main Explanation
-4. Guided Practice
-5. Independent Practice
-6. Assessment / Exit Ticket
+Structure:
+1. Learning objectives
+2. Warm-up
+3. Explanation
+4. Guided practice
+5. Independent practice
+6. Assessment
 `;
 
     setResult(prompt.trim());
@@ -49,7 +80,7 @@ Structure the response as:
 
         {step === 1 && (
           <>
-            <p>Education level (e.g. Primary 4, Grade 6, Secondary 2)</p>
+            <p>Education level (e.g. Primary 6, Grade 8)</p>
             <input value={level} onChange={e => setLevel(e.target.value)} />
             <button onClick={() => setStep(2)}>Next</button>
           </>
@@ -57,7 +88,7 @@ Structure the response as:
 
         {step === 2 && (
           <>
-            <p>Country syllabus (e.g. Singapore, UK, US)</p>
+            <p>Country syllabus</p>
             <input value={country} onChange={e => setCountry(e.target.value)} />
             <button onClick={() => setStep(3)}>Next</button>
           </>
@@ -68,10 +99,10 @@ Structure the response as:
             <p>What do you want to create?</p>
             <select value={goal} onChange={e => setGoal(e.target.value)}>
               <option value="">Select one</option>
-              <option value="Lesson plan">Lesson Plan</option>
+              <option value="Lesson Plan">Lesson Plan</option>
               <option value="Worksheet">Worksheet</option>
               <option value="Assessment">Assessment</option>
-              <option value="Explanation">Concept Explanation</option>
+              <option value="Concept Explanation">Explanation</option>
             </select>
             <button onClick={() => setStep(4)}>Next</button>
           </>
@@ -79,7 +110,7 @@ Structure the response as:
 
         {step === 4 && (
           <>
-            <p>Ready to generate your teaching guide?</p>
+            <p>Generate your teaching guide</p>
             <button onClick={handleGenerate}>Generate</button>
           </>
         )}
@@ -106,7 +137,7 @@ const styles = {
   },
   card: {
     width: "100%",
-    maxWidth: 500,
+    maxWidth: 520,
     background: "#fff",
     padding: 24,
     borderRadius: 12,
@@ -115,7 +146,7 @@ const styles = {
   output: {
     background: "#f0f0f0",
     padding: 12,
-    whiteSpace: "pre-wrap",
-    borderRadius: 8
+    borderRadius: 8,
+    whiteSpace: "pre-wrap"
   }
 };

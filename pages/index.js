@@ -1,162 +1,150 @@
 import { useState } from "react";
 
 export default function Home() {
-  const [country, setCountry] = useState("");
-  const [level, setLevel] = useState("");
-  const [subject, setSubject] = useState("");
-  const [intent, setIntent] = useState("");
-  const [customNote, setCustomNote] = useState("");
-  const [response, setResponse] = useState("");
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState({
+    role: "Teacher",
+    country: "",
+    level: "",
+    subject: "",
+    goal: "",
+  });
+
+  const [messages, setMessages] = useState([
+    {
+      from: "ai",
+      text: "Hi! I’m Elora 👋 Let’s build the perfect lesson together.",
+    },
+  ]);
+
   const [loading, setLoading] = useState(false);
+
+  function updateForm(key, value) {
+    setForm({ ...form, [key]: value });
+  }
 
   async function handleSend() {
     setLoading(true);
-    setResponse("");
 
     const structuredPrompt = `
-You are Elora, an elite AI teaching assistant.
+You are Elora, an elite AI education assistant.
 
-Country: ${country}
-Education Level: ${level}
-Subject: ${subject}
-Task: ${intent}
+User Profile:
+- Role: ${form.role}
+- Country: ${form.country}
+- Education Level: ${form.level}
+- Subject: ${form.subject}
 
-Additional notes from teacher:
-${customNote || "None"}
+Task:
+${form.goal}
 
-Generate a professional, classroom-ready response.
+Requirements:
+- Follow ${form.country} curriculum norms if applicable
+- Use correct terminology for the education level
+- Be clear, structured, and classroom-ready
+- Include examples and assessments where relevant
 `;
 
     try {
-      const res = await fetch("/api/assistant", {
+      const res = await fetch("/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: structuredPrompt }),
       });
 
       const data = await res.json();
-      setResponse(data.reply || "No response received.");
+
+      setMessages((prev) => [
+        ...prev,
+        { from: "user", text: form.goal },
+        { from: "ai", text: data.reply || "I’m here to help — try refining the goal." },
+      ]);
     } catch (err) {
-      setResponse("Sorry, something went wrong. Please try again.");
+      setMessages((prev) => [
+        ...prev,
+        { from: "ai", text: "Sorry, something went wrong. Please try again." },
+      ]);
     }
 
     setLoading(false);
   }
 
   return (
-    <div style={styles.page}>
+    <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Elora AI Assistant</h1>
-        <p style={styles.subtitle}>Personalised Teaching Support</p>
+        <h2>Elora AI Assistant</h2>
+        <p style={{ opacity: 0.7 }}>Role: {form.role}</p>
 
-        {/* Country */}
-        <select style={styles.select} onChange={(e) => setCountry(e.target.value)}>
-          <option value="">Select Country</option>
-          <option>Singapore</option>
-          <option>United States</option>
-          <option>United Kingdom</option>
-          <option>Australia</option>
-          <option>Other / Custom</option>
-        </select>
-
-        {/* Level */}
-        <select style={styles.select} onChange={(e) => setLevel(e.target.value)}>
-          <option value="">Select Education Level</option>
-          <option>Primary / Elementary</option>
-          <option>Secondary / Middle School</option>
-          <option>High School</option>
-          <option>Junior College / Pre-University</option>
-          <option>University</option>
-          <option>Adult / Professional</option>
-        </select>
-
-        {/* Subject */}
-        <select style={styles.select} onChange={(e) => setSubject(e.target.value)}>
-          <option value="">Select Subject</option>
-          <option>Mathematics</option>
-          <option>Science</option>
-          <option>English / Language</option>
-          <option>Humanities</option>
-          <option>Computer Science</option>
-          <option>Other</option>
-        </select>
-
-        {/* Intent */}
-        <select style={styles.select} onChange={(e) => setIntent(e.target.value)}>
-          <option value="">What do you want to do?</option>
-          <option>Plan a lesson</option>
-          <option>Create assessment questions</option>
-          <option>Explain a concept</option>
-          <option>Design activities</option>
-          <option>Remedial support</option>
-          <option>High-ability / enrichment</option>
-        </select>
-
-        {/* Custom */}
-        <textarea
-          style={styles.textarea}
-          placeholder="Anything Elora should know? (optional)"
-          onChange={(e) => setCustomNote(e.target.value)}
-        />
-
-        <button style={styles.button} onClick={handleSend} disabled={loading}>
-          {loading ? "Thinking..." : "Generate"}
-        </button>
-
-        {response && (
-          <div style={styles.response}>
-            <strong>Elora:</strong>
-            <p>{response}</p>
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              ...styles.message,
+              background: m.from === "ai" ? "#f3f4f6" : "#4f46e5",
+              color: m.from === "ai" ? "#000" : "#fff",
+              alignSelf: m.from === "ai" ? "flex-start" : "flex-end",
+            }}
+          >
+            {m.text}
           </div>
-        )}
+        ))}
+
+        <div style={styles.form}>
+          <input
+            placeholder="Country (e.g. Singapore)"
+            onChange={(e) => updateForm("country", e.target.value)}
+          />
+          <input
+            placeholder="Education level (e.g. Primary 6)"
+            onChange={(e) => updateForm("level", e.target.value)}
+          />
+          <input
+            placeholder="Subject (e.g. Math)"
+            onChange={(e) => updateForm("subject", e.target.value)}
+          />
+          <textarea
+            placeholder="What do you want to create or teach?"
+            rows={3}
+            onChange={(e) => updateForm("goal", e.target.value)}
+          />
+
+          <button onClick={handleSend} disabled={loading}>
+            {loading ? "Thinking..." : "Generate"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 const styles = {
-  page: {
+  container: {
     minHeight: "100vh",
+    background: "#f9fafb",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#f5f7fb",
   },
   card: {
     width: "420px",
-    padding: "24px",
     background: "#fff",
+    padding: "24px",
     borderRadius: "12px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    display: "flex",
+    flexDirection: "column",
   },
-  title: { marginBottom: "4px" },
-  subtitle: { marginBottom: "16px", color: "#555" },
-  select: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "10px",
-    borderRadius: "6px",
-  },
-  textarea: {
-    width: "100%",
-    padding: "10px",
-    height: "80px",
-    borderRadius: "6px",
-    marginBottom: "12px",
-  },
-  button: {
-    width: "100%",
+  message: {
     padding: "12px",
-    background: "#5b5cf6",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
+    borderRadius: "10px",
+    marginBottom: "8px",
+    fontSize: "14px",
+    maxWidth: "90%",
   },
-  response: {
-    marginTop: "16px",
-    background: "#f0f2ff",
-    padding: "12px",
-    borderRadius: "8px",
+  form: {
+    marginTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
   },
 };

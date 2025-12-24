@@ -1,14 +1,32 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [role, setRole] = useState(null);
+
+  const handleContinue = () => {
+    if (!role) return;
+
+    // Save a lightweight profile locally for now (MVP)
+    const profile = {
+      role,
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem("eloraUserProfile", JSON.stringify(profile));
+
+    // Route based on role
+    if (role === "teacher" || role === "tutor") {
+      router.push("/dashboard/educator");
+    } else {
+      router.push("/dashboard/learner");
+    }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 dark:from-[#0b0f19] dark:to-[#0b0f19] px-4">
       <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-        <h1 className="text-2xl font-semibold">
-          Welcome to Elora
-        </h1>
+        <h1 className="text-2xl font-semibold">Welcome to Elora</h1>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           Built to empower educators
         </p>
@@ -45,7 +63,7 @@ export default function OnboardingPage() {
 
         <button
           disabled={!role}
-          onClick={() => alert(`Selected role: ${role}`)}
+          onClick={handleContinue}
           className={`mt-8 w-full py-3 rounded-lg font-medium transition ${
             role
               ? "bg-indigo-600 text-white hover:bg-indigo-700"
@@ -62,6 +80,7 @@ export default function OnboardingPage() {
 function RoleButton({ label, description, selected, onClick }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`w-full text-left p-4 rounded-xl border transition ${
         selected

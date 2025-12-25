@@ -1,35 +1,44 @@
 import { useEffect, useState } from "react";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/router";
+import "../lib/firebase"; 
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function Home() {
   const router = useRouter();
-  const auth = getAuth();
-
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.replace("/verify");
-        return;
-      }
+    try {
+      const auth = getAuth();
 
-      if (!user.emailVerified) {
-        router.replace("/verify");
-        return;
-      }
+      const unsub = onAuthStateChanged(auth, (user) => {
+        // No account → go verify
+        if (!user) {
+          router.replace("/verify");
+          return;
+        }
 
-      setChecking(false);
-    });
+        // Not verified → go verify
+        if (!user.emailVerified) {
+          router.replace("/verify");
+          return;
+        }
 
-    return () => unsub();
+        // Verified → allow home usage
+        setChecking(false);
+      });
+
+      return () => unsub();
+    } catch (error) {
+      console.error("Auth error:", error);
+      router.replace("/verify");
+    }
   }, [router]);
 
   if (checking) {
     return (
       <div style={styles.page}>
-        <p style={{ color: "#555" }}>Checking your account…</p>
+        <p style={{ color: "#666" }}>Checking your account…</p>
       </div>
     );
   }
@@ -43,41 +52,22 @@ export default function Home() {
         </p>
 
         <div style={styles.roles}>
-          <button
-            style={styles.roleButton}
-            onClick={() => router.push("/onboarding?role=educator")}
-          >
+          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=educator")}>
             🎓 I am an Educator
           </button>
 
-          <button
-            style={styles.roleButton}
-            onClick={() => router.push("/onboarding?role=student")}
-          >
+          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=student")}>
             📘 I am a Student
           </button>
 
-          <button
-            style={styles.roleButton}
-            onClick={() => router.push("/onboarding?role=parent")}
-          >
+          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=parent")}>
             👨‍👩‍👧 I am a Parent
           </button>
         </div>
 
         <div style={styles.footer}>
-          <button
-            style={styles.link}
-            onClick={() => alert("FAQ page coming soon")}
-          >
-            FAQ
-          </button>
-          <button
-            style={styles.link}
-            onClick={() => alert("Feedback system coming soon")}
-          >
-            Feedback
-          </button>
+          <button style={styles.link}>FAQ</button>
+          <button style={styles.link}>Feedback</button>
         </div>
       </div>
     </div>
@@ -101,22 +91,9 @@ const styles = {
     boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
     textAlign: "center",
   },
-  title: {
-    fontSize: 34,
-    fontWeight: 800,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 24,
-  },
-  roles: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    marginBottom: 26,
-  },
+  title: { fontSize: 34, fontWeight: 800, marginBottom: 8 },
+  subtitle: { fontSize: 16, color: "#555", marginBottom: 24 },
+  roles: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 26 },
   roleButton: {
     padding: "14px 16px",
     fontSize: 16,
@@ -126,16 +103,6 @@ const styles = {
     background: "#5b5bf7",
     color: "#fff",
   },
-  footer: {
-    display: "flex",
-    justifyContent: "center",
-    gap: 16,
-  },
-  link: {
-    background: "none",
-    border: "none",
-    color: "#5b5bf7",
-    cursor: "pointer",
-    fontSize: 14,
-  },
+  footer: { display: "flex", justifyContent: "center", gap: 16 },
+  link: { background: "none", border: "none", color: "#5b5bf7", cursor: "pointer", fontSize: 14 },
 };

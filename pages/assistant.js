@@ -1,150 +1,163 @@
-import { NextResponse } from "next/server";
+import { useState } from "react";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
-    const { role, country, level, subject, topic, mode, message } = req.body;
-
-    // BASIC FAIL-SAFE
-    const fallbackMessage =
-      "Hi! I'm Elora 😊 I can help you plan lessons, create worksheets, build assessments, explain topics, and soon — generate Google Slides & Docs.";
-
-    // If no message & no mode context
-    if (!message && !mode) {
-      return res.status(200).json({
-        reply: fallbackMessage
-      });
+export default function Assistant() {
+  const [messages, setMessages] = useState([
+    {
+      sender: "elora",
+      text: "Hi! I'm Elora 💙 I build lessons, worksheets, assessments and explain topics. Tell me what you need — or use the planner below 👇"
     }
+  ]);
 
-    // Build structured system intelligence
-    const systemContext = `
-You are Elora — an AI Assistant designed for Education.
-You ALWAYS:
-• adapt to country curriculum
-• respect education level
-• choose classroom-friendly language
-• stay structured, useful and practical
-• think like a REAL teacher or student helper
+  const [role, setRole] = useState("Educator");
+  const [country, setCountry] = useState("Singapore");
+  const [level, setLevel] = useState("");
+  const [subject, setSubject] = useState("");
+  const [topic, setTopic] = useState("");
+  const [mode, setMode] = useState("");
 
-Current profile context:
-Role: ${role || "Not specified"}
-Country: ${country || "Unknown"}
-Level: ${level || "Unknown"}
-Subject: ${subject || "Unknown"}
-Topic: ${topic || "Unknown"}
+  const [input, setInput] = useState("");
 
-If something important is missing,
-ASK ONE CLEAR QUESTION instead of guessing.
-`;
-
-    // Build intelligent task instructions
-    let taskInstruction = "";
-
-    switch (mode) {
-      case "lesson":
-        taskInstruction = `
-Create a COMPLETE lesson plan.
-Include:
-• learning objective
-• introduction / hook
-• teaching explanation
-• guided practice
-• independent practice
-• differentiation ideas
-• assessment
-• exit ticket
-• duration estimate
-`;
-        break;
-
-      case "worksheet":
-        taskInstruction = `
-Create a printable worksheet.
-Include:
-• progressively challenging questions
-• answers separate at bottom
-• student friendly format
-`;
-        break;
-
-      case "assessment":
-        taskInstruction = `
-Create an assessment test.
-Include:
-• mix of easy / medium / hard
-• marking scheme
-• common mistakes
-• grading guidance
-`;
-        break;
-
-      case "slides":
-        taskInstruction = `
-Create lesson content in SLIDE format.
-Use:
-Slide 1 — Title
-Slide 2 — Objective
-Slide 3+ — Teaching points
-Last — Summary
-`;
-        break;
-
-      case "explain":
-        taskInstruction = `
-Explain the topic in a simple way.
-Then:
-• give examples
-• give practice questions
-• give answers
-`;
-        break;
-
-      case "custom":
-      default:
-        taskInstruction = "Help the user as best as possible.";
-    }
-
-    const finalPrompt = `
-${systemContext}
-
-USER REQUEST:
-${message || "User clicked generate button based on selected options."}
-
-TASK MODE:
-${mode}
-
-DO THIS NOW:
-${taskInstruction}
-`;
-
-    // 🚨 IMPORTANT
-    // If you're using OpenAI / Anthropic / anything — call it here.
-    // For now we will simulate response so UI works fully.
-
-    return res.status(200).json({
-      reply: `✨ Elora is working with the following understanding:
-
-Role: ${role || "Unknown"}
-Country: ${country || "Unknown"}
-Level: ${level || "Unknown"}
-Subject: ${subject || "Unknown"}
-Topic: ${topic || "Unknown"}
-Mode: ${mode || "Not chosen"}
-
-Here is what I would do next:
-
-${taskInstruction}
-
-Soon this will call a REAL AI engine — but the structure is ready.`
+  const sendToAPI = async (messageText, modeOverride) => {
+    const response = await fetch("/api/assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        role,
+        country,
+        level,
+        subject,
+        topic,
+        mode: modeOverride || mode,
+        message: messageText
+      })
     });
 
-  } catch (err) {
-    return res.status(500).json({
-      error: "Server error",
-      details: err.message
-    });
-  }
+    const data = await response.json();
+
+    setMessages(prev => [
+      ...prev,
+      { sender: "elora", text: data.reply || "Something went wrong." }
+    ]);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = input.trim();
+
+    setMessages(prev => [...prev, { sender: "user", text: userMessage }]);
+
+    await sendToAPI(userMessage);
+
+    setInput("");
+  };
+
+  const handleStructuredGenerate = async (chosenMode) => {
+    setMode(chosenMode);
+
+    setMessages(prev => [
+      ...prev,
+      {
+        sender: "user",
+        text: `Generate: ${chosenMode} for ${country}, ${level}, ${subject}, topic: ${topic}`
+      }
+    ]);
+
+    await sendToAPI("", chosenMode);
+  };
+
+  return (
+    <div style={{ padding: "40px", display: "flex", gap: "30px" }}>
+      {/* LEFT = CHAT */}
+      <div style={{
+        width: "55%",
+        background: "white",
+        borderRadius: "10px",
+        padding: "20px"
+      }}>
+        <h2>Elora Assistant 💙</h2>
+        <div style={{ height: "500px", overflowY: "auto", border: "1px solid #ddd", padding: "10px" }}>
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              style={{
+                textAlign: m.sender === "user" ? "right" : "left",
+                marginBottom: "12px"
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-block",
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  background: m.sender === "user" ? "#6C63FF" : "#F2F2FF",
+                  color: m.sender === "user" ? "white" : "black",
+                  maxWidth: "70%"
+                }}
+              >
+                {m.text}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: "10px", display: "flex", gap: "8px" }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask Elora anything..."
+            style={{ flex: 1, padding: "10px" }}
+          />
+          <button onClick={handleSend}>Send</button>
+        </div>
+      </div>
+
+      {/* RIGHT = CONTROL PANEL */}
+      <div style={{
+        width: "45%",
+        background: "white",
+        borderRadius: "10px",
+        padding: "20px"
+      }}>
+        <h2>Teaching Planner</h2>
+
+        <label>Role</label>
+        <select value={role} onChange={e => setRole(e.target.value)}>
+          <option>Educator</option>
+          <option>Student</option>
+          <option>Parent</option>
+        </select>
+
+        <label>Country</label>
+        <select value={country} onChange={e => setCountry(e.target.value)}>
+          <option>Singapore</option>
+          <option>USA</option>
+          <option>UK</option>
+          <option>Australia</option>
+          <option>India</option>
+          <option>Malaysia</option>
+        </select>
+
+        <label>Education Level</label>
+        <input value={level} onChange={e => setLevel(e.target.value)} placeholder="e.g. Primary 5" />
+
+        <label>Subject</label>
+        <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Math" />
+
+        <label>Topic</label>
+        <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Fractions" />
+
+        <h3>What do you want to create?</h3>
+
+        <div style={{ display: "grid", gap: "10px" }}>
+          <button onClick={() => handleStructuredGenerate("lesson")}>Plan a Lesson</button>
+          <button onClick={() => handleStructuredGenerate("worksheet")}>Create Worksheet</button>
+          <button onClick={() => handleStructuredGenerate("assessment")}>Generate Assessment</button>
+          <button onClick={() => handleStructuredGenerate("slides")}>Design Slides</button>
+          <button onClick={() => handleStructuredGenerate("explain")}>Explain Topic</button>
+          <button onClick={() => handleStructuredGenerate("custom")}>Custom Task</button>
+        </div>
+      </div>
+    </div>
+  );
 }

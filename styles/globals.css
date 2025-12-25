@@ -1,196 +1,101 @@
-/* ================================
-   Tailwind Base
-================================ */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* ================================
-   Global Theme Variables
-================================ */
-:root {
-  --bg: #ffffff;
-  --text: #111827;
-  --card: #ffffff;
-  --soft: #f4f5ff;
-  --border: #e5e7eb;
-  --primary: #6a5cff;
-  --primary-hover: #594bff;
-  --chat-user: #6a5cff;
-  --chat-elora: #f4f5ff;
-  --shadow: rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="dark"] {
-  --bg: #0b0f16;
-  --text: #f5f5f5;
-  --card: #111827;
-  --soft: #1b2433;
-  --border: #1f2937;
-  --primary: #8b7bff;
-  --primary-hover: #9d8dff;
-  --chat-user: #8b7bff;
-  --chat-elora: #1b2433;
-  --shadow: rgba(0, 0, 0, 0.4);
-}
-
-/* ================================
-   Body + Page
-================================ */
-html, body {
-  padding: 0;
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  transition: background 0.4s ease, color 0.4s ease;
-}
-
+/* GLOBAL RESET */
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-/* ================================
-   Containers
-================================ */
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 25px;
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* ================================
-   Cards
-================================ */
-.card {
-  background: var(--card);
-  border-radius: 18px;
+/* LIGHT MODE (DEFAULT) */
+:root {
+  --bg: #f5f7ff;
+  --panel: #ffffff;
+  --text: #0b1221;
+  --muted: #6b7280;
+  --primary: #5b5fff;
+  --primary-hover: #464bff;
+  --border: #dcddea;
+  --input-bg: #ffffff;
+  --input-text: #0b1221;
+}
+
+/* DARK MODE */
+.dark {
+  --bg: #0b1221;
+  --panel: #121a2f;
+  --text: #eef2ff;
+  --muted: #a1accf;
+  --primary: #7a82ff;
+  --primary-hover: #9aa2ff;
+  --border: #2b355a;
+  --input-bg: #0f1629;
+  --input-text: #ffffff;
+}
+
+/* PANELS & CARDS */
+.panel {
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 16px;
   border: 1px solid var(--border);
-  box-shadow: 0 10px 40px var(--shadow);
-  transition: background 0.4s ease, border 0.4s ease;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  transition: 0.3s ease;
 }
 
-/* ================================
-   Buttons
-================================ */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* CHAT AREA */
+.chat-box {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* CHAT BUBBLES */
+.user-message {
   background: var(--primary);
-  color: #fff;
-  border-radius: 999px;
-  padding: 12px 22px;
-  font-weight: 500;
-  border: none;
-  outline: none;
-  transition: background 0.3s ease, transform 0.1s ease;
+  color: white;
 }
 
-.btn:hover {
+.elora-message {
+  background: rgba(120, 131, 255, 0.1);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* INPUT BAR */
+.chat-input {
+  background: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--border);
+}
+
+.chat-input::placeholder {
+  color: var(--muted);
+}
+
+/* BUTTONS */
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+button:hover {
   background: var(--primary-hover);
 }
 
-.btn:active {
-  transform: scale(0.97);
-}
-
-.btn-outline {
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  background: transparent;
-}
-
-.btn-outline:hover {
-  background: var(--primary);
-  color: white;
-}
-
-/* ================================
-   Inputs
-================================ */
-input, textarea, select {
-  background: var(--card);
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  padding: 12px;
-  width: 100%;
-  color: var(--text);
-  transition: background 0.4s ease, border 0.3s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border: 1px solid var(--primary);
-}
-
-/* ================================
-   Chat UI
-================================ */
-.chat-box {
-  background: var(--card);
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  padding: 18px;
-}
-
-.chat-user {
-  background: var(--chat-user);
-  color: white;
-  padding: 12px 14px;
-  max-width: 75%;
-  border-radius: 16px;
-  border-bottom-right-radius: 4px;
-}
-
-.chat-elora {
-  background: var(--chat-elora);
-  padding: 12px 14px;
-  max-width: 75%;
-  border-radius: 16px;
-  border-bottom-left-radius: 4px;
-  border: 1px solid var(--border);
-}
-
-/* ================================
-   Scrollbars
-================================ */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 100px;
-}
-
-/* ================================
-   Links
-================================ */
-a {
-  color: var(--primary);
-}
-
-a:hover {
-  opacity: 0.9;
-}
-
-/* ================================
-   Header / Navbar
-================================ */
+/* NAVBAR */
 .navbar {
-  background: transparent;
-  color: var(--text);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
 }
 
-/* ================================
-   Smooth Fade
-================================ */
-.fade-in {
-  animation: fade 0.4s ease-in-out;
-}
-
-@keyframes fade {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* LOGO ALWAYS VISIBLE */
+.logo {
+  filter: drop-shadow(0 0 2px rgba(0,0,0,.3));
 }

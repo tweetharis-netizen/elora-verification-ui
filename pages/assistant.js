@@ -1,504 +1,413 @@
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
 
-const ROLES = {
-  educator: {
-    label: "Educator",
-    greeting:
-      "Hello teacher 🍎! I'm Elora. I can help you create lessons, worksheets, assessments and explain topics to your students.",
-  },
-  student: {
-    label: "Student",
-    greeting:
-      "Hi! I'm Elora. I can help you understand topics, practise questions and prepare for exams.",
-  },
-  parent: {
-    label: "Parent",
-    greeting:
-      "Hello! I'm Elora. I can help you understand what your child is learning and suggest ways to support them.",
-  },
-};
-
-const TASKS = [
-  { id: "lesson", label: "Plan a lesson" },
-  { id: "worksheet", label: "Create worksheet", hint: "Practice questions" },
-  { id: "assessment", label: "Generate assessment" },
-  { id: "slides", label: "Design lesson slides" },
-  { id: "explain", label: "Explain a topic" },
-  { id: "custom", label: "Custom request" },
-];
-
-const COUNTRIES = [
+const COUNTRY_OPTIONS = [
   "Singapore",
   "United States",
   "United Kingdom",
   "Australia",
   "Canada",
   "India",
-  "Malaysia",
-  "Indonesia",
-  "Philippines",
   "Other",
 ];
 
-const LEVELS_BY_ROLE = {
-  educator: [
-    "Primary 1",
-    "Primary 2",
-    "Primary 3",
-    "Primary 4",
-    "Primary 5",
-    "Primary 6",
-    "Secondary 1",
-    "Secondary 2",
-    "Secondary 3",
-    "Secondary 4",
-    "JC / Pre-University",
-  ],
-  student: [
-    "Primary (1–6)",
-    "Secondary (1–5)",
-    "JC / Pre-University",
-    "University / Tertiary",
-  ],
-  parent: [
-    "Primary school child",
-    "Secondary school child",
-    "Junior college / pre-U",
-  ],
-};
+const LEVEL_OPTIONS = [
+  "Primary (1–6)",
+  "Lower Secondary",
+  "Upper Secondary / O-Level",
+  "JC / Pre-University",
+  "Grade 1–5",
+  "Grade 6–8",
+  "Grade 9–12",
+  "University / Tertiary",
+];
 
-const SUBJECTS = [
+const SUBJECT_OPTIONS = [
   "Math",
   "Science",
   "English",
   "History",
   "Geography",
   "Computer Science",
+  "Language",
   "Other",
 ];
 
-function buildDisplayProfile({ role, country, level, subject }) {
-  const roleLabel = ROLES[role]?.label || "Educator";
-  const parts = [];
-  if (country) parts.push(country);
-  if (level) parts.push(level);
-  if (subject) parts.push(subject);
-  const profile = parts.join(" · ") || "Set profile";
-  return `${profile} • ${roleLabel}`;
-}
+const ACTIONS = [
+  { id: "lesson", label: "Plan a lesson" },
+  { id: "worksheet", label: "Create worksheet" },
+  { id: "assessment", label: "Generate assessment" },
+  { id: "slides", label: "Design lesson slides" },
+  { id: "explain", label: "Explain a topic" },
+  { id: "custom", label: "Custom request" },
+];
 
 export default function AssistantPage() {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
-
   const [role, setRole] = useState("educator");
   const [country, setCountry] = useState("Singapore");
-  const [level, setLevel] = useState("");
-  const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
-  const [task, setTask] = useState("lesson");
-  const [guestMode, setGuestMode] = useState(false);
+  const [level, setLevel] = useState("Primary (1–6)");
+  const [subject, setSubject] = useState("Math");
+  const [topic, setTopic] = useState("Introduction to fractions");
+  const [action, setAction] = useState("lesson");
 
+  const [messages, setMessages] = useState([
+    {
+      from: "elora",
+      text: "Hello! I’m Elora. I can help you create lessons, worksheets, assessments and explain topics for your students.",
+    },
+  ]);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [isSending, setIsSending] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [lastExportText, setLastExportText] = useState("");
 
-  // Load role & profile from URL / localStorage
+  // Read role from URL if available
   useEffect(() => {
     if (!router.isReady) return;
-
-    let initialRole = "educator";
-    let isGuest = false;
-
-    if (typeof router.query.role === "string") {
-      const r = router.query.role.toLowerCase();
-      if (ROLES[r]) {
-        initialRole = r;
-      }
+    const queryRole = router.query.role;
+    if (queryRole === "student" || queryRole === "parent" || queryRole === "educator") {
+      setRole(queryRole);
     }
-    if (router.query.guest === "1") {
-      isGuest = true;
-    }
+  }, [router.isReady, router.query.role]);
 
-    setRole(initialRole);
-    setGuestMode(isGuest);
+  const roleLabel = useMemo(() => {
+    if (role === "student") return "Student";
+    if (role === "parent") return "Parent";
+    return "Educator";
+  }, [role]);
 
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem("eloraProfile");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.role && ROLES[parsed.role]) {
-            initialRole = parsed.role;
-            setRole(parsed.role);
-          }
-          if (parsed.country) setCountry(parsed.country);
-          if (parsed.level) setLevel(parsed.level);
-          if (parsed.subject) setSubject(parsed.subject);
-        } catch {
-          // ignore bad JSON
-        }
-      }
-    }
+  const activeProfileLabel = `${country} · ${level} · ${subject}`;
 
-    const greeting =
-      ROLES[initialRole]?.greeting || ROLES.educator.greeting;
-
-    setMessages([
-      {
-        id: "welcome",
-        from: "elora",
-        text: greeting,
-      },
-    ]);
-
-    setReady(true);
-  }, [router.isReady]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Persist profile
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const data = { role, country, level, subject };
-    window.localStorage.setItem("eloraProfile", JSON.stringify(data));
-  }, [role, country, level, subject]);
-
-  const currentLevels = LEVELS_BY_ROLE[role] || LEVELS_BY_ROLE.educator;
-  const activeProfileLabel = buildDisplayProfile({
-    role,
-    country,
-    level,
-    subject,
-  });
-
-  const addMessage = (msg) => {
-    setMessages((prev) => [
-      ...prev,
-      { ...msg, id: `${Date.now()}-${prev.length}` },
-    ]);
+  const appendMessage = (from, text) => {
+    setMessages((prev) => [...prev, { from, text }]);
   };
 
-  const callAssistant = async (payload) => {
+  async function callAssistantAPI(payload) {
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        console.error("API error", await res.text());
-        return (
-          "Hmm, something went wrong talking to the AI. " +
-          "Please try again in a moment or change your request a little."
-        );
+        throw new Error(`API error: ${res.status}`);
       }
 
       const data = await res.json();
-      if (data && typeof data.message === "string") {
-        return data.message;
-      }
-
-      return (
-        "I couldn't understand the response from the AI, " +
-        "but here are some ideas: break the topic into 3–5 parts, " +
-        "add examples, and finish with a short exit ticket."
-      );
+      return data.reply || data.message || "Sorry, I couldn’t generate a response just now.";
     } catch (err) {
-      console.error("Request failed", err);
+      console.error("Assistant API error:", err);
       return (
-        "I wasn't able to reach the AI service. " +
-        "Check your internet connection or try again shortly."
+        "Sorry, something went wrong talking to the AI. " +
+        "You can ask your question again, or tweak the topic / action and try once more."
       );
     }
-  };
+  }
 
-  const handleSend = async (explicitMessage) => {
-    const trimmed = (explicitMessage ?? input).trim();
-    if (!trimmed) return;
-    if (!ready || isSending) return;
-
-    const userTurn = {
-      from: "user",
-      text: trimmed,
-    };
-    addMessage(userTurn);
-    setInput("");
-    setIsSending(true);
-
-    const replyText = await callAssistant({
+  function buildContext() {
+    return {
       role,
       country,
       level,
       subject,
       topic,
-      mode: task,
-      message: trimmed,
-      guest: guestMode,
-    });
+      profileSummary: `Role: ${roleLabel} · Country: ${country} · Level: ${level} · Subject: ${subject} · Topic: ${topic}`,
+    };
+  }
 
-    addMessage({
-      from: "elora",
-      text: replyText,
-    });
-
-    setIsSending(false);
-  };
-
-  const taskDescription = (taskId) => {
-    switch (taskId) {
-      case "lesson":
-        return "plan a full lesson";
-      case "worksheet":
-        return "create a student practice worksheet";
-      case "assessment":
-        return "design a short assessment";
-      case "slides":
-        return "outline a sequence of teaching slides";
-      case "explain":
-        return "explain this topic in a simple way";
-      default:
-        return "help with this request";
-    }
-  };
-
-  const handleGenerateFromOptions = async () => {
+  const handleGenerateStructured = async () => {
     if (!topic.trim()) {
-      alert("Please enter a topic first.");
       return;
     }
+    setIsThinking(true);
 
-    const syntheticPrompt = `Please ${taskDescription(
-      task
-    )} for ${level || "this level"} ${subject || ""} on the topic "${topic}".`;
+    const context = buildContext();
+    const userIntent = ACTIONS.find((a) => a.id === action)?.label || "Plan a lesson";
 
-    await handleSend(syntheticPrompt);
+    appendMessage(
+      "me",
+      `${userIntent} for "${topic}" (${activeProfileLabel})`
+    );
+
+    const reply = await callAssistantAPI({
+      ...context,
+      mode: "structured",
+      action,
+      message: "",
+    });
+
+    appendMessage("elora", reply);
+    setLastExportText(reply);
+    setIsThinking(false);
+  };
+
+  const handleSendFreeChat = async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    setInput("");
+    appendMessage("me", trimmed);
+    setIsThinking(true);
+
+    const context = buildContext();
+
+    const reply = await callAssistantAPI({
+      ...context,
+      mode: "chat",
+      action: action || "lesson",
+      message: trimmed,
+    });
+
+    appendMessage("elora", reply);
+    setLastExportText(reply);
+    setIsThinking(false);
+  };
+
+  const handleDownload = (kind) => {
+    if (!lastExportText) return;
+    let filename = "elora-output.txt";
+    if (kind === "lesson") filename = "elora-lesson-plan.txt";
+    if (kind === "worksheet") filename = "elora-worksheet.txt";
+    if (kind === "assessment") filename = "elora-assessment.txt";
+    if (kind === "slides") filename = "elora-slides-outline.txt";
+
+    const blob = new Blob([lastExportText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left: controls */}
-        <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-slate-100 bg-slate-50/80 p-5 space-y-5">
-          <div>
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">
-              Teaching profile
-            </p>
-            <p className="mt-1 text-sm text-slate-700 font-medium">
-              {activeProfileLabel}
-            </p>
-            {guestMode && (
-              <p className="mt-1 text-[11px] text-amber-600">
-                Guest mode: Elora will not save this profile.
-              </p>
-            )}
-          </div>
+    <div className="elora-assistant-shell">
+      {/* LEFT: Teaching profile */}
+      <aside className="elora-panel space-y-4">
+        <div className="text-[0.75rem] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+          Teaching profile
+        </div>
+        <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+          {activeProfileLabel}
+        </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Role
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
+        {/* Role */}
+        <div>
+          <label className="elora-label">Role</label>
+          <select
+            className="elora-select"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="educator">Educator</option>
+            <option value="student">Student</option>
+            <option value="parent">Parent</option>
+          </select>
+        </div>
+
+        {/* Country */}
+        <div>
+          <label className="elora-label">Country / region</label>
+          <select
+            className="elora-select"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            {COUNTRY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Level */}
+        <div>
+          <label className="elora-label">Level</label>
+          <select
+            className="elora-select"
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+          >
+            {LEVEL_OPTIONS.map((lvl) => (
+              <option key={lvl} value={lvl}>
+                {lvl}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Subject */}
+        <div>
+          <label className="elora-label">Subject</label>
+          <select
+            className="elora-select"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          >
+            {SUBJECT_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Topic */}
+        <div>
+          <label className="elora-label">Topic</label>
+          <input
+            className="elora-input"
+            placeholder="e.g. Introduction to fractions"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+          />
+        </div>
+
+        {/* What to create */}
+        <div>
+          <label className="elora-label">What do you want Elora to create?</label>
+          <div className="elora-action-grid">
+            {ACTIONS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className={`elora-action-btn ${
+                  action === a.id ? "active" : ""
+                }`}
+                onClick={() => setAction(a.id)}
               >
-                {Object.entries(ROLES).map(([id, r]) => (
-                  <option key={id} value={id}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Country / region
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Level
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-              >
-                <option value="">Select level…</option>
-                {currentLevels.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Subject
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              >
-                <option value="">Select subject…</option>
-                {SUBJECTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                What do you want to do?
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {TASKS.map((t) => {
-                  const active = t.id === task;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTask(t.id)}
-                      className={`text-xs rounded-xl px-3 py-2 border transition-all ${
-                        active
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                          : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Topic
-              </label>
-              <textarea
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 min-h-[60px] resize-none"
-                placeholder="e.g. Introduction to fractions, solving linear equations…"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGenerateFromOptions}
-              disabled={isSending}
-              className="w-full rounded-full bg-indigo-600 text-white text-sm font-medium py-2.5 shadow-md hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSending ? "Generating…" : "Generate with Elora"}
-            </button>
-
-            <p className="text-[11px] text-slate-500">
-              Elora builds the best possible prompt using your role, country,
-              level, subject and topic. You just choose and click generate.
-            </p>
+                {a.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Right: chat */}
-        <div className="flex-1 flex flex-col p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-lg font-semibold text-slate-900">
-                Elora Assistant 💙
-              </h1>
-              <p className="text-xs text-slate-500">
-                Role: {ROLES[role]?.label || "Educator"}
-                {country ? ` • ${country}` : ""}{" "}
-                {level ? ` • ${level}` : ""}{" "}
-                {subject ? ` • ${subject}` : ""}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="text-xs text-slate-500 hover:text-indigo-600 underline"
-            >
-              Home
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={handleGenerateStructured}
+          disabled={isThinking || !topic}
+          className="w-full mt-2 elora-primary-button py-2.5 text-sm font-semibold"
+        >
+          {isThinking ? "Elora is thinking…" : "Generate with Elora"}
+        </button>
 
-          <div className="flex-1 min-h-[260px] max-h-[440px] overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-4 space-y-3">
-            {messages.map((m) => (
+        <p className="elora-helper-text">
+          Elora builds the best possible prompt using your role, country, level,
+          subject and topic. You just choose and click generate.
+        </p>
+
+        {/* Export row */}
+        <div className="elora-export-row">
+          <button
+            type="button"
+            className="elora-export-btn"
+            onClick={() => handleDownload("lesson")}
+          >
+            Download lesson (.txt)
+          </button>
+          <button
+            type="button"
+            className="elora-export-btn"
+            onClick={() => handleDownload("worksheet")}
+          >
+            Download worksheet (.txt)
+          </button>
+          <button
+            type="button"
+            className="elora-export-btn"
+            onClick={() => handleDownload("assessment")}
+          >
+            Download assessment (.txt)
+          </button>
+          <button
+            type="button"
+            className="elora-export-btn"
+            onClick={() => handleDownload("slides")}
+          >
+            Download slides outline (.txt)
+          </button>
+        </div>
+
+        <p className="elora-small-muted">
+          You can upload these files into Google Docs or Slides, or copy-paste
+          the content directly. Later we can connect real Google APIs.
+        </p>
+      </aside>
+
+      {/* RIGHT: Chat area */}
+      <section className="elora-panel flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              Elora Assistant 💙
+            </div>
+            <div className="text-[0.8rem] text-slate-500 dark:text-slate-400">
+              Role: {roleLabel} · {country}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="text-[0.8rem] text-slate-500 dark:text-slate-400 underline-offset-2 hover:underline"
+            onClick={() => router.push("/")}
+          >
+            Home
+          </button>
+        </div>
+
+        <div className="elora-chat-window mb-3">
+          {messages.map((m, idx) => (
+            <div
+              key={idx}
+              className={`elora-chat-row ${m.from === "me" ? "me" : ""}`}
+            >
               <div
-                key={m.id}
-                className={`flex ${
-                  m.from === "user" ? "justify-end" : "justify-start"
+                className={`elora-bubble ${
+                  m.from === "me" ? "me" : "elora"
                 }`}
               >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-line ${
-                    m.from === "user"
-                      ? "bg-indigo-600 text-white rounded-br-sm"
-                      : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"
-                  }`}
-                >
-                  {m.text}
-                </div>
+                {m.text}
               </div>
-            ))}
-            {messages.length === 0 && (
-              <div className="text-xs text-slate-500">
-                Elora is ready. Choose your options on the left or start typing
-                a question below.
+            </div>
+          ))}
+          {isThinking && (
+            <div className="elora-chat-row">
+              <div className="elora-bubble elora text-[0.8rem] italic">
+                Elora is thinking…
               </div>
-            )}
-          </div>
-
-          <form
-            className="mt-4 flex items-center gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-          >
-            <input
-              type="text"
-              className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              placeholder="Ask Elora anything…"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-            <button
-              type="submit"
-              disabled={isSending || !input.trim()}
-              className="rounded-full bg-indigo-600 text-white px-5 py-2 text-sm font-medium shadow-md hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSending ? "Sending…" : "Send"}
-            </button>
-          </form>
-
-          <p className="mt-2 text-[11px] text-slate-400">
-            Elora builds structured prompts for you in the background so you
-            don't have to guess what to type.
-          </p>
+            </div>
+          )}
         </div>
-      </div>
+
+        <p className="elora-small-muted mb-2">
+          Elora builds structured prompts in the background so you don&apos;t
+          have to guess what to type.
+        </p>
+
+        <div className="elora-chat-input-row mt-auto">
+          <input
+            className="elora-chat-input"
+            placeholder="Ask Elora anything…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendFreeChat();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSendFreeChat}
+            disabled={isThinking || !input.trim()}
+            className="elora-primary-button px-5 py-2 text-sm font-semibold"
+          >
+            Send
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

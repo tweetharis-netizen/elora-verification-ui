@@ -8,15 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "13.4.10",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.24",
     "tailwindcss": "^3.3.2",
-
-    // 🔽 NEW: needed for Phase 3 export APIs
+    "next": "13.4.10",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "docx": "^9.2.2",
     "googleapis": "^144.0.0"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }

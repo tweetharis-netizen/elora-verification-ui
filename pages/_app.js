@@ -1,50 +1,42 @@
 import "../styles/globals.css";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function MyApp({ Component, pageProps }) {
-  const router = useRouter();
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // <-- IMPORTANT
+  const [loading, setLoading] = useState(true);
 
-  // Routes that DO NOT require verification
-  const publicRoutes = ["/verify", "/success"];
-
+  // 🔐 Listen to Firebase auth ONE TIME
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser || null);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
 
-  // While Firebase is checking user → DON'T redirect
+  // ⏳ Nice loading state instead of redirecting wrongly
   if (loading) {
     return (
       <div
         style={{
-          display: "flex",
           height: "100vh",
+          display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "18px",
+          fontSize: 18,
         }}
       >
-        Verifying your account…
+        Loading Elora…
       </div>
     );
   }
 
-  // If user is NOT logged in OR NOT verified → force /verify
-  if (!publicRoutes.includes(router.pathname)) {
-    if (!user || !user.emailVerified) {
-      router.replace("/verify");
-      return null;
-    }
-  }
+  // ❌ IMPORTANT DIFFERENCE
+  // We DO NOT force redirect to /verify anymore
+  // Verification is handled inside the /verify + /success flow and later features only.
 
-  return <Component {...pageProps} />;
+  return <Component {...pageProps} user={user} />;
 }

@@ -1,145 +1,150 @@
-import { useEffect, useState } from "react";
+import { NextResponse } from "next/server";
 
-export default function Assistant() {
-  const [role, setRole] = useState("guest");
-  const [guest, setGuest] = useState(false);
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([]);
-
-  useEffect(() => {
-    const storedRole = localStorage.getItem("elora_role");
-    const guestFlag = localStorage.getItem("elora_guest");
-    if (storedRole) setRole(storedRole);
-    if (guestFlag) setGuest(true);
-
-    setMessages([
-      {
-        from: "ai",
-        text:
-          storedRole === "educator"
-            ? "Hello teacher 🍎! I'm Elora. I can help create lessons, worksheets, assessments and explain topics."
-            : storedRole === "student"
-            ? "Hi student 🎒! I'm Elora. Ask me anything about schoolwork, exams, or learning 😊"
-            : storedRole === "parent"
-            ? "Hi parent 👨‍👩‍👧! I can help you understand what your child is learning and how to support them."
-            : "Hi! I'm Elora 💙 — a friendly education assistant. How can I help?"
-      },
-    ]);
-  }, []);
-
-  function sendMessage() {
-    if (!input.trim()) return;
-
-    const userText = input;
-    setMessages((m) => [...m, { from: "user", text: userText }]);
-    setInput("");
-
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        {
-          from: "ai",
-          text:
-            role === "educator"
-              ? "Great question! As a teacher tool, I can:\n• Generate lessons\n• Build worksheets\n• Create assessments\n• Explain topics for you to teach\nSoon I will also generate Google Slides & Docs automatically ✨"
-              : role === "student"
-              ? "Let’s learn together! I’ll help explain step-by-step, practice with you, and make studying easier 😊"
-              : role === "parent"
-              ? "I’ll help you understand topics simply, and guide how to support your child ❤️"
-              : "I’m here to help with learning, teaching, and support!"
-        },
-      ]);
-    }, 600);
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h2>Elora Assistant 💙</h2>
-        {guest && (
-          <p style={{ color: "#777" }}>
-            You are using Guest Mode — no verification needed.  
-            Teachers with invites will unlock powerful tools soon ✨
-          </p>
-        )}
+  try {
+    const { role, country, level, subject, topic, mode, message } = req.body;
 
-        <div style={styles.chat}>
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                ...styles.message,
-                alignSelf: m.from === "user" ? "flex-end" : "flex-start",
-                background: m.from === "user" ? "#6c63ff" : "#f4f4ff",
-                color: m.from === "user" ? "white" : "#333",
-              }}
-            >
-              {m.text}
-            </div>
-          ))}
-        </div>
+    // BASIC FAIL-SAFE
+    const fallbackMessage =
+      "Hi! I'm Elora 😊 I can help you plan lessons, create worksheets, build assessments, explain topics, and soon — generate Google Slides & Docs.";
 
-        <div style={styles.row}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Elora anything…"
-            style={styles.input}
-          />
-          <button onClick={sendMessage} style={styles.send}>
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    // If no message & no mode context
+    if (!message && !mode) {
+      return res.status(200).json({
+        reply: fallbackMessage
+      });
+    }
+
+    // Build structured system intelligence
+    const systemContext = `
+You are Elora — an AI Assistant designed for Education.
+You ALWAYS:
+• adapt to country curriculum
+• respect education level
+• choose classroom-friendly language
+• stay structured, useful and practical
+• think like a REAL teacher or student helper
+
+Current profile context:
+Role: ${role || "Not specified"}
+Country: ${country || "Unknown"}
+Level: ${level || "Unknown"}
+Subject: ${subject || "Unknown"}
+Topic: ${topic || "Unknown"}
+
+If something important is missing,
+ASK ONE CLEAR QUESTION instead of guessing.
+`;
+
+    // Build intelligent task instructions
+    let taskInstruction = "";
+
+    switch (mode) {
+      case "lesson":
+        taskInstruction = `
+Create a COMPLETE lesson plan.
+Include:
+• learning objective
+• introduction / hook
+• teaching explanation
+• guided practice
+• independent practice
+• differentiation ideas
+• assessment
+• exit ticket
+• duration estimate
+`;
+        break;
+
+      case "worksheet":
+        taskInstruction = `
+Create a printable worksheet.
+Include:
+• progressively challenging questions
+• answers separate at bottom
+• student friendly format
+`;
+        break;
+
+      case "assessment":
+        taskInstruction = `
+Create an assessment test.
+Include:
+• mix of easy / medium / hard
+• marking scheme
+• common mistakes
+• grading guidance
+`;
+        break;
+
+      case "slides":
+        taskInstruction = `
+Create lesson content in SLIDE format.
+Use:
+Slide 1 — Title
+Slide 2 — Objective
+Slide 3+ — Teaching points
+Last — Summary
+`;
+        break;
+
+      case "explain":
+        taskInstruction = `
+Explain the topic in a simple way.
+Then:
+• give examples
+• give practice questions
+• give answers
+`;
+        break;
+
+      case "custom":
+      default:
+        taskInstruction = "Help the user as best as possible.";
+    }
+
+    const finalPrompt = `
+${systemContext}
+
+USER REQUEST:
+${message || "User clicked generate button based on selected options."}
+
+TASK MODE:
+${mode}
+
+DO THIS NOW:
+${taskInstruction}
+`;
+
+    // 🚨 IMPORTANT
+    // If you're using OpenAI / Anthropic / anything — call it here.
+    // For now we will simulate response so UI works fully.
+
+    return res.status(200).json({
+      reply: `✨ Elora is working with the following understanding:
+
+Role: ${role || "Unknown"}
+Country: ${country || "Unknown"}
+Level: ${level || "Unknown"}
+Subject: ${subject || "Unknown"}
+Topic: ${topic || "Unknown"}
+Mode: ${mode || "Not chosen"}
+
+Here is what I would do next:
+
+${taskInstruction}
+
+Soon this will call a REAL AI engine — but the structure is ready.`
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Server error",
+      details: err.message
+    });
+  }
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#eef0ff",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 700,
-    background: "white",
-    padding: 20,
-    borderRadius: 18,
-    boxShadow: "0 30px 80px rgba(0,0,0,0.1)",
-  },
-  chat: {
-    height: 420,
-    overflowY: "auto",
-    borderRadius: 12,
-    border: "1px solid #ddd",
-    padding: 10,
-    marginTop: 10,
-    display: "flex",
-    gap: 6,
-    flexDirection: "column",
-  },
-  message: {
-    padding: 10,
-    borderRadius: 12,
-    maxWidth: "80%",
-  },
-  row: { display: "flex", gap: 10, marginTop: 10 },
-  input: {
-    flex: 1,
-    padding: 12,
-    border: "1px solid #ccc",
-    borderRadius: 10,
-  },
-  send: {
-    padding: "12px 16px",
-    borderRadius: 10,
-    border: "none",
-    background: "#6c63ff",
-    color: "white",
-  },
-};

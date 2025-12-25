@@ -1,46 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
-import "../lib/firebase"; 
-import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function Home() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    try {
-      const auth = getAuth();
+  const [selectedRole, setSelectedRole] = useState(null);
 
-      const unsub = onAuthStateChanged(auth, (user) => {
-        // No account → go verify
-        if (!user) {
-          router.replace("/verify");
-          return;
-        }
+  function continueNormal() {
+    if (!selectedRole) return alert("Please choose a role first 😊");
 
-        // Not verified → go verify
-        if (!user.emailVerified) {
-          router.replace("/verify");
-          return;
-        }
+    router.push(`/onboarding?role=${selectedRole}`);
+  }
 
-        // Verified → allow home usage
-        setChecking(false);
-      });
+  function continueGuest() {
+    if (!selectedRole) return alert("Please choose a role first 😊");
 
-      return () => unsub();
-    } catch (error) {
-      console.error("Auth error:", error);
-      router.replace("/verify");
-    }
-  }, [router]);
-
-  if (checking) {
-    return (
-      <div style={styles.page}>
-        <p style={{ color: "#666" }}>Checking your account…</p>
-      </div>
-    );
+    router.push(`/onboarding?role=${selectedRole}&guest=1`);
   }
 
   return (
@@ -48,27 +23,76 @@ export default function Home() {
       <div style={styles.card}>
         <h1 style={styles.title}>Elora</h1>
         <p style={styles.subtitle}>
-          AI built for education — personalized for Educators, Students, and Parents.
+          Your AI Assistant for Education — built for Educators, Students, and Parents.
         </p>
 
+        {/* ROLE SECTION */}
+        <h3 style={styles.sectionTitle}>Choose your role</h3>
+
         <div style={styles.roles}>
-          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=educator")}>
-            🎓 I am an Educator
+          {/* EDUCATOR */}
+          <div
+            style={{
+              ...styles.roleCard,
+              border:
+                selectedRole === "educator" ? "2px solid #5b5bf7" : "1px solid #ddd",
+            }}
+            onClick={() => setSelectedRole("educator")}
+          >
+            <span style={styles.emoji}>🎓</span>
+            <h4>Educator</h4>
+            <p style={styles.roleText}>
+              Plan lessons, worksheets, assessments, slides and more.
+            </p>
+          </div>
+
+          {/* STUDENT */}
+          <div
+            style={{
+              ...styles.roleCard,
+              border:
+                selectedRole === "student" ? "2px solid #5b5bf7" : "1px solid #ddd",
+            }}
+            onClick={() => setSelectedRole("student")}
+          >
+            <span style={styles.emoji}>📘</span>
+            <h4>Student</h4>
+            <p style={styles.roleText}>
+              Homework help, study guidance and practice tools.
+            </p>
+          </div>
+
+          {/* PARENT */}
+          <div
+            style={{
+              ...styles.roleCard,
+              border:
+                selectedRole === "parent" ? "2px solid #5b5bf7" : "1px solid #ddd",
+            }}
+            onClick={() => setSelectedRole("parent")}
+          >
+            <span style={styles.emoji}>👨‍👩‍👧</span>
+            <h4>Parent</h4>
+            <p style={styles.roleText}>
+              Understand lessons, support learning at home.
+            </p>
+          </div>
+        </div>
+
+        {/* ACTION BUTTONS */}
+        <div style={styles.buttonArea}>
+          <button style={styles.primaryBtn} onClick={continueNormal}>
+            Continue
           </button>
 
-          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=student")}>
-            📘 I am a Student
-          </button>
-
-          <button style={styles.roleButton} onClick={() => router.push("/onboarding?role=parent")}>
-            👨‍👩‍👧 I am a Parent
+          <button style={styles.secondaryBtn} onClick={continueGuest}>
+            Try as Guest
           </button>
         </div>
 
-        <div style={styles.footer}>
-          <button style={styles.link}>FAQ</button>
-          <button style={styles.link}>Feedback</button>
-        </div>
+        <p style={{ color: "#777", fontSize: 12, marginTop: 14 }}>
+          Guest mode has limited features and does not save progress.
+        </p>
       </div>
     </div>
   );
@@ -77,32 +101,73 @@ export default function Home() {
 const styles = {
   page: {
     minHeight: "100vh",
+    background: "#f5f7fb",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#f5f7fb",
   },
   card: {
     width: "100%",
-    maxWidth: 440,
-    background: "#ffffff",
-    padding: 32,
-    borderRadius: 12,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+    maxWidth: 520,
+    background: "#fff",
+    padding: 28,
+    borderRadius: 14,
+    boxShadow: "0 15px 35px rgba(0,0,0,0.08)",
     textAlign: "center",
   },
-  title: { fontSize: 34, fontWeight: 800, marginBottom: 8 },
-  subtitle: { fontSize: 16, color: "#555", marginBottom: 24 },
-  roles: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 26 },
-  roleButton: {
-    padding: "14px 16px",
-    fontSize: 16,
-    borderRadius: 8,
-    border: "none",
+  title: {
+    fontSize: 36,
+    fontWeight: 800,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    marginBottom: 10,
+    fontWeight: 700,
+  },
+  roles: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,1fr)",
+    gap: 12,
+  },
+  roleCard: {
+    padding: 12,
+    borderRadius: 10,
     cursor: "pointer",
+    background: "#fafafa",
+    transition: "0.2s",
+  },
+  emoji: {
+    fontSize: 28,
+  },
+  roleText: {
+    fontSize: 12,
+    color: "#666",
+  },
+  buttonArea: {
+    marginTop: 22,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  primaryBtn: {
     background: "#5b5bf7",
     color: "#fff",
+    border: "none",
+    padding: "12px",
+    borderRadius: 10,
+    cursor: "pointer",
   },
-  footer: { display: "flex", justifyContent: "center", gap: 16 },
-  link: { background: "none", border: "none", color: "#5b5bf7", cursor: "pointer", fontSize: 14 },
+  secondaryBtn: {
+    background: "#fff",
+    color: "#5b5bf7",
+    border: "1px solid #5b5bf7",
+    padding: "12px",
+    borderRadius: 10,
+    cursor: "pointer",
+  },
 };

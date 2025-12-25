@@ -1,54 +1,77 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Assistant() {
+  const [role, setRole] = useState("guest");
+  const [guest, setGuest] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
 
-  async function sendMessage() {
+  useEffect(() => {
+    const storedRole = localStorage.getItem("elora_role");
+    const guestFlag = localStorage.getItem("elora_guest");
+    if (storedRole) setRole(storedRole);
+    if (guestFlag) setGuest(true);
+
+    setMessages([
+      {
+        from: "ai",
+        text:
+          storedRole === "educator"
+            ? "Hello teacher 🍎! I'm Elora. I can help create lessons, worksheets, assessments and explain topics."
+            : storedRole === "student"
+            ? "Hi student 🎒! I'm Elora. Ask me anything about schoolwork, exams, or learning 😊"
+            : storedRole === "parent"
+            ? "Hi parent 👨‍👩‍👧! I can help you understand what your child is learning and how to support them."
+            : "Hi! I'm Elora 💙 — a friendly education assistant. How can I help?"
+      },
+    ]);
+  }, []);
+
+  function sendMessage() {
     if (!input.trim()) return;
-    const userMessage = input;
-    setMessages((m) => [...m, { from: "user", text: userMessage }]);
+
+    const userText = input;
+    setMessages((m) => [...m, { from: "user", text: userText }]);
     setInput("");
 
-    setMessages((m) => [
-      ...m,
-      { from: "ai", text: "Thinking like a helpful teacher assistant..." },
-    ]);
-
-    // Fake AI reply for now (works offline)
     setTimeout(() => {
       setMessages((m) => [
-        ...m.slice(0, -1),
+        ...m,
         {
           from: "ai",
           text:
-            "Here's how I can help!\n" +
-            "- Explain concepts\n" +
-            "- Help with schoolwork\n" +
-            "- Support learning ❤️",
+            role === "educator"
+              ? "Great question! As a teacher tool, I can:\n• Generate lessons\n• Build worksheets\n• Create assessments\n• Explain topics for you to teach\nSoon I will also generate Google Slides & Docs automatically ✨"
+              : role === "student"
+              ? "Let’s learn together! I’ll help explain step-by-step, practice with you, and make studying easier 😊"
+              : role === "parent"
+              ? "I’ll help you understand topics simply, and guide how to support your child ❤️"
+              : "I’m here to help with learning, teaching, and support!"
         },
       ]);
-    }, 900);
+    }, 600);
   }
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         <h2>Elora Assistant 💙</h2>
-        <p style={{ color: "#666" }}>
-          Free to use. Verification only needed for saving, exporting, or
-          advanced tools.
-        </p>
+        {guest && (
+          <p style={{ color: "#777" }}>
+            You are using Guest Mode — no verification needed.  
+            Teachers with invites will unlock powerful tools soon ✨
+          </p>
+        )}
 
-        <div style={styles.chatBox}>
+        <div style={styles.chat}>
           {messages.map((m, i) => (
             <div
               key={i}
               style={{
                 ...styles.message,
-                background: m.from === "user" ? "#6C63FF" : "#f4f4ff",
-                color: m.from === "user" ? "white" : "#333",
                 alignSelf: m.from === "user" ? "flex-end" : "flex-start",
+                background: m.from === "user" ? "#6c63ff" : "#f4f4ff",
+                color: m.from === "user" ? "white" : "#333",
               }}
             >
               {m.text}
@@ -83,46 +106,40 @@ const styles = {
   },
   card: {
     width: "100%",
-    maxWidth: 650,
+    maxWidth: 700,
     background: "white",
-    padding: 25,
+    padding: 20,
     borderRadius: 18,
-    boxShadow: "0 25px 80px rgba(0,0,0,0.1)",
+    boxShadow: "0 30px 80px rgba(0,0,0,0.1)",
   },
-  chatBox: {
-    height: 380,
-    border: "1px solid #ddd",
-    borderRadius: 14,
-    padding: 12,
+  chat: {
+    height: 420,
     overflowY: "auto",
-    marginTop: 12,
-    marginBottom: 12,
+    borderRadius: 12,
+    border: "1px solid #ddd",
+    padding: 10,
+    marginTop: 10,
     display: "flex",
-    flexDirection: "column",
     gap: 6,
+    flexDirection: "column",
   },
   message: {
     padding: 10,
     borderRadius: 12,
-    maxWidth: "85%",
-    whiteSpace: "pre-line",
+    maxWidth: "80%",
   },
-  row: {
-    display: "flex",
-    gap: 10,
-  },
+  row: { display: "flex", gap: 10, marginTop: 10 },
   input: {
     flex: 1,
     padding: 12,
-    borderRadius: 10,
     border: "1px solid #ccc",
+    borderRadius: 10,
   },
   send: {
-    padding: "12px 14px",
+    padding: "12px 16px",
     borderRadius: 10,
     border: "none",
-    background: "#6C63FF",
+    background: "#6c63ff",
     color: "white",
-    cursor: "pointer",
   },
 };

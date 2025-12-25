@@ -1,173 +1,191 @@
+// pages/index.js
 import { useState } from "react";
 import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
+  const [role, setRole] = useState(null);
 
-  const [selectedRole, setSelectedRole] = useState(null);
+  const selectRole = (value) => setRole(value);
 
-  function continueNormal() {
-    if (!selectedRole) return alert("Please choose a role first 😊");
+  const continueFlow = () => {
+    if (!role) return alert("Please select a role to continue.");
+    localStorage.setItem("elora_role", role);
+    localStorage.removeItem("elora_guest");
+    router.push("/onboarding");
+  };
 
-    router.push(`/onboarding?role=${selectedRole}`);
-  }
-
-  function continueGuest() {
-    if (!selectedRole) return alert("Please choose a role first 😊");
-
-    router.push(`/onboarding?role=${selectedRole}&guest=1`);
-  }
+  const guestMode = () => {
+    localStorage.setItem("elora_guest", "true");
+    localStorage.removeItem("elora_role");
+    router.push("/assistant");
+  };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Elora</h1>
-        <p style={styles.subtitle}>
-          Your AI Assistant for Education — built for Educators, Students, and Parents.
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(180deg, rgba(240,242,255,1) 0%, rgba(248,249,255,1) 100%)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "30px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "760px",
+          background: "white",
+          borderRadius: "22px",
+          padding: "40px",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
+        }}
+      >
+        {/* HEADER */}
+        <h1 style={{ textAlign: "center", fontSize: "36px", marginBottom: "10px" }}>
+          Elora
+        </h1>
+        <p style={{ textAlign: "center", color: "#555", marginBottom: "30px" }}>
+          Your AI Companion for Education — Created for Teachers, Students, and Parents.
         </p>
 
-        {/* ROLE SECTION */}
-        <h3 style={styles.sectionTitle}>Choose your role</h3>
+        {/* ROLE SELECT */}
+        <h3 style={{ textAlign: "center", marginBottom: "15px" }}>
+          Choose your role
+        </h3>
 
-        <div style={styles.roles}>
-          {/* EDUCATOR */}
-          <div
-            style={{
-              ...styles.roleCard,
-              border:
-                selectedRole === "educator" ? "2px solid #5b5bf7" : "1px solid #ddd",
-            }}
-            onClick={() => setSelectedRole("educator")}
-          >
-            <span style={styles.emoji}>🎓</span>
-            <h4>Educator</h4>
-            <p style={styles.roleText}>
-              Plan lessons, worksheets, assessments, slides and more.
-            </p>
-          </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "15px",
+            marginBottom: "25px",
+          }}
+        >
+          <RoleCard
+            label="Educator"
+            description="Plan lessons, worksheets, assessments and more."
+            icon="🎓"
+            active={role === "educator"}
+            onClick={() => selectRole("educator")}
+          />
 
-          {/* STUDENT */}
-          <div
-            style={{
-              ...styles.roleCard,
-              border:
-                selectedRole === "student" ? "2px solid #5b5bf7" : "1px solid #ddd",
-            }}
-            onClick={() => setSelectedRole("student")}
-          >
-            <span style={styles.emoji}>📘</span>
-            <h4>Student</h4>
-            <p style={styles.roleText}>
-              Homework help, study guidance and practice tools.
-            </p>
-          </div>
+          <RoleCard
+            label="Student"
+            description="Homework help, study guidance and practice tools."
+            icon="📘"
+            active={role === "student"}
+            onClick={() => selectRole("student")}
+          />
 
-          {/* PARENT */}
-          <div
-            style={{
-              ...styles.roleCard,
-              border:
-                selectedRole === "parent" ? "2px solid #5b5bf7" : "1px solid #ddd",
-            }}
-            onClick={() => setSelectedRole("parent")}
-          >
-            <span style={styles.emoji}>👨‍👩‍👧</span>
-            <h4>Parent</h4>
-            <p style={styles.roleText}>
-              Understand lessons, support learning at home.
-            </p>
-          </div>
+          <RoleCard
+            label="Parent"
+            description="Understand lessons and support learning at home."
+            icon="👨‍👩‍👧"
+            active={role === "parent"}
+            onClick={() => selectRole("parent")}
+          />
         </div>
 
-        {/* ACTION BUTTONS */}
-        <div style={styles.buttonArea}>
-          <button style={styles.primaryBtn} onClick={continueNormal}>
-            Continue
-          </button>
+        <button
+          onClick={continueFlow}
+          style={{
+            width: "100%",
+            padding: "14px",
+            borderRadius: "10px",
+            border: "none",
+            background: "#635BFF",
+            color: "white",
+            fontSize: "17px",
+            cursor: "pointer",
+            marginBottom: "12px",
+          }}
+        >
+          Continue
+        </button>
 
-          <button style={styles.secondaryBtn} onClick={continueGuest}>
-            Try as Guest
-          </button>
-        </div>
+        <button
+          onClick={guestMode}
+          style={{
+            width: "100%",
+            padding: "13px",
+            borderRadius: "12px",
+            background: "white",
+            border: "2px solid #635BFF",
+            color: "#635BFF",
+            fontSize: "16px",
+            cursor: "pointer",
+          }}
+        >
+          Try as Guest
+        </button>
 
-        <p style={{ color: "#777", fontSize: 12, marginTop: 14 }}>
+        <p style={{ textAlign: "center", fontSize: "12px", color: "#777" }}>
           Guest mode has limited features and does not save progress.
         </p>
+
+        {/* DIVIDER */}
+        <hr style={{ margin: "30px 0", opacity: 0.3 }} />
+
+        {/* FAQ SECTION */}
+        <h3>FAQ</h3>
+        <FAQ q="What is Elora?" a="Elora is an AI assistant designed to help teachers create lessons, help students study smarter, and help parents support learning." />
+        <FAQ q="Is it free?" a="Yes. Elora is currently free while in development. Some future premium features may come later." />
+        <FAQ q="Do I need an account?" a="Educators require verification to unlock advanced tools. Guest mode is free with limited access." />
+
+        {/* FOOTER */}
+        <div style={{ marginTop: "25px" }}>
+          <h3>Give Feedback</h3>
+          <p style={{ color: "#666" }}>
+            Help us improve Elora. Tell us what to build next!
+          </p>
+          <button
+            onClick={() =>
+              window.open("mailto:elora.feedback.team@gmail.com", "_blank")
+            }
+            style={{
+              padding: "10px 18px",
+              borderRadius: "10px",
+              border: "none",
+              background: "#111",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            Send Feedback
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f5f7fb",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 520,
-    background: "#fff",
-    padding: 28,
-    borderRadius: 14,
-    boxShadow: "0 15px 35px rgba(0,0,0,0.08)",
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 800,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    marginBottom: 10,
-    fontWeight: 700,
-  },
-  roles: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 12,
-  },
-  roleCard: {
-    padding: 12,
-    borderRadius: 10,
-    cursor: "pointer",
-    background: "#fafafa",
-    transition: "0.2s",
-  },
-  emoji: {
-    fontSize: 28,
-  },
-  roleText: {
-    fontSize: 12,
-    color: "#666",
-  },
-  buttonArea: {
-    marginTop: 22,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  primaryBtn: {
-    background: "#5b5bf7",
-    color: "#fff",
-    border: "none",
-    padding: "12px",
-    borderRadius: 10,
-    cursor: "pointer",
-  },
-  secondaryBtn: {
-    background: "#fff",
-    color: "#5b5bf7",
-    border: "1px solid #5b5bf7",
-    padding: "12px",
-    borderRadius: 10,
-    cursor: "pointer",
-  },
-};
+function RoleCard({ label, description, icon, active, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: "20px",
+        borderRadius: "14px",
+        border: active ? "3px solid #635BFF" : "1px solid #ddd",
+        textAlign: "center",
+        cursor: "pointer",
+      }}
+    >
+      <div style={{ fontSize: "30px", marginBottom: "8px" }}>{icon}</div>
+      <strong>{label}</strong>
+      <p style={{ fontSize: "13px", color: "#666" }}>{description}</p>
+    </div>
+  );
+}
+
+function FAQ({ q, a }) {
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      <strong>{q}</strong>
+      <p style={{ marginTop: "3px", color: "#666" }}>{a}</p>
+    </div>
+  );
+}

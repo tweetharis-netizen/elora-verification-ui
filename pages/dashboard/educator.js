@@ -1,85 +1,90 @@
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
 
 export default function EducatorDashboard() {
-  const [role, setRole] = useState("");
+  const [aiText, setAiText] = useState("");
 
-  useEffect(() => {
-    const stored = localStorage.getItem("eloraUserProfile");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setRole(parsed.role || "educator");
-      } catch {}
-    }
-  }, []);
+  async function download(file, body) {
+    const res = await fetch(`/api/${file}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      file === "export-slides"
+        ? "Elora-Slides.pptx"
+        : file === "export-worksheet"
+        ? "Elora-Worksheet.docx"
+        : "Elora-Lesson.docx";
+
+    a.click();
+  }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full">
-        <h1 className="text-2xl font-semibold text-center">
-          Educator Workspace
-        </h1>
-        <p className="mt-2 text-sm text-center text-gray-500">
-          Role: <span className="font-semibold">{role}</span>
-        </p>
+    <div style={{ padding: 24 }}>
+      <h1>Elora Educator Dashboard</h1>
 
-        <div className="mt-6">
-          <Link
-            href="/assistant"
-            className="block text-center bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition"
-          >
-            Open Elora AI Assistant
-          </Link>
-        </div>
+      <textarea
+        value={aiText}
+        onChange={(e) => setAiText(e.target.value)}
+        placeholder="Elora generated lesson / worksheet / slides content will appear here…"
+        style={{
+          width: "100%",
+          height: 250,
+          padding: 12,
+          borderRadius: 8,
+          border: "1px solid #ccc",
+          marginBottom: 20,
+        }}
+      />
 
-        <div className="mt-8 grid gap-3">
-          <FeatureCard
-            title="Lesson Planner"
-            desc="Generate structured lesson plans."
-            locked={false}
-          />
-          <FeatureCard
-            title="Presentation Generator"
-            desc="Turn topics into slides."
-            locked={true}
-          />
-          <FeatureCard
-            title="Assessment Builder"
-            desc="Create quizzes and worksheets."
-            locked={true}
-          />
-        </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <button
+          onClick={() =>
+            download("export-docx", {
+              title: "Elora Lesson Plan",
+              content: aiText,
+            })
+          }
+        >
+          Download Lesson (.docx)
+        </button>
 
-        <div className="mt-8 text-center">
-          <Link
-            href="/onboarding"
-            className="text-sm text-indigo-600 hover:text-indigo-700"
-          >
-            Change role
-          </Link>
-        </div>
+        <button
+          onClick={() =>
+            download("export-worksheet", {
+              title: "Elora Worksheet",
+              questions: aiText.split("\n").slice(0, 10),
+            })
+          }
+        >
+          Download Worksheet (.docx)
+        </button>
+
+        <button
+          onClick={() =>
+            download("export-slides", {
+              title: "Elora Slides",
+              slides: [
+                {
+                  title: "Lesson Overview",
+                  points: aiText.split("\n").slice(0, 5),
+                },
+                {
+                  title: "Key Learning Points",
+                  points: aiText.split("\n").slice(5, 10),
+                },
+              ],
+            })
+          }
+        >
+          Download Slides (.pptx)
+        </button>
       </div>
-    </main>
-  );
-}
-
-function FeatureCard({ title, desc, locked }) {
-  return (
-    <div
-      className={`rounded-xl border p-4 ${
-        locked ? "border-gray-200 opacity-70" : "border-indigo-200"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">{title}</h2>
-        {locked && (
-          <span className="text-xs px-2 py-1 rounded-full bg-gray-100">
-            Locked
-          </span>
-        )}
-      </div>
-      <p className="mt-1 text-sm text-gray-500">{desc}</p>
     </div>
   );
 }

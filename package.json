@@ -8,11 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "14.1.0",
+    "next": "13.4.10",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "firebase": "^10.7.1",
-    "js-cookie": "^3.0.5",
-    "axios": "^1.6.2"
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+
+    // 🔽 NEW: needed for Phase 3 export APIs
+    "docx": "^9.2.2",
+    "googleapis": "^144.0.0"
   }
 }

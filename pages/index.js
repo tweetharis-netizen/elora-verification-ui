@@ -1,115 +1,82 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/router";
 
 export default function Home() {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
-    role: "Teacher",
-    country: "",
-    level: "",
-    subject: "",
-    goal: "",
-  });
+  const router = useRouter();
+  const auth = getAuth();
 
-  const [messages, setMessages] = useState([
-    {
-      from: "ai",
-      text: "Hi! I’m Elora 👋 Let’s build the perfect lesson together.",
-    },
-  ]);
+  const [checking, setChecking] = useState(true);
 
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace("/verify");
+        return;
+      }
 
-  function updateForm(key, value) {
-    setForm({ ...form, [key]: value });
-  }
+      if (!user.emailVerified) {
+        router.replace("/verify");
+        return;
+      }
 
-  async function handleSend() {
-    setLoading(true);
+      setChecking(false);
+    });
 
-    const structuredPrompt = `
-You are Elora, an elite AI education assistant.
+    return () => unsub();
+  }, [router]);
 
-User Profile:
-- Role: ${form.role}
-- Country: ${form.country}
-- Education Level: ${form.level}
-- Subject: ${form.subject}
-
-Task:
-${form.goal}
-
-Requirements:
-- Follow ${form.country} curriculum norms if applicable
-- Use correct terminology for the education level
-- Be clear, structured, and classroom-ready
-- Include examples and assessments where relevant
-`;
-
-    try {
-      const res = await fetch("/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: structuredPrompt }),
-      });
-
-      const data = await res.json();
-
-      setMessages((prev) => [
-        ...prev,
-        { from: "user", text: form.goal },
-        { from: "ai", text: data.reply || "I’m here to help — try refining the goal." },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { from: "ai", text: "Sorry, something went wrong. Please try again." },
-      ]);
-    }
-
-    setLoading(false);
+  if (checking) {
+    return (
+      <div style={styles.page}>
+        <p style={{ color: "#555" }}>Checking your account…</p>
+      </div>
+    );
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.page}>
       <div style={styles.card}>
-        <h2>Elora AI Assistant</h2>
-        <p style={{ opacity: 0.7 }}>Role: {form.role}</p>
+        <h1 style={styles.title}>Elora</h1>
+        <p style={styles.subtitle}>
+          AI built for education — personalized for Educators, Students, and Parents.
+        </p>
 
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              ...styles.message,
-              background: m.from === "ai" ? "#f3f4f6" : "#4f46e5",
-              color: m.from === "ai" ? "#000" : "#fff",
-              alignSelf: m.from === "ai" ? "flex-start" : "flex-end",
-            }}
+        <div style={styles.roles}>
+          <button
+            style={styles.roleButton}
+            onClick={() => router.push("/onboarding?role=educator")}
           >
-            {m.text}
-          </div>
-        ))}
+            🎓 I am an Educator
+          </button>
 
-        <div style={styles.form}>
-          <input
-            placeholder="Country (e.g. Singapore)"
-            onChange={(e) => updateForm("country", e.target.value)}
-          />
-          <input
-            placeholder="Education level (e.g. Primary 6)"
-            onChange={(e) => updateForm("level", e.target.value)}
-          />
-          <input
-            placeholder="Subject (e.g. Math)"
-            onChange={(e) => updateForm("subject", e.target.value)}
-          />
-          <textarea
-            placeholder="What do you want to create or teach?"
-            rows={3}
-            onChange={(e) => updateForm("goal", e.target.value)}
-          />
+          <button
+            style={styles.roleButton}
+            onClick={() => router.push("/onboarding?role=student")}
+          >
+            📘 I am a Student
+          </button>
 
-          <button onClick={handleSend} disabled={loading}>
-            {loading ? "Thinking..." : "Generate"}
+          <button
+            style={styles.roleButton}
+            onClick={() => router.push("/onboarding?role=parent")}
+          >
+            👨‍👩‍👧 I am a Parent
+          </button>
+        </div>
+
+        <div style={styles.footer}>
+          <button
+            style={styles.link}
+            onClick={() => alert("FAQ page coming soon")}
+          >
+            FAQ
+          </button>
+          <button
+            style={styles.link}
+            onClick={() => alert("Feedback system coming soon")}
+          >
+            Feedback
           </button>
         </div>
       </div>
@@ -118,33 +85,57 @@ Requirements:
 }
 
 const styles = {
-  container: {
+  page: {
     minHeight: "100vh",
-    background: "#f9fafb",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    background: "#f5f7fb",
   },
   card: {
-    width: "420px",
-    background: "#fff",
-    padding: "24px",
-    borderRadius: "12px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    width: "100%",
+    maxWidth: 440,
+    background: "#ffffff",
+    padding: 32,
+    borderRadius: 12,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+    textAlign: "center",
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: 800,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#555",
+    marginBottom: 24,
+  },
+  roles: {
     display: "flex",
     flexDirection: "column",
+    gap: 12,
+    marginBottom: 26,
   },
-  message: {
-    padding: "12px",
-    borderRadius: "10px",
-    marginBottom: "8px",
-    fontSize: "14px",
-    maxWidth: "90%",
+  roleButton: {
+    padding: "14px 16px",
+    fontSize: 16,
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+    background: "#5b5bf7",
+    color: "#fff",
   },
-  form: {
-    marginTop: "12px",
+  footer: {
     display: "flex",
-    flexDirection: "column",
-    gap: "8px",
+    justifyContent: "center",
+    gap: 16,
+  },
+  link: {
+    background: "none",
+    border: "none",
+    color: "#5b5bf7",
+    cursor: "pointer",
+    fontSize: 14,
   },
 };

@@ -1,101 +1,592 @@
-/* GLOBAL RESET */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-html, body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  transition: background 0.3s ease, color 0.3s ease;
-}
+/* =============== */
+/*  COLOR TOKENS   */
+/* =============== */
 
-/* LIGHT MODE (DEFAULT) */
 :root {
-  --bg: #f5f7ff;
-  --panel: #ffffff;
-  --text: #0b1221;
-  --muted: #6b7280;
-  --primary: #5b5fff;
-  --primary-hover: #464bff;
-  --border: #dcddea;
-  --input-bg: #ffffff;
-  --input-text: #0b1221;
+  --elora-bg: #eef2ff;
+  --elora-bg-soft: #f5f3ff;
+  --elora-surface: #ffffff;
+  --elora-surface-soft: #f9fafb;
+  --elora-border-subtle: rgba(15, 23, 42, 0.08);
+  --elora-primary: #4f46e5;
+  --elora-primary-soft: rgba(79, 70, 229, 0.08);
+  --elora-primary-strong: #4338ca;
+  --elora-text-main: #0f172a;
+  --elora-text-soft: #6b7280;
+  --elora-role-educator: #4f46e5;
+  --elora-role-student: #0369a1;
+  --elora-role-parent: #ea580c;
+  --elora-chat-user: #4f46e5;
+  --elora-chat-elora: #f9fafb;
+  --elora-shadow-soft: 0 24px 60px rgba(15, 23, 42, 0.12);
+  --elora-radius-xl: 1.75rem;
 }
 
-/* DARK MODE */
-.dark {
-  --bg: #0b1221;
-  --panel: #121a2f;
-  --text: #eef2ff;
-  --muted: #a1accf;
-  --primary: #7a82ff;
-  --primary-hover: #9aa2ff;
-  --border: #2b355a;
-  --input-bg: #0f1629;
-  --input-text: #ffffff;
+/* DARK THEME (TOGGLED VIA BODY DATA-ATTRIBUTE) */
+:root[data-theme="dark"] {
+  --elora-bg: #020617;
+  --elora-bg-soft: #020617;
+  --elora-surface: #020617;
+  --elora-surface-soft: #020617;
+  --elora-border-subtle: rgba(148, 163, 184, 0.25);
+  --elora-primary: #818cf8;
+  --elora-primary-soft: rgba(129, 140, 248, 0.18);
+  --elora-primary-strong: #4f46e5;
+  --elora-text-main: #e5e7eb;
+  --elora-text-soft: #9ca3af;
+  --elora-chat-elora: #020617;
+  --elora-shadow-soft: 0 24px 60px rgba(15, 23, 42, 0.6);
 }
 
-/* PANELS & CARDS */
-.panel {
-  background: var(--panel);
-  color: var(--text);
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-  transition: 0.3s ease;
+/* =============== */
+/*  GLOBAL BODY    */
+/* =============== */
+
+html,
+body {
+  padding: 0;
+  margin: 0;
 }
 
-/* CHAT AREA */
-.chat-box {
-  background: var(--panel);
-  color: var(--text);
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #e0f2fe 0, var(--elora-bg) 45%)
+      no-repeat,
+    radial-gradient(circle at bottom right, #ddd6fe 0, var(--elora-bg-soft) 55%)
+      no-repeat,
+    var(--elora-bg-soft);
+  color: var(--elora-text-main);
+  min-height: 100vh;
 }
 
-/* CHAT BUBBLES */
-.user-message {
-  background: var(--primary);
-  color: white;
+/* Smooth transitions when toggling dark / light */
+body,
+body * {
+  transition-property: background-color, color, border-color, box-shadow,
+    transform;
+  transition-duration: 180ms;
+  transition-timing-function: ease-out;
 }
 
-.elora-message {
-  background: rgba(120, 131, 255, 0.1);
-  border: 1px solid var(--border);
-  color: var(--text);
+/* =============== */
+/*  LAYOUT SHELL   */
+/* =============== */
+
+.elora-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* INPUT BAR */
-.chat-input {
-  background: var(--input-bg);
-  color: var(--input-text);
-  border: 1px solid var(--border);
+.elora-shell-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem 3rem;
 }
 
-.chat-input::placeholder {
-  color: var(--muted);
+@media (min-width: 1024px) {
+  .elora-shell-main {
+    padding-top: 3.5rem;
+  }
 }
 
-/* BUTTONS */
-button {
-  background: var(--primary);
-  color: white;
+/* =============== */
+/*  NAVBAR         */
+/* =============== */
+
+.elora-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(
+      to bottom,
+      rgba(248, 250, 252, 0.92),
+      rgba(248, 250, 252, 0.75)
+    );
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+:root[data-theme="dark"] .elora-nav {
+  background: linear-gradient(
+      to bottom,
+      rgba(2, 6, 23, 0.96),
+      rgba(2, 6, 23, 0.85)
+    );
+  border-bottom-color: rgba(51, 65, 85, 0.9);
+}
+
+.elora-nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.elora-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.elora-logo-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 0, #a5f3fc 0, #4f46e5 40%, #0f172a 100%);
+  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.5);
+}
+
+.elora-logo-letter {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #f9fafb;
+}
+
+.elora-nav-title {
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+}
+
+.elora-nav-links {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.elora-nav-link {
+  color: var(--elora-text-soft);
+  text-decoration: none;
+}
+
+.elora-nav-link:hover {
+  color: var(--elora-text-main);
+}
+
+.elora-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.elora-pill {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--elora-primary-soft);
+  color: var(--elora-primary-strong);
+}
+
+.elora-ghost-button {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--elora-border-subtle);
+  background: transparent;
+  cursor: pointer;
+}
+
+.elora-ghost-button:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.elora-primary-button {
+  font-size: 0.85rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 999px;
   border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--elora-primary), var(--elora-primary-strong));
+  color: #ffffff;
+  box-shadow: 0 16px 35px rgba(79, 70, 229, 0.4);
 }
 
-button:hover {
-  background: var(--primary-hover);
+.elora-primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* NAVBAR */
-.navbar {
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+/* =============== */
+/*  HOMEPAGE       */
+/* =============== */
+
+.elora-home-wrap {
+  width: 100%;
+  max-width: 1120px;
+  display: grid;
+  gap: 1.75rem;
 }
 
-/* LOGO ALWAYS VISIBLE */
-.logo {
-  filter: drop-shadow(0 0 2px rgba(0,0,0,.3));
+@media (min-width: 1024px) {
+  .elora-home-wrap {
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr);
+    align-items: stretch;
+  }
+}
+
+.elora-home-hero {
+  background: var(--elora-surface);
+  border-radius: var(--elora-radius-xl);
+  box-shadow: var(--elora-shadow-soft);
+  padding: 2.25rem 2.25rem 2rem;
+  border: 1px solid var(--elora-border-subtle);
+}
+
+:root[data-theme="dark"] .elora-home-hero {
+  background: radial-gradient(circle at top left, #020617 0, #020617 55%);
+}
+
+.elora-home-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--elora-primary-soft);
+  color: var(--elora-primary-strong);
+  font-weight: 500;
+}
+
+.elora-home-title {
+  margin-top: 1rem;
+  font-size: clamp(2rem, 2.5vw + 1.6rem, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--elora-text-main);
+}
+
+.elora-home-subtitle {
+  margin-top: 0.8rem;
+  font-size: 0.98rem;
+  color: var(--elora-text-soft);
+  max-width: 34rem;
+}
+
+.elora-role-grid {
+  margin-top: 1.6rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+@media (min-width: 768px) {
+  .elora-role-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.elora-role-card {
+  background: var(--elora-surface-soft);
+  border-radius: 1.25rem;
+  padding: 1.1rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  cursor: pointer;
+}
+
+.elora-role-card:hover {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  transform: translateY(-2px);
+}
+
+.elora-role-card-active {
+  border-color: var(--elora-primary);
+  box-shadow: 0 18px 40px rgba(79, 70, 229, 0.28);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(79, 70, 229, 0.03)
+  );
+}
+
+:root[data-theme="dark"] .elora-role-card {
+  background: #020617;
+  border-color: rgba(51, 65, 85, 0.8);
+}
+
+.elora-role-title {
+  font-weight: 600;
+  margin-top: 0.4rem;
+}
+
+.elora-role-desc {
+  margin-top: 0.3rem;
+  font-size: 0.83rem;
+  color: var(--elora-text-soft);
+}
+
+/* CTA row */
+
+.elora-home-cta {
+  margin-top: 1.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.elora-home-cta-secondary {
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.3rem;
+  border: 1px solid var(--elora-border-subtle);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.elora-home-cta-secondary:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+/* FAQ + FOOTER */
+
+.elora-home-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.elora-mini-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1.5rem;
+  padding: 1.25rem 1.3rem;
+  border: 1px solid var(--elora-border-subtle);
+  box-shadow: 0 16px 40px rgba(148, 163, 184, 0.25);
+}
+
+:root[data-theme="dark"] .elora-mini-card {
+  background: #020617;
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.9);
+}
+
+.elora-mini-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.elora-faq-list details {
+  border-radius: 0.9rem;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.3rem;
+  background: rgba(249, 250, 251, 0.9);
+}
+
+:root[data-theme="dark"] .elora-faq-list details {
+  background: #020617;
+  border: 1px solid rgba(51, 65, 85, 0.9);
+}
+
+.elora-faq-list summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* =============== */
+/*  ASSISTANT PAGE */
+/* =============== */
+
+.elora-assistant-shell {
+  width: 100%;
+  max-width: 1200px;
+  display: grid;
+  gap: 1.6rem;
+}
+
+@media (min-width: 1024px) {
+  .elora-assistant-shell {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.9fr);
+  }
+}
+
+.elora-panel {
+  background: var(--elora-surface);
+  border-radius: var(--elora-radius-xl);
+  border: 1px solid var(--elora-border-subtle);
+  box-shadow: var(--elora-shadow-soft);
+  padding: 1.4rem 1.4rem 1.6rem;
+}
+
+:root[data-theme="dark"] .elora-panel {
+  background: #020617;
+}
+
+/* Chat */
+
+.elora-chat-window {
+  height: 430px;
+  max-height: 70vh;
+  border-radius: 1.4rem;
+  border: 1px solid var(--elora-border-subtle);
+  background: radial-gradient(circle at top left, #eef2ff 0, #ffffff 38%);
+  padding: 1.1rem 1rem;
+  overflow-y: auto;
+}
+
+:root[data-theme="dark"] .elora-chat-window {
+  background: radial-gradient(circle at top left, #020617 0, #020617 55%);
+}
+
+.elora-chat-row {
+  display: flex;
+  margin-bottom: 0.75rem;
+}
+
+.elora-chat-row.me {
+  justify-content: flex-end;
+}
+
+.elora-bubble {
+  max-width: 82%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 1.2rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.elora-bubble.me {
+  background: var(--elora-chat-user);
+  color: #ffffff;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.elora-bubble.elora {
+  background: var(--elora-chat-elora);
+  color: var(--elora-text-main);
+  border-bottom-left-radius: 0.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* Chat input */
+
+.elora-chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.elora-chat-input {
+  flex: 1;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--elora-border-subtle);
+  background: var(--elora-surface-soft);
+  font-size: 0.9rem;
+}
+
+:root[data-theme="dark"] .elora-chat-input {
+  background: #020617;
+  border-color: rgba(51, 65, 85, 0.9);
+  color: var(--elora-text-main);
+}
+
+/* Profile panel */
+
+.elora-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--elora-text-soft);
+  margin-bottom: 0.25rem;
+}
+
+.elora-select,
+.elora-input {
+  width: 100%;
+  border-radius: 0.9rem;
+  border: 1px solid var(--elora-border-subtle);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  background: var(--elora-surface-soft);
+}
+
+.elora-select:focus,
+.elora-input:focus {
+  outline: 2px solid rgba(79, 70, 229, 0.45);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+:root[data-theme="dark"] .elora-select,
+:root[data-theme="dark"] .elora-input {
+  background: #020617;
+  border-color: rgba(51, 65, 85, 0.85);
+  color: var(--elora-text-main);
+}
+
+/* Action buttons */
+
+.elora-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.elora-action-btn {
+  border-radius: 999px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  border: 1px solid var(--elora-border-subtle);
+  background: var(--elora-surface-soft);
+  cursor: pointer;
+}
+
+.elora-action-btn.active {
+  background: var(--elora-primary);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+/* Helper text */
+
+.elora-helper-text {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--elora-text-soft);
+}
+
+/* Export buttons */
+
+.elora-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.elora-export-btn {
+  font-size: 0.78rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px dashed rgba(148, 163, 184, 0.85);
+  background: rgba(249, 250, 251, 0.95);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .elora-export-btn {
+  background: #020617;
+  border-color: rgba(51, 65, 85, 0.9);
+}
+
+/* Utility */
+
+.elora-small-muted {
+  font-size: 0.72rem;
+  color: var(--elora-text-soft);
 }

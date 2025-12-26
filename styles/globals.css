@@ -17,23 +17,26 @@ body {
 body {
   background:
     radial-gradient(900px 420px at 12% 12%, rgba(99, 102, 241, 0.18), transparent 60%),
-    radial-gradient(820px 420px at 88% 18%, rgba(56, 189, 248, 0.14), transparent 55%),
-    radial-gradient(700px 380px at 70% 88%, rgba(167, 139, 250, 0.14), transparent 60%),
-    #f8fafc;
-  color: #0f172a;
+    radial-gradient(700px 380px at 78% 12%, rgba(56, 189, 248, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 50% 86%, rgba(168, 85, 247, 0.10), transparent 60%),
+    linear-gradient(to bottom, rgba(248, 250, 252, 1), rgba(241, 245, 249, 1));
 }
 
-/* Premium background (dark) */
+/* Dark mode background */
 .dark body {
   background:
-    radial-gradient(900px 420px at 12% 12%, rgba(99, 102, 241, 0.20), transparent 60%),
-    radial-gradient(820px 420px at 88% 18%, rgba(56, 189, 248, 0.12), transparent 55%),
-    radial-gradient(700px 380px at 70% 88%, rgba(167, 139, 250, 0.12), transparent 60%),
-    #020617;
-  color: #e5e7eb;
+    radial-gradient(900px 420px at 12% 12%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(700px 380px at 78% 12%, rgba(56, 189, 248, 0.12), transparent 60%),
+    radial-gradient(900px 600px at 50% 86%, rgba(168, 85, 247, 0.10), transparent 60%),
+    linear-gradient(to bottom, rgba(2, 6, 23, 1), rgba(2, 8, 33, 1));
 }
 
-/* Don’t animate the entire DOM — it causes “weird” dark mode */
+/* Basic defaults */
+a {
+  text-decoration: none;
+}
+
+/* Fix mobile tapping highlight */
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -53,4 +56,85 @@ body {
 }
 .dark ::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.25);
+}
+
+/* ---------------------------
+   Elora Markdown (chat output)
+   - Keeps AI output readable and non-cluttered
+---------------------------- */
+.elora-md {
+  line-height: 1.55;
+}
+
+.elora-md p {
+  margin: 0.35rem 0;
+}
+
+.elora-md strong {
+  font-weight: 800;
+}
+
+.elora-md h1,
+.elora-md h2,
+.elora-md h3 {
+  margin: 0.65rem 0 0.35rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.elora-md h1 {
+  font-size: 1.05rem;
+}
+.elora-md h2 {
+  font-size: 1rem;
+}
+.elora-md h3 {
+  font-size: 0.95rem;
+}
+
+.elora-md ul,
+.elora-md ol {
+  margin: 0.35rem 0 0.35rem 1.15rem;
+  padding: 0;
+}
+
+.elora-md li {
+  margin: 0.2rem 0;
+}
+
+.elora-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85em;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.dark .elora-md code {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.elora-md pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.08);
+  margin: 0.6rem 0;
+}
+
+.dark .elora-md pre {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.elora-md pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.elora-md blockquote {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 0.9rem;
 }

@@ -50,7 +50,23 @@ const LEVELS_BY_COUNTRY = {
     "University",
     "Other"
   ],
-  Australia: ["Foundation", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Other"],
+  Australia: [
+    "Foundation",
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "Year 10",
+    "Year 11",
+    "Year 12",
+    "University",
+    "Other"
+  ],
   Canada: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Other"],
   India: ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12", "University", "Other"],
   Other: ["Primary / Elementary", "Middle School", "High School", "Pre-University", "University", "Other"]
@@ -81,12 +97,21 @@ function classNames(...xs) {
   return xs.filter(Boolean).join(" ");
 }
 
+/**
+ * Safe filename for downloads.
+ * NOTE: Keep '-' at end of char class to avoid regex "range out of order" errors.
+ */
 function safeFilename(name) {
   return (name || "Elora-Export")
     .toString()
     .trim()
-    .replace(/[^a-z0-9\\- _]/gi, "")
-    .replace(/\\s+/g, "-")
+    // Keep letters/numbers/space/underscore/hyphen only
+    .replace(/[^a-z0-9 _-]/gi, "")
+    // Collapse whitespace
+    .replace(/\s+/g, "-")
+    // Trim hyphens
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
     .slice(0, 80);
 }
 
@@ -123,13 +148,13 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
 
-  // When country changes, ensure level stays valid (and feels localized)
+  // When country changes, ensure level stays valid
   useEffect(() => {
     if (!levelOptions.includes(level)) setLevel(levelOptions[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, levelOptions.join("|")]);
 
-  // When role changes, default action and show relevant quick actions
+  // When role changes, default action
   useEffect(() => {
     const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "lesson";
     setAction(first);
@@ -247,7 +272,7 @@ export default function AssistantPage() {
     }
   }
 
-  // Refinement chips: these are “safe prompts” for follow-ups
+  // Refinement chips
   async function refine(text) {
     setMessages((m) => [...m, { from: "user", text }]);
     await callElora({ messageOverride: text });
@@ -273,7 +298,7 @@ export default function AssistantPage() {
   return (
     <div className="py-6">
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* LEFT: Prompt Builder */}
+        {/* LEFT */}
         <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -300,12 +325,10 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Mini illustration */}
           <div className="mt-5">
             <RoleIllustration role={role} />
           </div>
 
-          {/* Role */}
           <div className="mt-5">
             <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
             <div className="mt-2 grid grid-cols-3 gap-2">
@@ -327,7 +350,6 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Country + Level */}
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-bold text-slate-900 dark:text-white">Country / Region</label>
@@ -363,7 +385,6 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Subject + Topic */}
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
@@ -391,7 +412,6 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Quick actions */}
           <div className="mt-6">
             <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -436,13 +456,12 @@ export default function AssistantPage() {
             </button>
 
             <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Tip: If Elora’s output is close, use the refinement chips on the right (that’s where the “prompting problem”
-              gets solved).
+              Tip: If Elora’s output is close, use the refinement chips on the right.
             </div>
           </div>
         </div>
 
-        {/* RIGHT: Chat */}
+        {/* RIGHT */}
         <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5 flex flex-col min-h-[680px]">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -482,7 +501,6 @@ export default function AssistantPage() {
             )}
           </div>
 
-          {/* Messages */}
           <div className="mt-4 flex-1 overflow-auto pr-1">
             <div className="space-y-3">
               {messages.map((m, idx) => (
@@ -506,7 +524,6 @@ export default function AssistantPage() {
               ))}
             </div>
 
-            {/* Refinement chips */}
             <div className="mt-4 flex flex-wrap gap-2">
               {["Shorter", "More challenging", "Differentiate", "Add misconceptions", "Quiz me every 3 steps"].map((t) => (
                 <button
@@ -522,7 +539,6 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Chat input */}
           <div className="mt-4 flex items-center gap-2">
             <input
               value={chatText}
@@ -553,7 +569,6 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Verify gate modal */}
       <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
           To unlock full features (assessments, slides, exports), please verify your email. You can still try a limited

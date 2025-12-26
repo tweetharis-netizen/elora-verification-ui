@@ -2,12 +2,17 @@
 
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useState } from "react";
-import Navbar from "../components/Navbar";
+import { useMemo, useState } from "react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [role, setRole] = useState("Educator");
+  const [role, setRole] = useState("educator");
+
+  const roleLabel = useMemo(() => {
+    if (role === "student") return "Student";
+    if (role === "parent") return "Parent";
+    return "Educator";
+  }, [role]);
 
   const handleContinue = () => {
     router.push({
@@ -19,159 +24,210 @@ export default function HomePage() {
   const handleGuest = () => {
     router.push({
       pathname: "/assistant",
-      query: { role, guest: "true" },
+      query: { role, guest: "1" },
     });
+  };
+
+  const scrollToId = (id) => {
+    if (typeof window === "undefined") return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <>
       <Head>
-        <title>Elora – AI assistant for lessons, practice & parents</title>
+        <title>Elora — Plan less. Teach more.</title>
+        <meta
+          name="description"
+          content="Elora is an AI teaching assistant for educators, students and parents—lesson plans, worksheets, assessments and explanations that fit your level and syllabus."
+        />
       </Head>
-
-      <Navbar />
 
       <main className="hero-shell">
         <section className="hero">
           <div className="hero-left">
-            <p className="hero-pill">Built for real classrooms, not just chat.</p>
-            <h1 className="hero-title">Plan less. Teach more. Impact forever.</h1>
+            <p className="hero-pill">Built for real classrooms — not generic chat.</p>
+            <h1 className="hero-title">Plan less. Teach more.</h1>
             <p className="hero-sub">
-              Elora helps educators, students and parents design lessons, generate
-              practice, and explain topics in a way that fits each syllabus and level.
+              Elora turns your role, level and topic into classroom-ready lessons,
+              worksheets, assessments, and slide outlines — without the messy prompting.
             </p>
 
-            <div className="role-section">
-              <p className="role-label">Who are you?</p>
+            <div className="role-cards" aria-label="Choose your role">
+              <button
+                type="button"
+                className={`role-card ${role === "educator" ? "active" : ""}`}
+                onClick={() => setRole("educator")}
+              >
+                <div className="role-title">I’m an Educator</div>
+                <div className="role-sub">
+                  Plan lessons, generate practice, build assessments, design slides.
+                </div>
+              </button>
 
-              <div className="role-cards">
-                <button
-                  className={`role-card ${role === "Educator" ? "selected" : ""}`}
-                  onClick={() => setRole("Educator")}
-                >
-                  <span className="role-emoji">📚</span>
-                  <span className="role-title">I&apos;m an Educator</span>
-                  <span className="role-text">
-                    Plan lessons, worksheets, assessments and slides.
-                  </span>
-                </button>
+              <button
+                type="button"
+                className={`role-card ${role === "student" ? "active" : ""}`}
+                onClick={() => setRole("student")}
+              >
+                <div className="role-title">I’m a Student</div>
+                <div className="role-sub">
+                  Get explanations, worked examples, revision plans, and practice.
+                </div>
+              </button>
 
-                <button
-                  className={`role-card ${role === "Student" ? "selected" : ""}`}
-                  onClick={() => setRole("Student")}
-                >
-                  <span className="role-emoji">🎓</span>
-                  <span className="role-title">I&apos;m a Student</span>
-                  <span className="role-text">
-                    Homework help, revision plans and practice questions.
-                  </span>
-                </button>
+              <button
+                type="button"
+                className={`role-card ${role === "parent" ? "active" : ""}`}
+                onClick={() => setRole("parent")}
+              >
+                <div className="role-title">I’m a Parent</div>
+                <div className="role-sub">
+                  Understand what your child is learning and how to help at home.
+                </div>
+              </button>
+            </div>
 
-                <button
-                  className={`role-card ${role === "Parent" ? "selected" : ""}`}
-                  onClick={() => setRole("Parent")}
-                >
-                  <span className="role-emoji">👨‍👩‍👧</span>
-                  <span className="role-title">I&apos;m a Parent</span>
-                  <span className="role-text">
-                    Understand lessons and support learning at home.
-                  </span>
-                </button>
-              </div>
+            <div className="hero-cta">
+              <button
+                type="button"
+                className="cta primary"
+                onClick={handleContinue}
+              >
+                Continue as {roleLabel}
+              </button>
+              <button type="button" className="cta" onClick={handleGuest}>
+                Try as guest
+              </button>
+            </div>
 
-              <div className="role-actions">
-                <button className="primary-btn" onClick={handleContinue}>
-                  Continue
-                </button>
-                <button className="ghost-btn" onClick={handleGuest}>
-                  Try as Guest ✨
-                </button>
-              </div>
-
-              <p className="guest-note">
-                Guest mode is free and instant. Verified accounts unlock saving,
-                exporting to Google Slides & Docs, and more.
-              </p>
+            <div className="hero-links">
+              <button type="button" className="hero-link" onClick={() => scrollToId("faq")}>
+                Read FAQ
+              </button>
+              <span className="dot">•</span>
+              <button type="button" className="hero-link" onClick={() => scrollToId("feedback")}>
+                Send feedback
+              </button>
             </div>
           </div>
 
           <aside className="hero-right">
             <div className="profile-card">
-              <p className="profile-label">Active teaching profile</p>
+              <p className="profile-label">Active teaching profile (example)</p>
               <p className="profile-main">Singapore · Primary 5 · Math</p>
               <p className="profile-sub">
-                Elora turns these choices into expert prompts so you don&apos;t
-                have to.
+                Elora turns these choices into expert prompts behind the scenes — you just choose and generate.
               </p>
 
               <div className="profile-buttons">
-                <button className="profile-btn primary">Plan a lesson</button>
-                <button className="profile-btn">Create worksheet</button>
-                <button className="profile-btn">Generate assessment</button>
-                <button className="profile-btn">Design slides</button>
+                <button
+                  type="button"
+                  className="profile-btn primary"
+                  onClick={() => router.push({ pathname: "/assistant", query: { role, action: "lesson" } })}
+                >
+                  Plan a lesson
+                </button>
+                <button
+                  type="button"
+                  className="profile-btn"
+                  onClick={() => router.push({ pathname: "/assistant", query: { role, action: "worksheet" } })}
+                >
+                  Create worksheet
+                </button>
+                <button
+                  type="button"
+                  className="profile-btn"
+                  onClick={() => router.push({ pathname: "/assistant", query: { role, action: "assessment" } })}
+                >
+                  Generate assessment
+                </button>
+                <button
+                  type="button"
+                  className="profile-btn"
+                  onClick={() => router.push({ pathname: "/assistant", query: { role, action: "slides" } })}
+                >
+                  Design slides
+                </button>
               </div>
 
               <p className="profile-foot">
-                Works for educators, students, and parents. Designed to fit
-                different countries and syllabuses over time.
+                Designed to fit real syllabuses over time — not one-size-fits-all prompts.
               </p>
             </div>
           </aside>
         </section>
 
-        <section className="faq-feedback">
+        <section className="faq-feedback" id="faq">
           <div className="faq">
             <h2>Frequently Asked Questions</h2>
+
             <details>
               <summary>Do I need an account?</summary>
               <p>
-                You can try Elora instantly as a guest. Accounts only unlock extra
+                You can try Elora instantly as a guest. Accounts are only for extra
                 features like saving and exporting.
               </p>
             </details>
+
             <details>
               <summary>Who is Elora for?</summary>
               <p>
                 Elora is built for educators, students and parents. It adapts its
-                tone and suggestions depending on who is using it and what they
-                are trying to do.
+                output depending on the role, country/region, and education level.
               </p>
             </details>
+
             <details>
               <summary>How is Elora different from normal AI chat?</summary>
               <p>
-                Instead of making you guess the perfect prompt, Elora asks
-                structured questions (country, level, subject, topic and goal)
-                and then builds expert prompts for you in the background.
+                Normal chat is unstructured. Elora first collects a teaching profile
+                (role, country, level, subject, topic, goal), then generates expert
+                prompts automatically to produce lesson-ready results.
+              </p>
+            </details>
+
+            <details>
+              <summary>Can Elora match my country’s syllabus?</summary>
+              <p>
+                Elora adapts language and expectations when a country is specified (e.g., Singapore),
+                and keeps explanations aligned to the level you choose.
               </p>
             </details>
           </div>
 
-          <div className="feedback">
-            <h2>Help us make Elora better</h2>
+          <div className="feedback" id="feedback">
+            <h2>Feedback</h2>
             <p>
-              This is an early prototype. Your feedback will directly shape how
-              Elora grows for Genesis 2026.
+              Elora is being built with real classrooms in mind. Tell me what you want next:
+              export to Google Docs/Slides, worksheet formats, better question types, anything.
             </p>
             <button
-              className="primary-btn full"
-              onClick={() => router.push("/feedback")}
+              type="button"
+              className="feedback-btn"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const email = "mailto:feedback@elora.app?subject=Elora%20Feedback";
+                  window.location.href = email;
+                }
+              }}
             >
-              Send Feedback
+              Send Feedback (email)
             </button>
             <p className="footnote">
-              You can also share ideas for new features: slides, Google Docs,
-              worksheets and more.
+              Prototype for Genesis 2026 — feedback helps prioritise what ships next.
             </p>
           </div>
         </section>
 
         <footer className="footer">
-          <p>© 2025 Elora. Built for schools. Made by Haris · Prototype for Genesis 2026.</p>
+          <p>© 2025 Elora. Built for schools. Prototype for Genesis 2026.</p>
         </footer>
       </main>
 
       <style jsx>{`
+        /* (unchanged styling; kept inline for now) */
         .hero-shell {
           min-height: 100vh;
           background: radial-gradient(
@@ -186,51 +242,46 @@ export default function HomePage() {
         .hero {
           max-width: 1120px;
           margin: 0 auto;
-          padding: 32px 20px 8px;
+          padding: 44px 20px 24px;
           display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2.7fr);
-          gap: 36px;
+          grid-template-columns: 1.2fr 0.85fr;
+          gap: 26px;
         }
 
         .hero-left {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
+          padding-top: 12px;
         }
 
         .hero-pill {
           display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
+          padding: 8px 12px;
           border-radius: 999px;
           background: rgba(79, 70, 229, 0.08);
-          color: #4338ca;
-          font-size: 12px;
-          width: fit-content;
+          border: 1px solid rgba(79, 70, 229, 0.18);
+          color: #312e81;
+          font-weight: 650;
+          letter-spacing: 0.01em;
+          font-size: 0.9rem;
         }
 
         .hero-title {
-          font-size: 36px;
-          line-height: 1.1;
-          letter-spacing: -0.03em;
+          margin-top: 14px;
+          font-size: clamp(2.2rem, 4vw, 3.2rem);
+          line-height: 1.06;
+          font-weight: 800;
+          color: #0f172a;
         }
 
         .hero-sub {
-          font-size: 15px;
-          max-width: 480px;
-          color: #4b5563;
-        }
-
-        .role-section {
-          margin-top: 8px;
-        }
-
-        .role-label {
-          font-weight: 600;
-          margin-bottom: 10px;
+          margin-top: 12px;
+          font-size: 1.05rem;
+          line-height: 1.6;
+          color: rgba(15, 23, 42, 0.78);
+          max-width: 60ch;
         }
 
         .role-cards {
+          margin-top: 18px;
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
@@ -244,200 +295,244 @@ export default function HomePage() {
           border: 1px solid rgba(148, 163, 184, 0.35);
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          transition: border 0.15s ease, box-shadow 0.15s ease,
-            transform 0.12s ease;
+          gap: 6px;
+          box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .role-card.selected {
-          border-color: #4f46e5;
-          box-shadow: 0 12px 30px rgba(79, 70, 229, 0.18);
+        .role-card:hover {
           transform: translateY(-1px);
+          box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
         }
 
-        .role-emoji {
-          font-size: 18px;
+        .role-card.active {
+          border-color: rgba(79, 70, 229, 0.55);
+          box-shadow: 0 18px 38px rgba(79, 70, 229, 0.12);
         }
 
         .role-title {
-          font-weight: 600;
+          font-weight: 750;
+          color: #0f172a;
+          font-size: 1rem;
         }
 
-        .role-text {
-          font-size: 13px;
-          color: #6b7280;
+        .role-sub {
+          font-size: 0.92rem;
+          line-height: 1.45;
+          color: rgba(15, 23, 42, 0.72);
         }
 
-        .role-actions {
+        .hero-cta {
+          margin-top: 18px;
           display: flex;
           gap: 12px;
-          margin-top: 18px;
+          align-items: center;
+          flex-wrap: wrap;
         }
 
-        .primary-btn {
-          border-radius: 999px;
-          padding: 10px 22px;
-          background: #4f46e5;
+        .cta {
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          background: white;
+          font-weight: 700;
+          color: #0f172a;
+          cursor: pointer;
+        }
+
+        .cta.primary {
+          background: linear-gradient(90deg, #4f46e5, #7c3aed);
           color: white;
-          font-weight: 600;
-          font-size: 14px;
+          border: none;
+          box-shadow: 0 16px 34px rgba(79, 70, 229, 0.2);
         }
 
-        .primary-btn.full {
-          width: 100%;
-          text-align: center;
-          justify-content: center;
+        .hero-links {
+          margin-top: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: rgba(15, 23, 42, 0.72);
+          font-size: 0.92rem;
         }
 
-        .ghost-btn {
-          border-radius: 999px;
-          padding: 10px 22px;
-          border: 1px solid #4f46e5;
-          color: #4f46e5;
-          font-weight: 500;
-          font-size: 14px;
+        .hero-link {
           background: transparent;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          color: rgba(79, 70, 229, 0.95);
+          font-weight: 650;
         }
 
-        .guest-note {
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 6px;
+        .dot {
+          opacity: 0.5;
         }
 
         .hero-right {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
+          justify-content: flex-end;
+          padding-top: 6px;
         }
 
         .profile-card {
           width: 100%;
-          border-radius: 22px;
-          background: #ffffff;
-          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-          padding: 20px 20px 18px;
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          border-radius: 20px;
+          padding: 18px 18px 16px;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+          backdrop-filter: blur(10px);
         }
 
         .profile-label {
-          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.13em;
-          color: #6b7280;
+          font-size: 0.74rem;
+          letter-spacing: 0.14em;
+          color: rgba(15, 23, 42, 0.55);
+          font-weight: 750;
         }
 
         .profile-main {
-          margin-top: 6px;
-          font-weight: 700;
+          margin-top: 10px;
+          font-weight: 800;
+          color: #0f172a;
+          font-size: 1.08rem;
         }
 
         .profile-sub {
-          margin-top: 6px;
-          font-size: 13px;
-          color: #6b7280;
+          margin-top: 8px;
+          color: rgba(15, 23, 42, 0.7);
+          line-height: 1.55;
+          font-size: 0.96rem;
         }
 
         .profile-buttons {
           margin-top: 14px;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
+          gap: 10px;
         }
 
         .profile-btn {
-          border-radius: 999px;
-          padding: 8px 10px;
-          font-size: 13px;
-          border: 1px solid rgba(148, 163, 184, 0.7);
-          background: #f9fafb;
+          padding: 10px 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          background: white;
+          cursor: pointer;
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 0.92rem;
         }
 
         .profile-btn.primary {
-          background: #4f46e5;
-          color: white;
-          border-color: #4f46e5;
+          background: rgba(79, 70, 229, 0.1);
+          border-color: rgba(79, 70, 229, 0.35);
+          color: #312e81;
         }
 
         .profile-foot {
-          margin-top: 10px;
-          font-size: 12px;
-          color: #6b7280;
+          margin-top: 14px;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          color: rgba(15, 23, 42, 0.65);
         }
 
         .faq-feedback {
           max-width: 1120px;
-          margin: 32px auto 0;
-          padding: 0 20px;
+          margin: 0 auto;
+          padding: 24px 20px;
           display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-          gap: 32px;
+          grid-template-columns: 1.1fr 0.9fr;
+          gap: 22px;
         }
 
-        .faq h2,
-        .feedback h2 {
-          font-size: 20px;
-          margin-bottom: 10px;
+        .faq,
+        .feedback {
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          border-radius: 20px;
+          padding: 18px 18px 16px;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+        }
+
+        h2 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: #0f172a;
+          font-weight: 850;
         }
 
         details {
-          background: #ffffff;
-          border-radius: 14px;
-          padding: 10px 12px;
-          margin-bottom: 8px;
-          border: 1px solid rgba(148, 163, 184, 0.4);
+          margin-top: 12px;
+          border-top: 1px solid rgba(148, 163, 184, 0.25);
+          padding-top: 12px;
         }
 
         summary {
           cursor: pointer;
-          font-weight: 500;
-          font-size: 14px;
+          font-weight: 750;
+          color: #0f172a;
         }
 
         details p {
-          margin-top: 6px;
-          font-size: 13px;
-          color: #4b5563;
-        }
-
-        .feedback {
-          background: #ffffff;
-          border-radius: 18px;
-          padding: 16px 16px 14px;
-          border: 1px solid rgba(148, 163, 184, 0.4);
+          margin: 10px 0 0;
+          color: rgba(15, 23, 42, 0.72);
+          line-height: 1.6;
         }
 
         .feedback p {
-          font-size: 13px;
-          color: #4b5563;
+          margin-top: 10px;
+          color: rgba(15, 23, 42, 0.72);
+          line-height: 1.6;
+        }
+
+        .feedback-btn {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(90deg, #0ea5e9, #4f46e5);
+          color: white;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 18px 40px rgba(14, 165, 233, 0.18);
         }
 
         .footnote {
-          margin-top: 6px;
-          font-size: 12px;
-          color: #6b7280;
+          margin-top: 10px;
+          font-size: 0.92rem;
+          color: rgba(15, 23, 42, 0.62);
         }
 
         .footer {
-          margin-top: 28px;
-          text-align: center;
-          font-size: 12px;
-          color: #6b7280;
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 16px 20px 0;
+          color: rgba(15, 23, 42, 0.55);
+          font-size: 0.92rem;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 980px) {
           .hero {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 1fr;
           }
-
           .hero-right {
-            order: -1;
+            justify-content: flex-start;
           }
-
-          .role-cards {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
           .faq-feedback {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 740px) {
+          .role-cards {
+            grid-template-columns: 1fr;
+          }
+          .profile-buttons {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

@@ -1,413 +1,308 @@
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/router";
+import { useEffect, useMemo, useState } from "react";
+import Modal from "../components/Modal";
+import RoleIllustration from "../components/RoleIllustration";
+import { getSession, setGuest, setRole } from "../lib/session";
 
-const COUNTRY_OPTIONS = [
-  "Singapore",
-  "United States",
-  "United Kingdom",
-  "Australia",
-  "Canada",
-  "India",
-  "Other",
-];
+const COUNTRY_OPTIONS = ["Singapore", "United States", "United Kingdom", "Australia", "Canada", "India", "Other"];
+const LEVEL_OPTIONS = ["Primary (1–6)", "Lower Secondary", "Upper Secondary", "O-Level", "A-Level", "University", "Other"];
+const SUBJECT_OPTIONS = ["Math", "Science", "English", "Computer Science", "History", "Geography", "Other"];
 
-const LEVEL_OPTIONS = [
-  "Primary (1–6)",
-  "Lower Secondary",
-  "Upper Secondary / O-Level",
-  "JC / Pre-University",
-  "Grade 1–5",
-  "Grade 6–8",
-  "Grade 9–12",
-  "University / Tertiary",
-];
+const ROLE_QUICK_ACTIONS = {
+  educator: [
+    { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
+    { id: "worksheet", label: "Create worksheet", hint: "Core → Application → Challenge + answers" },
+    { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
+    { id: "slides", label: "Design slides", hint: "8–12 slide outline" },
+    { id: "explain", label: "Explain a topic", hint: "Teach it clearly + practice" },
+    { id: "custom", label: "Custom request", hint: "Anything else" },
+  ],
+  student: [
+    { id: "explain", label: "Explain it", hint: "Step-by-step + examples" },
+    { id: "worksheet", label: "Give me practice", hint: "Short practice set + answers" },
+    { id: "assessment", label: "Quiz me", hint: "Timed quiz + marking", lockedInGuest: true },
+    { id: "custom", label: "Revision plan", hint: "What to study + schedule" },
+  ],
+  parent: [
+    { id: "explain", label: "Explain to a parent", hint: "Simple + what it means" },
+    { id: "worksheet", label: "Practice at home", hint: "Small set + answers" },
+    { id: "custom", label: "How to help", hint: "Activities + common mistakes" },
+    { id: "assessment", label: "Progress check", hint: "Mini-check + rubric", lockedInGuest: true },
+  ],
+};
 
-const SUBJECT_OPTIONS = [
-  "Math",
-  "Science",
-  "English",
-  "History",
-  "Geography",
-  "Computer Science",
-  "Language",
-  "Other",
-];
-
-const ACTIONS = [
-  { id: "lesson", label: "Plan a lesson" },
-  { id: "worksheet", label: "Create worksheet" },
-  { id: "assessment", label: "Generate assessment" },
-  { id: "slides", label: "Design lesson slides" },
-  { id: "explain", label: "Explain a topic" },
-  { id: "custom", label: "Custom request" },
-];
+function classNames(...xs) {
+  return xs.filter(Boolean).join(" ");
+}
 
 export default function AssistantPage() {
-  const router = useRouter();
-  const [role, setRole] = useState("educator");
+  const [role, setRoleState] = useState("educator");
   const [country, setCountry] = useState("Singapore");
   const [level, setLevel] = useState("Primary (1–6)");
   const [subject, setSubject] = useState("Math");
   const [topic, setTopic] = useState("Introduction to fractions");
+
   const [action, setAction] = useState("lesson");
 
+  const [options, setOptions] = useState({
+    difficulty: "Mixed",
+    length: "Standard",
+    questionCount: "Default",
+    includeAnswers: true,
+  });
+
   const [messages, setMessages] = useState([
-    {
-      from: "elora",
-      text: "Hello! I’m Elora. I can help you create lessons, worksheets, assessments and explain topics for your students.",
-    },
+    { from: "elora", text: "Hi — I’m Elora. Pick options on the left, then generate. Use chat to refine." },
   ]);
   const [input, setInput] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
-  const [lastExportText, setLastExportText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Read role from URL if available
+  const [verifyGate, setVerifyGate] = useState(false);
+
+  const session = useMemo(() => (typeof window !== "undefined" ? getSession() : { guest: false, verified: false }), []);
+
   useEffect(() => {
-    if (!router.isReady) return;
-    const queryRole = router.query.role;
-    if (queryRole === "student" || queryRole === "parent" || queryRole === "educator") {
-      setRole(queryRole);
+    if (typeof window === "undefined") return;
+    const s = getSession();
+
+    // If no role chosen yet, default educator (but store it)
+    if (!s.role) {
+      setRole("educator");
+      setRoleState("educator");
+    } else {
+      setRoleState(s.role);
     }
-  }, [router.isReady, router.query.role]);
 
-  const roleLabel = useMemo(() => {
-    if (role === "student") return "Student";
-    if (role === "parent") return "Parent";
-    return "Educator";
-  }, [role]);
+    // Default action per role
+    if (s.role === "student") setAction("explain");
+    else if (s.role === "parent") setAction("explain");
+    else setAction("lesson");
+  }, []);
 
-  const activeProfileLabel = `${country} · ${level} · ${subject}`;
+  const quickActions = ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.educator;
 
-  const appendMessage = (from, text) => {
-    setMessages((prev) => [...prev, { from, text }]);
+  const guest = session.guest && !session.verified;
+
+  const isLocked = (a) => {
+    if (!guest) return false;
+    // guest locks slides + assessment (and some role quick actions mark locked)
+    if (a === "slides" || a === "assessment") return true;
+    return false;
   };
 
-  async function callAssistantAPI(payload) {
-    try {
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+  const optionsText = useMemo(() => {
+    const lines = [];
+    lines.push(`Difficulty: ${options.difficulty}`);
+    lines.push(`Length: ${options.length}`);
+    if (action === "worksheet" || action === "assessment") lines.push(`Question count: ${options.questionCount}`);
+    if (action !== "slides") lines.push(`Include answers: ${options.includeAnswers ? "Yes" : "No"}`);
+    return lines.join("\n");
+  }, [options, action]);
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
+  const append = (from, text) => setMessages((m) => [...m, { from, text }]);
 
-      const data = await res.json();
-      return data.reply || data.message || "Sorry, I couldn’t generate a response just now.";
-    } catch (err) {
-      console.error("Assistant API error:", err);
-      return (
-        "Sorry, something went wrong talking to the AI. " +
-        "You can ask your question again, or tweak the topic / action and try once more."
-      );
-    }
-  }
-
-  function buildContext() {
-    return {
+  async function callAssistant({ message }) {
+    const payload = {
       role,
       country,
       level,
       subject,
       topic,
-      profileSummary: `Role: ${roleLabel} · Country: ${country} · Level: ${level} · Subject: ${subject} · Topic: ${topic}`,
+      action,
+      message: message || "",
+      options: optionsText,
+      guest,
     };
+
+    const res = await fetch("/api/assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const err = data?.error || "Something went wrong talking to Elora.";
+      throw new Error(err);
+    }
+    return data.reply;
   }
 
-  const handleGenerateStructured = async () => {
-    if (!topic.trim()) {
+  const handleGenerate = async () => {
+    if (isLocked(action)) {
+      setVerifyGate(true);
       return;
     }
-    setIsThinking(true);
-
-    const context = buildContext();
-    const userIntent = ACTIONS.find((a) => a.id === action)?.label || "Plan a lesson";
-
-    appendMessage(
-      "me",
-      `${userIntent} for "${topic}" (${activeProfileLabel})`
-    );
-
-    const reply = await callAssistantAPI({
-      ...context,
-      mode: "structured",
-      action,
-      message: "",
-    });
-
-    appendMessage("elora", reply);
-    setLastExportText(reply);
-    setIsThinking(false);
+    setLoading(true);
+    try {
+      append("user", `Generate: ${action} — ${topic}`);
+      const reply = await callAssistant({ message: "" });
+      append("elora", reply);
+    } catch (e) {
+      append("elora", e.message || "Error generating response.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSendFreeChat = async () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-
+  const handleSend = async () => {
+    const msg = input.trim();
+    if (!msg) return;
     setInput("");
-    appendMessage("me", trimmed);
-    setIsThinking(true);
-
-    const context = buildContext();
-
-    const reply = await callAssistantAPI({
-      ...context,
-      mode: "chat",
-      action: action || "lesson",
-      message: trimmed,
-    });
-
-    appendMessage("elora", reply);
-    setLastExportText(reply);
-    setIsThinking(false);
+    setLoading(true);
+    try {
+      append("user", msg);
+      const reply = await callAssistant({ message: msg });
+      append("elora", reply);
+    } catch (e) {
+      append("elora", e.message || "Error generating response.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDownload = (kind) => {
-    if (!lastExportText) return;
-    let filename = "elora-output.txt";
-    if (kind === "lesson") filename = "elora-lesson-plan.txt";
-    if (kind === "worksheet") filename = "elora-worksheet.txt";
-    if (kind === "assessment") filename = "elora-assessment.txt";
-    if (kind === "slides") filename = "elora-slides-outline.txt";
-
-    const blob = new Blob([lastExportText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const statusPill = session.verified
+    ? { text: "Verified ✅", cls: "bg-emerald-500/15 text-emerald-200 border-emerald-400/20" }
+    : guest
+    ? { text: "Guest ⚠️ limited", cls: "bg-amber-500/15 text-amber-200 border-amber-400/20" }
+    : { text: "Unverified", cls: "bg-slate-500/10 text-slate-300 border-white/10" };
 
   return (
-    <div className="elora-assistant-shell">
-      {/* LEFT: Teaching profile */}
-      <aside className="elora-panel space-y-4">
-        <div className="text-[0.75rem] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-          Teaching profile
-        </div>
-        <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
-          {activeProfileLabel}
-        </div>
-
-        {/* Role */}
-        <div>
-          <label className="elora-label">Role</label>
-          <select
-            className="elora-select"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="educator">Educator</option>
-            <option value="student">Student</option>
-            <option value="parent">Parent</option>
-          </select>
-        </div>
-
-        {/* Country */}
-        <div>
-          <label className="elora-label">Country / region</label>
-          <select
-            className="elora-select"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-          >
-            {COUNTRY_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Level */}
-        <div>
-          <label className="elora-label">Level</label>
-          <select
-            className="elora-select"
-            value={level}
-            onChange={(e) => setLevel(e.target.value)}
-          >
-            {LEVEL_OPTIONS.map((lvl) => (
-              <option key={lvl} value={lvl}>
-                {lvl}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Subject */}
-        <div>
-          <label className="elora-label">Subject</label>
-          <select
-            className="elora-select"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          >
-            {SUBJECT_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Topic */}
-        <div>
-          <label className="elora-label">Topic</label>
-          <input
-            className="elora-input"
-            placeholder="e.g. Introduction to fractions"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-          />
-        </div>
-
-        {/* What to create */}
-        <div>
-          <label className="elora-label">What do you want Elora to create?</label>
-          <div className="elora-action-grid">
-            {ACTIONS.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className={`elora-action-btn ${
-                  action === a.id ? "active" : ""
-                }`}
-                onClick={() => setAction(a.id)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleGenerateStructured}
-          disabled={isThinking || !topic}
-          className="w-full mt-2 elora-primary-button py-2.5 text-sm font-semibold"
-        >
-          {isThinking ? "Elora is thinking…" : "Generate with Elora"}
-        </button>
-
-        <p className="elora-helper-text">
-          Elora builds the best possible prompt using your role, country, level,
-          subject and topic. You just choose and click generate.
-        </p>
-
-        {/* Export row */}
-        <div className="elora-export-row">
-          <button
-            type="button"
-            className="elora-export-btn"
-            onClick={() => handleDownload("lesson")}
-          >
-            Download lesson (.txt)
-          </button>
-          <button
-            type="button"
-            className="elora-export-btn"
-            onClick={() => handleDownload("worksheet")}
-          >
-            Download worksheet (.txt)
-          </button>
-          <button
-            type="button"
-            className="elora-export-btn"
-            onClick={() => handleDownload("assessment")}
-          >
-            Download assessment (.txt)
-          </button>
-          <button
-            type="button"
-            className="elora-export-btn"
-            onClick={() => handleDownload("slides")}
-          >
-            Download slides outline (.txt)
-          </button>
-        </div>
-
-        <p className="elora-small-muted">
-          You can upload these files into Google Docs or Slides, or copy-paste
-          the content directly. Later we can connect real Google APIs.
-        </p>
-      </aside>
-
-      {/* RIGHT: Chat area */}
-      <section className="elora-panel flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Elora Assistant 💙
-            </div>
-            <div className="text-[0.8rem] text-slate-500 dark:text-slate-400">
-              Role: {roleLabel} · {country}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="text-[0.8rem] text-slate-500 dark:text-slate-400 underline-offset-2 hover:underline"
-            onClick={() => router.push("/")}
-          >
-            Home
-          </button>
-        </div>
-
-        <div className="elora-chat-window mb-3">
-          {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={`elora-chat-row ${m.from === "me" ? "me" : ""}`}
-            >
-              <div
-                className={`elora-bubble ${
-                  m.from === "me" ? "me" : "elora"
-                }`}
-              >
-                {m.text}
+    <>
+      <div className="grid lg:grid-cols-2 gap-5 items-start">
+        {/* LEFT: Prompt builder */}
+        <div className="rounded-2xl border border-white/10 bg-white/60 dark:bg-slate-950/40 backdrop-blur-xl p-5 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xl font-black text-slate-950 dark:text-white">Prompt Builder</div>
+              <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                Options first → Elora generates. Chat is for refinement.
               </div>
             </div>
-          ))}
-          {isThinking && (
-            <div className="elora-chat-row">
-              <div className="elora-bubble elora text-[0.8rem] italic">
-                Elora is thinking…
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs border ${statusPill.cls}`}>
+              {statusPill.text}
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <RoleIllustration role={role} />
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            <div>
+              <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Role</label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {["educator", "student", "parent"].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      setRoleState(r);
+                      setRole(r);
+                      // role default action
+                      if (r === "educator") setAction("lesson");
+                      else setAction("explain");
+                    }}
+                    className={classNames(
+                      "px-3 py-2 rounded-xl border text-sm font-extrabold transition",
+                      role === r
+                        ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200"
+                        : "border-white/10 bg-white/45 dark:bg-slate-950/30 text-slate-800 dark:text-slate-200 hover:bg-white/70 dark:hover:bg-slate-950/50"
+                    )}
+                  >
+                    {r[0].toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-        </div>
 
-        <p className="elora-small-muted mb-2">
-          Elora builds structured prompts in the background so you don&apos;t
-          have to guess what to type.
-        </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Country / Region</label>
+                <select
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                >
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c} value={c} className="text-slate-900">
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        <div className="elora-chat-input-row mt-auto">
-          <input
-            className="elora-chat-input"
-            placeholder="Ask Elora anything…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendFreeChat();
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleSendFreeChat}
-            disabled={isThinking || !input.trim()}
-            className="elora-primary-button px-5 py-2 text-sm font-semibold"
-          >
-            Send
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Level</label>
+                <select
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                >
+                  {LEVEL_OPTIONS.map((l) => (
+                    <option key={l} value={l} className="text-slate-900">
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Subject</label>
+                <select
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  {SUBJECT_OPTIONS.map((s) => (
+                    <option key={s} value={s} className="text-slate-900">
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Topic</label>
+                <input
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., Introduction to fractions"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Quick actions</label>
+              <div className="mt-2 grid sm:grid-cols-2 gap-2">
+                {quickActions.map((a) => {
+                  const locked = isLocked(a.id) || Boolean(a.lockedInGuest && guest);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        if (locked) {
+                          setVerifyGate(true);
+                          return;
+                        }
+                        setAction(a.id);
+                      }}
+                      className={classNames(
+                        "p-3 rounded-xl border text-left transition",
+                        action === a.id
+                          ? "border-indigo-500/45 bg-indigo-500/10"
+                          : "border-white/10 bg-white/45 dark:bg-slate-950/30 hover:bg-white/70 dark:hover:bg-slate-950/50",
+                        locked ? "opacity-60" : ""
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                          {a.label}
+                        </div>
+                        {locked ? (
+                          <span className="text-xs font-bold text-amber-300">Locked</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">{a.h

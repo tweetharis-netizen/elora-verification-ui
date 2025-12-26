@@ -1,6 +1,6 @@
-// components/RoleIllustration.js
 export default function RoleIllustration({ role = "educator" }) {
   const common = "w-full h-32 rounded-xl overflow-hidden";
+
   if (role === "student") {
     return (
       <div className={common}>

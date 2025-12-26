@@ -1,65 +1,42 @@
 import { useEffect, useState } from "react";
-import { auth } from "../lib/firebase";
+import { setGuest, setVerified } from "../lib/session";
 
 export default function SuccessPage() {
-  const [verified, setVerified] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const checkVerification = async () => {
-      const user = auth.currentUser;
+    // For prototype: treat successful email verification landing as verified.
+    setVerified(true);
+    setGuest(false);
+    setDone(true);
 
-      if (!user) {
-        // User verified via link but not signed in — this is OK
-        setVerified(true);
-        setChecking(false);
-        return;
-      }
+    const t = setTimeout(() => {
+      window.location.href = "/assistant";
+    }, 900);
 
-      try {
-        await user.reload();
-        setVerified(user.emailVerified);
-      } catch {
-        setVerified(true); // fail open for MVP
-      } finally {
-        setChecking(false);
-      }
-    };
-
-    checkVerification();
+    return () => clearTimeout(t);
   }, []);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 dark:from-[#0b0f19] dark:to-[#0b0f19] px-4">
-      <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-2xl p-8 max-w-md text-center">
-        {checking && (
-          <>
-            <h1 className="text-2xl font-semibold">
-              Checking verification…
-            </h1>
-            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              Please wait while we confirm your email.
-            </p>
-          </>
-        )}
-
-        {!checking && verified && (
-          <>
-            <h1 className="text-2xl font-semibold text-green-600">
-              Email verified 🎉
-            </h1>
-            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              Your email has been successfully verified.
-            </p>
-
-            <button
-              onClick={() => (window.location.href = "/onboarding")}
-              className="mt-8 w-full py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition"
-            >
-              Continue
-            </button>
-          </>
-        )}
+    <main className="min-h-[70vh] flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/60 dark:bg-slate-950/40 backdrop-blur-xl p-6 text-center shadow-2xl">
+        <h1 className="text-2xl font-black text-slate-950 dark:text-white">
+          Email verified ✅
+        </h1>
+        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+          You’re all set. Redirecting you to Elora…
+        </p>
+        <div className="mt-5">
+          <button
+            className="px-5 py-3 rounded-full font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+            onClick={() => (window.location.href = "/assistant")}
+          >
+            Continue
+          </button>
+        </div>
+        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          {done ? "Verified session stored in this browser." : "…"}
+        </div>
       </div>
     </main>
   );

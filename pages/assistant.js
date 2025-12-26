@@ -305,4 +305,198 @@ export default function AssistantPage() {
                           <span className="text-xs font-bold text-amber-300">Locked</span>
                         ) : null}
                       </div>
-                      <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">{a.h
+                      <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">{a.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Difficulty</label>
+                <select
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={options.difficulty}
+                  onChange={(e) => setOptions((o) => ({ ...o, difficulty: e.target.value }))}
+                >
+                  {["Easy", "Standard", "Mixed", "Challenging"].map((d) => (
+                    <option key={d} value={d} className="text-slate-900">
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Length</label>
+                <select
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  value={options.length}
+                  onChange={(e) => setOptions((o) => ({ ...o, length: e.target.value }))}
+                >
+                  {["Short", "Standard", "Detailed"].map((d) => (
+                    <option key={d} value={d} className="text-slate-900">
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(action === "worksheet" || action === "assessment") && (
+                <div>
+                  <label className="text-sm font-bold text-slate-800 dark:text-slate-200">Question count</label>
+                  <select
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/50 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                    value={options.questionCount}
+                    onChange={(e) => setOptions((o) => ({ ...o, questionCount: e.target.value }))}
+                  >
+                    {["Default", "Short (5–8)", "Medium (10–15)", "Long (18–25)"].map((q) => (
+                      <option key={q} value={q} className="text-slate-900">
+                        {q}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {action !== "slides" && (
+                <label className="flex items-center gap-2 mt-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={options.includeAnswers}
+                    onChange={(e) => setOptions((o) => ({ ...o, includeAnswers: e.target.checked }))}
+                  />
+                  Include answers
+                </label>
+              )}
+            </div>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleGenerate}
+              className="mt-2 w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 shadow-xl shadow-indigo-500/20"
+            >
+              {loading ? "Generating…" : "Generate with Elora"}
+            </button>
+
+            {guest && (
+              <div className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-400/20 rounded-xl p-3">
+                Guest mode is limited: assessments & slides are locked, and outputs are shorter.
+                Verify to unlock everything.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: Chat + Output */}
+        <div className="rounded-2xl border border-white/10 bg-white/60 dark:bg-slate-950/40 backdrop-blur-xl p-5 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xl font-black text-slate-950 dark:text-white">Elora Assistant</div>
+              <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                {country} · {level} · {subject} · <span className="font-bold">{role}</span>
+              </div>
+            </div>
+
+            {!session.verified && (
+              <button
+                type="button"
+                onClick={() => setVerifyGate(true)}
+                className="px-4 py-2 rounded-full text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+              >
+                Verify to unlock
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 h-[460px] overflow-auto pr-1 flex flex-col gap-3">
+            {messages.map((m, idx) => (
+              <div
+                key={idx}
+                className={classNames(
+                  "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
+                  m.from === "user"
+                    ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
+                    : "mr-auto bg-white/60 dark:bg-slate-950/30 text-slate-900 dark:text-slate-100 border-white/10"
+                )}
+              >
+                {m.text}
+              </div>
+            ))}
+          </div>
+
+          {/* Refinement chips (the “prompting problem” solver) */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {["Shorter", "More challenging", "Differentiate", "Add misconceptions", "Quiz me every 3 steps"].map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setInput((prev) => (prev ? `${prev}\n${t}` : t))}
+                className="px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 bg-white/50 dark:bg-slate-950/30 text-slate-800 dark:text-slate-200 hover:bg-white/70 dark:hover:bg-slate-950/50"
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <input
+              className="flex-1 rounded-full border border-white/10 bg-white/55 dark:bg-slate-950/30 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask Elora to refine, explain, or generate a variant…"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleSend}
+              className="px-5 py-3 rounded-full font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 shadow-lg shadow-indigo-500/20"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Modal open={verifyGate} title="Unlock full Elora features" onClose={() => setVerifyGate(false)}>
+        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+          Full mode unlocks assessments, slide generation, and longer outputs. Guest mode is limited.
+        </p>
+
+        <div className="mt-4 grid gap-2">
+          <button
+            type="button"
+            onClick={() => (window.location.href = "/verify")}
+            className="w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+          >
+            Sign in / Verify
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setGuest(true);
+              setVerifyGate(false);
+            }}
+            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+          >
+            Stay in Guest mode
+          </button>
+        </div>
+
+        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Note: AI can be wrong — verify important details with your syllabus/teacher.
+        </div>
+      </Modal>
+    </>
+  );
+}

@@ -83,7 +83,6 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   useEffect(() => {
-    // close mobile menu on route change
     setMenuOpen(false);
   }, [router.pathname]);
 
@@ -91,6 +90,15 @@ export default function App({ Component, pageProps }) {
     () => router.pathname === "/verify" || router.pathname === "/success",
     [router.pathname]
   );
+
+  const statusLabel = useMemo(() => {
+    if (session.verified) {
+      if (session.teacherInvite) return "Teacher ✓";
+      return "Verified ✓";
+    }
+    if (session.guest) return "Guest (limited)";
+    return "Unverified";
+  }, [session]);
 
   return (
     <div className="min-h-screen">
@@ -137,7 +145,7 @@ export default function App({ Component, pageProps }) {
               <div className="flex items-center gap-2">
                 {/* Status pill */}
                 <span className="hidden sm:inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-white/10 bg-white/45 dark:bg-slate-950/30 text-slate-700 dark:text-slate-200">
-                  {session.verified ? "Verified ✓" : session.guest ? "Guest (limited)" : "Unverified"}
+                  {statusLabel}
                 </span>
 
                 <button
@@ -147,7 +155,8 @@ export default function App({ Component, pageProps }) {
                   {theme === "dark" ? "Light" : "Dark"}
                 </button>
 
-                {!isVerifyPage ? (
+                {/* IMPORTANT: Hide this if already verified */}
+                {!isVerifyPage && !session.verified ? (
                   <Link
                     href="/verify"
                     className="hidden sm:inline-flex rounded-full px-5 py-2 text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
@@ -186,7 +195,7 @@ export default function App({ Component, pageProps }) {
                       {theme === "dark" ? "Light mode" : "Dark mode"}
                     </button>
 
-                    {!isVerifyPage ? (
+                    {!isVerifyPage && !session.verified ? (
                       <Link
                         href="/verify"
                         className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"

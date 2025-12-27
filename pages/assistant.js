@@ -1,111 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Modal from "../components/Modal";
 import RoleIllustration from "../components/RoleIllustration";
-import { getSession, setRole as storeRole, setGuest as storeGuest } from "../lib/session";
+import {
+  getSession,
+  setRole as storeRole,
+  setGuest as storeGuest,
+  setTeacherInvite,
+  clearTeacherInvite,
+  getStored,
+  STORAGE,
+} from "../lib/session";
 
-const COUNTRY_OPTIONS = [
-  "Singapore",
-  "United States",
-  "United Kingdom",
-  "Australia",
-  "Canada",
-  "India",
-  "Other",
-];
+const COUNTRY_OPTIONS = ["Singapore", "United States", "United Kingdom", "Australia", "Canada", "India", "Other"];
 
 const LEVELS_BY_COUNTRY = {
-  Singapore: [
-    "Primary (1–6)",
-    "Secondary (1–2)",
-    "Secondary (3–4)",
-    "O-Level",
-    "A-Level",
-    "University",
-    "Other",
-  ],
-  "United States": [
-    "Grade 1",
-    "Grade 2",
-    "Grade 3",
-    "Grade 4",
-    "Grade 5",
-    "Grade 6",
-    "Grade 7",
-    "Grade 8 (Middle School)",
-    "Grade 9 (High School)",
-    "Grade 10 (High School)",
-    "Grade 11 (High School)",
-    "Grade 12 (High School)",
-    "AP / Advanced",
-    "University",
-    "Other",
-  ],
-  "United Kingdom": [
-    "Year 1",
-    "Year 2",
-    "Year 3",
-    "Year 4",
-    "Year 5",
-    "Year 6",
-    "Year 7",
-    "Year 8",
-    "Year 9",
-    "GCSE (Year 10–11)",
-    "A-Level (Year 12–13)",
-    "University",
-    "Other",
-  ],
-  Australia: [
-    "Foundation",
-    "Year 1",
-    "Year 2",
-    "Year 3",
-    "Year 4",
-    "Year 5",
-    "Year 6",
-    "Year 7",
-    "Year 8",
-    "Year 9",
-    "Year 10",
-    "Year 11",
-    "Year 12",
-    "University",
-    "Other",
-  ],
-  Canada: [
-    "Grade 1",
-    "Grade 2",
-    "Grade 3",
-    "Grade 4",
-    "Grade 5",
-    "Grade 6",
-    "Grade 7",
-    "Grade 8",
-    "Grade 9",
-    "Grade 10",
-    "Grade 11",
-    "Grade 12",
-    "University",
-    "Other",
-  ],
-  India: [
-    "Class 1",
-    "Class 2",
-    "Class 3",
-    "Class 4",
-    "Class 5",
-    "Class 6",
-    "Class 7",
-    "Class 8",
-    "Class 9",
-    "Class 10",
-    "Class 11",
-    "Class 12",
-    "University",
-    "Other",
-  ],
+  Singapore: ["Primary (1–6)", "Secondary (1–2)", "Secondary (3–4)", "O-Level", "A-Level", "University", "Other"],
+  "United States": ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8 (Middle School)", "Grade 9 (High School)", "Grade 10 (High School)", "Grade 11 (High School)", "Grade 12 (High School)", "AP / Advanced", "University", "Other"],
+  "United Kingdom": ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "GCSE (Year 10–11)", "A-Level (Year 12–13)", "University", "Other"],
+  Australia: ["Foundation", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Other"],
+  Canada: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Other"],
+  India: ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12", "University", "Other"],
   Other: ["Primary / Elementary", "Middle School", "High School", "Pre-University", "University", "Other"],
 };
 
@@ -115,8 +32,8 @@ const ROLE_QUICK_ACTIONS = {
   educator: [
     { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
     { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions, export-ready" },
-    { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme (Verified)" },
-    { id: "slides", label: "Design slides", hint: "Download PPTX for Google Slides (Verified)" },
+    { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme (Teacher)" },
+    { id: "slides", label: "Design slides", hint: "Engaging deck + visuals (Teacher)" },
   ],
   student: [
     { id: "explain", label: "Explain it", hint: "Clear explanation + example + practice" },
@@ -134,7 +51,7 @@ const REFINEMENT_CHIPS = {
   lesson: ["Shorter", "More detailed", "Add differentiation", "Add misconceptions", "Add exit ticket rubric"],
   worksheet: ["Make it 1 page", "Add worked example", "More challenging", "Add word problems", "Add misconceptions"],
   assessment: ["Harder", "More conceptual", "Add marks", "Add marking scheme detail", "Reduce length"],
-  slides: ["Shorter deck", "More visuals ideas", "Add teacher notes", "More interactivity", "Add recap slide"],
+  slides: ["More visuals ideas", "More interactivity", "Add checks for understanding", "Add teacher notes", "Shorter deck"],
   explain: ["Simpler", "More examples", "Quiz me every 3 steps", "Harder practice", "Explain step-by-step"],
   custom: ["Shorter", "More detailed", "More examples", "Make it student-friendly", "Make it teacher-friendly"],
 };
@@ -154,6 +71,14 @@ function safeFilename(name) {
     .slice(0, 80);
 }
 
+function stripAnyArtifactTags(text) {
+  if (!text) return "";
+  return text
+    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*$/g, "")
+    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*?<\/ELORA_ARTIFACT_JSON>/g, "")
+    .trim();
+}
+
 function artifactToMarkdown(artifact, mode = "student") {
   if (!artifact || typeof artifact !== "object") return "";
 
@@ -166,9 +91,13 @@ function artifactToMarkdown(artifact, mode = "student") {
     slides.forEach((s, idx) => {
       lines.push(`## Slide ${idx + 1}: ${s.title || "Untitled"}`);
       (Array.isArray(s.bullets) ? s.bullets : []).forEach((b) => lines.push(`- ${b}`));
-      if (s.notes) {
-        lines.push(`**Notes:** ${s.notes}`);
+      const visuals = Array.isArray(s.visuals) ? s.visuals : [];
+      if (visuals.length) {
+        lines.push(`\n**Visual ideas:**`);
+        visuals.forEach((v) => lines.push(`- ${v}`));
       }
+      if (s.layoutHint) lines.push(`\n**Layout hint:** ${s.layoutHint}`);
+      if (s.teacherNotes) lines.push(`\n**Teacher notes:** ${s.teacherNotes}`);
       lines.push("");
     });
     return lines.join("\n");
@@ -236,7 +165,6 @@ function artifactToMarkdown(artifact, mode = "student") {
     return lines.join("\n");
   }
 
-  // explain/custom fallback
   if (artifact.explanation) {
     const lines = [`# Explanation`, "", artifact.explanation];
     if (Array.isArray(artifact.examples) && artifact.examples.length) {
@@ -258,8 +186,9 @@ function artifactToMarkdown(artifact, mode = "student") {
 }
 
 export default function AssistantPage() {
-  const [session, setSession] = useState(() => getSession());
+  const router = useRouter();
 
+  const [session, setSession] = useState(() => getSession());
   useEffect(() => {
     const sync = () => setSession(getSession());
     sync();
@@ -267,8 +196,20 @@ export default function AssistantPage() {
     return () => window.removeEventListener("focus", sync);
   }, []);
 
+  // Invite link support: /assistant?invite=CODE
+  useEffect(() => {
+    const invite = (router.query?.invite || "").toString().trim();
+    if (!invite) return;
+    setTeacherInvite(invite);
+    setSession(getSession());
+    // remove query param after storing to keep URL clean
+    router.replace("/assistant", undefined, { shallow: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query?.invite]);
+
   const verified = !!session.verified;
   const guest = !!session.guest;
+  const teacherInvite = (session.teacherInvite || "").trim();
 
   const [role, setRole] = useState(session.role || "educator");
   const [country, setCountry] = useState("Singapore");
@@ -289,9 +230,11 @@ export default function AssistantPage() {
 
   const [loading, setLoading] = useState(false);
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
+  const [inviteInput, setInviteInput] = useState("");
 
   const [lastArtifact, setLastArtifact] = useState(null);
-  const [worksheetMode, setWorksheetMode] = useState("student"); // student | teacher
+  const [worksheetMode, setWorksheetMode] = useState("student");
 
   useEffect(() => {
     if (!levelOptions.includes(level)) setLevel(levelOptions[0]);
@@ -312,24 +255,39 @@ export default function AssistantPage() {
     return action === "assessment" || action === "slides";
   }, [guest, action]);
 
-  const exportLocked = useMemo(() => {
-    // Exports are verified-only, always
-    return !verified;
-  }, [verified]);
+  const exportLocked = useMemo(() => !verified, [verified]);
+
+  const needsTeacherInvite = useMemo(() => {
+    // Teacher tools protected:
+    // - Educator role requires teacherInvite (server enforces when env codes set)
+    // - ALSO: slides/assessment should be teacher-only
+    if (role !== "educator") return false;
+    return !teacherInvite;
+  }, [role, teacherInvite]);
 
   const chips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom, [action]);
 
+  function currentTheme() {
+    return getStored(STORAGE.theme, "dark") === "light" ? "light" : "dark";
+  }
+
   async function callElora({ messageOverride = "" } = {}) {
-    // Unverified + not guest => must verify
+    // gate: verification unless guest
     if (!verified && !guest) {
       setVerifyGateOpen(true);
+      return;
+    }
+
+    // gate: teacher invite if educator selected (UI gate)
+    if (role === "educator" && !teacherInvite) {
+      setTeacherGateOpen(true);
       return;
     }
 
     if (guestBlocked) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: "Guest mode is limited — please **Verify to unlock** assessments and slide generation." },
+        { from: "elora", text: "Guest mode is limited — please **Verify** to unlock assessments and slides." },
       ]);
       return;
     }
@@ -342,6 +300,8 @@ export default function AssistantPage() {
       topic,
       action,
       guest,
+      verified,
+      teacherInvite,
       message: messageOverride,
       options: constraints,
     };
@@ -358,19 +318,16 @@ export default function AssistantPage() {
       const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
-      setMessages((m) => [...m, { from: "elora", text: data.reply }]);
-      setLastArtifact(data?.artifact || null);
+      const clean = stripAnyArtifactTags(data.reply || "");
+      setMessages((m) => [...m, { from: "elora", text: clean }]);
 
+      setLastArtifact(data?.artifact || null);
       if (data?.artifact?.type === "worksheet") setWorksheetMode("student");
     } catch (e) {
       console.error(e);
       setMessages((m) => [
         ...m,
-        {
-          from: "elora",
-          text:
-            "Sorry — something went wrong talking to the AI.\n\nIf this keeps happening, it’s usually an env var issue or model error.",
-        },
+        { from: "elora", text: e?.message || "Sorry — something went wrong talking to the AI." },
       ]);
       setLastArtifact(null);
     } finally {
@@ -378,7 +335,6 @@ export default function AssistantPage() {
     }
   }
 
-  // Chat input
   const [chatText, setChatText] = useState("");
 
   async function sendChat() {
@@ -390,6 +346,11 @@ export default function AssistantPage() {
       return;
     }
 
+    if (role === "educator" && !teacherInvite) {
+      setTeacherGateOpen(true);
+      return;
+    }
+
     setChatText("");
     setMessages((m) => [...m, { from: "user", text: msg }]);
     await callElora({ messageOverride: msg });
@@ -398,6 +359,10 @@ export default function AssistantPage() {
   async function refine(text) {
     if (!verified && !guest) {
       setVerifyGateOpen(true);
+      return;
+    }
+    if (role === "educator" && !teacherInvite) {
+      setTeacherGateOpen(true);
       return;
     }
     setMessages((m) => [...m, { from: "user", text }]);
@@ -413,12 +378,10 @@ export default function AssistantPage() {
   }
 
   function getExportContent() {
-    // Prefer artifact → stable exports
     if (lastArtifact) {
       if (lastArtifact.type === "worksheet") return artifactToMarkdown(lastArtifact, worksheetMode);
       return artifactToMarkdown(lastArtifact, "student");
     }
-    // Fallback: export last assistant reply
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i]?.from === "elora") return messages[i].text || "";
     }
@@ -456,12 +419,7 @@ export default function AssistantPage() {
     const title = getExportTitle();
     const content = getExportContent();
     if (!content) return;
-
-    await downloadFromEndpoint(
-      "/api/export-docx",
-      `${safeFilename(title)}.docx`,
-      { title, content }
-    );
+    await downloadFromEndpoint("/api/export-docx", `${safeFilename(title)}.docx`, { title, content });
   }
 
   async function exportPdf() {
@@ -472,12 +430,7 @@ export default function AssistantPage() {
     const title = getExportTitle();
     const content = getExportContent();
     if (!content) return;
-
-    await downloadFromEndpoint(
-      "/api/export-pdf",
-      `${safeFilename(title)}.pdf`,
-      { title, content }
-    );
+    await downloadFromEndpoint("/api/export-pdf", `${safeFilename(title)}.pdf`, { title, content });
   }
 
   async function exportPptx() {
@@ -486,21 +439,27 @@ export default function AssistantPage() {
       return;
     }
 
-    // Slides only
-    if (action !== "slides" && lastArtifact?.type !== "slides") {
-      setMessages((m) => [...m, { from: "elora", text: "PPTX export is available for Slides generation." }]);
+    const theme = currentTheme();
+
+    if (lastArtifact?.type === "slides") {
+      const title = getExportTitle();
+      await downloadFromEndpoint(
+        "/api/export-slides",
+        `${safeFilename(title)}.pptx`,
+        { title, theme, artifact: lastArtifact }
+      );
+      return;
+    }
+
+    // fallback
+    if (action !== "slides") {
+      setMessages((m) => [...m, { from: "elora", text: "Generate Slides first to export PPTX." }]);
       return;
     }
 
     const title = getExportTitle();
-    const content = getExportContent(); // artifactToMarkdown for slides -> outline
-    if (!content) return;
-
-    await downloadFromEndpoint(
-      "/api/export-slides",
-      `${safeFilename(title)}.pptx`,
-      { title, content }
-    );
+    const content = getExportContent();
+    await downloadFromEndpoint("/api/export-slides", `${safeFilename(title)}.pptx`, { title, theme, content });
   }
 
   async function copyLast() {
@@ -517,7 +476,7 @@ export default function AssistantPage() {
   return (
     <div className="py-6">
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* LEFT: Prompt Builder */}
+        {/* LEFT */}
         <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -534,7 +493,7 @@ export default function AssistantPage() {
                 </span>
               ) : verified ? (
                 <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">
-                  Verified ✓
+                  {teacherInvite ? "Teacher ✓" : "Verified ✓"}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-white/10 bg-white/40 dark:bg-slate-950/30 text-slate-700 dark:text-slate-200">
@@ -556,7 +515,14 @@ export default function AssistantPage() {
                 <button
                   key={r}
                   type="button"
-                  onClick={() => setRole(r)}
+                  onClick={() => {
+                    // If selecting educator but no invite yet, open teacher gate (still allow switch after entering)
+                    if (r === "educator" && !teacherInvite) {
+                      setTeacherGateOpen(true);
+                      return;
+                    }
+                    setRole(r);
+                  }}
                   className={cn(
                     "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
                     role === r
@@ -568,6 +534,12 @@ export default function AssistantPage() {
                 </button>
               ))}
             </div>
+
+            {needsTeacherInvite ? (
+              <div className="mt-2 text-xs text-amber-700 dark:text-amber-200">
+                Educator mode requires a Teacher Invite.
+              </div>
+            ) : null}
           </div>
 
           {/* Country + Level */}
@@ -580,9 +552,7 @@ export default function AssistantPage() {
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
               <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
@@ -598,9 +568,7 @@ export default function AssistantPage() {
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {levelOptions.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
+                  <option key={l} value={l}>{l}</option>
                 ))}
               </select>
             </div>
@@ -616,9 +584,7 @@ export default function AssistantPage() {
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {SUBJECT_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
@@ -636,9 +602,7 @@ export default function AssistantPage() {
 
           {/* Constraints */}
           <div className="mt-5">
-            <label className="text-sm font-bold text-slate-900 dark:text-white">
-              Constraints (optional)
-            </label>
+            <label className="text-sm font-bold text-slate-900 dark:text-white">Constraints (optional)</label>
             <textarea
               value={constraints}
               onChange={(e) => setConstraints(e.target.value)}
@@ -653,7 +617,7 @@ export default function AssistantPage() {
             <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {ROLE_QUICK_ACTIONS[role].map((a) => {
-                const disabled = guest && (a.id === "assessment" || a.id === "slides");
+                const disabled = (guest && (a.id === "assessment" || a.id === "slides")) || (role === "educator" && !teacherInvite);
                 const active = action === a.id;
 
                 return (
@@ -700,7 +664,7 @@ export default function AssistantPage() {
           </div>
         </div>
 
-        {/* RIGHT: Assistant */}
+        {/* RIGHT */}
         <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5 flex flex-col lg:min-h-[680px]">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -740,15 +704,7 @@ export default function AssistantPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap justify-end">
-              {!verified ? (
-                <button
-                  type="button"
-                  onClick={() => setVerifyGateOpen(true)}
-                  className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-                >
-                  Verify to unlock exports
-                </button>
-              ) : (
+              {verified ? (
                 <>
                   <button
                     type="button"
@@ -778,123 +734,8 @@ export default function AssistantPage() {
                     type="button"
                     onClick={exportPptx}
                     className={cn(
-                      "rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-lg",
-                      action === "slides" || lastArtifact?.type === "slides"
-                        ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"
-                        : "bg-slate-400 cursor-not-allowed"
+                      "rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
+                      lastArtifact?.type === "slides" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-400 cursor-not-allowed"
                     )}
-                    disabled={!(action === "slides" || lastArtifact?.type === "slides")}
-                    title={action === "slides" || lastArtifact?.type === "slides" ? "Download PPTX" : "Generate Slides first"}
-                  >
-                    PPTX
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="mt-4 flex-1 overflow-auto pr-1">
-            <div className="space-y-3">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                    m.from === "user"
-                      ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                      : "mr-auto bg-white/60 dark:bg-slate-950/30 text-slate-900 dark:text-slate-100 border-white/10"
-                  )}
-                >
-                  {m.from === "user" ? (
-                    m.text
-                  ) : (
-                    <div className="elora-md">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Refinement chips */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              {chips.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => refine(t)}
-                  disabled={loading}
-                  className="rounded-full px-3 py-2 text-xs font-bold border border-white/10 bg-white/45 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white/65 dark:hover:bg-slate-950/45 disabled:opacity-50"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Chat input */}
-          <div className="mt-4 flex items-center gap-2">
-            <input
-              value={chatText}
-              onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") sendChat();
-              }}
-              placeholder="Ask Elora to refine, explain, or generate a variant…"
-              className="flex-1 rounded-full border border-white/10 bg-white/60 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            />
-            <button
-              type="button"
-              onClick={sendChat}
-              disabled={loading}
-              className={cn(
-                "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
-                loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
-              )}
-            >
-              Send
-            </button>
-          </div>
-
-          <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Exports (DOCX/PDF/PPTX) are <span className="font-semibold">Verified-only</span>. PDF is Kami-friendly.
-          </div>
-        </div>
-      </div>
-
-      {/* Verify gate modal */}
-      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
-        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-          Exports (DOCX/PDF/PPTX) and advanced features are locked behind verification.
-          You can still continue as a limited guest preview.
-        </p>
-
-        <div className="mt-4 grid gap-2">
-          <a
-            href="/verify"
-            className="w-full text-center px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-          >
-            Sign in / Verify
-          </a>
-
-          <button
-            type="button"
-            onClick={() => {
-              storeGuest(true);
-              setSession(getSession());
-              setVerifyGateOpen(false);
-            }}
-            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
-          >
-            Continue as Guest (limited)
-          </button>
-        </div>
-
-        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-          Guest limits: no assessments, no slides, no exports.
-        </div>
-      </Modal>
-    </div>
-  );
-}
+                    disabled={lastArtifact?.type !== "slides"}
+                    title

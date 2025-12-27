@@ -738,4 +738,174 @@ export default function AssistantPage() {
                       lastArtifact?.type === "slides" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-400 cursor-not-allowed"
                     )}
                     disabled={lastArtifact?.type !== "slides"}
-                    title
+                    title={lastArtifact?.type === "slides" ? "Download PPTX" : "Generate Slides first"}
+                  >
+                    PPTX
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setVerifyGateOpen(true)}
+                  className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+                >
+                  Verify to unlock exports
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex-1 overflow-auto pr-1">
+            <div className="space-y-3">
+              {messages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
+                    m.from === "user"
+                      ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
+                      : "mr-auto bg-white/60 dark:bg-slate-950/30 text-slate-900 dark:text-slate-100 border-white/10"
+                  )}
+                >
+                  {m.from === "user" ? (
+                    m.text
+                  ) : (
+                    <div className="elora-md">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {stripAnyArtifactTags(m.text)}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {chips.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => refine(t)}
+                  disabled={loading}
+                  className="rounded-full px-3 py-2 text-xs font-bold border border-white/10 bg-white/45 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white/65 dark:hover:bg-slate-950/45 disabled:opacity-50"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") sendChat();
+              }}
+              placeholder="Ask Elora to refine, explain, or generate a variant…"
+              className="flex-1 rounded-full border border-white/10 bg-white/60 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            />
+            <button
+              type="button"
+              onClick={sendChat}
+              disabled={loading}
+              className={cn(
+                "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
+                loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
+              )}
+            >
+              Send
+            </button>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+            PDF exports are Kami-friendly. PPTX export follows your current Light/Dark mode.
+          </div>
+        </div>
+      </div>
+
+      {/* Verify gate modal */}
+      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
+        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+          Exports (DOCX/PDF/PPTX) and advanced tools are locked behind verification.
+          You can still preview as a limited guest.
+        </p>
+
+        <div className="mt-4 grid gap-2">
+          <a
+            href="/verify"
+            className="w-full text-center px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+          >
+            Sign in / Verify
+          </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              storeGuest(true);
+              setSession(getSession());
+              setVerifyGateOpen(false);
+            }}
+            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+          >
+            Continue as Guest (limited)
+          </button>
+        </div>
+
+        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Guest limits: no assessments, no slides, no exports.
+        </div>
+      </Modal>
+
+      {/* Teacher invite gate */}
+      <Modal open={teacherGateOpen} title="Teacher Invite Required" onClose={() => setTeacherGateOpen(false)}>
+        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+          Educator mode is protected to prevent students misusing teacher tools.
+          If you’re a teacher, enter your invite code or open an invite link.
+        </p>
+
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Invite code</label>
+          <input
+            value={inviteInput}
+            onChange={(e) => setInviteInput(e.target.value)}
+            placeholder="e.g., GENESIS-TEACHER-2026"
+            className="mt-2 w-full rounded-xl border border-white/10 bg-white/65 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+          />
+          <div className="mt-2 grid gap-2">
+            <button
+              type="button"
+              className="w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+              onClick={() => {
+                setTeacherInvite(inviteInput.trim());
+                setSession(getSession());
+                setInviteInput("");
+                setTeacherGateOpen(false);
+                setRole("educator");
+              }}
+            >
+              Save invite & enable Educator mode
+            </button>
+
+            <button
+              type="button"
+              className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+              onClick={() => {
+                clearTeacherInvite();
+                setSession(getSession());
+                setTeacherGateOpen(false);
+                setRole("student");
+              }}
+            >
+              I’m not a teacher (switch to Student)
+            </button>
+          </div>
+
+          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Admins can share invite links like: <span className="font-semibold">/assistant?invite=YOURCODE</span>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

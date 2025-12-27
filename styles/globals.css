@@ -13,7 +13,7 @@ body {
     "Segoe UI Emoji";
 }
 
-/* Soft premium background (light) */
+/* Premium background (light) */
 body {
   background:
     radial-gradient(900px 420px at 12% 12%, rgba(99, 102, 241, 0.18), transparent 60%),
@@ -22,7 +22,6 @@ body {
     linear-gradient(to bottom, rgba(248, 250, 252, 1), rgba(241, 245, 249, 1));
 }
 
-/* Dark mode background */
 .dark body {
   background:
     radial-gradient(900px 420px at 12% 12%, rgba(99, 102, 241, 0.18), transparent 60%),
@@ -31,22 +30,19 @@ body {
     linear-gradient(to bottom, rgba(2, 6, 23, 1), rgba(2, 8, 33, 1));
 }
 
-/* Basic defaults */
 a {
   text-decoration: none;
 }
 
-/* Fix mobile tapping highlight */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Nice selection */
 ::selection {
   background: rgba(99, 102, 241, 0.25);
 }
 
-/* Scrollbar (subtle) */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -59,8 +55,7 @@ a {
 }
 
 /* ---------------------------
-   Elora Markdown (chat output)
-   - Keeps AI output readable and non-cluttered
+   Elora Markdown rendering
 ---------------------------- */
 .elora-md {
   line-height: 1.55;

@@ -10,29 +10,23 @@ function applyHtmlTheme(resolved) {
 }
 
 export default function MyApp({ Component, pageProps }) {
-  const [resolvedTheme, setResolvedTheme] = useState("dark");
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const sync = () => {
       const mode = getTheme();
       const resolved = getResolvedTheme(mode);
-      setResolvedTheme(resolved);
-      setScale(getFontScale());
       applyHtmlTheme(resolved);
+      setScale(getFontScale());
     };
 
     sync();
 
-    // Same-tab updates when session changes
     window.addEventListener("elora:session", sync);
-
-    // Cross-tab updates
     window.addEventListener("storage", (e) => {
       if (e.key === "elora_session") sync();
     });
 
-    // System theme changes (only relevant when themeMode === "system")
     const mql =
       window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
     const onSystem = () => sync();
@@ -48,8 +42,12 @@ export default function MyApp({ Component, pageProps }) {
 
   const fontStyle = useMemo(() => ({ fontSize: `${scale}em` }), [scale]);
 
+  // Premium background that looks good in both themes
   return (
-    <div className="min-h-screen transition-colors" style={fontStyle}>
+    <div
+      className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-indigo-100 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950 transition-colors"
+      style={fontStyle}
+    >
       <Navbar />
       <main className="pt-16 px-2 sm:px-4 md:px-6">
         <Component {...pageProps} />

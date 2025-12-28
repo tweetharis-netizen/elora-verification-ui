@@ -2,57 +2,55 @@
 import {
   getTheme,
   setTheme,
-  getLearningPrefs,
-  setLearningPrefs,
   getFontScale,
   setFontScale,
   activateTeacher,
-  getSession,
-  saveSession,
-} from '@/lib/session';
-import { useState } from 'react';
+} from "@/lib/session";
+import { useState } from "react";
 
 export default function Settings() {
   const [theme, setThemeState] = useState(getTheme());
   const [font, setFont] = useState(getFontScale());
-  const [prefs, setPrefs] = useState(getLearningPrefs());
-  const [invite, setInvite] = useState('');
+  const [invite, setInvite] = useState("");
+  const [notifications, setNotifications] = useState(true);
 
   const handleApplyInvite = async () => {
     const res = await fetch(`/api/teacher-invite?code=${invite}`);
     if (res.ok) {
       activateTeacher(invite);
-      alert('✅ Educator mode unlocked');
-    } else alert('Invalid invite');
+      alert("✅ Educator mode unlocked");
+    } else alert("Invalid invite");
   };
 
   const updateTheme = (t) => {
     setTheme(t);
     setThemeState(t);
-    document.documentElement.classList.toggle('dark', t === 'dark');
+    document.documentElement.classList.toggle("dark", t === "dark");
   };
 
   return (
-    <div className="mt-20 max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold mb-4 text-center">Settings</h1>
+    <div className="mt-20 max-w-xl mx-auto space-y-6 text-gray-100">
+      <h1 className="text-2xl font-bold mb-4 text-center text-white">Settings</h1>
 
-      <div className="bg-white/10 rounded-lg p-4">
-        <h2 className="font-semibold mb-2">Appearance</h2>
-        <div className="flex gap-3">
-          {['system', 'light', 'dark'].map((m) => (
+      <div className="bg-white/10 rounded-lg p-5 shadow-lg">
+        <h2 className="font-semibold mb-3 text-lg">Appearance & Personalization</h2>
+        <div className="flex gap-3 mb-3">
+          {["System", "Light", "Dark"].map((m) => (
             <button
               key={m}
-              onClick={() => updateTheme(m)}
+              onClick={() => updateTheme(m.toLowerCase())}
               className={`px-3 py-1 rounded ${
-                theme === m ? 'bg-blue-600 text-white' : 'bg-white/10'
+                theme === m.toLowerCase()
+                  ? "bg-blue-600 text-white"
+                  : "bg-white/10 hover:bg-white/20"
               }`}
             >
               {m}
             </button>
           ))}
         </div>
-        <div className="mt-3">
-          <label>Font size:</label>
+        <div className="mt-2">
+          <label className="block mb-1">Font Size</label>
           <input
             type="range"
             min="0.9"
@@ -68,69 +66,32 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="bg-white/10 rounded-lg p-4">
-        <h2 className="font-semibold mb-2">Learning preferences</h2>
-        <label>Mode:</label>
-        <select
-          value={prefs.mode}
-          onChange={(e) =>
-            setPrefs({ ...prefs, mode: e.target.value }) ||
-            setLearningPrefs({ ...prefs, mode: e.target.value })
-          }
-          className="ml-2 bg-white/10 p-1 rounded"
-        >
-          <option value="guided">Guided</option>
-          <option value="socratic">Socratic</option>
-        </select>
-
-        <div className="mt-2">
-          <label>Hint style:</label>
-          <select
-            value={prefs.hintStyle}
-            onChange={(e) =>
-              setPrefs({ ...prefs, hintStyle: e.target.value }) ||
-              setLearningPrefs({ ...prefs, hintStyle: e.target.value })
-            }
-            className="ml-2 bg-white/10 p-1 rounded"
-          >
-            <option value="gentle">Gentle</option>
-            <option value="direct">Direct</option>
-          </select>
-        </div>
-
-        <div className="mt-2">
-          <label>Attempts before reveal: </label>
+      <div className="bg-white/10 rounded-lg p-5 shadow-lg">
+        <h2 className="font-semibold mb-3 text-lg">Notifications</h2>
+        <div className="flex items-center justify-between">
+          <span>Allow email updates & lesson reminders</span>
           <input
-            type="number"
-            value={prefs.attemptsBeforeReveal}
-            min="1"
-            max="5"
-            className="ml-2 w-16 bg-white/10 p-1 rounded text-center"
-            onChange={(e) =>
-              setPrefs({ ...prefs, attemptsBeforeReveal: +e.target.value }) ||
-              setLearningPrefs({
-                ...prefs,
-                attemptsBeforeReveal: +e.target.value,
-              })
-            }
+            type="checkbox"
+            checked={notifications}
+            onChange={() => setNotifications(!notifications)}
           />
         </div>
       </div>
 
-      <div className="bg-white/10 rounded-lg p-4">
-        <h2 className="font-semibold mb-2">Educator access</h2>
-        <p className="text-sm mb-2">
+      <div className="bg-white/10 rounded-lg p-5 shadow-lg">
+        <h2 className="font-semibold mb-3 text-lg">Educator Access</h2>
+        <p className="text-sm mb-2 opacity-80">
           Enter your invite code or use the link shared by admin.
         </p>
         <input
           value={invite}
           onChange={(e) => setInvite(e.target.value)}
           placeholder="Invite code"
-          className="w-full p-2 mb-2 rounded bg-white/20"
+          className="w-full p-2 mb-2 rounded bg-white/20 text-white placeholder-gray-300"
         />
         <button
           onClick={handleApplyInvite}
-          className="w-full py-2 bg-green-600 text-white rounded-md"
+          className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
         >
           Apply Invite
         </button>

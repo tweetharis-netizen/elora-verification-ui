@@ -1,8 +1,8 @@
 // components/Navbar.js
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { getSession, clearSession, isTeacher } from '@/lib/session';
-import Image from 'next/image';
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { getSession, isTeacher } from "@/lib/session";
+import Image from "next/image";
 
 export default function Navbar({ theme, setTheme }) {
   const [hidden, setHidden] = useState(false);
@@ -17,14 +17,14 @@ export default function Navbar({ theme, setTheme }) {
       setHidden(y > last && y > 60);
       last = y;
     };
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
-        hidden ? '-translate-y-full' : 'translate-y-0'
+      className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-lg border-b border-white/10 transition-transform duration-300 ${
+        hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >
       <div className="mx-auto max-w-6xl flex items-center justify-between p-3">
@@ -51,15 +51,6 @@ export default function Navbar({ theme, setTheme }) {
           <Link href="/settings" className="hover:underline">
             Settings
           </Link>
-
-          <button
-            onClick={() =>
-              setTheme(theme === 'dark' ? 'light' : 'dark')
-            }
-            className="px-3 py-1 rounded-md border border-white/20 hover:bg-white/10"
-          >
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
 
           {isTeacher() && (
             <span className="px-2 py-1 text-xs rounded bg-green-600 text-white">
@@ -94,13 +85,6 @@ export default function Navbar({ theme, setTheme }) {
           <Link href="/">Home</Link>
           <Link href="/assistant">Assistant</Link>
           <Link href="/settings">Settings</Link>
-          <button
-            onClick={() =>
-              setTheme(theme === 'dark' ? 'light' : 'dark')
-            }
-          >
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
         </div>
       )}
     </nav>

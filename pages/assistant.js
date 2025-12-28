@@ -1,32 +1,138 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Modal from "../components/Modal";
 import RoleIllustration from "../components/RoleIllustration";
 import {
+  activateTeacher,
+  getResolvedTheme,
   getSession,
-  setRole as storeRole,
+  isTeacher,
   setGuest as storeGuest,
-  setTeacherInvite,
-  clearTeacherInvite,
-  getStored,
-  STORAGE,
+  setRole as storeRole,
 } from "../lib/session";
 
-const COUNTRY_OPTIONS = ["Singapore", "United States", "United Kingdom", "Australia", "Canada", "India", "Other"];
+const COUNTRY_OPTIONS = [
+  "Singapore",
+  "United States",
+  "United Kingdom",
+  "Australia",
+  "Canada",
+  "India",
+  "Other",
+];
 
 const LEVELS_BY_COUNTRY = {
-  Singapore: ["Primary (1–6)", "Secondary (1–2)", "Secondary (3–4)", "O-Level", "A-Level", "University", "Other"],
-  "United States": ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8 (Middle School)", "Grade 9 (High School)", "Grade 10 (High School)", "Grade 11 (High School)", "Grade 12 (High School)", "AP / Advanced", "University", "Other"],
-  "United Kingdom": ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "GCSE (Year 10–11)", "A-Level (Year 12–13)", "University", "Other"],
-  Australia: ["Foundation", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Other"],
-  Canada: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Other"],
-  India: ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12", "University", "Other"],
-  Other: ["Primary / Elementary", "Middle School", "High School", "Pre-University", "University", "Other"],
+  Singapore: [
+    "Primary (1–6)",
+    "Secondary (1–2)",
+    "Secondary (3–4)",
+    "O-Level",
+    "A-Level",
+    "University",
+    "Other",
+  ],
+  "United States": [
+    "Grade 1",
+    "Grade 2",
+    "Grade 3",
+    "Grade 4",
+    "Grade 5",
+    "Grade 6",
+    "Grade 7",
+    "Grade 8 (Middle School)",
+    "Grade 9 (High School)",
+    "Grade 10 (High School)",
+    "Grade 11 (High School)",
+    "Grade 12 (High School)",
+    "AP / Advanced",
+    "University",
+    "Other",
+  ],
+  "United Kingdom": [
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "GCSE (Year 10–11)",
+    "A-Level (Year 12–13)",
+    "University",
+    "Other",
+  ],
+  Australia: [
+    "Foundation",
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "Year 10",
+    "Year 11",
+    "Year 12",
+    "University",
+    "Other",
+  ],
+  Canada: [
+    "Grade 1",
+    "Grade 2",
+    "Grade 3",
+    "Grade 4",
+    "Grade 5",
+    "Grade 6",
+    "Grade 7",
+    "Grade 8",
+    "Grade 9",
+    "Grade 10",
+    "Grade 11",
+    "Grade 12",
+    "University",
+    "Other",
+  ],
+  India: [
+    "Class 1",
+    "Class 2",
+    "Class 3",
+    "Class 4",
+    "Class 5",
+    "Class 6",
+    "Class 7",
+    "Class 8",
+    "Class 9",
+    "Class 10",
+    "Class 11",
+    "Class 12",
+    "University",
+    "Other",
+  ],
+  Other: [
+    "Primary / Elementary",
+    "Middle School",
+    "High School",
+    "Pre-University",
+    "University",
+    "Other",
+  ],
 };
 
-const SUBJECT_OPTIONS = ["Math", "Science", "English", "Computer Science", "History", "Geography", "Other"];
+const SUBJECT_OPTIONS = [
+  "Math",
+  "Science",
+  "English",
+  "Computer Science",
+  "History",
+  "Geography",
+  "Other",
+];
 
 const ROLE_QUICK_ACTIONS = {
   educator: [
@@ -36,23 +142,23 @@ const ROLE_QUICK_ACTIONS = {
     { id: "slides", label: "Design slides", hint: "Engaging deck + visuals (Teacher)" },
   ],
   student: [
-    { id: "explain", label: "Explain it", hint: "Clear explanation + example + practice" },
-    { id: "worksheet", label: "Give me practice", hint: "Practice set + answers (export locked)" },
+    { id: "explain", label: "Tutor me", hint: "You attempt first → Elora guides with hints" },
+    { id: "worksheet", label: "Give me practice", hint: "Practice set (no answer-dump)" },
     { id: "custom", label: "Custom request", hint: "Ask anything and refine" },
   ],
   parent: [
-    { id: "explain", label: "Explain it", hint: "In plain words + home tips" },
-    { id: "worksheet", label: "Practice for my child", hint: "Student practice + answers (export locked)" },
+    { id: "explain", label: "Explain it simply", hint: "Plain words + what to say at home" },
+    { id: "worksheet", label: "Practice for my child", hint: "Practice + parent guidance" },
     { id: "custom", label: "Custom request", hint: "Ask anything and refine" },
   ],
 };
 
 const REFINEMENT_CHIPS = {
   lesson: ["Shorter", "More detailed", "Add differentiation", "Add misconceptions", "Add exit ticket rubric"],
-  worksheet: ["Make it 1 page", "Add worked example", "More challenging", "Add word problems", "Add misconceptions"],
-  assessment: ["Harder", "More conceptual", "Add marks", "Add marking scheme detail", "Reduce length"],
+  worksheet: ["Make it shorter", "Add worked example", "More challenging", "Add word problems", "Common misconceptions"],
+  assessment: ["Harder", "More conceptual", "Add marks", "Improve marking scheme", "Reduce length"],
   slides: ["More visuals ideas", "More interactivity", "Add checks for understanding", "Add teacher notes", "Shorter deck"],
-  explain: ["Simpler", "More examples", "Quiz me every 3 steps", "Harder practice", "Explain step-by-step"],
+  explain: ["Give me a hint", "Explain differently", "Another similar question", "Harder", "Easier"],
   custom: ["Shorter", "More detailed", "More examples", "Make it student-friendly", "Make it teacher-friendly"],
 };
 
@@ -60,129 +166,13 @@ function cn(...xs) {
   return xs.filter(Boolean).join(" ");
 }
 
-function safeFilename(name) {
-  return (name || "Elora-Export")
-    .toString()
-    .trim()
-    .replace(/[^a-z0-9 _-]/gi, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
-}
-
-function stripAnyArtifactTags(text) {
+function stripInternalTags(text) {
   if (!text) return "";
   return text
-    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*$/g, "")
     .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*?<\/ELORA_ARTIFACT_JSON>/g, "")
+    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*$/g, "")
+    .replace(/<\/?[^>]+>/g, "")
     .trim();
-}
-
-function artifactToMarkdown(artifact, mode = "student") {
-  if (!artifact || typeof artifact !== "object") return "";
-
-  const t = artifact.type;
-
-  if (t === "slides") {
-    const title = artifact.title || "Slides";
-    const slides = Array.isArray(artifact.slides) ? artifact.slides : [];
-    const lines = [`# ${title}`];
-    slides.forEach((s, idx) => {
-      lines.push(`## Slide ${idx + 1}: ${s.title || "Untitled"}`);
-      (Array.isArray(s.bullets) ? s.bullets : []).forEach((b) => lines.push(`- ${b}`));
-      const visuals = Array.isArray(s.visuals) ? s.visuals : [];
-      if (visuals.length) {
-        lines.push(`\n**Visual ideas:**`);
-        visuals.forEach((v) => lines.push(`- ${v}`));
-      }
-      if (s.layoutHint) lines.push(`\n**Layout hint:** ${s.layoutHint}`);
-      if (s.teacherNotes) lines.push(`\n**Teacher notes:** ${s.teacherNotes}`);
-      lines.push("");
-    });
-    return lines.join("\n");
-  }
-
-  if (t === "worksheet") {
-    const title = artifact.title || "Worksheet";
-    const q = Array.isArray(artifact.studentQuestions) ? artifact.studentQuestions : [];
-    const a = Array.isArray(artifact.teacherAnswerKey) ? artifact.teacherAnswerKey : [];
-    const notes = artifact.notes ? String(artifact.notes) : "";
-
-    if (mode === "teacher") {
-      const lines = [`# ${title} (Teacher Copy)`, "", "**Answer Key**"];
-      a.forEach((x, i) => lines.push(`${i + 1}. ${x}`));
-      if (notes) lines.push("", `**Notes:** ${notes}`);
-      return lines.join("\n");
-    }
-
-    const lines = [`# ${title}`, "", "**Questions**"];
-    q.forEach((x, i) => lines.push(`${i + 1}. ${x}`));
-    return lines.join("\n");
-  }
-
-  if (t === "lesson") {
-    const lines = [`# ${artifact.title || "Lesson Plan"}`];
-    if (artifact.snapshot) lines.push("", `**Lesson Snapshot:** ${artifact.snapshot}`);
-    if (Array.isArray(artifact.objectives) && artifact.objectives.length) {
-      lines.push("", "**Objectives:**");
-      artifact.objectives.forEach((o) => lines.push(`- ${o}`));
-    }
-    if (Array.isArray(artifact.materials) && artifact.materials.length) {
-      lines.push("", "**Materials:**");
-      artifact.materials.forEach((m) => lines.push(`- ${m}`));
-    }
-    if (Array.isArray(artifact.flow) && artifact.flow.length) {
-      lines.push("", "**Lesson Flow:**");
-      artifact.flow.forEach((step, i) => lines.push(`${i + 1}. ${step}`));
-    }
-    if (artifact.differentiation) lines.push("", `**Differentiation:** ${artifact.differentiation}`);
-    if (Array.isArray(artifact.misconceptions) && artifact.misconceptions.length) {
-      lines.push("", "**Misconceptions:**");
-      artifact.misconceptions.forEach((m) => lines.push(`- ${m}`));
-    }
-    if (Array.isArray(artifact.exitTicket) && artifact.exitTicket.length) {
-      lines.push("", "**Exit Ticket:**");
-      artifact.exitTicket.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
-    }
-    return lines.join("\n");
-  }
-
-  if (t === "assessment") {
-    const lines = [`# ${artifact.title || "Assessment"}`];
-    if (artifact.info) lines.push("", `**Info:** ${artifact.info}`);
-
-    if (Array.isArray(artifact.questions) && artifact.questions.length) {
-      lines.push("", "**Questions:**");
-      artifact.questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
-    }
-
-    if (Array.isArray(artifact.markingScheme) && artifact.markingScheme.length) {
-      lines.push("", "**Marking Scheme:**");
-      artifact.markingScheme.forEach((m, i) => lines.push(`${i + 1}. ${m}`));
-    }
-
-    return lines.join("\n");
-  }
-
-  if (artifact.explanation) {
-    const lines = [`# Explanation`, "", artifact.explanation];
-    if (Array.isArray(artifact.examples) && artifact.examples.length) {
-      lines.push("", "**Examples:**");
-      artifact.examples.forEach((e, i) => lines.push(`${i + 1}. ${e}`));
-    }
-    if (Array.isArray(artifact.practice) && artifact.practice.length) {
-      lines.push("", "**Practice:**");
-      artifact.practice.forEach((p, i) => lines.push(`${i + 1}. ${p}`));
-    }
-    if (Array.isArray(artifact.answers) && artifact.answers.length) {
-      lines.push("", "**Answers:**");
-      artifact.answers.forEach((a, i) => lines.push(`${i + 1}. ${a}`));
-    }
-    return lines.join("\n");
-  }
-
-  return "";
 }
 
 export default function AssistantPage() {
@@ -192,33 +182,31 @@ export default function AssistantPage() {
   useEffect(() => {
     const sync = () => setSession(getSession());
     sync();
+    window.addEventListener("elora:session", sync);
     window.addEventListener("focus", sync);
-    return () => window.removeEventListener("focus", sync);
+    return () => {
+      window.removeEventListener("elora:session", sync);
+      window.removeEventListener("focus", sync);
+    };
   }, []);
 
-  // Invite link support: /assistant?invite=CODE
-  useEffect(() => {
-    const invite = (router.query?.invite || "").toString().trim();
-    if (!invite) return;
-    setTeacherInvite(invite);
-    setSession(getSession());
-    // remove query param after storing to keep URL clean
-    router.replace("/assistant", undefined, { shallow: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.query?.invite]);
+  const verified = Boolean(session.verified);
+  const guest = Boolean(session.guest);
+  const teacher = isTeacher();
 
-  const verified = !!session.verified;
-  const guest = !!session.guest;
-  const teacherInvite = (session.teacherInvite || "").trim();
-
-  const [role, setRole] = useState(session.role || "educator");
+  const [role, setRole] = useState(session.role || "student");
   const [country, setCountry] = useState("Singapore");
-  const levelOptions = useMemo(() => LEVELS_BY_COUNTRY[country] || LEVELS_BY_COUNTRY.Other, [country]);
+  const levelOptions = useMemo(
+    () => LEVELS_BY_COUNTRY[country] || LEVELS_BY_COUNTRY.Other,
+    [country]
+  );
   const [level, setLevel] = useState(levelOptions[0] || "Primary / Elementary");
   const [subject, setSubject] = useState("Math");
   const [topic, setTopic] = useState("Introduction to fractions");
   const [constraints, setConstraints] = useState("");
-  const [action, setAction] = useState(ROLE_QUICK_ACTIONS[role]?.[0]?.id || "lesson");
+  const [action, setAction] = useState(
+    ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain"
+  );
 
   const [messages, setMessages] = useState(() => [
     {
@@ -232,9 +220,14 @@ export default function AssistantPage() {
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
   const [inviteInput, setInviteInput] = useState("");
+  const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
-  const [lastArtifact, setLastArtifact] = useState(null);
-  const [worksheetMode, setWorksheetMode] = useState("student");
+  // Student tutor attempts
+  const [attempt, setAttempt] = useState(0);
+  const attemptRef = useRef(0);
+  useEffect(() => {
+    attemptRef.current = attempt;
+  }, [attempt]);
 
   useEffect(() => {
     if (!levelOptions.includes(level)) setLevel(levelOptions[0]);
@@ -242,8 +235,9 @@ export default function AssistantPage() {
   }, [country, levelOptions.join("|")]);
 
   useEffect(() => {
-    const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "lesson";
+    const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain";
     setAction(first);
+    setAttempt(0);
   }, [role]);
 
   useEffect(() => {
@@ -255,31 +249,22 @@ export default function AssistantPage() {
     return action === "assessment" || action === "slides";
   }, [guest, action]);
 
-  const exportLocked = useMemo(() => !verified, [verified]);
+  const chips = useMemo(
+    () => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom,
+    [action]
+  );
 
-  const needsTeacherInvite = useMemo(() => {
-    // Teacher tools protected:
-    // - Educator role requires teacherInvite (server enforces when env codes set)
-    // - ALSO: slides/assessment should be teacher-only
-    if (role !== "educator") return false;
-    return !teacherInvite;
-  }, [role, teacherInvite]);
-
-  const chips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom, [action]);
-
-  function currentTheme() {
-    return getStored(STORAGE.theme, "dark") === "light" ? "light" : "dark";
+  function resetTutorAttempts() {
+    setAttempt(0);
   }
 
   async function callElora({ messageOverride = "" } = {}) {
-    // gate: verification unless guest
     if (!verified && !guest) {
       setVerifyGateOpen(true);
       return;
     }
 
-    // gate: teacher invite if educator selected (UI gate)
-    if (role === "educator" && !teacherInvite) {
+    if (role === "educator" && !teacher) {
       setTeacherGateOpen(true);
       return;
     }
@@ -287,9 +272,18 @@ export default function AssistantPage() {
     if (guestBlocked) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: "Guest mode is limited — please **Verify** to unlock assessments and slides." },
+        { from: "elora", text: "Guest mode is limited — verify to unlock assessments and slides." },
       ]);
       return;
+    }
+
+    const nextAttempt =
+      role === "student" && messageOverride.trim()
+        ? Math.min(3, attemptRef.current + 1)
+        : attemptRef.current;
+
+    if (role === "student" && messageOverride.trim()) {
+      setAttempt(nextAttempt);
     }
 
     const payload = {
@@ -301,9 +295,10 @@ export default function AssistantPage() {
       action,
       guest,
       verified,
-      teacherInvite,
+      teacherInvite: session.teacherCode || "",
       message: messageOverride,
       options: constraints,
+      attempt: role === "student" ? nextAttempt : 0,
     };
 
     setLoading(true);
@@ -318,18 +313,13 @@ export default function AssistantPage() {
       const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
-      const clean = stripAnyArtifactTags(data.reply || "");
+      const clean = stripInternalTags(data.reply || "");
       setMessages((m) => [...m, { from: "elora", text: clean }]);
-
-      setLastArtifact(data?.artifact || null);
-      if (data?.artifact?.type === "worksheet") setWorksheetMode("student");
     } catch (e) {
-      console.error(e);
       setMessages((m) => [
         ...m,
-        { from: "elora", text: e?.message || "Sorry — something went wrong talking to the AI." },
+        { from: "elora", text: e?.message || "Sorry — something went wrong." },
       ]);
-      setLastArtifact(null);
     } finally {
       setLoading(false);
     }
@@ -346,7 +336,7 @@ export default function AssistantPage() {
       return;
     }
 
-    if (role === "educator" && !teacherInvite) {
+    if (role === "educator" && !teacher) {
       setTeacherGateOpen(true);
       return;
     }
@@ -357,119 +347,33 @@ export default function AssistantPage() {
   }
 
   async function refine(text) {
-    if (!verified && !guest) {
-      setVerifyGateOpen(true);
-      return;
-    }
-    if (role === "educator" && !teacherInvite) {
-      setTeacherGateOpen(true);
-      return;
-    }
     setMessages((m) => [...m, { from: "user", text }]);
     await callElora({ messageOverride: text });
   }
 
-  function getExportTitle() {
-    const base = `${role.toUpperCase()} — ${subject} — ${topic}`.trim();
-    if (lastArtifact?.type === "worksheet") {
-      return worksheetMode === "teacher" ? `${base} (Teacher)` : `${base} (Student)`;
+  async function validateAndActivateInvite(code) {
+    const trimmed = (code || "").trim();
+    setTeacherGateStatus("");
+    if (!trimmed) {
+      setTeacherGateStatus("Enter a code.");
+      return false;
     }
-    return base;
-  }
-
-  function getExportContent() {
-    if (lastArtifact) {
-      if (lastArtifact.type === "worksheet") return artifactToMarkdown(lastArtifact, worksheetMode);
-      return artifactToMarkdown(lastArtifact, "student");
+    if (!verified) {
+      setTeacherGateStatus("Verify your email first. Educator access requires verification.");
+      return false;
     }
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.from === "elora") return messages[i].text || "";
-    }
-    return "";
-  }
-
-  async function downloadFromEndpoint(endpoint, filename, payload) {
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!r.ok) {
-      const data = await r.json().catch(() => null);
-      throw new Error(data?.error || "Export failed");
-    }
-
-    const blob = await r.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  }
-
-  async function exportDocx() {
-    if (exportLocked) {
-      setVerifyGateOpen(true);
-      return;
-    }
-    const title = getExportTitle();
-    const content = getExportContent();
-    if (!content) return;
-    await downloadFromEndpoint("/api/export-docx", `${safeFilename(title)}.docx`, { title, content });
-  }
-
-  async function exportPdf() {
-    if (exportLocked) {
-      setVerifyGateOpen(true);
-      return;
-    }
-    const title = getExportTitle();
-    const content = getExportContent();
-    if (!content) return;
-    await downloadFromEndpoint("/api/export-pdf", `${safeFilename(title)}.pdf`, { title, content });
-  }
-
-  async function exportPptx() {
-    if (exportLocked) {
-      setVerifyGateOpen(true);
-      return;
-    }
-
-    const theme = currentTheme();
-
-    if (lastArtifact?.type === "slides") {
-      const title = getExportTitle();
-      await downloadFromEndpoint(
-        "/api/export-slides",
-        `${safeFilename(title)}.pptx`,
-        { title, theme, artifact: lastArtifact }
-      );
-      return;
-    }
-
-    // fallback
-    if (action !== "slides") {
-      setMessages((m) => [...m, { from: "elora", text: "Generate Slides first to export PPTX." }]);
-      return;
-    }
-
-    const title = getExportTitle();
-    const content = getExportContent();
-    await downloadFromEndpoint("/api/export-slides", `${safeFilename(title)}.pptx`, { title, theme, content });
-  }
-
-  async function copyLast() {
-    const content = getExportContent();
-    if (!content) return;
     try {
-      await navigator.clipboard.writeText(content);
-      setMessages((m) => [...m, { from: "elora", text: "Copied ✅" }]);
+      const r = await fetch(`/api/teacher-invite?code=${encodeURIComponent(trimmed)}`);
+      if (!r.ok) {
+        setTeacherGateStatus("Invalid code.");
+        return false;
+      }
+      activateTeacher(trimmed);
+      setTeacherGateStatus("Educator access enabled ✅");
+      return true;
     } catch {
-      setMessages((m) => [...m, { from: "elora", text: "Copy failed — your browser blocked it." }]);
+      setTeacherGateStatus("Could not validate right now. Try again.");
+      return false;
     }
   }
 
@@ -477,26 +381,33 @@ export default function AssistantPage() {
     <div className="py-6">
       <div className="grid gap-5 lg:grid-cols-2">
         {/* LEFT */}
-        <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5">
+        <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/35 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-black text-slate-950 dark:text-white">Prompt Builder</h1>
+              <h1 className="text-2xl font-black text-slate-950 dark:text-white">
+                Prompt Builder
+              </h1>
               <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
                 Options first → Elora generates. Chat is for refinement.
               </p>
+              {role === "student" ? (
+                <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                  Tutor mode: you attempt first. Elora guides with hints (up to 3 attempts).
+                </div>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-2">
               {guest ? (
-                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-700 dark:text-amber-200">
-                  Guest ⚠ limited
+                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200">
+                  Guest
                 </span>
               ) : verified ? (
-                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">
-                  {teacherInvite ? "Teacher ✓" : "Verified ✓"}
+                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200">
+                  {teacher ? "Teacher ✓" : "Verified ✓"}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-white/10 bg-white/40 dark:bg-slate-950/30 text-slate-700 dark:text-slate-200">
+                <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-800 dark:text-slate-200">
                   Unverified
                 </span>
               )}
@@ -511,13 +422,12 @@ export default function AssistantPage() {
           <div className="mt-5">
             <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              {["educator", "student", "parent"].map((r) => (
+              {["student", "parent", "educator"].map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => {
-                    // If selecting educator but no invite yet, open teacher gate (still allow switch after entering)
-                    if (r === "educator" && !teacherInvite) {
+                    if (r === "educator" && !teacher) {
                       setTeacherGateOpen(true);
                       return;
                     }
@@ -526,46 +436,45 @@ export default function AssistantPage() {
                   className={cn(
                     "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
                     role === r
-                      ? "border-indigo-500/40 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
-                      : "border-white/10 bg-white/40 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white/60 dark:hover:bg-slate-950/45"
+                      ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
+                      : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40"
                   )}
                 >
                   {r === "educator" ? "Educator" : r === "student" ? "Student" : "Parent"}
                 </button>
               ))}
             </div>
-
-            {needsTeacherInvite ? (
-              <div className="mt-2 text-xs text-amber-700 dark:text-amber-200">
-                Educator mode requires a Teacher Invite.
-              </div>
-            ) : null}
           </div>
 
           {/* Country + Level */}
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-bold text-slate-900 dark:text-white">Country / Region</label>
+              <label className="text-sm font-bold text-slate-900 dark:text-white">
+                Country / Region
+              </label>
               <select
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                onChange={(e) => {
+                  setCountry(e.target.value);
+                  resetTutorAttempts();
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {COUNTRY_OPTIONS.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                Adjusts level labels + teaching style.
-              </div>
             </div>
 
             <div>
               <label className="text-sm font-bold text-slate-900 dark:text-white">Level</label>
               <select
                 value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                onChange={(e) => {
+                  setLevel(e.target.value);
+                  resetTutorAttempts();
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {levelOptions.map((l) => (
                   <option key={l} value={l}>{l}</option>
@@ -580,8 +489,11 @@ export default function AssistantPage() {
               <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
               <select
                 value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                onChange={(e) => {
+                  setSubject(e.target.value);
+                  resetTutorAttempts();
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
               >
                 {SUBJECT_OPTIONS.map((s) => (
                   <option key={s} value={s}>{s}</option>
@@ -593,8 +505,11 @@ export default function AssistantPage() {
               <label className="text-sm font-bold text-slate-900 dark:text-white">Topic</label>
               <input
                 value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                onChange={(e) => {
+                  setTopic(e.target.value);
+                  resetTutorAttempts();
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                 placeholder="e.g., Fractions, Photosynthesis, Loops in Python"
               />
             </div>
@@ -602,45 +517,60 @@ export default function AssistantPage() {
 
           {/* Constraints */}
           <div className="mt-5">
-            <label className="text-sm font-bold text-slate-900 dark:text-white">Constraints (optional)</label>
+            <label className="text-sm font-bold text-slate-900 dark:text-white">
+              Constraints (optional)
+            </label>
             <textarea
               value={constraints}
               onChange={(e) => setConstraints(e.target.value)}
               rows={3}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/55 dark:bg-slate-950/35 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-              placeholder="e.g., 45 minutes, mixed ability, include SEN/EAL support, focus on word problems"
+              className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+              placeholder="e.g., 45 minutes, mixed ability, include SEN/EAL support"
             />
           </div>
 
           {/* Quick actions */}
           <div className="mt-6">
-            <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white">
+              Quick actions
+            </div>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {ROLE_QUICK_ACTIONS[role].map((a) => {
-                const disabled = (guest && (a.id === "assessment" || a.id === "slides")) || (role === "educator" && !teacherInvite);
+                const disabled =
+                  (guest && (a.id === "assessment" || a.id === "slides")) ||
+                  (role === "educator" && !teacher);
                 const active = action === a.id;
 
                 return (
                   <button
                     key={a.id}
                     type="button"
-                    onClick={() => setAction(a.id)}
+                    onClick={() => {
+                      setAction(a.id);
+                      resetTutorAttempts();
+                    }}
                     disabled={disabled}
                     className={cn(
                       "rounded-2xl border p-4 text-left transition",
                       active
-                        ? "border-indigo-500/40 bg-indigo-600/10 shadow-lg shadow-indigo-500/10"
-                        : "border-white/10 bg-white/40 dark:bg-slate-950/30 hover:bg-white/60 dark:hover:bg-slate-950/45",
+                        ? "border-indigo-500/50 bg-indigo-600/10 shadow-lg shadow-indigo-500/10"
+                        : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 hover:bg-white dark:hover:bg-slate-950/40",
                       disabled ? "opacity-50 cursor-not-allowed" : ""
                     )}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
+                      <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                        {a.label}
+                      </div>
                       {disabled ? (
-                        <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span>
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-200">
+                          Locked
+                        </span>
                       ) : null}
                     </div>
-                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
+                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                      {a.hint}
+                    </div>
                   </button>
                 );
               })}
@@ -648,110 +578,37 @@ export default function AssistantPage() {
 
             <button
               type="button"
-              onClick={() => callElora({ messageOverride: "" })}
+              onClick={() => {
+                resetTutorAttempts();
+                callElora({ messageOverride: "" });
+              }}
               disabled={loading}
               className={cn(
                 "mt-5 w-full rounded-full px-6 py-3 font-extrabold text-white shadow-xl shadow-indigo-500/20",
                 loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
               )}
             >
-              {loading ? "Generating…" : "Generate with Elora"}
+              {loading ? "Generating…" : role === "student" ? "Start tutoring" : "Generate with Elora"}
             </button>
-
-            <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Tip: Use the chips on the right to refine without prompt engineering.
-            </div>
           </div>
         </div>
 
         {/* RIGHT */}
-        <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5 flex flex-col lg:min-h-[680px]">
+        <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/35 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px]">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
+              <h2 className="text-2xl font-black text-slate-950 dark:text-white">
+                Elora Assistant
+              </h2>
               <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                {country} • {level} • {subject} • <span className="font-semibold">{role}</span>
+                {country} • {level} • {subject} •{" "}
+                <span className="font-semibold">{role}</span>
+                {role === "student" ? (
+                  <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+                    Attempts: {Math.min(3, attempt)}/3
+                  </span>
+                ) : null}
               </div>
-
-              {lastArtifact?.type === "worksheet" ? (
-                <div className="mt-2 inline-flex rounded-full border border-white/10 bg-white/45 dark:bg-slate-950/30 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setWorksheetMode("student")}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-extrabold transition",
-                      worksheetMode === "student"
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-800 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/45"
-                    )}
-                  >
-                    Student copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWorksheetMode("teacher")}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-extrabold transition",
-                      worksheetMode === "teacher"
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-800 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/45"
-                    )}
-                  >
-                    Teacher copy
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              {verified ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={copyLast}
-                    className="rounded-full px-4 py-2 text-sm font-bold border border-white/10 bg-white/50 dark:bg-slate-950/35 text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/50"
-                  >
-                    Copy
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={exportDocx}
-                    className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-sky-600 hover:bg-sky-700 shadow-lg shadow-sky-500/20"
-                  >
-                    DOCX
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={exportPdf}
-                    className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-                  >
-                    PDF
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={exportPptx}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
-                      lastArtifact?.type === "slides" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-400 cursor-not-allowed"
-                    )}
-                    disabled={lastArtifact?.type !== "slides"}
-                    title={lastArtifact?.type === "slides" ? "Download PPTX" : "Generate Slides first"}
-                  >
-                    PPTX
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setVerifyGateOpen(true)}
-                  className="rounded-full px-4 py-2 text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-                >
-                  Verify to unlock exports
-                </button>
-              )}
             </div>
           </div>
 
@@ -764,7 +621,7 @@ export default function AssistantPage() {
                     "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
                     m.from === "user"
                       ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                      : "mr-auto bg-white/60 dark:bg-slate-950/30 text-slate-900 dark:text-slate-100 border-white/10"
+                      : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10"
                   )}
                 >
                   {m.from === "user" ? (
@@ -772,7 +629,7 @@ export default function AssistantPage() {
                   ) : (
                     <div className="elora-md">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {stripAnyArtifactTags(m.text)}
+                        {stripInternalTags(m.text)}
                       </ReactMarkdown>
                     </div>
                   )}
@@ -787,7 +644,7 @@ export default function AssistantPage() {
                   type="button"
                   onClick={() => refine(t)}
                   disabled={loading}
-                  className="rounded-full px-3 py-2 text-xs font-bold border border-white/10 bg-white/45 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white/65 dark:hover:bg-slate-950/45 disabled:opacity-50"
+                  className="rounded-full px-3 py-2 text-xs font-bold border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40 disabled:opacity-50"
                 >
                   {t}
                 </button>
@@ -802,8 +659,8 @@ export default function AssistantPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") sendChat();
               }}
-              placeholder="Ask Elora to refine, explain, or generate a variant…"
-              className="flex-1 rounded-full border border-white/10 bg-white/60 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+              placeholder="Ask Elora to refine, explain, or guide your next attempt…"
+              className="flex-1 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
             <button
               type="button"
@@ -817,18 +674,17 @@ export default function AssistantPage() {
               Send
             </button>
           </div>
-
-          <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            PDF exports are Kami-friendly. PPTX export follows your current Light/Dark mode.
-          </div>
         </div>
       </div>
 
       {/* Verify gate modal */}
-      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
+      <Modal
+        open={verifyGateOpen}
+        title="Verify to unlock Elora"
+        onClose={() => setVerifyGateOpen(false)}
+      >
         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-          Exports (DOCX/PDF/PPTX) and advanced tools are locked behind verification.
-          You can still preview as a limited guest.
+          Exports and advanced tools are locked behind verification. You can still preview as a limited guest.
         </p>
 
         <div className="mt-4 grid gap-2">
@@ -839,14 +695,16 @@ export default function AssistantPage() {
             Sign in / Verify
           </a>
 
+          {/* FIXED: guest now works because session.js emits elora:session + UI sync */}
           <button
             type="button"
             onClick={() => {
               storeGuest(true);
               setSession(getSession());
               setVerifyGateOpen(false);
+              setMessages((m) => [...m, { from: "elora", text: "Guest mode enabled. You can use Elora (limited)." }]);
             }}
-            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+            className="w-full px-5 py-3 rounded-xl font-bold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/45"
           >
             Continue as Guest (limited)
           </button>
@@ -858,10 +716,17 @@ export default function AssistantPage() {
       </Modal>
 
       {/* Teacher invite gate */}
-      <Modal open={teacherGateOpen} title="Teacher Invite Required" onClose={() => setTeacherGateOpen(false)}>
+      <Modal
+        open={teacherGateOpen}
+        title="Teacher Invite Required"
+        onClose={() => {
+          setTeacherGateOpen(false);
+          setTeacherGateStatus("");
+        }}
+      >
         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
           Educator mode is protected to prevent students misusing teacher tools.
-          If you’re a teacher, enter your invite code or open an invite link.
+          Teachers need a valid invite code and verification.
         </p>
 
         <div className="mt-4">
@@ -869,40 +734,41 @@ export default function AssistantPage() {
           <input
             value={inviteInput}
             onChange={(e) => setInviteInput(e.target.value)}
-            placeholder="e.g., GENESIS-TEACHER-2026"
-            className="mt-2 w-full rounded-xl border border-white/10 bg-white/65 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., GENESIS2026"
+            className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
           />
-          <div className="mt-2 grid gap-2">
+
+          {teacherGateStatus ? (
+            <div className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+              {teacherGateStatus}
+            </div>
+          ) : null}
+
+          <div className="mt-3 grid gap-2">
             <button
               type="button"
               className="w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-              onClick={() => {
-                setTeacherInvite(inviteInput.trim());
-                setSession(getSession());
+              onClick={async () => {
+                const ok = await validateAndActivateInvite(inviteInput);
+                if (!ok) return;
                 setInviteInput("");
                 setTeacherGateOpen(false);
                 setRole("educator");
               }}
             >
-              Save invite & enable Educator mode
+              Validate & enable Educator mode
             </button>
 
             <button
               type="button"
-              className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+              className="w-full px-5 py-3 rounded-xl font-bold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/30 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/45"
               onClick={() => {
-                clearTeacherInvite();
-                setSession(getSession());
                 setTeacherGateOpen(false);
                 setRole("student");
               }}
             >
               I’m not a teacher (switch to Student)
             </button>
-          </div>
-
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Admins can share invite links like: <span className="font-semibold">/assistant?invite=YOURCODE</span>
           </div>
         </div>
       </Modal>

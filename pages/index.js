@@ -28,33 +28,45 @@ export default function HomePage() {
   const [role, setRoleState] = useState("educator");
   const [gateOpen, setGateOpen] = useState(false);
 
-  const continueFlow = () => {
+  const safeNav = async (path) => {
+    try {
+      await router.push(path);
+    } catch {
+      // Hard fallback (prevents “button does nothing”)
+      window.location.href = path;
+    }
+  };
+
+  const continueFlow = async () => {
     setRole(role);
 
     const s = getSession();
     if (s.verified) {
       setGuest(false);
-      router.push("/assistant");
+      await safeNav("/assistant");
       return;
     }
 
-    // Not verified → prompt verify/guest gate
     setGateOpen(true);
   };
 
-  const pickGuest = () => {
+  const pickGuest = async () => {
+    // Ensure state is committed BEFORE navigation
     setRole(role);
     setVerified(false);
     setGuest(true);
     setGateOpen(false);
-    router.push("/assistant");
+
+    // Next tick improves reliability in some browsers/devices
+    await new Promise((r) => setTimeout(r, 0));
+    await safeNav("/assistant");
   };
 
-  const pickVerify = () => {
+  const pickVerify = async () => {
     setRole(role);
     setGuest(false);
     setGateOpen(false);
-    router.push("/verify");
+    await safeNav("/verify");
   };
 
   return (
@@ -69,7 +81,7 @@ export default function HomePage() {
 
       <div className="py-6">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/60 dark:bg-slate-950/40 backdrop-blur-xl">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/60 dark:bg-slate-950/40 backdrop-blur-xl shadow-lg shadow-slate-900/5 dark:shadow-black/30">
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               Built for real classrooms — not generic chat.
             </span>
@@ -92,9 +104,9 @@ export default function HomePage() {
               type="button"
               onClick={() => setRoleState(r.id)}
               className={[
-                "text-left rounded-2xl p-4 border backdrop-blur-xl transition",
+                "text-left rounded-2xl p-4 border backdrop-blur-xl transition shadow-lg shadow-slate-900/5 dark:shadow-black/30",
                 role === r.id
-                  ? "border-indigo-500/50 bg-white/75 dark:bg-slate-950/55 shadow-xl shadow-indigo-500/10"
+                  ? "border-indigo-500/50 bg-white/75 dark:bg-slate-950/55"
                   : "border-white/10 bg-white/55 dark:bg-slate-950/40 hover:bg-white/75 dark:hover:bg-slate-950/55",
               ].join(" ")}
             >
@@ -130,54 +142,15 @@ export default function HomePage() {
           <button
             type="button"
             onClick={pickGuest}
-            className="w-full sm:w-auto px-6 py-3 rounded-full font-bold border border-white/10 bg-white/55 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/75 dark:hover:bg-slate-950/55"
+            className="w-full sm:w-auto px-6 py-3 rounded-full font-bold border border-white/10 bg-white/55 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/75 dark:hover:bg-slate-950/55 shadow-lg shadow-slate-900/5 dark:shadow-black/30"
           >
             Try as Guest (limited)
           </button>
         </div>
-
-        <div id="faq" className="mt-14 grid md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5">
-            <h2 className="text-xl font-black text-slate-950 dark:text-white">FAQ</h2>
-            <div className="mt-3 space-y-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-              <details className="rounded-xl border border-white/10 bg-white/40 dark:bg-slate-950/30 p-3">
-                <summary className="cursor-pointer font-bold">Why is Elora different?</summary>
-                <p className="mt-2">
-                  Most AI tools fail because prompting is hard. Elora gives you structured options first, then lets you
-                  refine in chat.
-                </p>
-              </details>
-              <details className="rounded-xl border border-white/10 bg-white/40 dark:bg-slate-950/30 p-3">
-                <summary className="cursor-pointer font-bold">Do I need to verify?</summary>
-                <p className="mt-2">
-                  Yes for full features (assessments, slides, exports). Guest mode is limited.
-                </p>
-              </details>
-            </div>
-          </div>
-
-          <div
-            id="feedback"
-            className="rounded-2xl border border-white/10 bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl p-5"
-          >
-            <h2 className="text-xl font-black text-slate-950 dark:text-white">Feedback</h2>
-            <p className="mt-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-              Elora is built for real classrooms. Tell us what you want next: export formats, question types, syllabus
-              alignment, or safety features for students/parents.
-            </p>
-            <button
-              type="button"
-              className="mt-4 px-5 py-3 rounded-full font-extrabold text-white bg-sky-600 hover:bg-sky-700 shadow-xl shadow-sky-500/20"
-              onClick={() => (window.location.href = "mailto:feedback@elora.app?subject=Elora%20Feedback")}
-            >
-              Send Feedback
-            </button>
-          </div>
-        </div>
       </div>
 
       <Modal open={gateOpen} title="Verify to unlock Elora" onClose={() => setGateOpen(false)}>
-        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
           To unlock full features (assessments, slide generation, exports), please verify your email.
           You can still try a limited guest preview.
         </p>
@@ -188,14 +161,14 @@ export default function HomePage() {
             onClick={pickVerify}
             className="w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
           >
-            Sign in / Verify
+            Verify
           </button>
           <button
             type="button"
             onClick={pickGuest}
-            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/60 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-950/60"
+            className="w-full px-5 py-3 rounded-xl font-bold border border-white/10 bg-white/70 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/90 dark:hover:bg-slate-950/60 shadow-lg shadow-slate-900/5 dark:shadow-black/30"
           >
-            Try as Guest (limited)
+            Continue as Guest (limited)
           </button>
         </div>
 

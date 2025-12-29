@@ -1,57 +1,66 @@
 // pages/_app.js
-import "@/styles/globals.css";
-import { useEffect, useMemo, useState } from "react";
-import Navbar from "@/components/Navbar";
-import { getFontScale, getResolvedTheme, getTheme } from "@/lib/session";
+import { useEffect, useState } from "react";
+import Navbar from "../components/Navbar";
+import "../styles/globals.css";
+import { getTheme, getResolvedTheme, getFontScale } from "../lib/session";
 
-function applyHtmlTheme(resolved) {
+function applyThemeToHtml() {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", resolved === "dark");
+
+  const resolved = getResolvedTheme(); // light/dark
+  const root = document.documentElement;
+
+  if (resolved === "dark") root.classList.add("dark");
+  else root.classList.remove("dark");
+
+  root.setAttribute("data-theme", getTheme());
 }
 
-export default function MyApp({ Component, pageProps }) {
-  const [scale, setScale] = useState(1);
+function applyFontScale() {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const scale = getFontScale();
+  root.style.fontSize = `${Math.round(scale * 100)}%`;
+}
+
+export default function App({ Component, pageProps }) {
+  const [, force] = useState(0);
 
   useEffect(() => {
     const sync = () => {
-      const mode = getTheme();
-      const resolved = getResolvedTheme(mode);
-      applyHtmlTheme(resolved);
-      setScale(getFontScale());
+      applyThemeToHtml();
+      applyFontScale();
+      // Force rerender so any UI that reads session directly can update.
+      force((n) => n + 1);
     };
 
     sync();
 
-    window.addEventListener("elora:session", sync);
-    window.addEventListener("storage", (e) => {
-      if (e.key === "elora_session") sync();
-    });
+    if (typeof window === "undefined") return;
 
-    const mql =
-      window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
-    const onSystem = () => sync();
-    if (mql && mql.addEventListener) mql.addEventListener("change", onSystem);
-    else if (mql && mql.addListener) mql.addListener(onSystem);
+    // When system theme changes and user is in "System" mode, update.
+    const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const onMedia = () => sync();
+
+    if (mq && mq.addEventListener) mq.addEventListener("change", onMedia);
+    else if (mq && mq.addListener) mq.addListener(onMedia);
+
+    window.addEventListener("elora:session", sync);
+    window.addEventListener("focus", sync);
 
     return () => {
+      if (mq && mq.removeEventListener) mq.removeEventListener("change", onMedia);
+      else if (mq && mq.removeListener) mq.removeListener(onMedia);
+
       window.removeEventListener("elora:session", sync);
-      if (mql && mql.removeEventListener) mql.removeEventListener("change", onSystem);
-      else if (mql && mql.removeListener) mql.removeListener(onSystem);
+      window.removeEventListener("focus", sync);
     };
   }, []);
 
-  const fontStyle = useMemo(() => ({ fontSize: `${scale}em` }), [scale]);
-
-  // Premium background that looks good in both themes
   return (
-    <div
-      className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-indigo-100 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950 transition-colors"
-      style={fontStyle}
-    >
+    <>
       <Navbar />
-      <main className="pt-16 px-2 sm:px-4 md:px-6">
-        <Component {...pageProps} />
-      </main>
-    </div>
+      <Component {...pageProps} />
+    </>
   );
 }

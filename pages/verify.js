@@ -29,7 +29,8 @@ function cn(...xs) {
 function prettyFirebaseError(err) {
   const code = err?.code || "";
   if (code.includes("auth/invalid-email")) return "That email address looks invalid.";
-  if (code.includes("auth/argument-error")) return "Firebase is misconfigured (check your env vars).";
+  if (code.includes("auth/argument-error"))
+    return "Firebase is misconfigured (check your env vars + redeploy).";
   if (code.includes("auth/unauthorized-continue-uri"))
     return "Firebase blocked this site URL. Add your Vercel domain to Firebase Authorized Domains.";
   if (code.includes("auth/invalid-action-code"))
@@ -42,6 +43,7 @@ function prettyFirebaseError(err) {
 
 export default function Verify() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState({ kind: "idle", msg: "" }); // idle | info | ok | err | loading
   const [needsEmailForLink, setNeedsEmailForLink] = useState(false);
@@ -49,6 +51,13 @@ export default function Verify() {
   const cooldownRef = useRef(null);
 
   const pendingInvite = useMemo(() => getPendingInvite(), [router.isReady]);
+
+  // Hydrate email input from local pending email so it doesn't "vanish" on refresh.
+  useEffect(() => {
+    const stored = getPendingVerifyEmail() || getSession().email || "";
+    if (stored && !email) setEmail(stored);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // capture invite links like /verify?invite=CODE or /verify?code=CODE
   useEffect(() => {
@@ -88,7 +97,6 @@ export default function Verify() {
         setStatus({ kind: "loading", msg: "Finishing verification…" });
         const result = await signInWithEmailLink(auth, stored, href);
 
-        // Verified ONLY after link confirmation
         const s = getSession();
         s.email = result?.user?.email || stored;
         s.verified = true;
@@ -98,14 +106,11 @@ export default function Verify() {
 
         clearPendingVerifyEmail();
 
-        // If we have a pending invite, validate it server-side and unlock teacher access
         const code = getPendingInvite();
         if (code) {
           try {
             const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(code)}`);
-            if (res.ok) {
-              activateTeacher(code);
-            }
+            if (res.ok) activateTeacher(code);
           } catch {
             // ignore
           } finally {
@@ -114,8 +119,6 @@ export default function Verify() {
         }
 
         setStatus({ kind: "ok", msg: "Verified ✅ You can now export DOCX / PDF / PPTX." });
-
-        // Clean URL (remove Firebase params)
         router.replace("/verify", undefined, { shallow: true });
       } catch (e) {
         setStatus({ kind: "err", msg: prettyFirebaseError(e) });
@@ -143,11 +146,11 @@ export default function Verify() {
 
     const invite = getPendingInvite();
     const origin = window.location.origin;
+
     const continueUrl = invite
       ? `${origin}/verify?invite=${encodeURIComponent(invite)}`
       : `${origin}/verify`;
 
-    // Firebase requires this continue URL to be on an Authorized Domain
     const actionCodeSettings = {
       url: continueUrl,
       handleCodeInApp: true,
@@ -155,10 +158,11 @@ export default function Verify() {
 
     try {
       setStatus({ kind: "loading", msg: "Sending verification email…" });
-      await sendSignInLinkToEmail(auth, e, actionCodeSettings);
 
-      // Save email locally so we can complete sign-in when link returns
+      // store pending email first (so even if user refreshes, we can finish sign-in)
       setPendingVerifyEmail(e);
+
+      await sendSignInLinkToEmail(auth, e, actionCodeSettings);
 
       setStatus({
         kind: "ok",
@@ -197,9 +201,7 @@ export default function Verify() {
       if (code) {
         try {
           const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(code)}`);
-          if (res.ok) {
-            activateTeacher(code);
-          }
+          if (res.ok) activateTeacher(code);
         } catch {
           // ignore
         } finally {
@@ -217,6 +219,15 @@ export default function Verify() {
   const openGmail = () => {
     if (typeof window === "undefined") return;
     window.open("https://mail.google.com/", "_blank", "noopener,noreferrer");
+  };
+
+  // Prevent Enter key from accidentally submitting a form/reloading page.
+  const onEmailKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!needsEmailForLink) sendEmail();
+      else finishWithEmail();
+    }
   };
 
   return (
@@ -266,6 +277,7 @@ export default function Verify() {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={onEmailKeyDown}
               placeholder="you@school.edu"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/70 dark:bg-slate-950/35 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
@@ -275,7 +287,10 @@ export default function Verify() {
             {!needsEmailForLink ? (
               <button
                 type="button"
-                onClick={sendEmail}
+                onClick={(e) => {
+                  e.preventDefault();
+                  sendEmail();
+                }}
                 disabled={status.kind === "loading" || cooldown > 0}
                 className={cn(
                   "w-full px-5 py-3 rounded-2xl text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20 transition",
@@ -291,7 +306,10 @@ export default function Verify() {
             ) : (
               <button
                 type="button"
-                onClick={finishWithEmail}
+                onClick={(e) => {
+                  e.preventDefault();
+                  finishWithEmail();
+                }}
                 className={cn(
                   "w-full px-5 py-3 rounded-2xl text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
                   status.kind === "loading"
@@ -305,7 +323,10 @@ export default function Verify() {
 
             <button
               type="button"
-              onClick={openGmail}
+              onClick={(e) => {
+                e.preventDefault();
+                openGmail();
+              }}
               className="w-full px-5 py-3 rounded-2xl text-sm font-bold border border-white/10 bg-white/70 dark:bg-slate-950/40 text-slate-900 dark:text-white hover:bg-white/85 dark:hover:bg-slate-950/55"
             >
               Open Gmail
@@ -313,7 +334,8 @@ export default function Verify() {
 
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
                 setGuest(true);
                 router.push("/assistant");
               }}
@@ -343,8 +365,8 @@ export default function Verify() {
             <ul className="mt-2 text-xs text-slate-700 dark:text-slate-300 space-y-1 leading-relaxed list-disc pl-5">
               <li>Check spam / promotions.</li>
               <li>Make sure <span className="font-semibold">Email link (passwordless)</span> is enabled in Firebase Auth.</li>
-              <li>Add your Vercel domain under Firebase <span className="font-semibold">Authorized domains</span>.</li>
-              <li>Confirm your env var <span className="font-semibold">NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</span> is like <span className="font-semibold">yourproject.firebaseapp.com</span>.</li>
+              <li>Add the exact domain you’re visiting under Firebase <span className="font-semibold">Authorized domains</span>.</li>
+              <li>Try your stable domain <span className="font-semibold">elora-verification-ui.vercel.app</span> instead of deployment URLs.</li>
             </ul>
           </div>
 

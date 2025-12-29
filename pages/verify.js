@@ -29,10 +29,14 @@ function cn(...xs) {
 function prettyFirebaseError(err) {
   const code = err?.code || "";
   if (code.includes("auth/invalid-email")) return "That email address looks invalid.";
+  if (code.includes("auth/operation-not-allowed"))
+    return "Email link sign-in is not enabled in Firebase Auth. Enable it under Authentication → Sign-in method.";
   if (code.includes("auth/argument-error"))
     return "Firebase is misconfigured (check your env vars + redeploy).";
   if (code.includes("auth/unauthorized-continue-uri"))
-    return "Firebase blocked this site URL. Add your Vercel domain to Firebase Authorized Domains.";
+    return "Firebase blocked this site URL. Add your current Vercel domain to Firebase Authorized domains.";
+  if (code.includes("auth/too-many-requests"))
+    return "Too many requests. Please wait a minute and try again.";
   if (code.includes("auth/invalid-action-code"))
     return "That verification link is invalid or expired. Request a new one.";
   if (code.includes("auth/expired-action-code"))
@@ -48,15 +52,32 @@ export default function Verify() {
   const [status, setStatus] = useState({ kind: "idle", msg: "" }); // idle | info | ok | err | loading
   const [needsEmailForLink, setNeedsEmailForLink] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const cooldownRef = useRef(null);
 
+  // Debug state (so it can’t “do nothing”)
+  const [debug, setDebug] = useState({
+    origin: "",
+    continueUrl: "",
+    lastActionAt: "",
+    lastErrorCode: "",
+    lastErrorMessage: "",
+    firebaseConfigOk: firebaseConfigOk,
+    firebaseMissing: firebaseConfigMissingKeys.join(", "),
+  });
+
+  const cooldownRef = useRef(null);
   const pendingInvite = useMemo(() => getPendingInvite(), [router.isReady]);
 
-  // Hydrate email input from local pending email so it doesn't "vanish" on refresh.
+  // hydrate email field
   useEffect(() => {
     const stored = getPendingVerifyEmail() || getSession().email || "";
     if (stored && !email) setEmail(stored);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // track origin for debugging
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setDebug((d) => ({ ...d, origin: window.location.origin }));
   }, []);
 
   // capture invite links like /verify?invite=CODE or /verify?code=CODE
@@ -66,7 +87,7 @@ export default function Verify() {
     if (invite) setPendingInvite(invite);
   }, [router.isReady, router.query.invite, router.query.code]);
 
-  // cooldown timer for resend
+  // cooldown timer
   useEffect(() => {
     if (cooldown <= 0) return;
     cooldownRef.current = setInterval(() => {
@@ -77,7 +98,7 @@ export default function Verify() {
     };
   }, [cooldown]);
 
-  // If user landed via Firebase email link, complete verification here.
+  // If user landed via Firebase email link, complete verification
   useEffect(() => {
     if (!router.isReady) return;
     if (typeof window === "undefined") return;
@@ -95,6 +116,7 @@ export default function Verify() {
     (async () => {
       try {
         setStatus({ kind: "loading", msg: "Finishing verification…" });
+
         const result = await signInWithEmailLink(auth, stored, href);
 
         const s = getSession();
@@ -121,6 +143,11 @@ export default function Verify() {
         setStatus({ kind: "ok", msg: "Verified ✅ You can now export DOCX / PDF / PPTX." });
         router.replace("/verify", undefined, { shallow: true });
       } catch (e) {
+        setDebug((d) => ({
+          ...d,
+          lastErrorCode: e?.code || "",
+          lastErrorMessage: e?.message || String(e),
+        }));
         setStatus({ kind: "err", msg: prettyFirebaseError(e) });
       }
     })();
@@ -128,7 +155,16 @@ export default function Verify() {
   }, [router.isReady]);
 
   const sendEmail = async () => {
-    const e = email.trim();
+    // If the click fires, you will see this instantly.
+    setStatus({ kind: "info", msg: "Clicked. Preparing to send…" });
+    setDebug((d) => ({
+      ...d,
+      lastActionAt: new Date().toISOString(),
+      lastErrorCode: "",
+      lastErrorMessage: "",
+    }));
+
+    const e = (email || "").trim();
     if (!e || !e.includes("@")) {
       setStatus({ kind: "err", msg: "Please enter a valid email address." });
       return;
@@ -146,10 +182,11 @@ export default function Verify() {
 
     const invite = getPendingInvite();
     const origin = window.location.origin;
-
     const continueUrl = invite
       ? `${origin}/verify?invite=${encodeURIComponent(invite)}`
       : `${origin}/verify`;
+
+    setDebug((d) => ({ ...d, origin, continueUrl }));
 
     const actionCodeSettings = {
       url: continueUrl,
@@ -159,24 +196,27 @@ export default function Verify() {
     try {
       setStatus({ kind: "loading", msg: "Sending verification email…" });
 
-      // store pending email first (so even if user refreshes, we can finish sign-in)
+      // store pending email before request
       setPendingVerifyEmail(e);
 
       await sendSignInLinkToEmail(auth, e, actionCodeSettings);
 
-      setStatus({
-        kind: "ok",
-        msg: `Email sent ✅ Check your inbox for a link to verify: ${e}`,
-      });
-
+      setStatus({ kind: "ok", msg: `Email sent ✅ Check your inbox: ${e}` });
       setCooldown(20);
     } catch (err) {
+      setDebug((d) => ({
+        ...d,
+        lastErrorCode: err?.code || "",
+        lastErrorMessage: err?.message || String(err),
+      }));
       setStatus({ kind: "err", msg: prettyFirebaseError(err) });
     }
   };
 
   const finishWithEmail = async () => {
-    const e = email.trim();
+    setStatus({ kind: "info", msg: "Clicked. Finishing verification…" });
+
+    const e = (email || "").trim();
     if (!e || !e.includes("@")) {
       setStatus({ kind: "err", msg: "Enter the same email you used to request the link." });
       return;
@@ -212,6 +252,11 @@ export default function Verify() {
       setStatus({ kind: "ok", msg: "Verified ✅ You can now export DOCX / PDF / PPTX." });
       router.replace("/verify", undefined, { shallow: true });
     } catch (err) {
+      setDebug((d) => ({
+        ...d,
+        lastErrorCode: err?.code || "",
+        lastErrorMessage: err?.message || String(err),
+      }));
       setStatus({ kind: "err", msg: prettyFirebaseError(err) });
     }
   };
@@ -221,7 +266,6 @@ export default function Verify() {
     window.open("https://mail.google.com/", "_blank", "noopener,noreferrer");
   };
 
-  // Prevent Enter key from accidentally submitting a form/reloading page.
   const onEmailKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -247,18 +291,6 @@ export default function Verify() {
             <span className="font-semibold"> Verified only happens after you click that link.</span>
           </p>
 
-          {!firebaseConfigOk ? (
-            <div className="mt-5 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-4">
-              <div className="text-sm font-extrabold text-rose-800 dark:text-rose-200">
-                Firebase config missing
-              </div>
-              <div className="mt-1 text-xs text-rose-800/90 dark:text-rose-200/90">
-                Add these Vercel env vars:{" "}
-                <span className="font-bold">{firebaseConfigMissingKeys.join(", ")}</span>
-              </div>
-            </div>
-          ) : null}
-
           {pendingInvite ? (
             <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-4">
               <div className="text-sm font-extrabold text-amber-800 dark:text-amber-200">
@@ -271,9 +303,7 @@ export default function Verify() {
           ) : null}
 
           <div className="mt-6">
-            <label className="text-sm font-extrabold text-slate-950 dark:text-white">
-              Email
-            </label>
+            <label className="text-sm font-extrabold text-slate-950 dark:text-white">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -360,18 +390,46 @@ export default function Verify() {
             </div>
           ) : null}
 
+          {/* Debug panel (temporary, but extremely useful). You can remove later. */}
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/45 dark:bg-slate-950/30 backdrop-blur-xl p-4">
-            <div className="text-xs font-extrabold text-slate-950 dark:text-white">If you don’t receive the email:</div>
-            <ul className="mt-2 text-xs text-slate-700 dark:text-slate-300 space-y-1 leading-relaxed list-disc pl-5">
-              <li>Check spam / promotions.</li>
-              <li>Make sure <span className="font-semibold">Email link (passwordless)</span> is enabled in Firebase Auth.</li>
-              <li>Add the exact domain you’re visiting under Firebase <span className="font-semibold">Authorized domains</span>.</li>
-              <li>Try your stable domain <span className="font-semibold">elora-verification-ui.vercel.app</span> instead of deployment URLs.</li>
-            </ul>
+            <div className="text-xs font-extrabold text-slate-950 dark:text-white">Debug</div>
+            <div className="mt-2 text-xs text-slate-700 dark:text-slate-300 space-y-1">
+              <div>
+                <span className="font-semibold">Firebase config ok:</span>{" "}
+                {String(firebaseConfigOk)}
+              </div>
+              {!firebaseConfigOk ? (
+                <div>
+                  <span className="font-semibold">Missing env:</span>{" "}
+                  {firebaseConfigMissingKeys.join(", ")}
+                </div>
+              ) : null}
+              <div>
+                <span className="font-semibold">Origin:</span> {debug.origin || "(loading)"}
+              </div>
+              <div className="break-all">
+                <span className="font-semibold">Continue URL:</span>{" "}
+                {debug.continueUrl || "(click send to compute)"}
+              </div>
+              <div>
+                <span className="font-semibold">Last action:</span>{" "}
+                {debug.lastActionAt || "(none yet)"}
+              </div>
+              {debug.lastErrorCode || debug.lastErrorMessage ? (
+                <div className="mt-2">
+                  <div className="font-semibold">Last error:</div>
+                  <div className="break-all">{debug.lastErrorCode}</div>
+                  <div className="break-all">{debug.lastErrorMessage}</div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3">
-            <Link href="/" className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:opacity-90">
+            <Link
+              href="/"
+              className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:opacity-90"
+            >
               ← Back home
             </Link>
             <Link

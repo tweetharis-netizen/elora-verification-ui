@@ -1,97 +1,52 @@
 import nodemailer from "nodemailer";
 import { signEmailVerificationToken } from "../../lib/server/emailVerification";
 
-function json(res, status, data) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(data));
-}
-
-function isValidEmail(email) {
-  const s = String(email || "").trim();
-  if (s.length < 3 || s.length > 254) return false;
-  const at = s.indexOf("@");
-  if (at <= 0 || at !== s.lastIndexOf("@")) return false;
-  const dot = s.lastIndexOf(".");
-  if (dot < at + 2 || dot === s.length - 1) return false;
-  return true;
-}
-
-function getBaseUrl(req) {
-  const explicit = process.env.NEXT_PUBLIC_BASE_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
-
-  const protoHeader = req.headers["x-forwarded-proto"];
-  const proto = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader || "https";
-  const hostHeader = req.headers["x-forwarded-host"] || req.headers.host;
-  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
-  return `${proto}://${host}`;
-}
-
-function buildTransport() {
-  const { ELORA_GMAIL_USER, ELORA_GMAIL_APP_PASSWORD } = process.env;
-
-  if (ELORA_GMAIL_USER && ELORA_GMAIL_APP_PASSWORD) {
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: ELORA_GMAIL_USER,
-        pass: ELORA_GMAIL_APP_PASSWORD
-      }
-    });
-  }
-
-  return null;
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return json(res, 405, { ok: false, error: "method_not_allowed" });
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
-  const email = String(req.body?.email || "").trim();
-  const invite = String(req.body?.invite || "").trim();
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Missing email" });
 
-  if (!isValidEmail(email)) return json(res, 400, { ok: false, error: "invalid_email" });
+  const secret = process.env.SESSION_SECRET;
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-  const secret = process.env.ELORA_EMAIL_TOKEN_SECRET || process.env.SESSION_SECRET;
-  if (!secret) return json(res, 500, { ok: false, error: "missing_secret" });
+  const token = signEmailVerificationToken({ email }, secret, 3600);
+  const verifyUrl = `${appUrl}/verify?token=${token}`;
 
-  const transporter = buildTransport();
-  if (!transporter) {
-    return json(res, 500, {
-      ok: false,
-      error: "missing_mail_config",
-      hint: "Set ELORA_GMAIL_USER + ELORA_GMAIL_APP_PASSWORD in Vercel env vars."
-    });
-  }
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_SMTP_USER,
+      pass: process.env.EMAIL_SMTP_PASS,
+    },
+  });
 
-  const baseUrl = getBaseUrl(req);
-  const token = signEmailVerificationToken({ email, invite }, secret, 30 * 60);
-  const verifyUrl = `${baseUrl}/verify?token=${encodeURIComponent(token)}`;
-
-  const from = process.env.ELORA_EMAIL_FROM || `Elora <${process.env.ELORA_GMAIL_USER}>`;
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: "Verify your email for Elora",
+    html: `
+      <div style="font-family:Arial,sans-serif;padding:20px">
+        <h2>Welcome to Elora</h2>
+        <p>Please verify your email to continue.</p>
+        <a href="${verifyUrl}"
+           style="background:#4f46e5;color:#fff;padding:12px 18px;border-radius:8px;
+                  text-decoration:none;display:inline-block;">Verify Email</a>
+        <p style="margin-top:20px;font-size:14px;color:#666;">
+          This link expires in 60 minutes.
+        </p>
+      </div>
+    `,
+  };
 
   try {
-    await transporter.sendMail({
-      from,
-      to: email,
-      subject: "Verify your email for Elora",
-      text: `Click to verify (expires in 30 min): ${verifyUrl}`,
-      html: `
-        <div style="font-family:Arial; padding:24px;">
-          <h2>Verify your email for Elora</h2>
-          <p>This link expires in 30 minutes.</p>
-          <a href="${verifyUrl}" style="display:inline-block;padding:12px 16px;background:#4f46e5;color:white;border-radius:10px;text-decoration:none;font-weight:700;">
-            Verify Email
-          </a>
-        </div>
-      `
-    });
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true });
   } catch (err) {
-    return json(res, 500, { ok: false, error: "send_failed", hint: String(err?.message || err) });
+    console.error(err);
+    res.status(500).json({ error: "Failed to send email" });
   }
-
-  return json(res, 200, { ok: true });
 }

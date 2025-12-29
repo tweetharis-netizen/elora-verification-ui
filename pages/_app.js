@@ -1,66 +1,69 @@
 // pages/_app.js
-import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
-import "../styles/globals.css";
-import { getTheme, getResolvedTheme, getFontScale } from "../lib/session";
+import "@/styles/globals.css";
+import { useEffect, useMemo, useState } from "react";
+import Navbar from "@/components/Navbar";
+import { getTheme, setTheme, getFontScale } from "@/lib/session";
 
-function applyThemeToHtml() {
-  if (typeof document === "undefined") return;
-
-  const resolved = getResolvedTheme(); // light/dark
-  const root = document.documentElement;
-
-  if (resolved === "dark") root.classList.add("dark");
-  else root.classList.remove("dark");
-
-  root.setAttribute("data-theme", getTheme());
+function resolveTheme(mode) {
+  const m = (mode || "system").toString().toLowerCase();
+  if (m === "dark") return "dark";
+  if (m === "light") return "light";
+  // system
+  if (typeof window === "undefined" || !window.matchMedia) return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function applyFontScale() {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  const scale = getFontScale();
-  root.style.fontSize = `${Math.round(scale * 100)}%`;
-}
+export default function MyApp({ Component, pageProps }) {
+  const [theme, setThemeState] = useState("system");
 
-export default function App({ Component, pageProps }) {
-  const [, force] = useState(0);
+  const scale = useMemo(() => getFontScale(), []);
 
   useEffect(() => {
-    const sync = () => {
-      applyThemeToHtml();
-      applyFontScale();
-      // Force rerender so any UI that reads session directly can update.
-      force((n) => n + 1);
+    const stored = getTheme();
+    setThemeState(stored);
+
+    const apply = (mode) => {
+      const resolved = resolveTheme(mode);
+      document.documentElement.classList.toggle("dark", resolved === "dark");
+      document.documentElement.setAttribute("data-theme", mode);
     };
 
-    sync();
+    apply(stored);
 
-    if (typeof window === "undefined") return;
+    // If user is on "System", react to OS theme changes.
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const onChange = () => {
+        const current = getTheme();
+        if ((current || "system").toLowerCase() === "system") apply("system");
+      };
 
-    // When system theme changes and user is in "System" mode, update.
-    const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-    const onMedia = () => sync();
+      if (mq.addEventListener) mq.addEventListener("change", onChange);
+      else if (mq.addListener) mq.addListener(onChange);
 
-    if (mq && mq.addEventListener) mq.addEventListener("change", onMedia);
-    else if (mq && mq.addListener) mq.addListener(onMedia);
-
-    window.addEventListener("elora:session", sync);
-    window.addEventListener("focus", sync);
-
-    return () => {
-      if (mq && mq.removeEventListener) mq.removeEventListener("change", onMedia);
-      else if (mq && mq.removeListener) mq.removeListener(onMedia);
-
-      window.removeEventListener("elora:session", sync);
-      window.removeEventListener("focus", sync);
-    };
+      return () => {
+        if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+        else if (mq.removeListener) mq.removeListener(onChange);
+      };
+    }
   }, []);
 
+  const applyTheme = (mode) => {
+    setTheme(mode);
+    setThemeState(mode);
+    const resolved = resolveTheme(mode);
+    document.documentElement.classList.toggle("dark", resolved === "dark");
+    document.documentElement.setAttribute("data-theme", mode);
+  };
+
   return (
-    <>
-      <Navbar />
-      <Component {...pageProps} />
-    </>
+    <div className="min-h-screen transition-all" style={{ fontSize: `${scale}em` }}>
+      <Navbar theme={theme} setTheme={applyTheme} />
+
+      {/* Navbar is fixed; give enough top padding so it NEVER overlaps content */}
+      <main className="pt-20 sm:pt-24 px-2 sm:px-4 md:px-6">
+        <Component {...pageProps} />
+      </main>
+    </div>
   );
 }

@@ -1,22 +1,28 @@
 // pages/_app.js
 import "@/styles/globals.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
-import { getTheme, setTheme, getFontScale } from "@/lib/session";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  getTheme,
+  setTheme,
+  getFontScale,
+  getSession,
+  saveSession,
+} from "@/lib/session";
 
 function resolveTheme(mode) {
   const m = (mode || "system").toString().toLowerCase();
   if (m === "dark") return "dark";
   if (m === "light") return "light";
-  // system
   if (typeof window === "undefined" || !window.matchMedia) return "dark";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export default function MyApp({ Component, pageProps }) {
   const [theme, setThemeState] = useState("system");
-
-  const scale = useMemo(() => getFontScale(), []);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const stored = getTheme();
@@ -30,22 +36,54 @@ export default function MyApp({ Component, pageProps }) {
 
     apply(stored);
 
-    // If user is on "System", react to OS theme changes.
-    if (typeof window !== "undefined" && window.matchMedia) {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      const onChange = () => {
-        const current = getTheme();
-        if ((current || "system").toLowerCase() === "system") apply("system");
-      };
+    // System theme changes
+    const mq = typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
 
-      if (mq.addEventListener) mq.addEventListener("change", onChange);
-      else if (mq.addListener) mq.addListener(onChange);
+    const onThemeChange = () => {
+      const current = getTheme();
+      if ((current || "system").toLowerCase() === "system") apply("system");
+    };
 
-      return () => {
-        if (mq.removeEventListener) mq.removeEventListener("change", onChange);
-        else if (mq.removeListener) mq.removeListener(onChange);
-      };
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener("change", onThemeChange);
+      else if (mq.addListener) mq.addListener(onThemeChange);
     }
+
+    // Auth sync: Only Firebase-confirmed users are "verified".
+    const unsub = onAuthStateChanged(auth, (user) => {
+      const s = getSession();
+
+      if (user && user.email) {
+        s.email = user.email;
+        s.verified = true;
+        s.guest = false;
+        s.verifiedAt = new Date().toISOString();
+        saveSession(s);
+      } else {
+        // If they had "verified" from old fake logic, remove it.
+        if (s.verified) {
+          s.verified = false;
+          delete s.verifiedAt;
+          saveSession(s);
+        }
+      }
+
+      setTick((n) => n + 1); // force rerender so Navbar reflects changes
+    });
+
+    const onSession = () => setTick((n) => n + 1);
+    window.addEventListener("elora:session", onSession);
+
+    return () => {
+      if (mq) {
+        if (mq.removeEventListener) mq.removeEventListener("change", onThemeChange);
+        else if (mq.removeListener) mq.removeListener(onThemeChange);
+      }
+      unsub();
+      window.removeEventListener("elora:session", onSession);
+    };
   }, []);
 
   const applyTheme = (mode) => {
@@ -54,13 +92,15 @@ export default function MyApp({ Component, pageProps }) {
     const resolved = resolveTheme(mode);
     document.documentElement.classList.toggle("dark", resolved === "dark");
     document.documentElement.setAttribute("data-theme", mode);
+    setTick((n) => n + 1);
   };
 
-  return (
-    <div className="min-h-screen transition-all" style={{ fontSize: `${scale}em` }}>
-      <Navbar theme={theme} setTheme={applyTheme} />
+  const scale = getFontScale();
 
-      {/* Navbar is fixed; give enough top padding so it NEVER overlaps content */}
+  return (
+    <div className="min-h-screen transition-all" style={{ fontSize: `${scale}em` }} key={tick}>
+      <Navbar theme={theme} setTheme={applyTheme} />
+      {/* fixed navbar -> enough padding so it never blocks content */}
       <main className="pt-20 sm:pt-24 px-2 sm:px-4 md:px-6">
         <Component {...pageProps} />
       </main>

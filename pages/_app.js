@@ -1,77 +1,49 @@
-// pages/_app.js
 import "../styles/globals.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { getTheme, getResolvedTheme, getFontScale } from "../lib/session";
+import { getTheme, getFontScale } from "../lib/session";
 
-function applyResolvedTheme(resolved) {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  if (resolved === "dark") root.classList.add("dark");
-  else root.classList.remove("dark");
+function resolveTheme(mode) {
+  if (mode === "light" || mode === "dark") return mode;
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
-function applyFontScale(scale) {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.style.setProperty("--elora-font-scale", String(scale));
+function applyThemeAndScale() {
+  const mode = getTheme();
+  const resolved = resolveTheme(mode);
+  document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.dataset.theme = resolved;
+
+  const scale = getFontScale();
+  document.documentElement.style.setProperty("--elora-font-scale", String(scale));
 }
 
 export default function App({ Component, pageProps }) {
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch for theme-dependent UI
-  const initialResolvedTheme = useMemo(() => {
-    try {
-      return getResolvedTheme();
-    } catch {
-      return "dark";
-    }
-  }, []);
-
   useEffect(() => {
-    setMounted(true);
+    applyThemeAndScale();
 
-    // Apply font scale
-    applyFontScale(getFontScale());
+    const sync = () => applyThemeAndScale();
+    window.addEventListener("elora:session", sync);
 
-    // Apply theme + listen for OS changes when theme=system
-    const theme = getTheme();
-    applyResolvedTheme(getResolvedTheme());
-
-    if (typeof window === "undefined" || !window.matchMedia) return;
-
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      // Only react to OS changes if the user's setting is system
-      if (getTheme() === "system") applyResolvedTheme(getResolvedTheme());
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onSystem = () => {
+      if (getTheme() === "system") applyThemeAndScale();
     };
-
-    if (theme === "system") {
-      if (mq.addEventListener) mq.addEventListener("change", handler);
-      else mq.addListener(handler);
-    }
+    mq.addEventListener?.("change", onSystem);
 
     return () => {
-      if (theme === "system") {
-        if (mq.removeEventListener) mq.removeEventListener("change", handler);
-        else mq.removeListener(handler);
-      }
+      window.removeEventListener("elora:session", sync);
+      mq.removeEventListener?.("change", onSystem);
     };
   }, []);
 
-  // Ensure the initial theme class is set even before effects run
-  useEffect(() => {
-    applyResolvedTheme(initialResolvedTheme);
-  }, [initialResolvedTheme]);
-
   return (
-    <div className="min-h-screen bg-elora">
+    <div className="min-h-screen bg-gradient-to-b from-[#050b1c] via-[#070f26] to-[#030713]">
       <Navbar />
-      {/* Navbar is fixed, so we must offset content */}
-      <main className="pt-[86px] px-4 pb-16">
-        {/* mounted gate avoids theme flicker for components that read localStorage */}
-        {mounted ? <Component {...pageProps} /> : <Component {...pageProps} />}
+      {/* fixed navbar: keep content below it */}
+      <main className="pt-[88px]">
+        <Component {...pageProps} />
       </main>
     </div>
   );

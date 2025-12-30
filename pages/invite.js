@@ -1,7 +1,6 @@
-// pages/invite.js
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { getSession, saveSession, activateTeacher } from "@/lib/session";
+import { getSession, saveSession, activateTeacher, refreshVerifiedFromServer } from "@/lib/session";
 
 export default function Invite() {
   const router = useRouter();
@@ -26,44 +25,55 @@ export default function Invite() {
     }
 
     const run = async () => {
+      // Always check backend truth
+      const v = await refreshVerifiedFromServer().catch(() => ({ verified: false }));
       const s = getSession();
 
-      // If not verified yet, store pending invite and send to verify
-      if (!s.verified) {
+      if (!v?.verified && !s.verified) {
+        // Not verified: store pending invite and go verify
         s.pendingInvite = inviteCode;
         saveSession(s);
         router.replace("/verify");
         return;
       }
 
-      // Verified: validate server-side
-      const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(inviteCode)}`);
-      if (!res.ok) {
+      // Verified: validate invite server-side
+      try {
+        const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(inviteCode)}`);
+        const out = await res.json().catch(() => null);
+
+        if (!res.ok || !out?.ok) {
+          setStatus({
+            title: "Invalid invite code",
+            detail: "This code is not valid. Ask the admin for a correct invite link/code.",
+          });
+          return;
+        }
+
+        activateTeacher(inviteCode);
+
+        const s2 = getSession();
+        s2.pendingInvite = "";
+        saveSession(s2);
+
+        router.replace("/assistant");
+      } catch {
         setStatus({
-          title: "Invalid invite code",
-          detail: "This code is not valid. Ask the admin for a correct invite link/code.",
+          title: "Couldn’t validate invite",
+          detail: "Try again later.",
         });
-        return;
       }
-
-      activateTeacher(inviteCode);
-
-      // clear pending if it exists
-      const s2 = getSession();
-      if (s2.pendingInvite) delete s2.pendingInvite;
-      saveSession(s2);
-
-      router.replace("/assistant");
     };
 
     run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady, code]);
+  }, [router.isReady, code, router]);
 
   return (
-    <div className="mt-24 text-center">
-      <h1 className="text-2xl font-bold mb-2">{status.title}</h1>
-      <p className="opacity-80">{status.detail}</p>
+    <div className="mx-auto max-w-xl px-4">
+      <div className="elora-card p-6 sm:p-8">
+        <h1 className="text-[1.3rem] font-black">{status.title}</h1>
+        <p className="mt-2 elora-muted">{status.detail}</p>
+      </div>
     </div>
   );
 }

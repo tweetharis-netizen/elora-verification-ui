@@ -1,1 +1,1 @@
-export { default } from "../verification/send";
+export { default } from "../verification/confirm";

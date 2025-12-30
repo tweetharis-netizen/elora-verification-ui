@@ -1,67 +1,122 @@
-// Navbar.js
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { getSession } from "@/lib/session";
+import { useEffect, useMemo, useState } from "react";
+import { getSession, refreshVerifiedFromServer } from "@/lib/session";
 
-function LogoMark() {
+function cn(...xs) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function Logo() {
   return (
-    <div style={{
-      width: 40, height: 40, borderRadius: 12,
-      background: "rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.10)",
-      display: "grid", placeItems: "center"
-    }}>
-      <span style={{ fontWeight: 800, letterSpacing: 0.5 }}>E</span>
+    <div className="flex items-center gap-3">
+      <div className="h-9 w-9 rounded-xl border border-white/10 bg-white/10 dark:bg-white/5 grid place-items-center">
+        <span className="font-black tracking-tight">E</span>
+      </div>
+      <div className="leading-tight">
+        <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
+        <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
+      </div>
     </div>
   );
 }
 
 export default function Navbar() {
+  const [open, setOpen] = useState(false);
   const [session, setSession] = useState(() => getSession());
 
   useEffect(() => {
-    const onUpdate = () => setSession(getSession());
-    window.addEventListener("elora:session", onUpdate);
-    window.addEventListener("storage", onUpdate);
+    const sync = () => setSession(getSession());
+    sync();
+    window.addEventListener("elora:session", sync);
+    window.addEventListener("storage", sync);
+
+    // Also refresh server truth once on mount
+    refreshVerifiedFromServer().finally(sync);
+
     return () => {
-      window.removeEventListener("elora:session", onUpdate);
-      window.removeEventListener("storage", onUpdate);
+      window.removeEventListener("elora:session", sync);
+      window.removeEventListener("storage", sync);
     };
   }, []);
 
+  const items = useMemo(
+    () => [
+      { href: "/", label: "Home" },
+      { href: "/assistant", label: "Assistant" },
+      { href: "/help", label: "Help" },
+      { href: "/settings", label: "Settings" },
+    ],
+    []
+  );
+
   return (
-    <div style={{
-      position: "fixed",
-      top: 0, left: 0, right: 0,
-      height: 76,
-      zIndex: 50,
-      display: "flex",
-      alignItems: "center",
-      background: "rgba(0,0,0,0.18)",
-      borderBottom: "1px solid rgba(255,255,255,0.08)",
-      backdropFilter: "blur(16px)"
-    }}>
-      <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <LogoMark />
-          <div style={{ fontWeight: 800, fontSize: 18 }}>Elora</div>
-        </div>
+    <header className="elora-nav">
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <div className="elora-navbar">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" className="shrink-0">
+              <Logo />
+            </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <Link href="/"><span className="muted" style={{ fontWeight: 600 }}>Home</span></Link>
-          <Link href="/assistant"><span className="muted" style={{ fontWeight: 600 }}>Assistant</span></Link>
-          <Link href="/help"><span className="muted" style={{ fontWeight: 600 }}>Help</span></Link>
-          <Link href="/settings"><span className="muted" style={{ fontWeight: 600 }}>Settings</span></Link>
-        </div>
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-6">
+              {items.map((it) => (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  className="text-sm font-semibold opacity-80 hover:opacity-100 transition"
+                >
+                  {it.label}
+                </Link>
+              ))}
+            </nav>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {session.verified ? (
-            <span className="pill">Verified</span>
-          ) : (
-            <Link className="btn primary" href="/verify">Verify</Link>
-          )}
+            <div className="flex items-center gap-3">
+              {session.verified ? (
+                <span className="elora-pill">Verified</span>
+              ) : (
+                <Link href="/verify" className="elora-btn elora-btn-primary">
+                  Verify
+                </Link>
+              )}
+
+              <button
+                className="md:hidden elora-iconbtn"
+                aria-label="Open menu"
+                onClick={() => setOpen((v) => !v)}
+              >
+                <span className="block h-0.5 w-5 bg-current rounded-full" />
+                <span className="block h-0.5 w-5 bg-current rounded-full mt-1.5 opacity-80" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile menu */}
+          <div className={cn("md:hidden overflow-hidden transition-all", open ? "max-h-64 mt-3" : "max-h-0")}>
+            <div className="pt-2 pb-2 border-t border-white/10 dark:border-white/10 flex flex-col gap-2">
+              {items.map((it) => (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={() => setOpen(false)}
+                  className="px-2 py-2 rounded-xl text-sm font-semibold opacity-85 hover:opacity-100 hover:bg-white/10 dark:hover:bg-white/5"
+                >
+                  {it.label}
+                </Link>
+              ))}
+              {!session.verified ? (
+                <Link
+                  href="/verify"
+                  onClick={() => setOpen(false)}
+                  className="px-2 py-2 rounded-xl text-sm font-semibold bg-white/10 dark:bg-white/5 border border-white/10"
+                >
+                  Verify to unlock exports
+                </Link>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

@@ -1,26 +1,24 @@
-// pages/api/teacher-invite.js
-export default function handler(req, res) {
-  const raw = Array.isArray(req.query.code) ? req.query.code[0] : req.query.code;
-  const code = (raw || "").toString().trim();
-
-  if (!code) {
-    return res.status(400).json({ ok: false, error: "Missing invite code" });
-  }
-
-  const allowlist = (process.env.ELORA_TEACHER_INVITE_CODES || "")
+function normalizeCodes(raw) {
+  return String(raw || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
 
-  if (allowlist.length === 0) {
-    return res
-      .status(500)
-      .json({ ok: false, error: "Invite codes not configured on server" });
+export default function handler(req, res) {
+  const codes = normalizeCodes(process.env.TEACHER_INVITE_CODES);
+  const code =
+    req.method === "GET"
+      ? String(req.query?.code || "").trim()
+      : String(req.body?.code || "").trim();
+
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).json({ ok: false });
   }
 
-  if (allowlist.includes(code)) {
-    return res.status(200).json({ ok: true });
-  }
+  if (!code) return res.status(400).json({ ok: false });
 
-  return res.status(403).json({ ok: false, error: "Invalid invite code" });
+  const ok = codes.includes(code);
+  return res.status(200).json({ ok });
 }

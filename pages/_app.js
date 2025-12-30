@@ -1,6 +1,6 @@
-// pages/_app.js
 import "@/styles/globals.css";
 import { useEffect } from "react";
+import Layout from "@/components/Layout";
 import { hydrateUI } from "@/lib/session";
 
 export default function App({ Component, pageProps }) {
@@ -8,5 +8,9 @@ export default function App({ Component, pageProps }) {
     hydrateUI();
   }, []);
 
-  return <Component {...pageProps} />;
+  return (
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
+  );
 }

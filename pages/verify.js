@@ -1,19 +1,25 @@
-// pages/verify.js
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
 export default function VerifyPage() {
   const router = useRouter();
-  const token = useMemo(() => (typeof router.query.token === "string" ? router.query.token : ""), [router.query.token]);
-  const error = useMemo(() => (typeof router.query.error === "string" ? router.query.error : ""), [router.query.error]);
+  const token = useMemo(
+    () => (typeof router.query.token === "string" ? router.query.token : ""),
+    [router.query.token]
+  );
+  const error = useMemo(
+    () => (typeof router.query.error === "string" ? router.query.error : ""),
+    [router.query.error]
+  );
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    // If user clicked the email link -> token exists -> confirm on server -> redirect to /verified
+    // New system: token is verified by BACKEND, not frontend.
     if (token) {
-      window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}`;
+      const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
+      window.location.href = `${backend}/api/verification/confirm?token=${encodeURIComponent(token)}`;
     }
   }, [token]);
 
@@ -29,57 +35,48 @@ export default function VerifyPage() {
       const res = await fetch("/api/verification/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed })
+        body: JSON.stringify({ email: trimmed }),
       });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Failed");
-      setStatus("Sent! Check inbox/spam. Click the link to complete verification.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to send.");
+      setStatus("Sent. Check inbox/spam and click the link to finish verification.");
     } catch (e) {
-      setStatus(e.message || "Failed to send.");
+      setStatus(e?.message || "Failed to send.");
     }
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="card" style={{ padding: 28, maxWidth: 760 }}>
-          <h1 style={{ marginTop: 0 }}>Verify your email</h1>
-          <p className="muted">
-            Verification unlocks exports (DOCX / PDF / PPTX). Verified only happens after you click the link in the email.
+    <div className="mx-auto max-w-2xl px-4">
+      <div className="elora-card p-6 sm:p-8 relative overflow-hidden">
+        <div className="absolute inset-0 elora-grain" />
+        <div className="relative">
+          <h1 className="font-black text-[clamp(1.6rem,2.6vw,2.2rem)]">
+            Verify your email
+          </h1>
+          <p className="mt-2 elora-muted">
+            Verification unlocks exports (DOCX / PDF / PPTX). Verified only completes after clicking the email link.
           </p>
 
           {error ? (
-            <div style={{
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(255,120,120,0.35)",
-              background: "rgba(255,80,80,0.10)",
-              marginBottom: 14
-            }}>
-              Link {error === "expired" ? "expired" : "invalid"}. Please send a new one.
+            <div className="mt-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10">
+              Link {error === "expired" ? "expired" : "invalid"}. Send a new one.
             </div>
           ) : null}
 
-          <div style={{ display: "grid", gap: 10 }}>
-            <label style={{ fontWeight: 700 }}>Email</label>
+          <div className="mt-5 grid gap-3">
+            <label className="font-extrabold text-sm">Email</label>
             <input
+              className="elora-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              style={{
-                height: 48,
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(0,0,0,0.20)",
-                color: "white",
-                padding: "0 14px",
-                outline: "none"
-              }}
             />
 
-            <button className="btn primary" onClick={send}>Send verification email</button>
+            <button className="elora-btn elora-btn-primary" onClick={send} type="button">
+              Send verification email
+            </button>
 
-            {status ? <div className="muted">{status}</div> : null}
+            {status ? <div className="elora-muted text-sm">{status}</div> : null}
           </div>
         </div>
       </div>

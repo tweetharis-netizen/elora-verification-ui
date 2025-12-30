@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { requireVerified } from "@/lib/server/verification";
 
 function clampStr(v, max = 200000) {
   if (typeof v !== "string") return "";
@@ -7,6 +8,9 @@ function clampStr(v, max = 200000) {
 }
 
 export default async function handler(req, res) {
+  const ok = await requireVerified(req, res);
+  if (!ok) return;
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -41,8 +45,6 @@ export default async function handler(req, res) {
         doc.moveDown(0.6);
         continue;
       }
-
-      // Simple bullet rendering
       if (/^[-*]\s+/.test(line.trim())) {
         doc.text(`• ${line.trim().replace(/^[-*]\s+/, "")}`);
       } else {

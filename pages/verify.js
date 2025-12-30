@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
-function backendUrl() {
-  return (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
-}
-
 export default function VerifyPage() {
   const router = useRouter();
   const token = useMemo(
@@ -22,7 +18,8 @@ export default function VerifyPage() {
 
   useEffect(() => {
     if (token) {
-      window.location.href = `${backendUrl()}/api/verification/confirm?token=${encodeURIComponent(token)}`;
+      // IMPORTANT: confirm via FRONTEND API so cookie is set on UI domain
+      window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}`;
     }
   }, [token]);
 
@@ -97,11 +94,7 @@ export default function VerifyPage() {
               >
                 Send verification email
               </button>
-              <button
-                className="elora-btn"
-                type="button"
-                onClick={() => router.push("/")}
-              >
+              <button className="elora-btn" type="button" onClick={() => router.push("/")}>
                 Back to home
               </button>
             </div>

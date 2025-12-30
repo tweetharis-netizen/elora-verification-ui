@@ -1,26 +1,28 @@
-// pages/verified.js
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import { setVerifiedLocal } from "@/lib/session";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { refreshVerifiedFromServer } from "@/lib/session";
 
 export default function Verified() {
-  const router = useRouter();
+  const [status, setStatus] = useState("Checking…");
 
   useEffect(() => {
-    const email = typeof router.query.email === "string" ? router.query.email : "";
-    setVerifiedLocal(email);
-    const t = setTimeout(() => router.replace("/"), 650);
-    return () => clearTimeout(t);
-  }, [router]);
+    refreshVerifiedFromServer()
+      .then((s) => setStatus(s?.verified ? "Verified." : "Not verified."))
+      .catch(() => setStatus("Not verified."));
+  }, []);
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="card" style={{ padding: 26, maxWidth: 720 }}>
-          <h1 style={{ marginTop: 0 }}>You’re verified ✅</h1>
-          <p className="muted" style={{ marginBottom: 0 }}>
-            Elora will remember this on this device. Redirecting…
-          </p>
+    <div className="mx-auto max-w-xl px-4">
+      <div className="elora-card p-6 sm:p-8">
+        <h1 className="text-[1.3rem] font-black">Verification status</h1>
+        <p className="mt-2 elora-muted">{status}</p>
+        <div className="mt-5 flex gap-3">
+          <Link href="/assistant" className="elora-btn elora-btn-primary">
+            Go to Assistant
+          </Link>
+          <Link href="/verify" className="elora-btn">
+            Verify again
+          </Link>
         </div>
       </div>
     </div>

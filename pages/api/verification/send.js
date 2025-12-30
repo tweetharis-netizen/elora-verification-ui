@@ -11,10 +11,12 @@ export default async function handler(req, res) {
     });
 
     const data = await r.json().catch(() => null);
-    if (!r.ok) return res.status(r.status).json({ ok: false, error: data?.error || "Failed" });
+    if (!r.ok || !data?.ok) {
+      return res.status(r.status || 500).json({ ok: false, error: data?.error || "Send failed" });
+    }
 
     return res.status(200).json({ ok: true });
-  } catch (e) {
+  } catch {
     return res.status(500).json({ ok: false, error: "Backend unreachable" });
   }
 }

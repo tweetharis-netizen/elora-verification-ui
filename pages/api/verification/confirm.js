@@ -11,6 +11,7 @@ function setCookie(res, name, value, opts = {}) {
 export default async function handler(req, res) {
   const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
   const token = typeof req.query.token === "string" ? req.query.token : "";
+
   if (!token) return res.redirect("/verify?error=invalid");
 
   try {
@@ -23,8 +24,7 @@ export default async function handler(req, res) {
     const data = await r.json().catch(() => null);
 
     if (!r.ok || !data?.ok) {
-      const err = data?.error || "invalid";
-      return res.redirect(`/verify?error=${encodeURIComponent(err)}`);
+      return res.redirect(`/verify?error=${encodeURIComponent(data?.error || "invalid")}`);
     }
 
     const proto = String(req.headers["x-forwarded-proto"] || "");

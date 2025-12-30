@@ -1,29 +1,20 @@
-import { getBackendBaseUrl } from "@/lib/server/verification";
-
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
-  const email = String(req.body?.email || "").trim();
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
-    return res.status(400).json({ ok: false, error: "Enter a valid email." });
-  }
+  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
 
-  const base = getBackendBaseUrl();
   try {
-    const r = await fetch(`${base}/api/verification/send`, {
+    const r = await fetch(`${backend}/api/verification/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(req.body || {}),
     });
+
     const data = await r.json().catch(() => null);
-    if (!r.ok) {
-      return res.status(r.status).json({ ok: false, error: data?.error || "Failed to send." });
-    }
-    return res.status(200).json({ ok: true, ...data });
+    if (!r.ok) return res.status(r.status).json({ ok: false, error: data?.error || "Failed" });
+
+    return res.status(200).json({ ok: true });
   } catch (e) {
-    return res.status(500).json({ ok: false, error: "Backend unreachable." });
+    return res.status(500).json({ ok: false, error: "Backend unreachable" });
   }
 }

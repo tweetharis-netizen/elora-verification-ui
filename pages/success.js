@@ -1,51 +1,79 @@
-// pages/success.js
 import { useEffect, useState } from "react";
-import { getSession, saveSession, activateTeacher } from "@/lib/session";
 import { useRouter } from "next/router";
+import {
+  getSession,
+  saveSession,
+  activateTeacher,
+  refreshVerifiedFromServer,
+} from "@/lib/session";
 
 export default function Success() {
   const router = useRouter();
   const [msg, setMsg] = useState("Finalizing verification…");
 
   useEffect(() => {
-    const run = async () => {
-      const s = getSession();
-      s.verified = true;
-      saveSession(s);
+    if (!router.isReady) return;
 
-      // If there was a pending invite, validate it server-side before unlocking
-      if (s.pendingInvite) {
-        const code = String(s.pendingInvite).trim();
-        try {
-          const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(code)}`);
-          if (res.ok) {
-            activateTeacher(code);
-            setMsg("Verified + educator unlocked. Redirecting…");
-          } else {
-            setMsg("Verified, but invite code invalid. Redirecting…");
+    const code = String(router.query?.code || "").trim();
+    if (!code) {
+      setMsg("Missing verification code. Try verifying again.");
+      return;
+    }
+
+    const run = async () => {
+      try {
+        // Exchange code -> sets httpOnly cookie via API route
+        const r = await fetch("/api/verification/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.ok) throw new Error(data?.error || "Exchange failed.");
+
+        // Sync local cache for UI
+        await refreshVerifiedFromServer();
+
+        const s = getSession();
+
+        // If pending invite exists, validate server-side and unlock educator
+        if (s.pendingInvite) {
+          const inviteCode = String(s.pendingInvite).trim();
+          try {
+            const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(inviteCode)}`);
+            const out = await res.json().catch(() => null);
+            if (res.ok && out?.ok) {
+              activateTeacher(inviteCode);
+              setMsg("Verified + educator unlocked. Redirecting…");
+            } else {
+              setMsg("Verified, but invite invalid. Redirecting…");
+            }
+          } catch {
+            setMsg("Verified, but invite validation failed. Redirecting…");
           }
-        } catch {
-          setMsg("Verified, but could not validate invite. Redirecting…");
+
+          const s2 = getSession();
+          s2.pendingInvite = "";
+          saveSession(s2);
+        } else {
+          setMsg("Verified. Redirecting…");
         }
 
-        const s2 = getSession();
-        delete s2.pendingInvite;
-        saveSession(s2);
-      } else {
-        setMsg("Verified. Redirecting…");
+        setTimeout(() => router.push("/assistant"), 700);
+      } catch (e) {
+        setMsg(e?.message || "Failed to finalize verification.");
       }
-
-      setTimeout(() => router.push("/assistant"), 900);
     };
 
     run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router.isReady, router.query, router]);
 
   return (
-    <div className="mt-24 text-center">
-      <h1 className="text-2xl font-bold mb-2">✅ Success</h1>
-      <p>{msg}</p>
+    <div className="mx-auto max-w-xl px-4">
+      <div className="elora-card p-6 sm:p-8">
+        <h1 className="text-[1.3rem] font-black">✅ Success</h1>
+        <p className="mt-2 elora-muted">{msg}</p>
+      </div>
     </div>
   );
 }

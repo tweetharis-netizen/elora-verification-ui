@@ -1,7 +1,7 @@
 function setCookie(res, name, value, opts = {}) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
-  if (opts.maxAge) parts.push(`Max-Age=${opts.maxAge}`);
   parts.push(`Path=${opts.path || "/"}`);
+  if (opts.maxAge) parts.push(`Max-Age=${opts.maxAge}`);
   if (opts.httpOnly) parts.push("HttpOnly");
   if (opts.secure) parts.push("Secure");
   if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
@@ -11,7 +11,6 @@ function setCookie(res, name, value, opts = {}) {
 export default async function handler(req, res) {
   const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
   const token = typeof req.query.token === "string" ? req.query.token : "";
-
   if (!token) return res.redirect("/verify?error=invalid");
 
   try {
@@ -24,7 +23,7 @@ export default async function handler(req, res) {
     const data = await r.json().catch(() => null);
 
     if (!r.ok || !data?.ok) {
-      const err = data?.error === "expired" ? "expired" : "invalid";
+      const err = data?.error || "invalid";
       return res.redirect(`/verify?error=${encodeURIComponent(err)}`);
     }
 
@@ -41,6 +40,6 @@ export default async function handler(req, res) {
 
     return res.redirect(`/verified?email=${encodeURIComponent(data.email || "")}`);
   } catch {
-    return res.redirect("/verify?error=backend");
+    return res.redirect("/verify?error=backend_unreachable");
   }
 }

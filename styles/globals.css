@@ -2,103 +2,171 @@
 
 :root {
   --elora-font-scale: 1;
-
-  /* Shared */
   --radius: 18px;
-  --shadow: 0 20px 60px rgba(0,0,0,0.35);
+
+  /* Layout */
+  --elora-nav-offset: 92px; /* fixed top padding so navbar never overlaps */
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
-/* Global font scaling (fixes slider doing nothing) */
+/* Real font scaling */
 html {
   font-size: calc(16px * var(--elora-font-scale));
 }
 
-/* Dark (default) */
-html.theme-dark {
-  --bg0: #030617;
-  --bg1: #060b2a;
-  --card: rgba(255,255,255,0.06);
-  --card2: rgba(255,255,255,0.08);
+/* ---------- Theme Tokens ---------- */
+/* Dark = default */
+html[data-theme="dark"] {
+  --bg0: #050816;
+  --bg1: #070b22;
+  --surface: rgba(255,255,255,0.06);
+  --surface2: rgba(255,255,255,0.08);
+  --line: rgba(255,255,255,0.10);
   --text: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.68);
-  --line: rgba(255,255,255,0.10);
-  --accent: #6c63ff;
-  --accent2: #9a7bff;
+  --accent: #7c7bff;
+  --accent2: #59c2ff;
 }
 
-/* Dawn (NOT a white flashbang) — cinematic, like your Runway reference */
-html.theme-dawn {
-  --bg0: #0a1026;
-  --bg1: #101a3a;
-  --card: rgba(255,255,255,0.08);
-  --card2: rgba(255,255,255,0.10);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.72);
-  --line: rgba(255,255,255,0.12);
-  --accent: #7b7bff;
-  --accent2: #59c2ff;
+/* Light = soft premium (NOT harsh white) */
+html[data-theme="light"] {
+  --bg0: #f5f6fb;
+  --bg1: #eef1f9;
+  --surface: rgba(255,255,255,0.72);
+  --surface2: rgba(255,255,255,0.85);
+  --line: rgba(15,23,42,0.10);
+  --text: rgba(15,23,42,0.92);
+  --muted: rgba(15,23,42,0.62);
+  --accent: #4f46e5;
+  --accent2: #2563eb;
 }
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-family: var(--font-sans);
   color: var(--text);
-  background:
-    radial-gradient(1100px 700px at 15% 20%, rgba(108,99,255,0.25), transparent 60%),
-    radial-gradient(900px 600px at 80% 35%, rgba(89,194,255,0.16), transparent 55%),
-    linear-gradient(180deg, var(--bg0), var(--bg1));
   min-height: 100vh;
+  background:
+    radial-gradient(1100px 700px at 14% 18%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 82% 32%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
 a { color: inherit; text-decoration: none; }
 
-.container {
-  width: min(1100px, calc(100% - 48px));
-  margin: 0 auto;
+/* Shell ensures nav never overlaps */
+.elora-shell {
+  min-height: 100vh;
 }
 
-/* Glass card */
-.card {
-  background: var(--card);
+.elora-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  pointer-events: none; /* allow inner to handle clicks */
+}
+
+.elora-navbar {
+  pointer-events: auto;
+  border-radius: 22px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+  background: color-mix(in oklab, var(--surface2) 55%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 22px 65px rgba(0,0,0,0.18);
+  padding: 14px 16px;
 }
 
-/* Top nav spacing so it doesn't block content */
-.page {
-  padding-top: 92px; /* matches navbar height */
+.elora-main {
+  padding-top: var(--elora-nav-offset);
   padding-bottom: 48px;
 }
 
-.btn {
+/* Components */
+.elora-card {
+  background: var(--surface);
   border: 1px solid var(--line);
-  background: rgba(255,255,255,0.06);
-  color: var(--text);
-  padding: 12px 16px;
+  border-radius: var(--radius);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.14);
+}
+
+.elora-muted { color: var(--muted); }
+
+.elora-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border-radius: 999px;
+  padding: 0.72rem 1rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
   cursor: pointer;
 }
-.btn.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+
+.elora-btn-primary {
   border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
 }
-.btn:disabled {
+
+.elora-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.pill {
+.elora-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 800;
+  font-size: 0.85rem;
   border: 1px solid rgba(120,255,200,0.35);
   background: rgba(60,255,170,0.10);
-  padding: 8px 12px;
-  border-radius: 999px;
-  color: rgba(220,255,240,0.95);
-  font-weight: 600;
+  color: color-mix(in oklab, var(--text) 88%, #7dffb7);
 }
 
-.muted { color: var(--muted); }
+.elora-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  cursor: pointer;
+}
+
+/* Inputs */
+.elora-input {
+  width: 100%;
+  height: 2.85rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  color: var(--text);
+  padding: 0 0.95rem;
+  outline: none;
+}
+.elora-input:focus {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+/* Runway-ish grain overlay (cheap) */
+.elora-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+}

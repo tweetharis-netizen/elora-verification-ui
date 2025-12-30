@@ -1,6 +1,6 @@
 import "@/styles/globals.css";
 import { useEffect } from "react";
-import Layout from "@/components/Layout";
+import Navbar from "@/components/Navbar";
 import { hydrateUI } from "@/lib/session";
 
 export default function App({ Component, pageProps }) {
@@ -9,8 +9,11 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   return (
-    <Layout>
-      <Component {...pageProps} />
-    </Layout>
+    <div className="elora-shell">
+      <Navbar />
+      <main className="elora-main">
+        <Component {...pageProps} />
+      </main>
+    </div>
   );
 }

@@ -1,28 +1,24 @@
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 import { refreshVerifiedFromServer } from "@/lib/session";
 
 export default function Verified() {
-  const [status, setStatus] = useState("Checking…");
+  const router = useRouter();
 
   useEffect(() => {
-    refreshVerifiedFromServer()
-      .then((s) => setStatus(s?.verified ? "Verified." : "Not verified."))
-      .catch(() => setStatus("Not verified."));
-  }, []);
+    refreshVerifiedFromServer();
+    const t = setTimeout(() => router.replace("/"), 700);
+    return () => clearTimeout(t);
+  }, [router]);
 
   return (
-    <div className="mx-auto max-w-xl px-4">
-      <div className="elora-card p-6 sm:p-8">
-        <h1 className="text-[1.3rem] font-black">Verification status</h1>
-        <p className="mt-2 elora-muted">{status}</p>
-        <div className="mt-5 flex gap-3">
-          <Link href="/assistant" className="elora-btn elora-btn-primary">
-            Go to Assistant
-          </Link>
-          <Link href="/verify" className="elora-btn">
-            Verify again
-          </Link>
+    <div className="page">
+      <div className="container" style={{ paddingTop: 120 }}>
+        <div className="card" style={{ padding: 28, maxWidth: 760 }}>
+          <h1 style={{ marginTop: 0 }}>Verified ✅</h1>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            You’re verified. Redirecting…
+          </p>
         </div>
       </div>
     </div>

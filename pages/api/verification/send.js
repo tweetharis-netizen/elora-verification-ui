@@ -1,29 +1,38 @@
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "method_not_allowed" });
-  }
+function json(res, code, payload) {
+  res.statusCode = code;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload));
+}
 
-  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
+export default async function handler(req, res) {
+  if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+
+  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "").replace(/\/$/, "");
+  if (!backend) return json(res, 500, { ok: false, error: "missing_backend_url" });
+
+  const email = String(req.body?.email || "").trim();
+  if (!email) return json(res, 400, { ok: false, error: "missing_email" });
 
   try {
     const r = await fetch(`${backend}/api/verification/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body || {}),
+      body: JSON.stringify({ email }),
     });
 
     const data = await r.json().catch(() => null);
 
+    // Always return consistent JSON shape to the UI
     if (!r.ok || !data?.ok) {
-      return res.status(r.status || 500).json({
+      return json(res, r.status || 400, {
         ok: false,
-        error: data?.error || "email_send_failed",
-        retryAfter: data?.retryAfter,
+        error: data?.error || "send_failed",
+        retryAfter: data?.retryAfter ?? null,
       });
     }
 
-    return res.status(200).json({ ok: true });
+    return json(res, 200, data);
   } catch {
-    return res.status(500).json({ ok: false, error: "backend_unreachable" });
+    return json(res, 502, { ok: false, error: "backend_unreachable" });
   }
 }

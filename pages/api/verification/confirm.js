@@ -27,10 +27,13 @@ export default async function handler(req, res) {
       return res.redirect(`/verify?error=${encodeURIComponent(data?.error || "invalid")}`);
     }
 
+    const sessionToken = String(data?.sessionToken || data?.sessionJwt || "");
+    if (!sessionToken) return res.redirect("/verify?error=invalid");
+
     const proto = String(req.headers["x-forwarded-proto"] || "");
     const secure = proto === "https" || process.env.NODE_ENV === "production";
 
-    setCookie(res, "elora_session", data.sessionJwt, {
+    setCookie(res, "elora_session", sessionToken, {
       path: "/",
       httpOnly: true,
       secure,
@@ -38,7 +41,7 @@ export default async function handler(req, res) {
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    return res.redirect(`/verified?email=${encodeURIComponent(data.email || "")}`);
+    return res.redirect(`/verified?email=${encodeURIComponent(String(data?.email || ""))}`);
   } catch {
     return res.redirect("/verify?error=backend_unreachable");
   }

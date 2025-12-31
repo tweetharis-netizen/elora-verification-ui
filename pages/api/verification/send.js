@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
   const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
@@ -18,6 +19,7 @@ export default async function handler(req, res) {
       return res.status(r.status || 500).json({
         ok: false,
         error: data?.error || "email_send_failed",
+        retryAfter: data?.retryAfter,
       });
     }
 

@@ -19,28 +19,36 @@
 /* Real font scaling */
 html { font-size: calc(16px * var(--elora-font-scale)); }
 
+/* Dark */
 html[data-theme="dark"] {
   --bg0: #050816;
   --bg1: #070b22;
+
   --surface: rgba(255,255,255,0.06);
   --surface2: rgba(255,255,255,0.09);
   --line: rgba(255,255,255,0.10);
+
   --text: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.70);
+
   --accent: #7c7bff;
   --accent2: #59c2ff;
 }
 
+/* Light — softened (no harsh white, lower contrast, calmer accents) */
 html[data-theme="light"] {
-  --bg0: #f5f6fb;
-  --bg1: #eef1f9;
-  --surface: rgba(255,255,255,0.78);
-  --surface2: rgba(255,255,255,0.90);
+  --bg0: #f3f5fa;
+  --bg1: #edf1f7;
+
+  --surface: rgba(255,255,255,0.70);
+  --surface2: rgba(255,255,255,0.86);
   --line: rgba(15,23,42,0.10);
-  --text: rgba(15,23,42,0.92);
+
+  --text: rgba(15,23,42,0.88);
   --muted: rgba(15,23,42,0.62);
+
   --accent: #4f46e5;
-  --accent2: #2563eb;
+  --accent2: #0ea5e9;
 }
 
 body {
@@ -48,9 +56,10 @@ body {
   font-family: var(--font-sans);
   color: var(--text);
   min-height: 100vh;
+
   background:
-    radial-gradient(1100px 700px at 14% 18%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
-    radial-gradient(900px 600px at 82% 32%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 55%),
+    radial-gradient(1100px 700px at 14% 18%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 82% 32%, color-mix(in oklab, var(--accent2) 14%, transparent), transparent 55%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 

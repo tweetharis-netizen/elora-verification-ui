@@ -10,7 +10,6 @@ export default async function handler(req, res) {
   if (!code) return res.status(400).json({ ok: false, error: "missing_code" });
 
   const base = getBackendBaseUrl();
-
   try {
     const r = await fetch(`${base}/api/verification/exchange`, {
       method: "POST",
@@ -28,7 +27,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const token = String(data?.sessionJwt || data?.sessionToken || "");
+    const token = String(data?.sessionToken || data?.sessionJwt || "");
     if (!token) return res.status(500).json({ ok: false, error: "missing_session_token" });
 
     res.setHeader("Set-Cookie", makeSessionCookie(token));

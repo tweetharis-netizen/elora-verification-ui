@@ -1,8 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
+function prettyError(code) {
+  switch (code) {
+    case "kv_not_configured":
+      return "Backend KV is not configured. Connect Vercel KV to the backend project.";
+    case "smtp_auth_failed":
+      return "SMTP auth failed. If you use Gmail, you MUST use an App Password (not your normal password).";
+    case "smtp_connect_failed":
+      return "SMTP connection failed (host/service unreachable). Check SMTP settings.";
+    case "smtp_timeout":
+      return "SMTP timeout. Try again or switch SMTP provider.";
+    case "rate_limited":
+      return "Rate limited. Please wait a moment and try again.";
+    case "backend_unreachable":
+      return "Backend unreachable. Check NEXT_PUBLIC_ELORA_BACKEND_URL.";
+    default:
+      return code ? String(code) : "Failed to send.";
+  }
+}
+
 export default function VerifyPage() {
   const router = useRouter();
+
   const token = useMemo(
     () => (typeof router.query.token === "string" ? router.query.token : ""),
     [router.query.token]
@@ -15,17 +35,27 @@ export default function VerifyPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
   const [sending, setSending] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0);
 
   useEffect(() => {
     if (token) {
-      // IMPORTANT: confirm via FRONTEND API so cookie is set on UI domain
+      // Confirm via FRONTEND route so cookie is set on UI domain
       window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}`;
     }
   }, [token]);
 
+  useEffect(() => {
+    if (!retryAfter) return;
+    const t = setInterval(() => {
+      setRetryAfter((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [retryAfter]);
+
   async function send() {
     setStatus("");
     const trimmed = email.trim();
+
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
       setStatus("Enter a valid email address.");
       return;
@@ -33,6 +63,7 @@ export default function VerifyPage() {
 
     setSending(true);
     setStatus("Sending…");
+
     try {
       const res = await fetch("/api/verification/send", {
         method: "POST",
@@ -41,7 +72,12 @@ export default function VerifyPage() {
       });
 
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to send.");
+
+      if (!res.ok || !data?.ok) {
+        const ra = Number(data?.retryAfter || 0);
+        if (Number.isFinite(ra) && ra > 0) setRetryAfter(Math.min(ra, 120));
+        throw new Error(prettyError(data?.error || "email_send_failed"));
+      }
 
       setStatus("Sent. Check inbox/spam and click the link to finish verification.");
     } catch (e) {
@@ -90,16 +126,22 @@ export default function VerifyPage() {
                 className="elora-btn elora-btn-primary"
                 onClick={send}
                 type="button"
-                disabled={sending}
+                disabled={sending || retryAfter > 0}
+                title={retryAfter > 0 ? `Wait ${retryAfter}s` : "Send email"}
               >
-                Send verification email
+                {retryAfter > 0 ? `Wait ${retryAfter}s` : "Send verification email"}
               </button>
+
               <button className="elora-btn" type="button" onClick={() => router.push("/")}>
                 Back to home
               </button>
             </div>
 
             {status ? <div className="elora-muted text-sm">{status}</div> : null}
+
+            <div className="elora-muted text-xs">
+              Debug: open <code>/api/test</code> and <code>/api/smtp-check</code> on the backend to confirm SMTP + KV.
+            </div>
           </div>
         </div>
       </div>

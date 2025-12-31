@@ -2,46 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Elora Premium Tokens ---------- */
+/* ========= Elora Design System ========= */
 :root {
   --elora-font-scale: 1;
 
   /* Layout */
   --elora-nav-height: 84px;
   --elora-page-max: 1120px;
-  --radius: 24px;
+  --radius: 22px;
 
-  /* Fonts (set by next/font variables) */
+  /* Fonts */
   --font-sans: var(--elora-font-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
   --font-serif: var(--elora-font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
-/* Real font scaling */
+/* Real global font scaling */
 html { font-size: calc(16px * var(--elora-font-scale)); }
 
 html[data-theme="dark"] {
-  --bg0: #050816;
-  --bg1: #070b22;
-  --surface: rgba(255,255,255,0.06);
-  --surface2: rgba(255,255,255,0.09);
-  --line: rgba(255,255,255,0.10);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.70);
-  --accent: #7c7bff;
-  --accent2: #59c2ff;
+  --bg0: #070a12;
+  --bg1: #0b1020;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface2: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.10);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.68);
+
+  --accent: #6d70ff;
+  --accent2: #56b7ff;
+
+  --good: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
 }
 
 html[data-theme="light"] {
   /* Soft premium light (no harsh white) */
   --bg0: #f6f7fb;
-  --bg1: #eef1f9;
-  --surface: rgba(255,255,255,0.78);
-  --surface2: rgba(255,255,255,0.92);
-  --line: rgba(15,23,42,0.10);
-  --text: rgba(15,23,42,0.92);
-  --muted: rgba(15,23,42,0.62);
+  --bg1: #eef2fb;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface2: rgba(255, 255, 255, 0.92);
+  --line: rgba(15, 23, 42, 0.10);
+  --text: rgba(15, 23, 42, 0.92);
+  --muted: rgba(15, 23, 42, 0.62);
+
   --accent: #4f46e5;
   --accent2: #2563eb;
+
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
 }
 
 body {
@@ -50,15 +60,14 @@ body {
   color: var(--text);
   min-height: 100vh;
 
-  /* Cinematic atmosphere */
+  /* Minimal, engaging atmosphere */
   background:
-    radial-gradient(1100px 700px at 12% 16%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
-    radial-gradient(900px 600px at 84% 24%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 55%),
-    radial-gradient(900px 700px at 50% 110%, rgba(0,0,0,0.20), transparent 60%),
+    radial-gradient(900px 520px at 18% 18%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(780px 480px at 82% 22%, color-mix(in oklab, var(--accent2) 10%, transparent), transparent 58%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
-/* ---------- Layout ---------- */
+/* ========= App layout ========= */
 .elora-shell { min-height: 100vh; }
 
 .elora-main {
@@ -66,7 +75,7 @@ body {
   padding-bottom: 80px;
 }
 
-/* ---------- Navbar ---------- */
+/* ========= Navbar ========= */
 .elora-nav {
   position: fixed;
   inset: 0 0 auto 0;
@@ -84,23 +93,99 @@ body {
 
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 58%, transparent);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 22px 65px rgba(0,0,0,0.18);
+  background: color-mix(in oklab, var(--surface2) 66%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.16);
 
   padding: 0 18px;
 }
 
-/* ---------- Premium primitives ---------- */
+/* Dropdown menu */
+.elora-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 78%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 22px 70px rgba(0,0,0,0.22);
+  overflow: hidden;
+  z-index: 60;
+}
+
+.elora-menu-item {
+  display: flex;
+  width: 100%;
+  padding: 12px 14px;
+  font-weight: 750;
+  font-size: 0.92rem;
+  color: var(--text);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.elora-menu-item:hover {
+  background: color-mix(in oklab, var(--surface2) 72%, transparent);
+}
+.elora-menu-item.danger { color: #ef4444; }
+.elora-menu-divider { height: 1px; background: var(--line); }
+
+/* Logo mark */
+.elora-logoMark {
+  position: relative;
+  height: 40px;
+  width: 40px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 80%, transparent);
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.14);
+}
+
+/* Small status dot used in pills */
+.elora-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.elora-dot-good {
+  background: color-mix(in oklab, var(--good) 90%, white 10%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--good) 14%, transparent);
+}
+
+/* ========= Premium primitives ========= */
 .elora-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.14);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 70px rgba(0,0,0,0.12);
 }
 
 .elora-muted { color: var(--muted); }
+
+.elora-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.58rem 0.86rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  font-weight: 850;
+  font-size: 0.88rem;
+}
+
+.elora-h1 {
+  font-family: var(--font-serif);
+  font-weight: 820;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
 
 .elora-btn {
   display: inline-flex;
@@ -112,13 +197,16 @@ body {
   font-weight: 850;
   font-size: 0.95rem;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  background: color-mix(in oklab, var(--surface2) 74%, transparent);
   cursor: pointer;
-  transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease;
+  transition: transform 140ms ease, opacity 140ms ease, filter 140ms ease;
+  color: var(--text);
+  text-decoration: none;
 }
 
-.elora-btn:hover { filter: brightness(1.02); }
+.elora-btn:hover { filter: brightness(1.03); }
 .elora-btn:active { transform: translateY(1px) scale(0.995); }
+.elora-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .elora-btn-primary {
   border: none;
@@ -126,18 +214,15 @@ body {
   color: white;
 }
 
-.elora-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.elora-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+}
 
-.elora-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 0.55rem 0.8rem;
-  font-weight: 850;
-  font-size: 0.85rem;
-  border: 1px solid rgba(120,255,200,0.35);
-  background: rgba(60,255,170,0.10);
+.elora-btn-danger {
+  border: 1px solid color-mix(in oklab, #ef4444 40%, var(--line));
+  background: color-mix(in oklab, #ef4444 10%, var(--surface2));
+  color: color-mix(in oklab, #ef4444 88%, var(--text));
 }
 
 .elora-input {
@@ -145,67 +230,167 @@ body {
   height: 3rem;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  background: color-mix(in oklab, var(--surface2) 74%, transparent);
   color: var(--text);
   padding: 0 0.95rem;
   outline: none;
 }
 .elora-input:focus {
   border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
-/* Hero helpers */
-.elora-kicker {
+.elora-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 0.6rem 0.9rem;
+  gap: 8px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 60%, transparent);
-  backdrop-filter: blur(14px);
+  padding: 0.52rem 0.78rem;
   font-weight: 850;
+  font-size: 0.85rem;
+  border: 1px solid rgba(34, 197, 94, 0.30);
+  background: rgba(34, 197, 94, 0.10);
+}
+
+/* ========= Homepage pieces ========= */
+.elora-hero {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  padding-top: 8px;
+}
+@media (min-width: 1024px) {
+  .elora-hero {
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: start;
+  }
+}
+
+.elora-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.elora-trust-item {
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 780;
+  opacity: 0.88;
+}
+
+.elora-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 700;
+}
+.elora-bullet .check {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
+}
+
+/* Segmented control */
+.elora-segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--surface2) 72%, transparent);
+}
+.elora-segmented button {
+  padding: 10px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 820;
   font-size: 0.9rem;
+  opacity: 0.78;
 }
-
-.elora-h1 {
-  font-family: var(--font-serif);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.02;
-}
-
-.elora-vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(1200px 700px at 50% 20%, rgba(255,255,255,0.06), transparent 55%),
-    radial-gradient(900px 700px at 50% 110%, rgba(0,0,0,0.25), transparent 60%),
-    linear-gradient(180deg, rgba(0,0,0,0.10), transparent 45%);
+.elora-segmented button.active {
   opacity: 1;
+  background: color-mix(in oklab, var(--surface2) 86%, transparent);
+}
+.elora-segmented button:hover { opacity: 1; }
+
+/* Preview panel */
+.elora-preview { overflow: hidden; }
+.elora-preview-top {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 76%, transparent);
+}
+.elora-preview-body { padding: 16px 18px 18px; }
+
+.elora-table .row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.6fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+}
+.elora-table .row.head {
+  padding: 10px 0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  opacity: 0.72;
+}
+.elora-table .row:last-child { border-bottom: 0; }
+.elora-table .name { display: inline-flex; align-items: center; gap: 10px; font-weight: 850; }
+.elora-table .dot {
+  width: 9px; height: 9px; border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 70%, white 20%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent);
+}
+.elora-table .muted { color: var(--muted); font-weight: 650; }
+
+.elora-preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
-/* Grain overlay */
-.elora-grain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.14;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+/* Chips */
+.elora-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+}
+.elora-chip.ok {
+  border-color: rgba(34,197,94,0.30);
+  background: rgba(34,197,94,0.10);
+}
+.elora-chip.warn {
+  border-color: rgba(245,158,11,0.30);
+  background: rgba(245,158,11,0.10);
+}
+.elora-chip.bad {
+  border-color: rgba(239,68,68,0.30);
+  background: rgba(239,68,68,0.10);
 }
 
-/* Subtle motion (safe) */
-@keyframes eloraFloat {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-.elora-float { animation: eloraFloat 7.5s ease-in-out infinite; }
-.elora-float2 { animation: eloraFloat 9.5s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .elora-float, .elora-float2 { animation: none; }
-}
+/* ========= Back-compat classes for existing pages ========= */
+.page { padding: 0 16px; }
+.container { max-width: var(--elora-page-max); margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 20px 70px rgba(0,0,0,0.12); }
+.muted { color: var(--muted); }

@@ -1,18 +1,17 @@
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getSession, refreshVerifiedFromServer } from "@/lib/session";
 
-function Logo() {
+function NavLink({ href, children }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="h-10 w-10 rounded-2xl border border-white/10 bg-white/10 dark:bg-white/5 grid place-items-center">
-        <span className="font-black tracking-tight">E</span>
-      </div>
-      <div className="leading-tight">
-        <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
-        <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
-      </div>
-    </div>
+    <Link
+      href={href}
+      className="relative text-sm font-semibold opacity-80 hover:opacity-100 transition"
+    >
+      {children}
+      <span className="absolute left-0 -bottom-2 h-[2px] w-full scale-x-0 origin-left rounded-full bg-white/40 dark:bg-white/30 transition-transform duration-200 group-hover:scale-x-100" />
+    </Link>
   );
 }
 
@@ -40,8 +39,20 @@ export default function Navbar() {
       <div className="mx-auto" style={{ maxWidth: "var(--elora-page-max)" }}>
         <div className="px-4 pt-4">
           <div className="elora-navbar">
-            <Link href="/" className="shrink-0">
-              <Logo />
+            <Link href="/" className="flex items-center gap-3 shrink-0">
+              <div className="relative h-10 w-10 rounded-2xl border border-white/10 bg-white/10 dark:bg-white/5 overflow-hidden">
+                <Image
+                  src="/elora-logo.png"
+                  alt="Elora"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              </div>
+              <div className="leading-tight">
+                <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
+                <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
+              </div>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -69,8 +80,9 @@ export default function Navbar() {
                 className="md:hidden elora-btn"
                 onClick={() => setOpen((v) => !v)}
                 type="button"
+                aria-expanded={open ? "true" : "false"}
               >
-                Menu
+                {open ? "Close" : "Menu"}
               </button>
             </div>
           </div>

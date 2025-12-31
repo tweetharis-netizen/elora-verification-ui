@@ -1,31 +1,49 @@
-function parseCookie(cookieHeader) {
+function json(res, code, payload) {
+  res.statusCode = code;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload));
+}
+
+function parseCookies(cookieHeader) {
   const out = {};
-  String(cookieHeader || "")
-    .split(";")
-    .forEach((part) => {
-      const [k, ...rest] = part.trim().split("=");
-      if (!k) return;
-      out[k] = decodeURIComponent(rest.join("=") || "");
-    });
+  const raw = String(cookieHeader || "");
+  raw.split(";").forEach((part) => {
+    const idx = part.indexOf("=");
+    if (idx < 0) return;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (!k) return;
+    out[k] = decodeURIComponent(v);
+  });
   return out;
 }
 
 export default async function handler(req, res) {
-  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "https://elora-website.vercel.app").replace(/\/$/, "");
-  const cookies = parseCookie(req.headers.cookie || "");
-  const session = cookies.elora_session || "";
+  if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
 
-  if (!session) return res.status(200).json({ ok: true, verified: false });
+  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "").replace(/\/$/, "");
+  if (!backend) return json(res, 500, { ok: false, error: "missing_backend_url" });
+
+  const cookies = parseCookies(req.headers.cookie);
+  const sessionJwt = cookies.elora_session || "";
+
+  if (!sessionJwt) return json(res, 200, { ok: true, verified: false });
 
   try {
     const r = await fetch(`${backend}/api/verification/status`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${session}` },
+      headers: { Authorization: `Bearer ${sessionJwt}` },
     });
 
     const data = await r.json().catch(() => null);
-    return res.status(200).json({ ok: true, verified: !!data?.verified, email: data?.email || null });
+    if (!r.ok || !data?.ok) return json(res, 200, { ok: true, verified: false });
+
+    return json(res, 200, {
+      ok: true,
+      verified: !!data.verified,
+      email: data.email || null,
+    });
   } catch {
-    return res.status(200).json({ ok: true, verified: false });
+    return json(res, 200, { ok: true, verified: false });
   }
 }

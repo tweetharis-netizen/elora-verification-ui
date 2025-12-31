@@ -1,78 +1,65 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { getSession, saveSession, activateTeacher, refreshVerifiedFromServer } from "@/lib/session";
+import { activateTeacher, saveSession, getSession } from "@/lib/session";
 
 export default function Invite() {
   const router = useRouter();
   const { code } = router.query;
 
-  const [status, setStatus] = useState({
-    title: "Checking invite…",
-    detail: "Please wait.",
-  });
+  const [status, setStatus] = useState("Checking invite…");
+  const [ok, setOk] = useState(false);
 
   useEffect(() => {
-    if (!router.isReady) return;
-
-    const inviteCode = (Array.isArray(code) ? code[0] : code || "").toString().trim();
-
-    if (!inviteCode) {
-      setStatus({
-        title: "Missing invite code",
-        detail: "Use a link like /invite?code=GENESIS2026 or enter a code in Settings.",
-      });
+    const inviteCode = (Array.isArray(code) ? code[0] : code) || "";
+    const trimmed = String(inviteCode).trim();
+    if (!trimmed) {
+      setStatus("Missing invite code. Ask the owner for a valid invite link.");
+      setOk(false);
       return;
     }
 
-    const run = async () => {
-      // Always check backend truth
-      const v = await refreshVerifiedFromServer().catch(() => ({ verified: false }));
-      const s = getSession();
+    let cancelled = false;
 
-      if (!v?.verified && !s.verified) {
-        // Not verified: store pending invite and go verify
-        s.pendingInvite = inviteCode;
-        saveSession(s);
-        router.replace("/verify");
-        return;
-      }
-
-      // Verified: validate invite server-side
+    async function run() {
       try {
-        const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(inviteCode)}`);
-        const out = await res.json().catch(() => null);
+        const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(trimmed)}`);
+        const data = await res.json().catch(() => null);
 
-        if (!res.ok || !out?.ok) {
-          setStatus({
-            title: "Invalid invite code",
-            detail: "This code is not valid. Ask the admin for a correct invite link/code.",
-          });
-          return;
+        if (cancelled) return;
+
+        if (data?.ok) {
+          activateTeacher(trimmed);
+          saveSession(getSession());
+          setOk(true);
+          setStatus("Invite accepted. Teacher tools enabled.");
+          setTimeout(() => router.replace("/assistant"), 650);
+        } else {
+          setOk(false);
+          setStatus("Invalid invite code. Check your link or ask for a new one.");
         }
-
-        activateTeacher(inviteCode);
-
-        const s2 = getSession();
-        s2.pendingInvite = "";
-        saveSession(s2);
-
-        router.replace("/assistant");
       } catch {
-        setStatus({
-          title: "Couldn’t validate invite",
-          detail: "Try again later.",
-        });
+        if (!cancelled) {
+          setOk(false);
+          setStatus("Could not validate invite. Try again later.");
+        }
       }
-    };
+    }
 
     run();
-  }, [router.isReady, code, router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [code, router]);
 
   return (
-    <div className="mx-auto max-w-xl px-4">
-      <div className="elora-card p-6 sm:p-8">
-        <h1 className="text-[1.3rem] font-black">{status.title}</h1>
-        <p className="mt-2 elora-muted">{status.detail}</p>
+    <div className="page">
+      <div className="container" style={{ paddingTop: 120 }}>
+        <div className="card" style={{ padding: 28, maxWidth: 760 }}>
+          <h1 style={{ marginTop: 0 }}>{ok ? "Invite accepted ✅" : "Invite"}</h1>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            {status}
+          </p>
+        </div>
       </div>
     </div>
   );

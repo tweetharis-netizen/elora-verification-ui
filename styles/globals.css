@@ -9,46 +9,39 @@
   /* Layout */
   --elora-nav-height: 84px;
   --elora-page-max: 1120px;
-  --radius: 22px;
+  --radius: 24px;
 
-  /* Type */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  /* Fonts (set by next/font variables) */
+  --font-sans: var(--elora-font-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --font-serif: var(--elora-font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /* Real font scaling */
 html { font-size: calc(16px * var(--elora-font-scale)); }
 
-/* Dark */
 html[data-theme="dark"] {
   --bg0: #050816;
   --bg1: #070b22;
-
   --surface: rgba(255,255,255,0.06);
   --surface2: rgba(255,255,255,0.09);
   --line: rgba(255,255,255,0.10);
-
   --text: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.70);
-
   --accent: #7c7bff;
   --accent2: #59c2ff;
 }
 
-/* Light — softened (no harsh white, lower contrast, calmer accents) */
 html[data-theme="light"] {
-  --bg0: #f3f5fa;
-  --bg1: #edf1f7;
-
-  --surface: rgba(255,255,255,0.70);
-  --surface2: rgba(255,255,255,0.86);
+  /* Soft premium light (no harsh white) */
+  --bg0: #f6f7fb;
+  --bg1: #eef1f9;
+  --surface: rgba(255,255,255,0.78);
+  --surface2: rgba(255,255,255,0.92);
   --line: rgba(15,23,42,0.10);
-
-  --text: rgba(15,23,42,0.88);
+  --text: rgba(15,23,42,0.92);
   --muted: rgba(15,23,42,0.62);
-
   --accent: #4f46e5;
-  --accent2: #0ea5e9;
+  --accent2: #2563eb;
 }
 
 body {
@@ -57,17 +50,20 @@ body {
   color: var(--text);
   min-height: 100vh;
 
+  /* Cinematic atmosphere */
   background:
-    radial-gradient(1100px 700px at 14% 18%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%),
-    radial-gradient(900px 600px at 82% 32%, color-mix(in oklab, var(--accent2) 14%, transparent), transparent 55%),
+    radial-gradient(1100px 700px at 12% 16%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 84% 24%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 55%),
+    radial-gradient(900px 700px at 50% 110%, rgba(0,0,0,0.20), transparent 60%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
 /* ---------- Layout ---------- */
 .elora-shell { min-height: 100vh; }
+
 .elora-main {
   padding-top: calc(var(--elora-nav-height) + 24px);
-  padding-bottom: 64px;
+  padding-bottom: 80px;
 }
 
 /* ---------- Navbar ---------- */
@@ -86,9 +82,9 @@ body {
   justify-content: space-between;
   gap: 16px;
 
-  border-radius: 24px;
+  border-radius: 999px;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 55%, transparent);
+  background: color-mix(in oklab, var(--surface2) 58%, transparent);
   backdrop-filter: blur(18px);
   box-shadow: 0 22px 65px rgba(0,0,0,0.18);
 
@@ -113,12 +109,16 @@ body {
   gap: 10px;
   border-radius: 999px;
   padding: 0.78rem 1.05rem;
-  font-weight: 800;
+  font-weight: 850;
   font-size: 0.95rem;
   border: 1px solid var(--line);
   background: color-mix(in oklab, var(--surface2) 70%, transparent);
   cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease;
 }
+
+.elora-btn:hover { filter: brightness(1.02); }
+.elora-btn:active { transform: translateY(1px) scale(0.995); }
 
 .elora-btn-primary {
   border: none;
@@ -134,7 +134,7 @@ body {
   gap: 8px;
   border-radius: 999px;
   padding: 0.55rem 0.8rem;
-  font-weight: 800;
+  font-weight: 850;
   font-size: 0.85rem;
   border: 1px solid rgba(120,255,200,0.35);
   background: rgba(60,255,170,0.10);
@@ -155,6 +155,38 @@ body {
   box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
 }
 
+/* Hero helpers */
+.elora-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 60%, transparent);
+  backdrop-filter: blur(14px);
+  font-weight: 850;
+  font-size: 0.9rem;
+}
+
+.elora-h1 {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+
+.elora-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 700px at 50% 20%, rgba(255,255,255,0.06), transparent 55%),
+    radial-gradient(900px 700px at 50% 110%, rgba(0,0,0,0.25), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,0.10), transparent 45%);
+  opacity: 1;
+}
+
 /* Grain overlay */
 .elora-grain {
   position: absolute;
@@ -163,4 +195,17 @@ body {
   opacity: 0.14;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+}
+
+/* Subtle motion (safe) */
+@keyframes eloraFloat {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+.elora-float { animation: eloraFloat 7.5s ease-in-out infinite; }
+.elora-float2 { animation: eloraFloat 9.5s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .elora-float, .elora-float2 { animation: none; }
 }

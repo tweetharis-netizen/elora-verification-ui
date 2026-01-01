@@ -16,42 +16,49 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
-/* Real global font scaling */
+/* Real font scaling + native control theming */
 html {
   font-size: calc(16px * var(--elora-font-scale));
+  /* allow the browser to render form controls correctly for each theme */
+  color-scheme: light dark;
 }
 
 html[data-theme="dark"] {
-  --bg0: #050812;
+  color-scheme: dark;
+  --bg0: #050816;
   --bg1: #070b22;
-  --surface: rgba(255, 255, 255, 0.06);
-  --surface2: rgba(255, 255, 255, 0.09);
-  --line: rgba(255, 255, 255, 0.1);
-  --text: rgba(255, 255, 255, 0.92);
-  --muted: rgba(255, 255, 255, 0.7);
+  --surface: rgba(255,255,255,0.06);
+  --surface2: rgba(255,255,255,0.09);
+  --line: rgba(255,255,255,0.10);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.70);
   --accent: #7c7bff;
   --accent2: #59c2ff;
-
-  --good: #22c55e;
-  --warn: #f59e0b;
-  --bad: #ef4444;
 }
 
 html[data-theme="light"] {
-  /* Soft, premium light */
+  color-scheme: light;
   --bg0: #f5f6fb;
   --bg1: #eef1f9;
-  --surface: rgba(255, 255, 255, 0.82);
-  --surface2: rgba(255, 255, 255, 0.95);
-  --line: rgba(15, 23, 42, 0.12);
-  --text: rgba(15, 23, 42, 0.92);
-  --muted: rgba(15, 23, 42, 0.62);
+  --surface: rgba(255,255,255,0.78);
+  --surface2: rgba(255,255,255,0.90);
+  --line: rgba(15,23,42,0.10);
+  --text: rgba(15,23,42,0.92);
+  --muted: rgba(15,23,42,0.62);
   --accent: #4f46e5;
   --accent2: #2563eb;
+}
 
-  --good: #16a34a;
-  --warn: #d97706;
-  --bad: #dc2626;
+/* Make native inputs follow the accent without ugly browser defaults */
+input[type="range"] { accent-color: var(--accent); }
+
+select.elora-input {
+  appearance: none;
+  padding-right: 2.35rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M6 8l4 4 4-4' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 18px 18px;
 }
 
 body {
@@ -59,21 +66,17 @@ body {
   font-family: var(--font-sans);
   color: var(--text);
   min-height: 100vh;
-
   background:
-    radial-gradient(900px 520px at 18% 18%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 60%),
-    radial-gradient(780px 480px at 82% 22%, color-mix(in oklab, var(--accent2) 10%, transparent), transparent 58%),
+    radial-gradient(1100px 700px at 14% 18%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 82% 32%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 55%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
-/* ---------- Layout shell ---------- */
-.elora-shell {
-  min-height: 100vh;
-}
-
+/* ---------- Layout ---------- */
+.elora-shell { min-height: 100vh; }
 .elora-main {
   padding-top: calc(var(--elora-nav-height) + 24px);
-  padding-bottom: 80px;
+  padding-bottom: 64px;
 }
 
 /* ---------- Navbar ---------- */
@@ -92,52 +95,25 @@ body {
   justify-content: space-between;
   gap: 16px;
 
-  border-radius: 999px;
+  border-radius: 24px;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 66%, transparent);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
+  background: color-mix(in oklab, var(--surface2) 55%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 65px rgba(0,0,0,0.18);
 
   padding: 0 18px;
 }
 
-/* ---------- Primitives ---------- */
+/* ---------- Premium primitives ---------- */
 .elora-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.14);
 }
 
-.elora-muted {
-  color: var(--muted);
-}
-
-.elora-divider {
-  height: 1px;
-  background: var(--line);
-  margin: 24px 0;
-}
-
-.elora-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0.58rem 0.86rem;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 70%, transparent);
-  font-weight: 850;
-  font-size: 0.88rem;
-}
-
-.elora-h1 {
-  font-family: var(--font-serif);
-  font-weight: 820;
-  letter-spacing: -0.02em;
-  line-height: 1.04;
-}
+.elora-muted { color: var(--muted); }
 
 .elora-btn {
   display: inline-flex;
@@ -146,25 +122,11 @@ body {
   gap: 10px;
   border-radius: 999px;
   padding: 0.78rem 1.05rem;
-  font-weight: 850;
+  font-weight: 800;
   font-size: 0.95rem;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 74%, transparent);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
   cursor: pointer;
-  transition: transform 140ms ease, opacity 140ms ease, filter 140ms ease;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.elora-btn:hover {
-  filter: brightness(1.03);
-}
-.elora-btn:active {
-  transform: translateY(1px) scale(0.995);
-}
-.elora-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .elora-btn-primary {
@@ -173,15 +135,18 @@ body {
   color: white;
 }
 
-.elora-btn-ghost {
-  background: transparent;
-  border: 1px solid var(--line);
-}
+.elora-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.elora-btn-danger {
-  border: 1px solid color-mix(in oklab, var(--bad) 40%, var(--line));
-  background: color-mix(in oklab, var(--bad) 10%, var(--surface2));
-  color: color-mix(in oklab, var(--bad) 88%, var(--text));
+.elora-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border: 1px solid rgba(120,255,200,0.35);
+  background: rgba(60,255,170,0.10);
 }
 
 .elora-input {
@@ -189,7 +154,7 @@ body {
   height: 3rem;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 74%, transparent);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
   color: var(--text);
   padding: 0 0.95rem;
   outline: none;
@@ -199,85 +164,210 @@ body {
   box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
 }
 
-/* ---------- Segmented control (for theme, modes, etc.) ---------- */
-.elora-segmented {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  overflow: hidden;
-  background: color-mix(in oklab, var(--surface2) 80%, transparent);
-}
-
-.elora-segmented button {
-  padding: 10px 14px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  color: var(--text);
-  font-weight: 900;
-  font-size: 0.9rem;
-  opacity: 0.8;
-  transition: opacity 140ms ease, background 140ms ease;
-}
-
-.elora-segmented button:hover {
-  opacity: 1;
-}
-
-.elora-segmented button.active {
-  opacity: 1;
-  background: color-mix(in oklab, var(--surface2) 92%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 28%, transparent);
-}
-
-/* ---------- Verified pill ---------- */
-.elora-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 0.52rem 0.78rem;
-  font-weight: 850;
-  font-size: 0.85rem;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  background: rgba(34, 197, 94, 0.1);
-}
-
-.elora-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  display: inline-block;
-}
-.elora-dot-good {
-  background: color-mix(in oklab, var(--good) 90%, white 10%);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--good) 14%, transparent);
-}
-
-/* Grain overlay (used by older pages; keep) */
+/* Grain overlay */
 .elora-grain {
   position: absolute;
   inset: 0;
   pointer-events: none;
   opacity: 0.14;
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
 }
 
-/* Back-compat for older pages */
-.page {
-  padding: 0 16px;
+/* Type helper */
+.elora-h1 {
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  font-family: var(--font-serif);
 }
-.container {
-  max-width: var(--elora-page-max);
-  margin: 0 auto;
-}
-.card {
-  background: var(--surface);
+
+/* ---------- Segmented control ---------- */
+.elora-segmented {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.12);
+  background: color-mix(in oklab, var(--surface2) 65%, transparent);
 }
-.muted {
-  color: var(--muted);
+
+.elora-segmented > button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 850;
+  font-size: 0.9rem;
+  opacity: 0.78;
+  cursor: pointer;
+}
+
+.elora-segmented > button.active {
+  opacity: 1;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--accent) 85%, white 15%),
+    color-mix(in oklab, var(--accent2) 85%, white 15%)
+  );
+  color: white;
+}
+
+/* ---------- Navbar links + account menu ---------- */
+.elora-navlink {
+  font-size: 0.9rem;
+  font-weight: 800;
+  opacity: 0.75;
+  transition: opacity 140ms ease;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.elora-navlink:hover { opacity: 1; }
+
+.elora-account {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-weight: 850;
+  font-size: 0.92rem;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 70%, transparent);
+  cursor: pointer;
+}
+
+.elora-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--line) 45%, transparent);
+}
+
+.elora-dot-good {
+  background: color-mix(in oklab, #22c55e 85%, white 15%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, #22c55e 18%, transparent);
+}
+
+.elora-dot-warn {
+  background: color-mix(in oklab, #f59e0b 85%, white 15%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, #f59e0b 18%, transparent);
+}
+
+.elora-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 78%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 70px rgba(0,0,0,0.18);
+  overflow: hidden;
+  padding: 6px;
+}
+
+.elora-account-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-decoration: none;
+  color: var(--text);
+  padding: 0.75rem 0.8rem;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.elora-account-item:hover {
+  background: color-mix(in oklab, var(--surface2) 55%, transparent);
+}
+
+.elora-account-item.danger {
+  color: color-mix(in oklab, #ef4444 70%, var(--text));
+}
+
+.elora-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 6px 0;
+}
+
+/* ---------- Buttons variants ---------- */
+.elora-btn-ghost {
+  background: transparent;
+}
+
+.elora-btn-danger {
+  border: 1px solid color-mix(in oklab, #ef4444 40%, var(--line));
+  background: color-mix(in oklab, #ef4444 10%, transparent);
+}
+
+/* ---------- Dashboard mock ---------- */
+.elora-table {
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: color-mix(in oklab, var(--surface2) 55%, transparent);
+}
+
+.elora-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 0.9fr;
+  gap: 14px;
+  padding: 12px 14px;
+  align-items: center;
+}
+
+.elora-row + .elora-row { border-top: 1px solid var(--line); }
+
+.elora-row-head {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  font-weight: 900;
+}
+
+.elora-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  font-weight: 900;
+  font-size: 0.78rem;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 65%, transparent);
+  white-space: nowrap;
+}
+
+.elora-chip[data-variant="good"] {
+  border-color: color-mix(in oklab, #22c55e 35%, var(--line));
+  background: color-mix(in oklab, #22c55e 14%, transparent);
+}
+
+.elora-chip[data-variant="warn"] {
+  border-color: color-mix(in oklab, #f59e0b 35%, var(--line));
+  background: color-mix(in oklab, #f59e0b 14%, transparent);
+}
+
+.elora-chip[data-variant="bad"] {
+  border-color: color-mix(in oklab, #ef4444 35%, var(--line));
+  background: color-mix(in oklab, #ef4444 12%, transparent);
+}
+
+@media (max-width: 640px) {
+  .elora-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .elora-row-head { display: none; }
 }

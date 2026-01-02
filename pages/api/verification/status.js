@@ -21,13 +21,14 @@ function parseCookies(cookieHeader) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
 
-  const backend = (process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "").replace(/\/$/, "");
-  if (!backend) return json(res, 500, { ok: false, error: "missing_backend_url" });
+  const backend = String(process.env.NEXT_PUBLIC_ELORA_BACKEND_URL || "").replace(/\/$/, "");
+  if (!backend) return json(res, 500, { ok: false, error: "backend_not_configured" });
 
   const cookies = parseCookies(req.headers.cookie);
   const sessionJwt = cookies.elora_session || "";
+  const teacherCookie = cookies.elora_teacher || "";
 
-  if (!sessionJwt) return json(res, 200, { ok: true, verified: false });
+  if (!sessionJwt) return json(res, 200, { ok: true, verified: false, teacher: false });
 
   try {
     const r = await fetch(`${backend}/api/verification/status`, {
@@ -36,14 +37,15 @@ export default async function handler(req, res) {
     });
 
     const data = await r.json().catch(() => null);
-    if (!r.ok || !data?.ok) return json(res, 200, { ok: true, verified: false });
+    if (!r.ok || !data?.ok) return json(res, 200, { ok: true, verified: false, teacher: false });
 
-    return json(res, 200, {
-      ok: true,
-      verified: !!data.verified,
-      email: data.email || null,
-    });
+    const verified = !!data.verified;
+    const email = typeof data.email === "string" ? data.email : null;
+
+    const teacher = verified && teacherCookie === "1";
+
+    return json(res, 200, { ok: true, verified, email, teacher });
   } catch {
-    return json(res, 200, { ok: true, verified: false });
+    return json(res, 200, { ok: true, verified: false, teacher: false });
   }
 }

@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getSession,
-  saveSession,
-  setTheme,
-  setFontScale,
-  setTeacherCode,
-  refreshVerifiedFromServer,
-  activateTeacher,
   logout,
+  refreshVerifiedFromServer,
+  saveSession,
+  setFontScale,
+  setTheme,
+  setTeacherCode,
 } from "@/lib/session";
 
 function ThemeSegment({ value, onChange }) {
@@ -48,37 +47,45 @@ export default function Settings() {
     return () => window.removeEventListener("elora:session", sync);
   }, []);
 
+  const canLogout = Boolean(s.verified || s.teacherEnabled);
+
   async function saveInvite() {
     setMsg("");
     setSaving(true);
 
     const code = String(getSession().teacherCode || "").trim();
 
-    try {
-      if (!code) {
-        // Clear teacher mode
-        saveSession({ teacherCode: "", teacherActive: false });
-        setMsg("Cleared.");
-        return;
-      }
+    if (code.includes(",")) {
+      setMsg("Enter ONE invite code (example: GENESIS2026).");
+      setSaving(false);
+      return;
+    }
 
-      const r = await fetch(`/api/teacher-invite?code=${encodeURIComponent(code)}`);
+    try {
+      const r = await fetch(`/api/teacher-invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
       const data = await r.json().catch(() => null);
 
-      if (!data?.ok) {
-        saveSession({ teacherCode: code, teacherActive: false });
-        setMsg("Invalid invite code.");
+      if (!r.ok || !data?.ok) {
+        if (data?.error === "not_verified") setMsg("Verify your email first.");
+        else if (data?.error === "enter_single_code") setMsg("Enter ONE invite code only.");
+        else setMsg("Invalid invite code.");
+        saveSession({ teacherEnabled: false });
         return;
       }
 
-      activateTeacher(code);
-      saveSession(getSession());
-      setMsg("Teacher tools enabled.");
+      saveSession({ teacherCode: code });
+      await refreshVerifiedFromServer();
+      setMsg(code ? "Teacher access enabled." : "Teacher access removed.");
     } catch {
       setMsg("Could not validate invite code. Try again.");
     } finally {
       setSaving(false);
-      setTimeout(() => setMsg(""), 1400);
+      setTimeout(() => setMsg(""), 1600);
     }
   }
 
@@ -137,8 +144,10 @@ export default function Settings() {
           </section>
 
           <section>
-            <div className="font-black">Teacher invite code (optional)</div>
-            <p className="mt-2 elora-muted text-sm">Enables invite-protected educator tools.</p>
+            <div className="font-black">Teacher invite code</div>
+            <p className="mt-2 elora-muted text-sm">
+              Enter <b>one</b> invite code (example: <b>GENESIS2026</b>).
+            </p>
             <div className="mt-3 grid gap-2">
               <input
                 className="elora-input"
@@ -147,7 +156,7 @@ export default function Settings() {
                   setTeacherCode(e.target.value);
                   setS(getSession());
                 }}
-                placeholder="Enter invite code"
+                placeholder="GENESIS2026"
               />
               <button type="button" className="elora-btn" onClick={saveInvite} disabled={saving}>
                 {saving ? "Saving…" : "Save"}
@@ -156,15 +165,17 @@ export default function Settings() {
             </div>
           </section>
 
-          <section>
-            <div className="font-black">Session</div>
-            <p className="mt-2 elora-muted text-sm">Clears your local session cache and server cookie.</p>
-            <div className="mt-3">
-              <button type="button" className="elora-btn elora-btn-danger" onClick={doLogout}>
-                Log out
-              </button>
-            </div>
-          </section>
+          {canLogout ? (
+            <section>
+              <div className="font-black">Session</div>
+              <p className="mt-2 elora-muted text-sm">Clears your local cache + server cookies on this device.</p>
+              <div className="mt-3">
+                <button type="button" className="elora-btn elora-btn-danger" onClick={doLogout}>
+                  Log out
+                </button>
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>

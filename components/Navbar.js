@@ -2,27 +2,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getSession, logout, refreshVerifiedFromServer } from "@/lib/session";
 
-function Logo() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="h-10 w-10 rounded-2xl border border-white/10 bg-white/10 dark:bg-white/5 grid place-items-center">
-        <span className="font-black tracking-tight">E</span>
-      </div>
-      <div className="leading-tight">
-        <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
-        <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
-      </div>
-    </div>
-  );
-}
-
 function useOutsideClose(ref, onClose) {
   useEffect(() => {
     function onDoc(e) {
       if (!ref.current) return;
       if (!ref.current.contains(e.target)) onClose();
     }
-
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("touchstart", onDoc);
     return () => {
@@ -55,7 +40,19 @@ export default function Navbar() {
     { href: "/settings", label: "Settings" },
   ];
 
-  const statusLabel = session.verified ? "Verified" : "Not verified";
+  const canLogout = Boolean(session.verified || session.teacherEnabled);
+
+  const dotClass = session.teacherEnabled
+    ? "elora-dot elora-dot-teacher"
+    : session.verified
+    ? "elora-dot elora-dot-good"
+    : "elora-dot elora-dot-neutral";
+
+  const statusLabel = session.teacherEnabled
+    ? "Teacher access enabled"
+    : session.verified
+    ? "Verified"
+    : "Not verified";
 
   const doLogout = async () => {
     try {
@@ -71,7 +68,15 @@ export default function Navbar() {
         <div className="px-4 pt-4">
           <div className="elora-navbar">
             <Link href="/" className="shrink-0" aria-label="Elora Home">
-              <Logo />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl border border-white/10 bg-white/10 grid place-items-center">
+                  <span className="font-black tracking-tight">E</span>
+                </div>
+                <div className="leading-tight">
+                  <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
+                  <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
+                </div>
+              </div>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -82,7 +87,6 @@ export default function Navbar() {
               ))}
             </nav>
 
-            {/* Right side: single Account control (reduces clutter) */}
             <div className="flex items-center gap-3">
               <div className="relative" ref={accountRef}>
                 <button
@@ -92,12 +96,7 @@ export default function Navbar() {
                   aria-haspopup="menu"
                   aria-expanded={openAccount ? "true" : "false"}
                 >
-                  <span
-                    className={
-                      session.verified ? "elora-dot elora-dot-good" : "elora-dot elora-dot-warn"
-                    }
-                    aria-hidden="true"
-                  />
+                  <span className={dotClass} aria-hidden="true" />
                   Account
                 </button>
 
@@ -126,14 +125,16 @@ export default function Navbar() {
                       Settings
                     </Link>
 
-                    <button
-                      className="elora-account-item danger"
-                      type="button"
-                      role="menuitem"
-                      onClick={doLogout}
-                    >
-                      Log out
-                    </button>
+                    {canLogout ? (
+                      <button
+                        className="elora-account-item danger"
+                        type="button"
+                        role="menuitem"
+                        onClick={doLogout}
+                      >
+                        Log out
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -156,7 +157,7 @@ export default function Navbar() {
                     key={it.href}
                     href={it.href}
                     onClick={() => setOpenMenu(false)}
-                    className="px-3 py-2 rounded-xl hover:bg-white/10 dark:hover:bg-white/5"
+                    className="px-3 py-2 rounded-xl hover:bg-white/10"
                   >
                     {it.label}
                   </Link>
@@ -173,14 +174,16 @@ export default function Navbar() {
                   </Link>
                 ) : null}
 
-                <button
-                  type="button"
-                  onClick={doLogout}
-                  className="px-3 py-2 rounded-xl elora-btn elora-btn-danger"
-                  style={{ justifyContent: "center" }}
-                >
-                  Log out
-                </button>
+                {canLogout ? (
+                  <button
+                    type="button"
+                    onClick={doLogout}
+                    className="px-3 py-2 rounded-xl elora-btn elora-btn-danger"
+                    style={{ justifyContent: "center" }}
+                  >
+                    Log out
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}

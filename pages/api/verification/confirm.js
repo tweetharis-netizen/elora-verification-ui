@@ -10,22 +10,25 @@ function setCookie(res, name, value, opts = {}) {
 }
 
 function getCookieDomainFromHost(host) {
-  // Persist verification across Vercel preview deployments in SAME team base domain.
+  // Persist sessions across Vercel preview deployments within the same base domain.
   // Example:
   //   elora-verification-xxxxx-haris-projects-20c5a383.vercel.app
   // => Domain=.haris-projects-20c5a383.vercel.app
-  // Do NOT set Domain=.vercel.app (public suffix; rejected by browsers).
+  //
+  // NOTE: Do NOT set Domain=.vercel.app (public suffix; browsers reject it).
   const h = String(host || "").trim().toLowerCase();
   if (!h) return null;
-  if (h.startsWith("localhost") || h.startsWith("127.0.0.1")) return null;
+  if (h.startsWith("localhost")) return null;
 
-  if (h.endsWith(".vercel.app")) {
-    const parts = h.split(".");
-    const base = parts.slice(1).join(".");
-    if (!base || base === "vercel.app") return null;
-    return `.${base}`;
+  const parts = h.split(".");
+  if (parts.length < 3) return null; // needs at least subdomain + domain + tld
+  if (parts.slice(-2).join(".") === "vercel.app") {
+    // Use the team base domain (everything except the preview name)
+    // e.g. xxxxx-haris-projects-20c5a383.vercel.app -> .haris-projects-20c5a383.vercel.app
+    if (parts.length >= 4) return "." + parts.slice(-4).join(".");
+    return null;
   }
-
+  // For custom domains, letting the browser default is usually best.
   return null;
 }
 
@@ -45,14 +48,17 @@ export default async function handler(req, res) {
     const data = await r.json().catch(() => null);
 
     if (!r.ok || !data?.ok) {
-      return res.redirect(`/verify?error=${encodeURIComponent(data?.error || "invalid")}`);
+      const err = data?.error ? String(data.error) : "invalid";
+      return res.redirect(`/verify?error=${encodeURIComponent(err)}`);
     }
 
-    const proto = String(req.headers["x-forwarded-proto"] || "");
-    const secure = proto === "https" || process.env.NODE_ENV === "production";
+    const sessionToken = data?.sessionToken || data?.sessionJwt || "";
+    if (!sessionToken) return res.redirect("/verify?error=invalid");
+
+    const secure = process.env.NODE_ENV === "production";
     const domain = getCookieDomainFromHost(req.headers.host);
 
-    setCookie(res, "elora_session", data.sessionJwt, {
+    setCookie(res, "elora_session", sessionToken, {
       path: "/",
       domain: domain || undefined,
       httpOnly: true,

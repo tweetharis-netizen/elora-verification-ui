@@ -1,15 +1,4 @@
-import {
-  requireVerified,
-  makeTeacherCookie,
-  clearTeacherCookie,
-} from "@/lib/server/verification";
-
-function normalizeCodes(raw) {
-  return String(raw || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+import { getSessionTokenFromReq, fetchBackendStatus, getBackendBaseUrl } from "@/lib/server/verification";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,42 +6,37 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // Must be verified first
-  const v = await requireVerified(req, res);
-  if (!v?.verified) return;
+  const token = getSessionTokenFromReq(req);
+  if (!token) return res.status(401).json({ ok: false, error: "missing_session" });
+
+  // Ensure user is verified before redeeming teacher access (backend also checks).
+  const status = await fetchBackendStatus(token);
+  if (!status.verified) return res.status(403).json({ ok: false, error: "not_verified" });
 
   const code = String(req.body?.code || "").trim();
-  const codes = normalizeCodes(process.env.TEACHER_INVITE_CODES);
 
-  // allow clearing teacher access (empty code)
-  if (!code) {
-    res.setHeader("Set-Cookie", clearTeacherCookie());
-    return res.status(200).json({ ok: true, teacher: false });
-  }
-
-  // Reject user pasting the full env list
-  if (code.includes(",")) {
-    return res.status(400).json({
-      ok: false,
-      error: "enter_single_code",
+  try {
+    const backend = getBackendBaseUrl();
+    const r = await fetch(`${backend}/api/teacher/redeem`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code }),
     });
+
+    const data = await r.json().catch(() => null);
+    if (!r.ok || !data?.ok) {
+      return res.status(r.status || 400).json({
+        ok: false,
+        error: data?.error || "invalid_code",
+      });
+    }
+
+    const role = String(data?.role || "regular").toLowerCase();
+    return res.status(200).json({ ok: true, role, teacher: role === "teacher" });
+  } catch {
+    return res.status(500).json({ ok: false, error: "backend_unreachable" });
   }
-
-  if (!codes.length) {
-    res.setHeader("Set-Cookie", clearTeacherCookie());
-    return res.status(500).json({
-      ok: false,
-      error: "teacher_invites_not_configured",
-    });
-  }
-
-  const ok = codes.includes(code);
-
-  if (!ok) {
-    res.setHeader("Set-Cookie", clearTeacherCookie());
-    return res.status(401).json({ ok: false, error: "invalid_code" });
-  }
-
-  res.setHeader("Set-Cookie", makeTeacherCookie());
-  return res.status(200).json({ ok: true, teacher: true });
 }

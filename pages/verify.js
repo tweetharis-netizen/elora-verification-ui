@@ -26,10 +26,24 @@ export default function VerifyPage() {
     [router.query.error]
   );
 
+  const token = useMemo(
+    () => (typeof router.query.token === "string" ? router.query.token : ""),
+    [router.query.token]
+  );
+
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
   const [cooldown, setCooldown] = useState(0);
+
+  // Backwards compatibility:
+  // Old emails linked to /verify?token=...
+  // We now confirm via /api/verification/confirm so cookies are set on the UI domain.
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (!token) return;
+    window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}`;
+  }, [router.isReady, token]);
 
   useEffect(() => {
     const msg = mapError(errorCode);
@@ -55,72 +69,61 @@ export default function VerifyPage() {
 
     setSending(true);
     try {
-      const res = await fetch("/api/verification/send", {
+      const r = await fetch("/api/verification/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
 
-      const data = await res.json().catch(() => null);
+      const data = await r.json().catch(() => null);
 
-      if (!res.ok || !data?.ok) {
-        const err = String(data?.error || "send_failed");
-        if (err === "rate_limited") {
-          const retryAfter = Number(data?.retryAfter || 60);
-          setCooldown(Math.max(1, Math.min(600, retryAfter)));
-          setStatus("Rate limited. Please wait and try again.");
-          return;
+      if (!r.ok || !data?.ok) {
+        if (data?.error === "rate_limited") {
+          const retry = Number(data?.retryAfter || 30);
+          setCooldown(Number.isFinite(retry) ? Math.min(120, Math.max(10, retry)) : 30);
+          setStatus("Please wait a moment before trying again.");
+        } else {
+          setStatus("Could not send verification email. Please try again.");
         }
-        setStatus(mapError(err) || "Failed to send. Try again.");
         return;
       }
 
-      setStatus("Sent. Check your inbox (and spam) and click the link to finish verification.");
+      setCooldown(30);
+      setStatus("Sent. Check your inbox (and spam) for a verification link.");
     } catch {
-      setStatus("Failed to send. Please try again.");
+      setStatus("Could not reach the server. Please try again.");
     } finally {
       setSending(false);
     }
   }
 
   return (
-    <div className="mx-auto px-4" style={{ maxWidth: "var(--elora-page-max)" }}>
-      <div className="elora-card p-7 sm:p-10">
-        <div className="elora-kicker">Verification</div>
-
-        <h1 className="mt-5 elora-h1 text-[clamp(2rem,3.5vw,2.8rem)]">Verify your email</h1>
-        <p className="mt-3 elora-muted max-w-2xl leading-relaxed">
-          We’ll send a secure confirmation link. Verification unlocks DOCX / PDF / PPTX exports and persists across
-          refresh.
+    <div className="mx-auto max-w-3xl px-4">
+      <div className="elora-card p-6 sm:p-8">
+        <h1 className="font-black text-[clamp(22px,3vw,30px)]">Verify your email</h1>
+        <p className="mt-2 elora-muted">
+          Verification unlocks full teacher workflows (exports, assessments, and more). It persists across refreshes.
         </p>
 
-        <div className="mt-6 grid gap-3 max-w-xl">
-          <label className="text-sm font-extrabold opacity-85">Email</label>
+        <div className="mt-6 grid gap-3">
           <input
             className="elora-input"
-            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
+            inputMode="email"
             autoComplete="email"
           />
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              type="button"
-              className="elora-btn elora-btn-primary"
-              onClick={send}
-              disabled={sending || cooldown > 0}
-            >
-              {cooldown > 0 ? `Wait ${cooldown}s` : sending ? "Sending…" : "Send verification email"}
-            </button>
+          <button type="button" className="elora-btn" onClick={send} disabled={sending || cooldown > 0}>
+            {sending ? "Sending…" : cooldown > 0 ? `Wait ${cooldown}s` : "Send verification email"}
+          </button>
 
-            <button type="button" className="elora-btn elora-btn-ghost" onClick={() => router.push("/")}>
-              Back to home
-            </button>
+          {status ? <div className="elora-toast">{status}</div> : null}
+
+          <div className="elora-muted text-sm">
+            Tip: If you don’t see it, check spam/junk. The link expires in under an hour.
           </div>
-
-          {status ? <div className="elora-muted text-sm">{status}</div> : null}
         </div>
       </div>
     </div>

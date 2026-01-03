@@ -1,53 +1,190 @@
-/* styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* ---------- Elora Premium Tokens ---------- */
 :root {
-  --elora-font-scale: 1;
-  --elora-page-max: 1160px;
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Apple Color Emoji",
+    "Segoe UI Emoji";
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Sizing */
+  --elora-nav-height: 76px;
+
+  /* Colors (dark by default) */
+  --bg: #070a12;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface2: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.12);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.65);
+
+  /* Accent */
+  --accent: #7c3aed; /* purple */
+  --accent2: #0ea5e9; /* cyan/blue */
+  --good: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+
+  /* Shadows */
+  --shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.25);
+
+  /* Radius */
+  --r-xl: 24px;
+  --r-lg: 18px;
+  --r-md: 14px;
 }
 
-/* Theme tokens are already in your file; keeping your existing theme. */
-/* NOTE: This file includes only minimal changes:
-   - Fix navbar clickability (pointer-events)
-   - Add missing dot classes used by Navbar
-*/
-
-.elora-nav {
-  position: fixed;
-  inset: 0 0 auto 0;
-  z-index: 50;
-  pointer-events: auto;
+/* Light theme (premium, soft) */
+[data-theme="light"] {
+  --bg: #f6f7fb;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface2: rgba(255, 255, 255, 0.72);
+  --line: rgba(15, 23, 42, 0.12);
+  --text: rgba(15, 23, 42, 0.92);
+  --muted: rgba(15, 23, 42, 0.62);
+  --shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+  --shadow-soft: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
-/* Everything below is your existing CSS (unchanged) with the dot additions inserted. */
-
+/* ---------- Base ---------- */
 html,
 body {
   padding: 0;
   margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
 }
 
-body {
-  font-family: var(--elora-font-sans, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial);
-  font-size: calc(16px * var(--elora-font-scale));
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* ... (your existing CSS continues) ... */
+/* Let font scaling be controlled via CSS variable on body */
+body {
+  font-size: calc(16px * var(--elora-font-scale, 1));
+}
 
-/* Dot indicators */
+/* Background gradient + glow */
+.elora-bg {
+  min-height: 100vh;
+  background: radial-gradient(1200px 700px at 10% 10%, rgba(124, 58, 237, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 85% 10%, rgba(14, 165, 233, 0.16), transparent 58%),
+    radial-gradient(900px 700px at 50% 90%, rgba(124, 58, 237, 0.10), transparent 60%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 22%),
+    var(--bg);
+}
+
+/* Main wrapper padding so fixed nav doesn't overlap content */
+.elora-main {
+  padding-top: calc(var(--elora-nav-height) + 24px);
+  padding-bottom: 64px;
+}
+
+/* ---------- Navbar ---------- */
+.elora-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  pointer-events: auto; /* FIX: allow clicks on mobile menu + dropdown */
+}
+
+.elora-navbar {
+  pointer-events: auto;
+  margin: 0 auto;
+  max-width: 1160px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-soft);
+  padding: 14px 16px;
+  backdrop-filter: blur(16px);
+}
+
+.elora-nav-link {
+  font-weight: 700;
+  opacity: 0.85;
+  transition: opacity 160ms ease;
+}
+
+.elora-nav-link:hover {
+  opacity: 1;
+}
+
+.elora-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 90%, transparent);
+  font-weight: 800;
+  transition: transform 140ms ease, background 160ms ease;
+}
+
+.elora-account:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--surface2) 100%, transparent);
+}
+
+.elora-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 220px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.elora-account-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-weight: 800;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.elora-account-item:hover {
+  background: color-mix(in oklab, var(--surface2) 85%, transparent);
+}
+
+.elora-account-item-danger {
+  color: color-mix(in oklab, var(--bad) 85%, white 15%);
+}
+
+.elora-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 0;
+}
+
+/* Status dots */
 .elora-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--line) 45%, transparent);
-}
-
-.elora-dot-teacher {
-  background: color-mix(in oklab, #a855f7 85%, white 15%);
-  box-shadow: 0 0 0 3px color-mix(in oklab, #a855f7 18%, transparent);
 }
 
 .elora-dot-neutral {
@@ -65,4 +202,261 @@ body {
   box-shadow: 0 0 0 3px color-mix(in oklab, #f59e0b 18%, transparent);
 }
 
-/* ... keep the rest of your original globals.css exactly as it is ... */
+.elora-dot-teacher {
+  background: color-mix(in oklab, #a855f7 85%, white 15%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, #a855f7 18%, transparent);
+}
+
+/* ---------- Cards / Inputs / Buttons ---------- */
+.elora-card {
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+.elora-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 92%, transparent);
+  padding: 12px 12px;
+  outline: none;
+  color: var(--text);
+}
+
+.elora-input:focus {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.elora-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 75%, #000 25%), color-mix(in oklab, var(--accent2) 65%, #000 35%));
+  color: white;
+  font-weight: 900;
+  padding: 12px 14px;
+  cursor: pointer;
+
+  transition: transform 140ms ease, opacity 160ms ease;
+}
+
+.elora-btn:hover {
+  transform: translateY(-1px);
+}
+
+.elora-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.elora-btn-ghost {
+  background: transparent;
+  color: var(--text);
+}
+
+.elora-btn-danger {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--bad) 78%, #000 22%), color-mix(in oklab, var(--bad) 62%, #000 38%));
+}
+
+/* Chips */
+.elora-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 900;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 88%, transparent);
+}
+
+.elora-chip-good {
+  border-color: color-mix(in oklab, #22c55e 50%, var(--line));
+}
+
+.elora-chip-warn {
+  border-color: color-mix(in oklab, #f59e0b 50%, var(--line));
+}
+
+.elora-chip-teacher {
+  border-color: color-mix(in oklab, #a855f7 55%, var(--line));
+}
+
+/* Toast */
+.elora-toast {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 88%, transparent);
+  padding: 10px 12px;
+  font-weight: 800;
+}
+
+/* Quick action cards (assistant) */
+.elora-quick {
+  text-align: left;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 84%, transparent);
+  padding: 12px 12px;
+  transition: transform 140ms ease, background 160ms ease;
+}
+
+.elora-quick:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--surface2) 92%, transparent);
+}
+
+.elora-quick.is-active {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+/* Chat */
+.elora-chat {
+  min-height: 220px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 84%, transparent);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.elora-msg {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+}
+
+.elora-msg.is-you {
+  background: color-mix(in oklab, var(--accent2) 14%, var(--surface));
+}
+
+.elora-msg.is-elora {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+}
+
+.elora-muted {
+  color: var(--muted);
+}
+
+/* Segmented controls */
+.elora-seg {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 82%, transparent);
+  padding: 4px;
+  gap: 4px;
+}
+
+.elora-seg-btn {
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-weight: 900;
+  padding: 10px 12px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.elora-seg-btn:hover {
+  opacity: 1;
+}
+
+.elora-seg-btn.is-active {
+  background: color-mix(in oklab, var(--surface) 96%, transparent);
+  border: 1px solid var(--line);
+  opacity: 1;
+}
+
+/* Refinement chips */
+.elora-chip-btn {
+  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 86%, transparent);
+  font-weight: 900;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.elora-chip-btn:hover {
+  opacity: 1;
+}
+
+.elora-chip-btn.is-active {
+  border-color: color-mix(in oklab, var(--accent2) 55%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent2) 18%, transparent);
+  opacity: 1;
+}
+
+/* Modals */
+.elora-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 70;
+}
+
+.elora-modal-card {
+  max-width: 520px;
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 95%, transparent);
+  box-shadow: var(--shadow);
+  padding: 18px 18px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .elora-navbar {
+    padding: 12px 12px;
+  }
+}
+
+/* ---------- Existing table styles (kept) ---------- */
+.elora-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface2) 84%, transparent);
+}
+
+.elora-row-head {
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  color: var(--muted);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.elora-cell {
+  padding: 10px 10px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .elora-table {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .elora-row-head { display: none; }
+}

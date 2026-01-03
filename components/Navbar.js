@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { getSession, logout, refreshVerifiedFromServer } from "@/lib/session";
+import { getSession, logout, refreshVerifiedFromServer, isTeacher, hasSession } from "@/lib/session";
 
 function useOutsideClose(ref, onClose) {
   useEffect(() => {
@@ -28,10 +28,16 @@ export default function Navbar() {
   useEffect(() => {
     const sync = () => setSession(getSession());
     sync();
-    window.addEventListener("elora:session", sync);
     refreshVerifiedFromServer().finally(sync);
+
+    window.addEventListener("elora:session", sync);
     return () => window.removeEventListener("elora:session", sync);
   }, []);
+
+  const teacher = isTeacher();
+  const canLogout = hasSession();
+
+  const statusLabel = teacher ? "Teacher (Verified)" : session.verified ? "Verified" : "Not verified";
 
   const items = [
     { href: "/", label: "Home" },
@@ -40,19 +46,11 @@ export default function Navbar() {
     { href: "/settings", label: "Settings" },
   ];
 
-  const canLogout = Boolean(session.verified || session.teacherEnabled);
-
-  const dotClass = session.teacherEnabled
+  const dotClass = teacher
     ? "elora-dot elora-dot-teacher"
     : session.verified
     ? "elora-dot elora-dot-good"
-    : "elora-dot elora-dot-neutral";
-
-  const statusLabel = session.teacherEnabled
-    ? "Teacher access enabled"
-    : session.verified
-    ? "Verified"
-    : "Not verified";
+    : "elora-dot elora-dot-warn";
 
   const doLogout = async () => {
     try {
@@ -64,7 +62,7 @@ export default function Navbar() {
 
   return (
     <header className="elora-nav">
-      <div className="mx-auto" style={{ maxWidth: "var(--elora-page-max)" }}>
+      <div className="elora-nav-inner">
         <div className="px-4 pt-4">
           <div className="elora-navbar">
             <Link href="/" className="shrink-0" aria-label="Elora Home">
@@ -81,7 +79,7 @@ export default function Navbar() {
 
             <nav className="hidden md:flex items-center gap-6">
               {items.map((it) => (
-                <Link key={it.href} href={it.href} className="elora-navlink">
+                <Link key={it.href} href={it.href} className="elora-nav-link">
                   {it.label}
                 </Link>
               ))}
@@ -125,15 +123,27 @@ export default function Navbar() {
                       Settings
                     </Link>
 
+                    <Link
+                      href="/help"
+                      className="elora-account-item"
+                      role="menuitem"
+                      onClick={() => setOpenAccount(false)}
+                    >
+                      Help
+                    </Link>
+
                     {canLogout ? (
-                      <button
-                        className="elora-account-item danger"
-                        type="button"
-                        role="menuitem"
-                        onClick={doLogout}
-                      >
-                        Log out
-                      </button>
+                      <>
+                        <div className="elora-divider" style={{ margin: 0 }} />
+                        <button
+                          type="button"
+                          className="elora-account-item elora-account-item-danger"
+                          role="menuitem"
+                          onClick={doLogout}
+                        >
+                          Log out
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 ) : null}
@@ -167,8 +177,7 @@ export default function Navbar() {
                   <Link
                     href="/verify"
                     onClick={() => setOpenMenu(false)}
-                    className="px-3 py-2 rounded-xl elora-btn elora-btn-primary"
-                    style={{ justifyContent: "center" }}
+                    className="px-3 py-2 rounded-xl hover:bg-white/10"
                   >
                     Verify email
                   </Link>

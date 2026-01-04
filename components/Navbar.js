@@ -1,203 +1,194 @@
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { getSession, logout, refreshVerifiedFromServer, isTeacher, hasSession } from "@/lib/session";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getSession, hasSession as hasSessionFn, logout, refreshVerifiedFromServer } from "@/lib/session";
 
-function useOutsideClose(ref, onClose) {
-  useEffect(() => {
-    function onDoc(e) {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target)) onClose();
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("touchstart", onDoc);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("touchstart", onDoc);
-    };
-  }, [ref, onClose]);
+function clsx(...parts) {
+  return parts.filter(Boolean).join(" ");
 }
 
 export default function Navbar() {
-  const [openMenu, setOpenMenu] = useState(false);
-  const [openAccount, setOpenAccount] = useState(false);
   const [session, setSession] = useState(() => getSession());
-  const accountRef = useRef(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  useOutsideClose(accountRef, () => setOpenAccount(false));
+  const accountRef = useRef(null);
+  const mobileRef = useRef(null);
 
   useEffect(() => {
-    const sync = () => setSession(getSession());
-    sync();
-    refreshVerifiedFromServer().finally(sync);
+    let mounted = true;
 
-    window.addEventListener("elora:session", sync);
-    return () => window.removeEventListener("elora:session", sync);
+    const onSession = () => mounted && setSession(getSession());
+    window.addEventListener("elora:session", onSession);
+
+    refreshVerifiedFromServer().then(() => {
+      if (mounted) setSession(getSession());
+    });
+
+    const onClickOutside = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
+      if (mobileRef.current && !mobileRef.current.contains(e.target)) setMobileOpen(false);
+    };
+    window.addEventListener("mousedown", onClickOutside);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("elora:session", onSession);
+      window.removeEventListener("mousedown", onClickOutside);
+    };
   }, []);
 
-  const teacher = isTeacher();
-  const canLogout = hasSession();
+  const canLogout = useMemo(() => hasSessionFn(), [session.verified, session.teacher, session.hasSession]);
+  const verified = Boolean(session.verified);
+  const teacher = Boolean(session.teacher);
 
-  const statusLabel = teacher ? "Teacher (Verified)" : session.verified ? "Verified" : "Not verified";
-
-  const items = [
-    { href: "/", label: "Home" },
-    { href: "/assistant", label: "Assistant" },
-    { href: "/help", label: "Help" },
-    { href: "/settings", label: "Settings" },
-  ];
-
-  const dotClass = teacher
-    ? "elora-dot elora-dot-teacher"
-    : session.verified
+  const dotClass = verified
     ? "elora-dot elora-dot-good"
-    : "elora-dot elora-dot-warn";
+    : canLogout
+    ? "elora-dot elora-dot-warn"
+    : "elora-dot";
 
-  const doLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      window.location.href = "/";
-    }
-  };
+  const accountLabel = verified ? "Verified" : canLogout ? "Account" : "Guest";
 
   return (
-    <header className="elora-nav">
-      <div className="elora-nav-inner">
-        <div className="px-4 pt-4">
-          <div className="elora-navbar">
-            <Link href="/" className="shrink-0" aria-label="Elora Home">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl border border-white/10 bg-white/10 grid place-items-center">
-                  <span className="font-black tracking-tight">E</span>
-                </div>
-                <div className="leading-tight">
-                  <div className="font-black tracking-tight text-[1.05rem]">Elora</div>
-                  <div className="text-xs opacity-70 -mt-0.5">Education assistant</div>
-                </div>
-              </div>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-6">
-              {items.map((it) => (
-                <Link key={it.href} href={it.href} className="elora-nav-link">
-                  {it.label}
-                </Link>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <div className="relative" ref={accountRef}>
-                <button
-                  className="elora-account"
-                  type="button"
-                  onClick={() => setOpenAccount((v) => !v)}
-                  aria-haspopup="menu"
-                  aria-expanded={openAccount ? "true" : "false"}
-                >
-                  <span className={dotClass} aria-hidden="true" />
-                  Account
-                </button>
-
-                {openAccount ? (
-                  <div className="elora-account-menu" role="menu" aria-label="Account menu">
-                    <div className="px-3 py-2 text-xs elora-muted">{statusLabel}</div>
-                    <div className="elora-divider" style={{ margin: 0 }} />
-
-                    {!session.verified ? (
-                      <Link
-                        href="/verify"
-                        className="elora-account-item"
-                        role="menuitem"
-                        onClick={() => setOpenAccount(false)}
-                      >
-                        Verify email
-                      </Link>
-                    ) : null}
-
-                    <Link
-                      href="/settings"
-                      className="elora-account-item"
-                      role="menuitem"
-                      onClick={() => setOpenAccount(false)}
-                    >
-                      Settings
-                    </Link>
-
-                    <Link
-                      href="/help"
-                      className="elora-account-item"
-                      role="menuitem"
-                      onClick={() => setOpenAccount(false)}
-                    >
-                      Help
-                    </Link>
-
-                    {canLogout ? (
-                      <>
-                        <div className="elora-divider" style={{ margin: 0 }} />
-                        <button
-                          type="button"
-                          className="elora-account-item elora-account-item-danger"
-                          role="menuitem"
-                          onClick={doLogout}
-                        >
-                          Log out
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <button
-                className="md:hidden elora-btn"
-                onClick={() => setOpenMenu((v) => !v)}
-                type="button"
-              >
-                Menu
-              </button>
+    <div className="elora-nav">
+      <div className="mx-auto max-w-[1120px] px-4 pt-4">
+        <div className="elora-navbar">
+          <Link href="/" className="flex items-center gap-3 no-underline text-[inherit]">
+            <div className="w-9 h-9 rounded-xl grid place-items-center border border-[var(--line)] bg-[color-mix(in_oklab,var(--surface2)_72%,transparent)] font-black">
+              E
             </div>
+            <div className="leading-tight">
+              <div className="font-black">Elora</div>
+              <div className="text-xs elora-muted">Education assistant</div>
+            </div>
+          </Link>
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-6">
+            <Link className="elora-navlink" href="/">Home</Link>
+            <Link className="elora-navlink" href="/assistant">Assistant</Link>
+            <Link className="elora-navlink" href="/help">Help</Link>
+            <Link className="elora-navlink" href="/settings">Settings</Link>
           </div>
 
-          {openMenu ? (
-            <div className="mt-3 elora-card p-3 md:hidden">
-              <div className="flex flex-col gap-2">
-                {items.map((it) => (
-                  <Link
-                    key={it.href}
-                    href={it.href}
-                    onClick={() => setOpenMenu(false)}
-                    className="px-3 py-2 rounded-xl hover:bg-white/10"
-                  >
-                    {it.label}
-                  </Link>
-                ))}
+          {/* Right controls */}
+          <div className="flex items-center gap-2">
+            {/* Mobile hamburger */}
+            <div className="sm:hidden relative" ref={mobileRef}>
+              <button
+                className="elora-hamburger"
+                type="button"
+                onClick={() => setMobileOpen((v) => !v)}
+                aria-label="Open menu"
+              >
+                <span className={dotClass} />
+                Menu
+                <span className="elora-hamburger-icon" aria-hidden="true" />
+              </button>
 
-                {!session.verified ? (
-                  <Link
-                    href="/verify"
-                    onClick={() => setOpenMenu(false)}
-                    className="px-3 py-2 rounded-xl hover:bg-white/10"
-                  >
-                    Verify email
+              {mobileOpen && (
+                <div className="elora-mobile-menu" role="menu" aria-label="Mobile navigation">
+                  <Link className="elora-account-item" href="/" onClick={() => setMobileOpen(false)}>
+                    Home
                   </Link>
-                ) : null}
+                  <Link className="elora-account-item" href="/assistant" onClick={() => setMobileOpen(false)}>
+                    Assistant
+                  </Link>
+                  <Link className="elora-account-item" href="/help" onClick={() => setMobileOpen(false)}>
+                    Help
+                  </Link>
+                  <Link className="elora-account-item" href="/settings" onClick={() => setMobileOpen(false)}>
+                    Settings
+                  </Link>
 
-                {canLogout ? (
-                  <button
-                    type="button"
-                    onClick={doLogout}
-                    className="px-3 py-2 rounded-xl elora-btn elora-btn-danger"
-                    style={{ justifyContent: "center" }}
-                  >
-                    Log out
-                  </button>
-                ) : null}
-              </div>
+                  <div className="elora-divider" />
+
+                  {!verified && (
+                    <Link className="elora-account-item" href="/verify" onClick={() => setMobileOpen(false)}>
+                      Verify email
+                    </Link>
+                  )}
+
+                  {teacher && (
+                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setMobileOpen(false)}>
+                      Teacher tools
+                    </Link>
+                  )}
+
+                  {canLogout && (
+                    <>
+                      <div className="elora-divider" />
+                      <button
+                        className="elora-account-item danger"
+                        onClick={async () => {
+                          setMobileOpen(false);
+                          await logout();
+                          if (typeof window !== "undefined") window.location.href = "/";
+                        }}
+                        type="button"
+                      >
+                        Log out
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-          ) : null}
+
+            {/* Account dropdown (desktop) */}
+            <div className="hidden sm:block relative" ref={accountRef}>
+              <button className="elora-account" onClick={() => setAccountOpen((v) => !v)} type="button">
+                <span className={dotClass} />
+                {accountLabel}
+              </button>
+
+              {accountOpen && (
+                <div className="elora-account-menu">
+                  {!verified && (
+                    <Link className="elora-account-item" href="/verify" onClick={() => setAccountOpen(false)}>
+                      Verify email
+                    </Link>
+                  )}
+
+                  {teacher && (
+                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setAccountOpen(false)}>
+                      Teacher tools
+                    </Link>
+                  )}
+
+                  <Link className="elora-account-item" href="/settings" onClick={() => setAccountOpen(false)}>
+                    Preferences
+                  </Link>
+
+                  {canLogout && (
+                    <>
+                      <div className="elora-divider" />
+                      <button
+                        className="elora-account-item danger"
+                        onClick={async () => {
+                          setAccountOpen(false);
+                          await logout();
+                          if (typeof window !== "undefined") window.location.href = "/";
+                        }}
+                        type="button"
+                      >
+                        Log out
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop status chip (optional, compact) */}
+            <div className="hidden sm:flex">
+              <span className={clsx("elora-chip", verified ? "elora-chip-ok" : "")} data-variant={verified ? "good" : "warn"}>
+                {verified ? "Verified" : "Not verified"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-    </header>
+    </div>
   );
 }

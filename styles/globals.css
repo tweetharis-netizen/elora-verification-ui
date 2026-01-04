@@ -4,60 +4,61 @@
 
 /* ---------- Elora Premium Tokens ---------- */
 :root {
-  /* Typography */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Apple Color Emoji",
-    "Segoe UI Emoji";
+  --elora-font-scale: 1;
+
+  /* Layout */
+  --elora-nav-height: 84px;
+  --elora-page-max: 1120px;
+  --radius: 22px;
+
+  /* Type */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  /* Sizing */
-  --elora-nav-height: 76px;
-
-  /* Colors (dark by default) */
+  /* Dark theme default */
   --bg: #070a12;
-  --surface: rgba(255, 255, 255, 0.06);
-  --surface2: rgba(255, 255, 255, 0.08);
-  --line: rgba(255, 255, 255, 0.12);
+  --panel: rgba(12, 16, 28, 0.72);
+  --panel2: rgba(12, 16, 28, 0.42);
+  --border: rgba(255, 255, 255, 0.12);
+
   --text: rgba(255, 255, 255, 0.92);
-  --muted: rgba(255, 255, 255, 0.65);
+  --muted: rgba(255, 255, 255, 0.68);
 
-  /* Accent */
-  --accent: #7c3aed; /* purple */
-  --accent2: #0ea5e9; /* cyan/blue */
-  --good: #22c55e;
-  --warn: #f59e0b;
-  --bad: #ef4444;
-
-  /* Shadows */
-  --shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.25);
-
-  /* Radius */
-  --r-xl: 24px;
-  --r-lg: 18px;
-  --r-md: 14px;
+  --accent: #6366f1; /* indigo */
+  --accent2: #a855f7; /* purple */
+  --good: #10b981; /* emerald */
+  --warn: #f59e0b; /* amber */
+  --bad: #ef4444; /* rose */
 }
 
-/* Light theme (premium, soft) */
-[data-theme="light"] {
-  --bg: #f6f7fb;
-  --surface: rgba(255, 255, 255, 0.9);
-  --surface2: rgba(255, 255, 255, 0.72);
-  --line: rgba(15, 23, 42, 0.12);
-  --text: rgba(15, 23, 42, 0.92);
-  --muted: rgba(15, 23, 42, 0.62);
-  --shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
-  --shadow-soft: 0 10px 20px rgba(15, 23, 42, 0.08);
-}
-
-/* ---------- Base ---------- */
-html,
-body {
-  padding: 0;
-  margin: 0;
+html {
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
+  font-size: calc(16px * var(--elora-font-scale));
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light theme (soft, premium) */
+html[data-theme="light"] {
+  --bg: #f7f8fb;
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel2: rgba(255, 255, 255, 0.55);
+  --border: rgba(15, 23, 42, 0.12);
+
+  --text: rgba(15, 23, 42, 0.92);
+  --muted: rgba(15, 23, 42, 0.62);
+
+  --accent: #4f46e5;
+  --accent2: #7c3aed;
 }
 
 a {
@@ -65,26 +66,16 @@ a {
   text-decoration: none;
 }
 
-* {
-  box-sizing: border-box;
+/* ---------- Smooth scroll areas (iOS-friendly). Keeps overscroll from moving the whole page. ---------- */
+.elora-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
-/* Let font scaling be controlled via CSS variable on body */
-body {
-  font-size: calc(16px * var(--elora-font-scale, 1));
-}
-
-/* Background gradient + glow */
-.elora-bg {
+/* ---------- Layout ---------- */
+.elora-shell {
   min-height: 100vh;
-  background: radial-gradient(1200px 700px at 10% 10%, rgba(124, 58, 237, 0.18), transparent 60%),
-    radial-gradient(900px 600px at 85% 10%, rgba(14, 165, 233, 0.16), transparent 58%),
-    radial-gradient(900px 700px at 50% 90%, rgba(124, 58, 237, 0.10), transparent 60%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 22%),
-    var(--bg);
 }
-
-/* Main wrapper padding so fixed nav doesn't overlap content */
 .elora-main {
   padding-top: calc(var(--elora-nav-height) + 24px);
   padding-bottom: 64px;
@@ -95,368 +86,188 @@ body {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 50;
-  pointer-events: auto; /* FIX: allow clicks on mobile menu + dropdown */
+  pointer-events: none;
 }
 
 .elora-navbar {
   pointer-events: auto;
-  margin: 0 auto;
-  max-width: 1160px;
+  height: var(--elora-nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+}
+
+.elora-nav-inner {
+  width: min(var(--elora-page-max), calc(100vw - 32px));
+  height: 100%;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.03)
+  );
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-
-  border-radius: 24px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface) 90%, transparent);
-  box-shadow: var(--shadow-soft);
-  padding: 14px 16px;
-  backdrop-filter: blur(16px);
+  padding: 0 14px;
 }
 
-.elora-nav-link {
-  font-weight: 700;
-  opacity: 0.85;
-  transition: opacity 160ms ease;
+.elora-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+.elora-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.35), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(168, 85, 247, 0.28), transparent 55%),
+    rgba(255, 255, 255, 0.05);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+html[data-theme="light"] .elora-logo {
+  color: rgba(15, 23, 42, 0.92);
 }
 
-.elora-nav-link:hover {
+.elora-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.elora-title {
+  font-weight: 800;
+  font-size: 14px;
+}
+.elora-subtitle {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.elora-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.elora-link {
+  font-size: 14px;
+  font-weight: 650;
+  opacity: 0.82;
+  padding: 10px 10px;
+  border-radius: 12px;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.elora-link:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+.elora-link.active {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
-.elora-account {
+.elora-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  justify-content: flex-end;
+}
+
+.elora-chip {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  height: 38px;
+  padding: 0 14px;
   border-radius: 999px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 90%, transparent);
-  font-weight: 800;
-  transition: transform 140ms ease, background 160ms ease;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.elora-account:hover {
-  transform: translateY(-1px);
-  background: color-mix(in oklab, var(--surface2) 100%, transparent);
-}
-
-.elora-account-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  width: 220px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface) 96%, transparent);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.elora-account-item {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  font-weight: 800;
-  text-align: left;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-.elora-account-item:hover {
-  background: color-mix(in oklab, var(--surface2) 85%, transparent);
-}
-
-.elora-account-item-danger {
-  color: color-mix(in oklab, var(--bad) 85%, white 15%);
-}
-
-.elora-divider {
-  height: 1px;
-  background: var(--line);
-  margin: 10px 0;
-}
-
-/* Status dots */
 .elora-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--line) 45%, transparent);
+  background: var(--warn);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.13);
 }
 
-.elora-dot-neutral {
-  background: color-mix(in oklab, var(--muted) 45%, var(--surface2));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--line) 35%, transparent);
+.elora-dot.good {
+  background: var(--good);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
 }
 
-.elora-dot-good {
-  background: color-mix(in oklab, #22c55e 85%, white 15%);
-  box-shadow: 0 0 0 3px color-mix(in oklab, #22c55e 18%, transparent);
+/* Mobile nav */
+.elora-mobile-btn {
+  display: none;
 }
 
-.elora-dot-warn {
-  background: color-mix(in oklab, #f59e0b 85%, white 15%);
-  box-shadow: 0 0 0 3px color-mix(in oklab, #f59e0b 18%, transparent);
+@media (max-width: 860px) {
+  .elora-links {
+    display: none;
+  }
+  .elora-brand {
+    min-width: auto;
+  }
+  .elora-actions {
+    min-width: auto;
+  }
+  .elora-mobile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
-.elora-dot-teacher {
-  background: color-mix(in oklab, #a855f7 85%, white 15%);
-  box-shadow: 0 0 0 3px color-mix(in oklab, #a855f7 18%, transparent);
-}
-
-/* ---------- Cards / Inputs / Buttons ---------- */
-.elora-card {
-  border-radius: var(--r-xl);
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(14px);
-}
-
-.elora-input {
-  width: 100%;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 92%, transparent);
-  padding: 12px 12px;
-  outline: none;
-  color: var(--text);
-}
-
-.elora-input:focus {
-  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
-}
-
-.elora-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 75%, #000 25%), color-mix(in oklab, var(--accent2) 65%, #000 35%));
-  color: white;
-  font-weight: 900;
-  padding: 12px 14px;
-  cursor: pointer;
-
-  transition: transform 140ms ease, opacity 160ms ease;
-}
-
-.elora-btn:hover {
-  transform: translateY(-1px);
-}
-
-.elora-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.elora-btn-ghost {
-  background: transparent;
-  color: var(--text);
-}
-
-.elora-btn-danger {
-  background: linear-gradient(135deg, color-mix(in oklab, var(--bad) 78%, #000 22%), color-mix(in oklab, var(--bad) 62%, #000 38%));
-}
-
-/* Chips */
-.elora-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-weight: 900;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 88%, transparent);
-}
-
-.elora-chip-good {
-  border-color: color-mix(in oklab, #22c55e 50%, var(--line));
-}
-
-.elora-chip-warn {
-  border-color: color-mix(in oklab, #f59e0b 50%, var(--line));
-}
-
-.elora-chip-teacher {
-  border-color: color-mix(in oklab, #a855f7 55%, var(--line));
-}
-
-/* Toast */
-.elora-toast {
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 88%, transparent);
-  padding: 10px 12px;
-  font-weight: 800;
-}
-
-/* Quick action cards (assistant) */
-.elora-quick {
-  text-align: left;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 84%, transparent);
-  padding: 12px 12px;
-  transition: transform 140ms ease, background 160ms ease;
-}
-
-.elora-quick:hover {
-  transform: translateY(-1px);
-  background: color-mix(in oklab, var(--surface2) 92%, transparent);
-}
-
-.elora-quick.is-active {
-  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
-}
-
-/* Chat */
-.elora-chat {
-  min-height: 220px;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 84%, transparent);
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.elora-msg {
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  padding: 10px 12px;
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
-}
-
-.elora-msg.is-you {
-  background: color-mix(in oklab, var(--accent2) 14%, var(--surface));
-}
-
-.elora-msg.is-elora {
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
-}
-
-.elora-muted {
-  color: var(--muted);
-}
-
-/* Segmented controls */
-.elora-seg {
-  display: inline-flex;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 82%, transparent);
-  padding: 4px;
-  gap: 4px;
-}
-
-.elora-seg-btn {
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-weight: 900;
-  padding: 10px 12px;
-  cursor: pointer;
-  opacity: 0.8;
-}
-
-.elora-seg-btn:hover {
-  opacity: 1;
-}
-
-.elora-seg-btn.is-active {
-  background: color-mix(in oklab, var(--surface) 96%, transparent);
-  border: 1px solid var(--line);
-  opacity: 1;
-}
-
-/* Refinement chips */
-.elora-chip-btn {
-  border-radius: 999px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 86%, transparent);
-  font-weight: 900;
-  cursor: pointer;
-  opacity: 0.85;
-}
-
-.elora-chip-btn:hover {
-  opacity: 1;
-}
-
-.elora-chip-btn.is-active {
-  border-color: color-mix(in oklab, var(--accent2) 55%, var(--line));
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent2) 18%, transparent);
-  opacity: 1;
-}
-
-/* Modals */
-.elora-modal {
+/* ---------- Background ---------- */
+.elora-bg {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  z-index: 70;
+  z-index: -1;
+  background: radial-gradient(circle at 20% 10%, rgba(99, 102, 241, 0.18), transparent 55%),
+    radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.14), transparent 55%),
+    radial-gradient(circle at 40% 80%, rgba(99, 102, 241, 0.10), transparent 55%),
+    var(--bg);
 }
 
-.elora-modal-card {
-  max-width: 520px;
-  width: 100%;
-  border-radius: 22px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface) 95%, transparent);
-  box-shadow: var(--shadow);
-  padding: 18px 18px;
+/* ---------- Utility ---------- */
+.elora-container {
+  width: min(var(--elora-page-max), calc(100vw - 32px));
+  margin: 0 auto;
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 768px) {
-  .elora-navbar {
-    padding: 12px 12px;
-  }
+.elora-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
-/* ---------- Existing table styles (kept) ---------- */
-.elora-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--surface2) 84%, transparent);
-}
-
-.elora-row-head {
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
-  color: var(--muted);
-  font-weight: 900;
-  font-size: 12px;
-}
-
-.elora-cell {
-  padding: 10px 10px;
-  border-top: 1px solid var(--line);
-}
-
-@media (max-width: 640px) {
-  .elora-table {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .elora-row-head { display: none; }
+/* Markdown (chat) */
+.prose :where(code):not(:where([class~="not-prose"] *)) {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.5rem;
 }

@@ -11,86 +11,145 @@ import {
   setRole as storeRole,
 } from "../lib/session";
 
-const COUNTRY_OPTIONS = ["Singapore", "United States", "United Kingdom", "Australia", "Canada", "India", "Other"];
+const COUNTRY_OPTIONS = [
+  "Singapore",
+  "United States",
+  "United Kingdom",
+  "Australia",
+  "Canada",
+  "India",
+  "Malaysia",
+  "Indonesia",
+  "Philippines",
+  "Japan",
+  "South Korea",
+  "China",
+  "Other",
+];
 
-const LEVELS_BY_COUNTRY = {
-  Singapore: ["Primary (1–6)", "Secondary (1–2)", "Secondary (3–4)", "O-Level", "A-Level", "University", "Other"],
+const LEVEL_BY_COUNTRY = {
+  Singapore: [
+    "Primary 1",
+    "Primary 2",
+    "Primary 3",
+    "Primary 4",
+    "Primary 5",
+    "Primary 6",
+    "Secondary 1",
+    "Secondary 2",
+    "Secondary 3",
+    "Secondary 4",
+    "JC 1",
+    "JC 2",
+    "Poly / ITE",
+    "University",
+    "Other",
+  ],
   "United States": [
-    "Grade 1",
-    "Grade 2",
-    "Grade 3",
-    "Grade 4",
-    "Grade 5",
-    "Grade 6",
-    "Grade 7",
-    "Grade 8 (Middle School)",
-    "Grade 9 (High School)",
-    "Grade 10 (High School)",
-    "Grade 11 (High School)",
-    "Grade 12 (High School)",
-    "AP / Advanced",
+    "Elementary (K-5)",
+    "Middle School (6-8)",
+    "High School (9-12)",
+    "College",
+    "Other",
+  ],
+  "United Kingdom": ["Key Stage 1", "Key Stage 2", "Key Stage 3", "GCSE", "A-Levels", "University", "Other"],
+  Australia: ["Primary", "Secondary", "Senior Secondary", "University", "Other"],
+  Canada: ["Elementary", "Middle School", "High School", "College/University", "Other"],
+  India: [
+    "Class 1",
+    "Class 2",
+    "Class 3",
+    "Class 4",
+    "Class 5",
+    "Class 6",
+    "Class 7",
+    "Class 8",
+    "Class 9",
+    "Class 10",
+    "Class 11",
+    "Class 12",
     "University",
     "Other",
   ],
-  "United Kingdom": [
-    "Year 1",
-    "Year 2",
-    "Year 3",
-    "Year 4",
-    "Year 5",
-    "Year 6",
-    "Year 7",
-    "Year 8",
-    "Year 9",
-    "GCSE (Year 10–11)",
-    "A-Level (Year 12–13)",
-    "University",
-    "Other",
-  ],
-  Australia: ["Foundation", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Other"],
-  Canada: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Other"],
-  India: ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12", "University", "Other"],
   Other: ["Primary / Elementary", "Middle School", "High School", "Pre-University", "University", "Other"],
 };
 
-const SUBJECT_OPTIONS = ["Math", "Science", "English", "Computer Science", "History", "Geography", "Other"];
+const SUBJECT_OPTIONS = ["Math", "Science", "English", "History", "Geography", "Computer Science", "Other"];
 
 const CUSTOM_TOPIC_VALUE = "__custom__";
+
 const TOPIC_PRESETS_BY_SUBJECT = {
-  Math: ["Fractions", "Decimals", "Percentages", "Ratios", "Algebra basics", "Geometry", "Word problems", "Statistics"],
-  Science: ["Scientific method", "Cells", "Forces", "Energy", "Matter", "Ecosystems"],
-  English: ["Paragraph structure", "Argument writing", "Summary writing", "Grammar: tenses", "Grammar: punctuation", "Vocabulary", "Comprehension"],
-  "Computer Science": ["Variables", "Conditionals", "Loops", "Functions", "Debugging", "Data structures (basic)"],
-  History: ["Source analysis", "Cause and effect", "Timelines", "Comparing viewpoints", "Essay structure"],
-  Geography: ["Maps and coordinates", "Climate", "Human geography", "Physical geography", "Case study writing"],
-  Other: ["Study skills", "Time management", "Exam revision"],
+  // Keep topics "fixed" (preset-only) for a fast, judge-friendly demo.
+  // Users can still pick "Custom…" to type anything.
+  Math: [
+    "Fractions",
+    "Mixed numbers",
+    "Decimals",
+    "Percentages",
+    "Ratio & proportion",
+    "Algebra basics",
+    "Geometry",
+    "Word problems",
+    "Data & graphs",
+  ],
+  Science: [
+    "Scientific method",
+    "Cells & body systems",
+    "Forces & motion",
+    "Energy",
+    "Electricity & circuits",
+    "Matter (solids/liquids/gases)",
+    "Ecosystems",
+    "Earth & space",
+  ],
+  English: [
+    "Grammar",
+    "Vocabulary",
+    "Reading comprehension",
+    "Summary writing",
+    "Argument / persuasive writing",
+    "Narrative writing",
+    "Editing (clarity + flow)",
+  ],
+  History: ["Cause & effect", "Timelines", "Source analysis", "Compare & contrast", "Essay planning"],
+  Geography: ["Maps & directions", "Climate", "Landforms", "Human geography", "Case study writing"],
+  "Computer Science": ["Problem solving", "Algorithms (basic)", "Loops & conditionals", "Debugging", "Project planning"],
+  Other: ["Homework help", "Study plan", "Explain a concept", "Check my answer", "Improve my writing"],
 };
 
 const ROLE_QUICK_ACTIONS = {
   educator: [
-    { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
-    { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions, export-ready" },
-    { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme (Teacher)" },
-    { id: "slides", label: "Design slides", hint: "Engaging deck + visuals (Teacher)" },
+    { id: "lesson", title: "Plan a lesson", subtitle: "Clear outline + questions + checks" },
+    { id: "rubric", title: "Make a rubric", subtitle: "Simple criteria teachers can use" },
+    { id: "assessment", title: "Generate a quiz", subtitle: "Question set + answer key" },
+    { id: "slides", title: "Explain for slides", subtitle: "Short, teachable points" },
   ],
   student: [
-    { id: "explain", label: "Tutor me", hint: "You attempt first → Elora guides with hints" },
-    { id: "worksheet", label: "Give me practice", hint: "Practice set (no answer-dump)" },
-    { id: "custom", label: "Custom request", hint: "Ask anything and refine" },
+    { id: "tutor", title: "Tutor me", subtitle: "You attempt first → I guide step-by-step" },
+    { id: "check", title: "Check my answer", subtitle: "Spot mistakes + fix them kindly" },
+    { id: "explain", title: "Explain a concept", subtitle: "Simple, beginner-friendly explanation" },
+    { id: "practice", title: "Practice questions", subtitle: "New questions to try" },
   ],
   parent: [
-    { id: "explain", label: "Explain it simply", hint: "Plain words + what to say at home" },
-    { id: "worksheet", label: "Practice for my child", hint: "Practice + parent guidance" },
-    { id: "custom", label: "Custom request", hint: "Ask anything and refine" },
+    { id: "homework", title: "Help with homework", subtitle: "Teach calmly, no scary symbols" },
+    { id: "plan", title: "Study plan", subtitle: "Routine + targets + motivation" },
+    { id: "explain", title: "Explain a topic", subtitle: "Simple and reassuring" },
+    { id: "message", title: "Write a note", subtitle: "Message to teacher / school" },
   ],
 };
 
 const REFINEMENT_CHIPS = {
-  lesson: ["Shorter", "More detailed", "Add differentiation", "Add misconceptions", "Add exit ticket rubric"],
-  worksheet: ["Make it shorter", "Add worked example", "More challenging", "Add word problems", "Common misconceptions"],
-  assessment: ["Harder", "More conceptual", "Add marks", "Improve marking scheme", "Reduce length"],
-  slides: ["More visuals ideas", "More interactivity", "Add checks for understanding", "Add teacher notes", "Shorter deck"],
+  lesson: ["Simplify", "More activities", "More assessment", "Differentiation", "Shorter"],
+  rubric: ["Simplify", "More detailed", "Add examples", "Student-friendly language", "Shorter"],
+  assessment: ["Easier", "Harder", "More questions", "Add explanations", "Shorter"],
+  slides: ["Shorter", "More examples", "More visuals described", "Add analogies", "Shorter deck"],
+  tutor: ["Smaller steps", "Give me a hint", "Show an example", "Harder", "Easier"],
+  check: ["Be stricter", "Explain why", "Show a correct example", "Shorter", "More detailed"],
   explain: ["Give me a hint", "Explain differently", "Another similar question", "Harder", "Easier"],
+  practice: ["Easier", "Harder", "More questions", "Show answers", "No answers yet"],
+  homework: ["Simplify", "More reassurance", "More examples", "Shorter", "More detailed"],
+  plan: ["Simplify", "More ambitious", "More flexible", "Shorter", "Include weekends"],
+  message: ["More formal", "More friendly", "Shorter", "More detailed", "Add context"],
   custom: ["Shorter", "More detailed", "More examples", "Make it student-friendly", "Make it teacher-friendly"],
 };
 
@@ -100,122 +159,139 @@ function cn(...xs) {
 
 function stripInternalTags(text) {
   if (!text) return "";
-  return text
-    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*?<\/ELORA_ARTIFACT_JSON>/g, "")
-    .replace(/<ELORA_ARTIFACT_JSON>[\s\S]*$/g, "")
-    .replace(/<\/?[^>]+>/g, "")
+  // Remove common internal tags if the model ever emits them.
+  return String(text)
+    .replace(/<analysis>[\s\S]*?<\/analysis>/gi, "")
+    .replace(/<internal>[\s\S]*?<\/internal>/gi, "")
     .trim();
 }
 
-export default function AssistantPage() {
-  const [session, setSession] = useState(() => getSession());
+function formatRoleLabel(role) {
+  if (role === "educator") return "Educator";
+  if (role === "student") return "Student";
+  if (role === "parent") return "Parent";
+  return "Student";
+}
 
+export default function Assistant() {
+  const session = getSession();
+  const [role, setRole] = useState(session.role || "student");
+  const [guest, setGuest] = useState(Boolean(session.guest));
+  const teacher = isTeacher();
+
+  // On the Assistant page, we keep the *chat* scrollable and avoid page-level scroll.
+  // This makes long conversations feel like a real app (chat scrolls, layout stays stable).
   useEffect(() => {
-    const sync = () => setSession(getSession());
-    sync();
-    window.addEventListener("elora:session", sync);
-    window.addEventListener("focus", sync);
+    if (typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("elora:session", sync);
-      window.removeEventListener("focus", sync);
+      document.body.style.overflow = prev;
     };
   }, []);
 
-  const verified = Boolean(session.verified);
-  const teacher = Boolean(isTeacher && isTeacher());
-
-  // Defensive: some deploys may temporarily have a broken session module.
-  const safeSetRole = (r) => {
-    try {
-      if (typeof storeRole === "function") storeRole(r);
-      else if (typeof window !== "undefined") window.localStorage?.setItem("elora_role_fallback", String(r || "student"));
-    } catch {
-      // ignore
-    }
-  };
-
-  const safeSetGuest = () => {
-    try {
-      if (typeof storeGuest === "function") storeGuest();
-    } catch {
-      // ignore
-    }
-  };
-
-  const [role, setRole] = useState(session.role || "student");
+  // Mobile browsers can lie about 100vh (address bar). We use a JS-updated --elora-vh for stability.
   useEffect(() => {
-    safeSetRole(role);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
+    if (typeof window === "undefined") return;
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--elora-vh", `${vh}px`);
+    };
+    setVh();
+    window.addEventListener("resize", setVh);
+    return () => window.removeEventListener("resize", setVh);
+  }, []);
 
-  const [subject, setSubject] = useState("Math");
+  // UI state
+  const [country, setCountry] = useState(session.country || "Singapore");
+  const levelOptions = useMemo(() => LEVEL_BY_COUNTRY[country] || LEVEL_BY_COUNTRY.Other, [country]);
+  const [level, setLevel] = useState(session.level || levelOptions[0]);
+
+  const [subject, setSubject] = useState(session.subject || "Math");
 
   const topicPresets = useMemo(() => {
     return TOPIC_PRESETS_BY_SUBJECT[subject] || TOPIC_PRESETS_BY_SUBJECT.Other;
   }, [subject]);
 
-  const [topicPreset, setTopicPreset] = useState(() => (TOPIC_PRESETS_BY_SUBJECT.Math?.[0] || "Fractions"));
+  const [topicPreset, setTopicPreset] = useState(() => TOPIC_PRESETS_BY_SUBJECT.Math?.[0] || "Fractions");
   const [topicCustom, setTopicCustom] = useState("");
+
+  // If the subject changes, keep the topic selection valid.
+  // (Otherwise the <select> can end up with a value that's not in the new list.)
+  useEffect(() => {
+    const presets = TOPIC_PRESETS_BY_SUBJECT[subject] || TOPIC_PRESETS_BY_SUBJECT.Other || [];
+    // If the user is in Custom mode, keep them there.
+    if (topicPreset === CUSTOM_TOPIC_VALUE) return;
+    if (!presets.includes(topicPreset)) {
+      setTopicPreset(presets[0] || CUSTOM_TOPIC_VALUE);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject]);
 
   const isCustomTopic = topicPreset === CUSTOM_TOPIC_VALUE;
   const topicEffective = isCustomTopic ? (topicCustom.trim() || "Custom topic") : topicPreset;
 
-  const [constraints, setConstraints] = useState("");
-  const [action, setAction] = useState(ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain");
-
   const [showMoreOptions, setShowMoreOptions] = useState(false);
-  const [country, setCountry] = useState("Singapore");
-  const levelOptions = useMemo(() => LEVELS_BY_COUNTRY[country] || LEVELS_BY_COUNTRY.Other, [country]);
-  const [level, setLevel] = useState(levelOptions[0] || "Primary / Elementary");
+  const [constraints, setConstraints] = useState({
+    avoidLatex: true,
+    friendlyTone: true,
+    concise: false,
+    showSteps: true,
+    includeChecks: true,
+  });
 
-  const [messages, setMessages] = useState(() => [
-    {
-      from: "elora",
-      text:
-        "Hi! I’m **Elora**.\n\nPick options on the left (that’s the hard part of prompting) and I’ll generate something clean you can actually use.\n\nUse chat for refinements.",
-    },
-  ]);
+  const [action, setAction] = useState(() => ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain");
+  const [customGoal, setCustomGoal] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState(() => {
+    const intro =
+      role === "educator"
+        ? "Hi — I’m Elora. Tell me what you’re teaching, and I’ll help you plan and explain clearly."
+        : role === "parent"
+        ? "Hi — I’m Elora. Tell me what your child is learning, and I’ll help in a calm, simple way."
+        : "Hi — I’m Elora. Tell me what you’re working on, and we’ll solve it step-by-step.";
+    return [{ from: "elora", text: intro }];
+  });
+
   const [chatText, setChatText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
-  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [inviteInput, setInviteInput] = useState("");
-  const [teacherGateStatus, setTeacherGateStatus] = useState("");
-
-  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
-
+  // Tutor attempt counter (student mode)
   const [attempt, setAttempt] = useState(0);
   const attemptRef = useRef(0);
   useEffect(() => {
     attemptRef.current = attempt;
   }, [attempt]);
 
+  // Keep level valid when country changes
   useEffect(() => {
     if (!levelOptions.includes(level)) setLevel(levelOptions[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, levelOptions.join("|")]);
 
+  // When role changes, reset action + attempt
   useEffect(() => {
     const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain";
     setAction(first);
     setAttempt(0);
   }, [role]);
 
+  // Persist prefs locally (not auth)
   useEffect(() => {
-    const first = (TOPIC_PRESETS_BY_SUBJECT[subject] || TOPIC_PRESETS_BY_SUBJECT.Other)?.[0] || "Custom";
-    setTopicPreset(first);
-    setTopicCustom("");
-    setAttempt(0);
-  }, [subject]);
+    storeRole(role);
+  }, [role]);
 
-  const guest = !verified && !session.hasSession;
+  useEffect(() => {
+    storeGuest(guest);
+  }, [guest]);
 
-  const guestBlocked = useMemo(() => {
-    if (!guest) return false;
-    return action === "assessment" || action === "slides";
-  }, [guest, action]);
+  const teacherGateNeeded =
+    role === "educator" && !teacher && !guest; // educator needs teacher unless guest
+
+  const guestBlocked =
+    role === "educator" &&
+    guest &&
+    (action === "assessment" || action === "slides"); // keep guest educator restricted
 
   const chips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom, [action]);
 
@@ -223,6 +299,7 @@ export default function AssistantPage() {
     setAttempt(0);
   }
 
+  // --- Chat scroll: only the chat panel scrolls, not the whole page ---
   const chatScrollRef = useRef(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
@@ -241,50 +318,121 @@ export default function AssistantPage() {
   }
 
   useEffect(() => {
+    // Auto-follow only if user is already near the bottom.
     if (isNearBottom) scrollToBottom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, loading, isNearBottom]);
 
-  async function callElora({ messageOverride = "" } = {}) {
-    if (!verified && !guest) {
-      setVerifyGateOpen(true);
+  // Teacher invite modal
+  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteErr, setInviteErr] = useState("");
+
+  async function submitInvite() {
+    setInviteErr("");
+    const code = inviteCode.trim();
+    if (!code) {
+      setInviteErr("Enter a code.");
       return;
     }
+    const res = await activateTeacher(code);
+    if (!res.ok) {
+      setInviteErr(res.message || "Code failed. Try again.");
+      return;
+    }
+    setVerifyGateOpen(false);
+    setMessages((m) => [
+      ...m,
+      { from: "elora", text: "Teacher access enabled. Educator tools unlocked." },
+    ]);
+  }
 
-    // Educator is locked unless teacher cookie is present
-    if (role === "educator" && !teacher) {
-      setTeacherGateOpen(true);
+  function buildSystemText() {
+    // This is a small local “guardrail” prompt. The real model prompt is in /pages/api/assistant.js
+    // We keep it here to help the UI stay consistent even if the backend changes later.
+    const common =
+      "You are Elora, a calm education assistant. Explain like a kind teacher. " +
+      "Avoid raw LaTeX unless the user explicitly asks for LaTeX. " +
+      "Use plain math like '5 divided by 4 = 1.25'. " +
+      "Keep steps short. Ask a quick check question when helpful.";
+    const roleLine =
+      role === "educator"
+        ? "The user is a teacher. Provide classroom-ready answers: objectives, steps, checks for understanding."
+        : role === "parent"
+        ? "The user is a parent. Be reassuring, explain simply, suggest how to help at home."
+        : "The user is a student. Encourage them to try first, then guide. Don't dump the full solution immediately for tutoring tasks.";
+    return `${common}\n${roleLine}`;
+  }
+
+  function buildGoalText() {
+    if (customGoal.trim()) return customGoal.trim();
+    const map = {
+      lesson: "Plan a lesson in a clear, teacher-friendly way.",
+      rubric: "Create a simple rubric.",
+      assessment: "Generate a short quiz and answer key.",
+      slides: "Explain as bullet points suitable for slides.",
+      tutor: "Tutor the student: ask them to attempt first, then guide step-by-step.",
+      check: "Check the student's answer: spot mistakes kindly and show the corrected approach.",
+      explain: "Explain the concept in a beginner-friendly way.",
+      practice: "Generate practice questions tailored to the level.",
+      homework: "Help with homework in a calm, reassuring way.",
+      plan: "Create a study plan with realistic steps and motivation.",
+      message: "Write a short message or note (teacher/school) with the right tone.",
+    };
+    return map[action] || "Help the user.";
+  }
+
+  function buildUserContext() {
+    const ctx = {
+      role,
+      country,
+      level,
+      subject,
+      topic: topicEffective,
+      mode: action,
+      constraints,
+    };
+    return ctx;
+  }
+
+  async function callElora({ messageOverride } = {}) {
+    const msg = (messageOverride ?? chatText).trim();
+    if (!msg || loading) return;
+
+    // Gate teacher-only educator tools
+    if (teacherGateNeeded) {
+      setVerifyGateOpen(true);
       return;
     }
 
     if (guestBlocked) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: "Guest mode is limited — verify to unlock assessments and slides." },
+        {
+          from: "elora",
+          text:
+            "Guest educator mode can’t generate quizzes or slide outlines yet. " +
+            "Enter a teacher invite code to unlock those.",
+        },
       ]);
       return;
     }
 
-    const nextAttempt =
-      role === "student" && messageOverride.trim()
-        ? Math.min(3, attemptRef.current + 1)
-        : attemptRef.current;
+    // Tutor attempt logic: student must attempt first for "tutor"
+    let nextAttempt = attemptRef.current;
+    if (role === "student" && action === "tutor") {
+      nextAttempt += 1;
+      setAttempt(nextAttempt);
+    }
 
-    if (role === "student" && messageOverride.trim()) setAttempt(nextAttempt);
+    setChatText("");
+    setMessages((m) => [...m, { from: "user", text: msg }]);
 
     const payload = {
-      role,
-      country,
-      level,
-      subject,
-      topic: topicEffective,
-      topicPreset: isCustomTopic ? "" : topicPreset,
-      topicCustom: isCustomTopic ? topicCustom : "",
-      action,
-      guest,
-      verified,
-      teacherInvite: session.teacherCode || "",
-      message: messageOverride,
+      system: buildSystemText(),
+      goal: buildGoalText(),
+      context: buildUserContext(),
+      message: msg,
       options: constraints,
       attempt: role === "student" ? nextAttempt : 0,
     };
@@ -299,34 +447,30 @@ export default function AssistantPage() {
       });
 
       const data = await r.json().catch(() => null);
-      if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
-      const clean = stripInternalTags(data.reply || "");
-      setMessages((m) => [...m, { from: "elora", text: clean }]);
+      if (!r.ok || !data) {
+        setMessages((m) => [
+          ...m,
+          {
+            from: "elora",
+            text: "Something went wrong. Try again in a moment.",
+          },
+        ]);
+        return;
+      }
+
+      setMessages((m) => [...m, { from: "elora", text: stripInternalTags(data.text || "") }]);
     } catch (e) {
-      setMessages((m) => [...m, { from: "elora", text: e?.message || "Sorry — something went wrong." }]);
+      setMessages((m) => [
+        ...m,
+        {
+          from: "elora",
+          text: "Network error. Check your connection and try again.",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
-  }
-
-  async function sendChat() {
-    const msg = chatText.trim();
-    if (!msg) return;
-
-    if (!verified && !guest) {
-      setVerifyGateOpen(true);
-      return;
-    }
-
-    if (role === "educator" && !teacher) {
-      setTeacherGateOpen(true);
-      return;
-    }
-
-    setChatText("");
-    setMessages((m) => [...m, { from: "user", text: msg }]);
-    await callElora({ messageOverride: msg });
   }
 
   async function refine(text) {
@@ -334,542 +478,700 @@ export default function AssistantPage() {
     await callElora({ messageOverride: text });
   }
 
-  async function validateAndActivateInvite(code) {
-    const trimmed = String(code || "").trim();
-    setTeacherGateStatus("");
-
-    if (!trimmed) {
-      setTeacherGateStatus("Enter a code.");
-      return false;
-    }
-    if (!verified) {
-      setTeacherGateStatus("Verify your email first. Educator access requires verification.");
-      return false;
-    }
-
-    setTeacherGateStatus("Checking…");
-    const result = await activateTeacher(trimmed);
-
-    if (result?.ok) {
-      setTeacherGateStatus("Educator access enabled ✅");
-      return true;
-    }
-
-    if (result?.error === "invalid_invite") {
-      setTeacherGateStatus("Invalid code.");
-      return false;
-    }
-    if (result?.error === "invite_not_configured") {
-      setTeacherGateStatus("Teacher invites are not configured on this deploy.");
-      return false;
-    }
-    if (result?.error === "missing_code") {
-      setTeacherGateStatus("Enter a code.");
-      return false;
-    }
-
-    setTeacherGateStatus("Could not validate right now. Try again.");
-    return false;
-  }
-
-  function StatusChip() {
-    if (guest) {
-      return (
-        <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200">
-          Guest
-        </span>
-      );
-    }
-    if (verified) {
-      return (
-        <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200">
-          {teacher ? "Teacher ✓" : "Verified ✓"}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-800 dark:text-slate-200">
-        Unverified
-      </span>
-    );
-  }
-
-  function ControlsContent({ compact = false } = {}) {
-    return (
-      <>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-black text-slate-950 dark:text-white">Prompt Builder</h1>
-            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-              Pick options → Elora generates. Chat is for refinement.
-            </p>
-            {role === "student" ? (
-              <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                Tutor mode: you attempt first. Elora guides with hints (up to 3 attempts).
-              </div>
-            ) : null}
-          </div>
-
-          <div className="shrink-0">
-            <StatusChip />
-          </div>
-        </div>
-
-        {!compact ? (
-          <div className="mt-5">
-            <RoleIllustration role={role} />
-          </div>
-        ) : null}
-
-        <div className="mt-5">
-          <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {["student", "parent", "educator"].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => {
-                  if (r === "educator" && !teacher) {
-                    setTeacherGateOpen(true);
-                    return;
-                  }
-                  setRole(r);
-                }}
-                className={cn(
-                  "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
-                  role === r
-                    ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
-                    : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40"
-                )}
-              >
-                {r === "educator" ? "Educator" : r === "student" ? "Student" : "Parent"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
-            <select
-              value={subject}
-              onChange={(e) => {
-                setSubject(e.target.value);
-                resetTutorAttempts();
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            >
-              {SUBJECT_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-bold text-slate-900 dark:text-white">Topic</label>
-            <select
-              value={topicPreset}
-              onChange={(e) => {
-                setTopicPreset(e.target.value);
-                resetTutorAttempts();
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            >
-              {(topicPresets || []).map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-              <option value={CUSTOM_TOPIC_VALUE}>Custom…</option>
-            </select>
-
-            {isCustomTopic ? (
-              <input
-                value={topicCustom}
-                onChange={(e) => {
-                  setTopicCustom(e.target.value);
-                  resetTutorAttempts();
-                }}
-                className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                placeholder="Type a custom topic (e.g., Mixed numbers)"
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setShowMoreOptions((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 px-4 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40"
-          >
-            {showMoreOptions ? "Hide options" : "More options"}
-            <span className="text-xs opacity-70">(country, level, constraints)</span>
-          </button>
-
-          {showMoreOptions ? (
-            <div className="mt-4 grid gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Country / Region</label>
-                  <select
-                    value={country}
-                    onChange={(e) => {
-                      setCountry(e.target.value);
-                      resetTutorAttempts();
-                    }}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Level</label>
-                  <select
-                    value={level}
-                    onChange={(e) => {
-                      setLevel(e.target.value);
-                      resetTutorAttempts();
-                    }}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {levelOptions.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-slate-900 dark:text-white">Constraints (optional)</label>
-                <textarea
-                  value={constraints}
-                  onChange={(e) => setConstraints(e.target.value)}
-                  rows={3}
-                  className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  placeholder="e.g., 45 minutes, mixed ability, include SEN/EAL support"
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-6">
-          <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
-          <div className="mt-2 grid gap-2 md:grid-cols-2">
-            {(ROLE_QUICK_ACTIONS[role] || []).map((a) => {
-              const disabled =
-                (guest && (a.id === "assessment" || a.id === "slides")) ||
-                (role === "educator" && !teacher);
-
-              const active = action === a.id;
-
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => {
-                    setAction(a.id);
-                    resetTutorAttempts();
-                  }}
-                  disabled={disabled}
-                  className={cn(
-                    "rounded-2xl border p-4 text-left transition",
-                    active
-                      ? "border-indigo-500/50 bg-indigo-600/10 shadow-lg shadow-indigo-500/10"
-                      : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 hover:bg-white dark:hover:bg-slate-950/40",
-                    disabled ? "opacity-50 cursor-not-allowed" : ""
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
-                    {disabled ? (
-                      <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              resetTutorAttempts();
-              setMobileControlsOpen(false);
-              // NOTE: generation happens via chat; we keep this button for future “generate pack” flow.
-              setMessages((m) => [
-                ...m,
-                { from: "elora", text: "Type what you want in chat (bottom). Use chips to refine." },
-              ]);
-            }}
-            disabled={loading}
-            className={cn(
-              "mt-5 w-full rounded-full px-6 py-3 font-extrabold text-white shadow-xl shadow-indigo-500/20",
-              loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
-            )}
-          >
-            {loading ? "Generating…" : "Ready — use chat"}
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  const workspaceStyle = { height: "calc(100vh - var(--elora-nav-height) - 24px - 64px)" };
+  const workspaceStyle = {
+    height: "calc((var(--elora-vh, 1vh) * 100) - var(--elora-nav-height) - 24px - 64px)",
+  };
 
   return (
     <div style={workspaceStyle} className="overflow-hidden">
       <div className="h-full grid gap-5 lg:grid-cols-[360px,1fr]">
-        <div className="hidden lg:block h-full overflow-y-auto">
-          <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/35 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 p-5">
-            <ControlsContent />
-          </div>
-        </div>
-
-        <div className="h-full rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/35 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 p-5 flex flex-col min-h-0">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
-              <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                {country} • {level} • {subject} • <span className="font-semibold">{role}</span> •{" "}
-                <span className="font-semibold">{topicEffective}</span>
-                {role === "student" ? (
-                  <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
-                    Attempts: {Math.min(3, attempt)}/3
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="lg:hidden">
-                <button
-                  type="button"
-                  onClick={() => setMobileControlsOpen(true)}
-                  className="rounded-full px-4 py-2 text-sm font-extrabold border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40"
-                >
-                  Customize
-                </button>
-              </div>
-              <div className="hidden sm:block">
-                <StatusChip />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 relative flex-1 min-h-0">
-            <div ref={chatScrollRef} onScroll={onChatScroll} className="absolute inset-0 overflow-y-auto pr-1">
-              <div className="space-y-3">
-                {messages.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={cn(
-                      "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                      m.from === "user"
-                        ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                        : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10"
-                    )}
-                  >
-                    {m.from === "user" ? (
-                      m.text
-                    ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {stripInternalTags(m.text)}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                ))}
-
-                {loading ? (
-                  <div className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
-                    Elora is thinking…
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {!isNearBottom ? (
-              <button
-                type="button"
-                onClick={scrollToBottom}
-                className="absolute bottom-3 right-3 rounded-full px-4 py-2 text-xs font-extrabold border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-slate-950/60 text-slate-900 dark:text-white shadow-lg"
-              >
-                Jump to latest
-              </button>
-            ) : null}
-          </div>
-
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-            {chips.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => refine(t)}
-                disabled={loading}
-                className="shrink-0 rounded-full px-3 py-2 text-xs font-bold border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/40 disabled:opacity-50"
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 flex items-end gap-2">
-            <textarea
-              value={chatText}
-              onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendChat();
-                }
-              }}
-              rows={2}
-              placeholder="Ask Elora to refine, explain, or guide your next attempt…"
-              className="flex-1 min-h-[48px] max-h-36 rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            />
-            <button
-              type="button"
-              onClick={sendChat}
-              disabled={loading}
-              className={cn(
-                "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
-                loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
-              )}
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {mobileControlsOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onMouseDown={() => setMobileControlsOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 p-3">
-            <div
-              className="w-full rounded-2xl border border-white/10 bg-white/90 dark:bg-slate-950/80 backdrop-blur-xl shadow-2xl overflow-hidden"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+        {/* LEFT (desktop) */}
+        <div className="hidden lg:block h-full min-h-0">
+          <div className="h-full rounded-2xl border border-white/10 bg-slate-950/30 backdrop-blur-xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-white/10">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-base font-black text-slate-950 dark:text-white">Customize</div>
-                  <div className="text-xs text-slate-600 dark:text-slate-300">
-                    This panel scrolls. Chat stays separate.
+                  <div className="text-xl font-semibold text-white">Assistant</div>
+                  <div className="text-sm text-white/70">
+                    Clear, calm help for educators and learners. No scary math symbols by default.
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileControlsOpen(false)}
-                  className="rounded-xl px-3 py-2 text-sm font-bold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-white"
-                >
-                  Close
-                </button>
+
+                <div className="inline-flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold",
+                      teacher ? "bg-emerald-500/15 text-emerald-200 border border-emerald-500/30" : "bg-amber-500/15 text-amber-200 border border-amber-500/30"
+                    )}
+                  >
+                    <span className={cn("h-2 w-2 rounded-full", teacher ? "bg-emerald-400" : "bg-amber-400")} />
+                    {teacher ? "Verified" : "Account"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto elora-scroll h-full">
+              {/* Role */}
+              <div>
+                <div className="text-sm font-bold text-white">Role</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {["student", "educator", "parent"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setRole(r);
+                        resetTutorAttempts();
+                      }}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                        role === r
+                          ? "border-indigo-400/40 bg-indigo-500/10 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.25)]"
+                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                      )}
+                    >
+                      {r === "educator" ? "Educator" : r === "student" ? "Student" : "Parent"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="px-4 pb-4 max-h-[75vh] overflow-y-auto">
-                <ControlsContent compact />
+              {/* Subject + Topic */}
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-bold text-white">Subject</label>
+                  <select
+                    value={subject}
+                    onChange={(e) => {
+                      const nextSubject = e.target.value;
+                      setSubject(nextSubject);
+                      const presets = TOPIC_PRESETS_BY_SUBJECT[nextSubject] || TOPIC_PRESETS_BY_SUBJECT.Other || [];
+                      // Move to the first preset topic when switching subjects (keeps it 'fixed').
+                      if (topicPreset !== CUSTOM_TOPIC_VALUE) {
+                        setTopicPreset(presets[0] || CUSTOM_TOPIC_VALUE);
+                      }
+                      resetTutorAttempts();
+                    }}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {SUBJECT_OPTIONS.map((s) => (
+                      <option key={s} value={s} className="text-slate-900">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-white">Topic</label>
+                  <select
+                    value={topicPreset}
+                    onChange={(e) => {
+                      setTopicPreset(e.target.value);
+                      resetTutorAttempts();
+                    }}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {(topicPresets || []).map((t) => (
+                      <option key={t} value={t} className="text-slate-900">
+                        {t}
+                      </option>
+                    ))}
+                    <option value={CUSTOM_TOPIC_VALUE} className="text-slate-900">
+                      Custom…
+                    </option>
+                  </select>
+
+                  {isCustomTopic ? (
+                    <input
+                      value={topicCustom}
+                      onChange={(e) => setTopicCustom(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      placeholder="Type a custom topic (e.g., Mixed numbers)"
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              {/* More options (collapsed) */}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreOptions((v) => !v)}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+                >
+                  {showMoreOptions ? "Hide options" : "More options"}
+                  <span className="text-xs opacity-70">(country, level, constraints)</span>
+                </button>
+
+                {showMoreOptions ? (
+                  <div className="mt-4 grid gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-bold text-white">Country / Region</label>
+                        <select
+                          value={country}
+                          onChange={(e) => {
+                            setCountry(e.target.value);
+                            resetTutorAttempts();
+                          }}
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                        >
+                          {COUNTRY_OPTIONS.map((c) => (
+                            <option key={c} value={c} className="text-slate-900">
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-bold text-white">Level</label>
+                        <select
+                          value={level}
+                          onChange={(e) => {
+                            setLevel(e.target.value);
+                            resetTutorAttempts();
+                          }}
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                        >
+                          {levelOptions.map((l) => (
+                            <option key={l} value={l} className="text-slate-900">
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-white">What should Elora do?</label>
+                      <input
+                        value={customGoal}
+                        onChange={(e) => setCustomGoal(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-indigo-500/40"
+                        placeholder="Optional: override the goal (e.g., 'Help me teach this with 3 examples')"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={constraints.avoidLatex}
+                          onChange={(e) => setConstraints((s) => ({ ...s, avoidLatex: e.target.checked }))}
+                        />
+                        Avoid LaTeX
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={constraints.friendlyTone}
+                          onChange={(e) => setConstraints((s) => ({ ...s, friendlyTone: e.target.checked }))}
+                        />
+                        Friendly tone
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={constraints.showSteps}
+                          onChange={(e) => setConstraints((s) => ({ ...s, showSteps: e.target.checked }))}
+                        />
+                        Show steps
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={constraints.includeChecks}
+                          onChange={(e) => setConstraints((s) => ({ ...s, includeChecks: e.target.checked }))}
+                        />
+                        Checks
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Quick actions */}
+              <div className="mt-6">
+                <div className="text-sm font-bold text-white">Quick actions</div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {(ROLE_QUICK_ACTIONS[role] || []).map((a) => {
+                    const disabled =
+                      (guest && (a.id === "assessment" || a.id === "slides")) ||
+                      (role === "educator" && !teacher);
+                    const active = action === a.id;
+
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setAction(a.id);
+                          resetTutorAttempts();
+                        }}
+                        disabled={disabled}
+                        className={cn(
+                          "rounded-2xl border px-4 py-4 text-left transition",
+                          active
+                            ? "border-indigo-400/40 bg-indigo-500/10 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.22)]"
+                            : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10",
+                          disabled ? "opacity-50 cursor-not-allowed" : ""
+                        )}
+                      >
+                        <div className="text-base font-semibold">{a.title}</div>
+                        <div className="text-sm opacity-80">{a.subtitle}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {role === "educator" && !teacher ? (
+                  <div className="mt-3 text-xs text-white/70">
+                    Educator tools (quiz/slides) require a teacher invite code.
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Guest / teacher gate controls */}
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm font-bold text-white">Access</div>
+                <div className="mt-2 text-sm text-white/75">
+                  Teacher invite unlocks educator-only features. Guest mode is limited.
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerifyGateOpen(true)}
+                    className="rounded-full border border-indigo-400/40 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500/15 transition"
+                  >
+                    Enter teacher code
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuest(true);
+                      setVerifyGateOpen(false);
+                      setMessages((m) => [...m, { from: "elora", text: "Guest mode enabled. You can use Elora (limited)." }]);
+                    }}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+                  >
+                    Use as guest
+                  </button>
+
+                  {guest ? (
+                    <button
+                      type="button"
+                      onClick={() => setGuest(false)}
+                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+                    >
+                      Disable guest
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      ) : null}
 
-      <Modal open={verifyGateOpen} title="Verify to unlock everything" onClose={() => setVerifyGateOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Verification unlocks educator tools and exports. Your status stays saved across refreshes.
+        {/* RIGHT: Chat */}
+        <div className="h-full min-h-0">
+          <div className="h-full rounded-2xl border border-white/10 bg-slate-950/30 backdrop-blur-xl shadow-2xl overflow-hidden relative">
+            {/* Chat header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="hidden sm:block">
+                  <RoleIllustration role={role} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-white truncate">
+                    {formatRoleLabel(role)} • {subject} • {topicEffective}
+                  </div>
+                  <div className="text-xs text-white/70 truncate">
+                    {country} · {level} · {guest ? "Guest" : teacher ? "Verified" : "Account"}
+                  </div>
+                </div>
+              </div>
+
+              {!isNearBottom ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    scrollToBottom();
+                    setIsNearBottom(true);
+                  }}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/10 transition"
+                >
+                  Jump to latest
+                </button>
+              ) : (
+                <span className="text-xs text-white/60">{loading ? "Thinking…" : "Ready"}</span>
+              )}
+            </div>
+
+            {/* Chat scroll area */}
+            <div className="absolute inset-x-0 top-[61px] bottom-[96px]">
+              <div ref={chatScrollRef} onScroll={onChatScroll} className="absolute inset-0 overflow-y-auto pr-1 elora-scroll">
+                <div className="space-y-3 p-4">
+                  {messages.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "max-w-[92%] rounded-2xl px-4 py-3 border shadow-sm",
+                        m.from === "user"
+                          ? "ml-auto bg-indigo-500/10 border-indigo-400/25 text-white"
+                          : "mr-auto bg-white/5 border-white/10 text-white"
+                      )}
+                    >
+                      <div className="text-xs font-semibold mb-1 opacity-70">
+                        {m.from === "user" ? "You" : "Elora"}
+                      </div>
+                      <div className="prose prose-invert prose-p:leading-relaxed prose-a:text-indigo-300 max-w-none text-[15px]">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                  {loading ? (
+                    <div className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 border bg-white/5 border-white/10 text-white">
+                      <div className="text-xs font-semibold mb-1 opacity-70">Elora</div>
+                      <div className="text-[15px] text-white/80">Thinking…</div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {/* Refinement chips */}
+            <div className="absolute inset-x-0 bottom-[56px] border-t border-white/10 bg-slate-950/20 backdrop-blur-xl">
+              <div className="flex items-center gap-2 overflow-x-auto p-3 elora-scroll">
+                {chips.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => refine(c)}
+                    className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/85 hover:bg-white/10 transition"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input */}
+            <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-slate-950/30 backdrop-blur-xl">
+              <div className="p-3 flex items-end gap-2">
+                <textarea
+                  value={chatText}
+                  onChange={(e) => setChatText(e.target.value)}
+                  placeholder='Try: "Explain 5 divided by 4" or "Rewrite this paragraph to sound clearer".'
+                  className="h-[42px] max-h-[120px] w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/45 outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      callElora();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={loading || !chatText.trim()}
+                  onClick={() => callElora()}
+                  className={cn(
+                    "rounded-xl px-4 py-2 text-sm font-semibold transition border",
+                    loading || !chatText.trim()
+                      ? "border-white/10 bg-white/5 text-white/40 cursor-not-allowed"
+                      : "border-indigo-400/40 bg-indigo-500/10 text-white hover:bg-indigo-500/15"
+                  )}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile: compact controls */}
+          <div className="lg:hidden mt-4 rounded-2xl border border-white/10 bg-slate-950/30 backdrop-blur-xl shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="text-sm font-bold text-white">Controls</div>
+              <button
+                type="button"
+                onClick={() => setShowMoreOptions((v) => !v)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/85 hover:bg-white/10 transition"
+              >
+                {showMoreOptions ? "Hide" : "More"}
+              </button>
+            </div>
+
+            <div className="p-4 grid gap-4">
+              <div>
+                <div className="text-sm font-bold text-white">Role</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {["student", "educator", "parent"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setRole(r);
+                        resetTutorAttempts();
+                      }}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                        role === r
+                          ? "border-indigo-400/40 bg-indigo-500/10 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.25)]"
+                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                      )}
+                    >
+                      {r === "educator" ? "Educator" : r === "student" ? "Student" : "Parent"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-bold text-white">Subject</label>
+                  <select
+                    value={subject}
+                    onChange={(e) => {
+                      const nextSubject = e.target.value;
+                      setSubject(nextSubject);
+                      const presets = TOPIC_PRESETS_BY_SUBJECT[nextSubject] || TOPIC_PRESETS_BY_SUBJECT.Other || [];
+                      if (topicPreset !== CUSTOM_TOPIC_VALUE) {
+                        setTopicPreset(presets[0] || CUSTOM_TOPIC_VALUE);
+                      }
+                      resetTutorAttempts();
+                    }}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {SUBJECT_OPTIONS.map((s) => (
+                      <option key={s} value={s} className="text-slate-900">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-white">Topic</label>
+                  <select
+                    value={topicPreset}
+                    onChange={(e) => {
+                      setTopicPreset(e.target.value);
+                      resetTutorAttempts();
+                    }}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {(topicPresets || []).map((t) => (
+                      <option key={t} value={t} className="text-slate-900">
+                        {t}
+                      </option>
+                    ))}
+                    <option value={CUSTOM_TOPIC_VALUE} className="text-slate-900">
+                      Custom…
+                    </option>
+                  </select>
+
+                  {isCustomTopic ? (
+                    <input
+                      value={topicCustom}
+                      onChange={(e) => setTopicCustom(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      placeholder="Type a custom topic"
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-bold text-white">Quick actions</div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {(ROLE_QUICK_ACTIONS[role] || []).map((a) => {
+                    const disabled =
+                      (guest && (a.id === "assessment" || a.id === "slides")) ||
+                      (role === "educator" && !teacher);
+                    const active = action === a.id;
+
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setAction(a.id);
+                          resetTutorAttempts();
+                        }}
+                        disabled={disabled}
+                        className={cn(
+                          "rounded-2xl border px-4 py-4 text-left transition",
+                          active
+                            ? "border-indigo-400/40 bg-indigo-500/10 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.22)]"
+                            : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10",
+                          disabled ? "opacity-50 cursor-not-allowed" : ""
+                        )}
+                      >
+                        <div className="text-base font-semibold">{a.title}</div>
+                        <div className="text-sm opacity-80">{a.subtitle}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {showMoreOptions ? (
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-bold text-white">Country / Region</label>
+                      <select
+                        value={country}
+                        onChange={(e) => {
+                          setCountry(e.target.value);
+                          resetTutorAttempts();
+                        }}
+                        className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      >
+                        {COUNTRY_OPTIONS.map((c) => (
+                          <option key={c} value={c} className="text-slate-900">
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-white">Level</label>
+                      <select
+                        value={level}
+                        onChange={(e) => {
+                          setLevel(e.target.value);
+                          resetTutorAttempts();
+                        }}
+                        className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      >
+                        {levelOptions.map((l) => (
+                          <option key={l} value={l} className="text-slate-900">
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={constraints.avoidLatex}
+                        onChange={(e) => setConstraints((s) => ({ ...s, avoidLatex: e.target.checked }))}
+                      />
+                      Avoid LaTeX
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={constraints.friendlyTone}
+                        onChange={(e) => setConstraints((s) => ({ ...s, friendlyTone: e.target.checked }))}
+                      />
+                      Friendly tone
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={constraints.showSteps}
+                        onChange={(e) => setConstraints((s) => ({ ...s, showSteps: e.target.checked }))}
+                      />
+                      Show steps
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={constraints.includeChecks}
+                        onChange={(e) => setConstraints((s) => ({ ...s, includeChecks: e.target.checked }))}
+                      />
+                      Checks
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm font-bold text-white">Access</div>
+                <div className="mt-2 text-sm text-white/75">
+                  Teacher invite unlocks educator-only features. Guest mode is limited.
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerifyGateOpen(true)}
+                    className="rounded-full border border-indigo-400/40 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500/15 transition"
+                  >
+                    Enter teacher code
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuest(true);
+                      setVerifyGateOpen(false);
+                      setMessages((m) => [...m, { from: "elora", text: "Guest mode enabled. You can use Elora (limited)." }]);
+                    }}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+                  >
+                    Use as guest
+                  </button>
+
+                  {guest ? (
+                    <button
+                      type="button"
+                      onClick={() => setGuest(false)}
+                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+                    >
+                      Disable guest
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-4 grid gap-2">
-          <a
-            href="/verify"
-            className="w-full block text-center px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-          >
-            Go to verification
-          </a>
-
-          <button
-            type="button"
-            className="w-full px-5 py-3 rounded-xl font-bold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/45"
-            onClick={() => {
-              safeSetGuest();
-              setVerifyGateOpen(false);
-              setRole("student");
-              setMessages((m) => [
-                ...m,
-                { from: "elora", text: "Guest mode enabled. You can use Elora (limited). Verify anytime to unlock everything." },
-              ]);
-            }}
-          >
-            Continue as Guest (limited)
-          </button>
-        </div>
-
-        <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-          Guest limits: no assessments, no slides, limited exports.
-        </div>
-      </Modal>
-
-      <Modal open={teacherGateOpen} title="Teacher invite required" onClose={() => setTeacherGateOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Educator tools are locked until you enter a valid teacher invite code.
-        </div>
-
-        <div className="mt-4">
-          <label className="text-sm font-bold text-slate-900 dark:text-white">Teacher invite code</label>
-          <input
-            value={inviteInput}
-            onChange={(e) => setInviteInput(e.target.value)}
-            placeholder="e.g., GENESIS2026"
-            className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-          />
-        </div>
-
-        {teacherGateStatus ? (
-          <div className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-200">{teacherGateStatus}</div>
-        ) : null}
-
-        <div className="mt-3 grid gap-2">
-          <button
-            type="button"
-            className="w-full px-5 py-3 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-            onClick={async () => {
-              const ok = await validateAndActivateInvite(inviteInput);
-              if (!ok) return;
-              setInviteInput("");
-              setTeacherGateOpen(false);
-              setRole("educator");
-            }}
-          >
-            Validate & enable Educator mode
-          </button>
-
-          <button
-            type="button"
-            className="w-full px-5 py-3 rounded-xl font-bold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/45"
-            onClick={() => {
-              setTeacherGateOpen(false);
-              setRole("student");
-            }}
-          >
-            I’m not a teacher (switch to Student)
-          </button>
-        </div>
-
-        <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-          Security note: the server validates the invite and issues a signed cookie. The UI can’t “fake” teacher access.
-        </div>
-      </Modal>
+        <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)} title="Teacher invite code">
+          <div className="space-y-3">
+            <div className="text-sm text-slate-700 dark:text-white/75">
+              Enter your teacher invite code to unlock educator tools (quizzes, rubrics, lesson planning).
+            </div>
+            <input
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="e.g., ELORA-TEACHER"
+              className="w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-slate-950/40 px-3 py-3 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            />
+            {inviteErr ? <div className="text-sm text-rose-500">{inviteErr}</div> : null}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={submitInvite}
+                className="rounded-xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-slate-900 dark:text-white hover:bg-indigo-500/15 transition"
+              >
+                Unlock
+              </button>
+              <button
+                type="button"
+                onClick={() => setVerifyGateOpen(false)}
+                className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-slate-950/40 px-4 py-2 text-sm font-semibold text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-950/60 transition"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="text-xs text-slate-600 dark:text-white/60">
+              In the next batch we’ll move this to backend validation + persistent role, so it’s secure.
+            </div>
+          </div>
+        </Modal>
+      </div>
     </div>
   );
 }

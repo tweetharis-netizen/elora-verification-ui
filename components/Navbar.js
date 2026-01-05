@@ -17,7 +17,10 @@ export default function Navbar() {
   useEffect(() => {
     let mounted = true;
 
-    const onSession = () => mounted && setSession(getSession());
+    const onSession = () => {
+      if (!mounted) return;
+      setSession(getSession());
+    };
     window.addEventListener("elora:session", onSession);
 
     refreshVerifiedFromServer().then(() => {
@@ -37,152 +40,126 @@ export default function Navbar() {
     };
   }, []);
 
-  const canLogout = useMemo(() => hasSessionFn(), [session.verified, session.teacher, session.hasSession]);
   const verified = Boolean(session.verified);
+  const canLogout = useMemo(() => hasSessionFn(), [session.verified, session.teacher, session.hasSession]);
   const teacher = Boolean(session.teacher);
 
-  const dotClass = verified
-    ? "elora-dot elora-dot-good"
-    : canLogout
-    ? "elora-dot elora-dot-warn"
-    : "elora-dot";
+  const dotClass = verified ? "elora-dot elora-dot-good" : "elora-dot";
 
-  const accountLabel = verified ? "Verified" : canLogout ? "Account" : "Guest";
+  const accountLabel = verified ? "Verified" : canLogout ? "Not verified" : "Guest";
 
   return (
     <div className="elora-nav">
       <div className="mx-auto max-w-[1120px] px-4 pt-4">
         <div className="elora-navbar">
           <Link href="/" className="flex items-center gap-3 no-underline text-[inherit]">
-            <div className="w-9 h-9 rounded-xl grid place-items-center border border-[var(--line)] bg-[color-mix(in_oklab,var(--surface2)_72%,transparent)] font-black">
+            <div className="w-9 h-9 rounded-xl grid place-items-center bg-[color-mix(in_oklab,var(--surface)_72%,transparent)] font-black">
               E
             </div>
             <div className="leading-tight">
               <div className="font-black">Elora</div>
-              <div className="text-xs elora-muted">Education assistant</div>
+              <div className="text-xs text-[var(--muted)]">Verification + Assistant</div>
             </div>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden sm:flex items-center gap-6">
-            <Link className="elora-navlink" href="/">Home</Link>
-            <Link className="elora-navlink" href="/assistant">Assistant</Link>
-            <Link className="elora-navlink" href="/help">Help</Link>
-            <Link className="elora-navlink" href="/settings">Settings</Link>
-          </div>
-
-          {/* Right controls */}
           <div className="flex items-center gap-2">
-            {/* Mobile hamburger */}
-            <div className="sm:hidden relative" ref={mobileRef}>
-              <button
-                className="elora-hamburger"
-                type="button"
-                onClick={() => setMobileOpen((v) => !v)}
-                aria-label="Open menu"
-              >
-                <span className={dotClass} />
-                Menu
-                <span className="elora-hamburger-icon" aria-hidden="true" />
-              </button>
-
-              {mobileOpen && (
-                <div className="elora-mobile-menu" role="menu" aria-label="Mobile navigation">
-                  <Link className="elora-account-item" href="/" onClick={() => setMobileOpen(false)}>
-                    Home
-                  </Link>
-                  <Link className="elora-account-item" href="/assistant" onClick={() => setMobileOpen(false)}>
-                    Assistant
-                  </Link>
-                  <Link className="elora-account-item" href="/help" onClick={() => setMobileOpen(false)}>
-                    Help
-                  </Link>
-                  <Link className="elora-account-item" href="/settings" onClick={() => setMobileOpen(false)}>
-                    Settings
-                  </Link>
-
-                  <div className="elora-divider" />
-
-                  {!verified && (
-                    <Link className="elora-account-item" href="/verify" onClick={() => setMobileOpen(false)}>
-                      Verify email
-                    </Link>
-                  )}
-
-                  {teacher && (
-                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setMobileOpen(false)}>
-                      Teacher tools
-                    </Link>
-                  )}
-
-                  {canLogout && (
-                    <>
-                      <div className="elora-divider" />
-                      <button
-                        className="elora-account-item danger"
-                        onClick={async () => {
-                          setMobileOpen(false);
-                          await logout();
-                          if (typeof window !== "undefined") window.location.href = "/";
-                        }}
-                        type="button"
-                      >
-                        Log out
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+            <div className="hidden md:flex items-center gap-2">
+              <Link href="/verify" className="elora-navlink">
+                Verify
+              </Link>
+              <Link href="/assistant" className="elora-navlink">
+                Assistant
+              </Link>
+              <Link href="/settings" className="elora-navlink">
+                Settings
+              </Link>
+              <Link href="/help" className="elora-navlink">
+                Help
+              </Link>
             </div>
 
-            {/* Account dropdown (desktop) */}
-            <div className="hidden sm:block relative" ref={accountRef}>
-              <button className="elora-account" onClick={() => setAccountOpen((v) => !v)} type="button">
+            <div className="relative" ref={accountRef}>
+              <button
+                className="elora-account"
+                onClick={() => setAccountOpen((v) => !v)}
+                aria-label="Account menu"
+              >
                 <span className={dotClass} />
-                {accountLabel}
+                <span className="text-sm font-semibold">{accountLabel}</span>
+                {teacher ? (
+                  <span className="ml-2 text-xs px-2 py-1 rounded-full bg-[color-mix(in_oklab,var(--accent)_18%,transparent)] text-[color-mix(in_oklab,var(--text)_92%,white)]">
+                    Teacher
+                  </span>
+                ) : null}
               </button>
 
-              {accountOpen && (
-                <div className="elora-account-menu">
-                  {!verified && (
-                    <Link className="elora-account-item" href="/verify" onClick={() => setAccountOpen(false)}>
+              {accountOpen ? (
+                <div className="elora-menu">
+                  <div className="px-3 py-2 text-sm">
+                    <div className="font-semibold">Account</div>
+                    <div className="text-[var(--muted)]">
+                      {verified ? "Email verified" : canLogout ? "Not verified yet" : "Browsing as guest"}
+                    </div>
+                  </div>
+                  <div className="h-px bg-[var(--line)]" />
+                  <Link href="/settings" className="elora-menuitem" onClick={() => setAccountOpen(false)}>
+                    Settings
+                  </Link>
+                  <Link href="/help" className="elora-menuitem" onClick={() => setAccountOpen(false)}>
+                    Help
+                  </Link>
+                  <Link href="/assistant" className="elora-menuitem" onClick={() => setAccountOpen(false)}>
+                    Assistant
+                  </Link>
+                  <div className="h-px bg-[var(--line)]" />
+                  {canLogout ? (
+                    <button
+                      className="elora-menuitem text-left w-full"
+                      onClick={async () => {
+                        setAccountOpen(false);
+                        await logout();
+                        setSession(getSession());
+                      }}
+                    >
+                      Logout
+                    </button>
+                  ) : (
+                    <Link href="/verify" className="elora-menuitem" onClick={() => setAccountOpen(false)}>
                       Verify email
                     </Link>
                   )}
-
-                  {teacher && (
-                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setAccountOpen(false)}>
-                      Teacher tools
-                    </Link>
-                  )}
-
-                  <Link className="elora-account-item" href="/settings" onClick={() => setAccountOpen(false)}>
-                    Preferences
-                  </Link>
-
-                  {canLogout && (
-                    <>
-                      <div className="elora-divider" />
-                      <button
-                        className="elora-account-item danger"
-                        onClick={async () => {
-                          setAccountOpen(false);
-                          await logout();
-                          if (typeof window !== "undefined") window.location.href = "/";
-                        }}
-                        type="button"
-                      >
-                        Log out
-                      </button>
-                    </>
-                  )}
                 </div>
-              )}
+              ) : null}
+            </div>
+
+            <div className="relative md:hidden" ref={mobileRef}>
+              <button className="elora-hamburger" onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
+                <span />
+                <span />
+                <span />
+              </button>
+
+              {mobileOpen ? (
+                <div className="elora-menu right-0">
+                  <Link href="/verify" className="elora-menuitem" onClick={() => setMobileOpen(false)}>
+                    Verify
+                  </Link>
+                  <Link href="/assistant" className="elora-menuitem" onClick={() => setMobileOpen(false)}>
+                    Assistant
+                  </Link>
+                  <Link href="/settings" className="elora-menuitem" onClick={() => setMobileOpen(false)}>
+                    Settings
+                  </Link>
+                  <Link href="/help" className="elora-menuitem" onClick={() => setMobileOpen(false)}>
+                    Help
+                  </Link>
+                </div>
+              ) : null}
             </div>
 
             {/* Desktop status chip (optional, compact) */}
             <div className="hidden sm:flex">
-              <span className={clsx("elora-chip", verified ? "elora-chip-ok" : "")} data-variant={verified ? "good" : "warn"}>
+              <span className={clsx("elora-chip", verified ? "elora-chip-ok" : "")} data-variant={verified ? "good" : "neutral"}>
                 {verified ? "Verified" : "Not verified"}
               </span>
             </div>

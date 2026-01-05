@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   activateTeacher,
@@ -35,6 +36,7 @@ export default function SettingsPage() {
       const next = getSession();
       setVerifiedState(Boolean(next.verified));
       setTeacherState(Boolean(next.teacher));
+      setInviteCode(next.teacherCode || "");
     });
   }, []);
 
@@ -74,7 +76,7 @@ export default function SettingsPage() {
       }
       setTeacherCode(trimmed);
       setTeacherState(true);
-      setMsg("Teacher tools unlocked.");
+      setMsg("Teacher tools unlocked ✅");
     } finally {
       setBusy(false);
     }
@@ -94,167 +96,190 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[980px] px-4">
-      <div className="elora-card relative overflow-hidden p-6 md:p-8">
-        <div className="elora-grain" />
-
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="elora-h1 text-4xl md:text-5xl">Settings</h1>
-            <p className="elora-muted mt-2 max-w-[62ch]">
-              Make Elora comfortable to use on any device. Verification is checked from the server.
-            </p>
+    <div className="elora-page">
+      <div className="elora-container">
+        <div className="elora-card relative overflow-hidden p-6 md:p-8">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -inset-24 bg-gradient-to-br from-indigo-500/15 via-sky-400/10 to-fuchsia-500/15 blur-3xl" />
+            <div className="absolute inset-0 elora-grain" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="elora-chip" data-variant={verified ? "good" : "warn"}>
-              {verified ? "Verified" : "Not verified"}
-            </span>
-            <span className="elora-chip" data-variant={teacher ? "good" : "warn"}>
-              {teacher ? "Teacher tools" : "Teacher locked"}
-            </span>
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="elora-h1 text-4xl md:text-5xl font-black">Settings</h1>
+              <p className="elora-muted mt-2 max-w-[66ch]">
+                Clean, calm preferences that apply across Elora.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="elora-chip" data-variant={verified ? "good" : "warn"}>
+                {verified ? "Email verified" : "Not verified"}
+              </span>
+              <span className="elora-chip" data-variant={teacher ? "good" : "warn"}>
+                {teacher ? "Teacher unlocked" : "Teacher locked"}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          {/* Preferences */}
-          <section className="elora-card p-5 md:p-6">
-            <h2 className="text-lg font-extrabold">Preferences</h2>
-            <p className="elora-muted mt-1 text-sm">Theme and font size apply across the whole UI.</p>
-
-            <div className="mt-5">
-              <div className="text-sm font-extrabold">Theme</div>
-              <div className="mt-3 elora-segmented" role="tablist" aria-label="Theme">
-                {[
-                  { id: "system", label: "System" },
-                  { id: "dark", label: "Dark" },
-                  { id: "light", label: "Light" },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    className={t.id === theme ? "active" : ""}
-                    onClick={() => onTheme(t.id)}
-                    type="button"
-                  >
-                    {t.label}
-                  </button>
-                ))}
+          {!verified ? (
+            <div className="relative mt-6 elora-card p-4 md:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-extrabold">Verification required</div>
+                  <div className="elora-muted text-sm mt-1">
+                    Verify once and Elora stays unlocked across refreshes.
+                  </div>
+                </div>
+                <Link className="elora-btn elora-btn-primary" href="/verify">
+                  Verify email
+                </Link>
               </div>
             </div>
+          ) : null}
 
-            <div className="mt-6">
-              <div className="text-sm font-extrabold">Font size</div>
-              <div className="elora-muted mt-1 text-sm">
-                Scales the entire interface (use this on small screens).
-              </div>
-
-              <input
-                className="mt-4 w-full"
-                type="range"
-                min={0.85}
-                max={1.4}
-                step={0.01}
-                value={scale}
-                onChange={(e) => onScale(e.target.value)}
-              />
-              <div className="mt-2 text-sm">
-                Scale: <span className="font-extrabold">{scale.toFixed(2)}x</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Access */}
-          <section className="elora-card p-5 md:p-6">
-            <h2 className="text-lg font-extrabold">Access</h2>
-            <p className="elora-muted mt-1 text-sm">
-              Educator mode in the Assistant requires verification. Teacher tools are optional.
-            </p>
-
-            <div className="mt-5 grid gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-extrabold">Educator mode</div>
-                <span className="elora-chip" data-variant={verified ? "good" : "warn"}>
-                  {verified ? "Enabled" : "Verify first"}
-                </span>
-              </div>
-
-              <div className="elora-muted text-sm">
-                Educator mode helps with lesson planning and materials. We enable it after verification to reduce abuse.
-              </div>
-
-              <div className="mt-4 elora-divider" />
-
-              <h3 className="text-sm font-extrabold">Teacher invite code (optional)</h3>
+          <div className="relative mt-8 grid gap-6 lg:grid-cols-2">
+            {/* Preferences */}
+            <section className="elora-card p-5 md:p-6">
+              <h2 className="text-lg font-extrabold">Preferences</h2>
               <p className="elora-muted mt-1 text-sm">
-                Unlock teacher-only tools (exports, teacher dashboard). Not required for Educator mode.
+                Theme and font size apply across the whole UI.
               </p>
 
-              <div className="mt-3 grid gap-3">
-                <input
-                  className="elora-input"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder={verified ? "Enter invite code (e.g., GENESIS2026)" : "Verify first"}
-                  disabled={!verified || busy}
-                />
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    className="elora-btn elora-btn-primary"
-                    onClick={redeem}
-                    disabled={!verified || busy}
-                    type="button"
-                  >
-                    {busy ? "Working…" : "Redeem"}
-                  </button>
-
-                  {teacher && (
+              <div className="mt-6">
+                <div className="text-sm font-extrabold">Theme</div>
+                <div className="mt-3 elora-segmented" role="tablist" aria-label="Theme">
+                  {[
+                    { id: "system", label: "System" },
+                    { id: "dark", label: "Dark" },
+                    { id: "light", label: "Light" },
+                  ].map((t) => (
                     <button
-                      className="elora-btn elora-btn-danger"
-                      onClick={clearTeacherTools}
-                      disabled={busy}
+                      key={t.id}
+                      className={t.id === theme ? "active" : ""}
+                      onClick={() => onTheme(t.id)}
                       type="button"
                     >
-                      Clear
+                      {t.label}
                     </button>
-                  )}
+                  ))}
                 </div>
-
-                {msg && <div className="text-sm font-extrabold">{msg}</div>}
               </div>
 
-              {canLogout && (
-                <>
-                  <div className="mt-6 elora-divider" />
-                  <button
-                    className="elora-btn elora-btn-danger"
-                    onClick={async () => {
-                      setMsg("");
-                      setBusy(true);
-                      try {
-                        // clear server cookies via existing route
-                        await fetch("/api/logout", { method: "POST" }).catch(() => {});
-                      } finally {
-                        // reset local UI state
-                        setRole("student");
-                        setTeacherCode("");
-                        setTeacherState(false);
-                        setVerifiedState(false);
-                        setBusy(false);
-                        setMsg("Signed out.");
-                        // hard refresh ensures all pages reflect cleared cookies
-                        if (typeof window !== "undefined") window.location.href = "/";
-                      }
-                    }}
-                    disabled={busy}
-                    type="button"
-                  >
-                    Log out
-                  </button>
-                </>
-              )}
-            </div>
-          </section>
+              <div className="mt-7">
+                <div className="text-sm font-extrabold">Font size</div>
+                <div className="elora-muted mt-1 text-sm">
+                  Use this if the UI feels too small on your device.
+                </div>
+
+                <input
+                  className="mt-4 w-full"
+                  type="range"
+                  min={0.85}
+                  max={1.4}
+                  step={0.01}
+                  value={scale}
+                  onChange={(e) => onScale(e.target.value)}
+                />
+                <div className="mt-2 text-sm">
+                  Scale: <span className="font-extrabold">{scale.toFixed(2)}x</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Access */}
+            <section className="elora-card p-5 md:p-6">
+              <h2 className="text-lg font-extrabold">Access</h2>
+              <p className="elora-muted mt-1 text-sm">
+                Teacher tools are optional and locked behind an invite code.
+              </p>
+
+              <div className="mt-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-extrabold">Teacher invite code</div>
+                  <span className="elora-chip" data-variant={teacher ? "good" : "warn"}>
+                    {teacher ? "Unlocked" : "Locked"}
+                  </span>
+                </div>
+
+                <p className="elora-muted mt-2 text-sm">
+                  Unlock teacher-only tools (exports, teacher dashboard). Not required for normal Assistant use.
+                </p>
+
+                <div className="mt-4 grid gap-3">
+                  <input
+                    className="elora-input"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder={verified ? "Enter invite code (e.g., GENESIS2026)" : "Verify first"}
+                    disabled={!verified || busy}
+                  />
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      className="elora-btn elora-btn-primary"
+                      onClick={redeem}
+                      disabled={!verified || busy}
+                      type="button"
+                    >
+                      {busy ? "Working…" : "Redeem"}
+                    </button>
+
+                    {teacher ? (
+                      <button
+                        className="elora-btn elora-btn-danger"
+                        onClick={clearTeacherTools}
+                        disabled={busy}
+                        type="button"
+                      >
+                        Clear teacher
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {msg ? (
+                    <div className="text-sm font-extrabold">{msg}</div>
+                  ) : null}
+                </div>
+
+                {canLogout ? (
+                  <>
+                    <div className="mt-7 elora-divider" />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-extrabold">Sign out</div>
+                        <div className="elora-muted text-sm mt-1">
+                          Clears your verification session on this device.
+                        </div>
+                      </div>
+                      <button
+                        className="elora-btn elora-btn-danger"
+                        onClick={async () => {
+                          setMsg("");
+                          setBusy(true);
+                          try {
+                            await fetch("/api/logout", { method: "POST" }).catch(() => {});
+                          } finally {
+                            setRole("student");
+                            setTeacherCode("");
+                            setTeacherState(false);
+                            setVerifiedState(false);
+                            setBusy(false);
+                            setMsg("Signed out.");
+                            if (typeof window !== "undefined") window.location.href = "/";
+                          }
+                        }}
+                        disabled={busy}
+                        type="button"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </div>

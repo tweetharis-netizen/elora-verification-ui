@@ -1,12 +1,4 @@
-import { requireVerified } from "@/lib/server/verification";
-import { signTeacherCookiePayload, makeTeacherCookie } from "@/lib/server/teacher";
-
-function normalizeCodes(raw) {
-  return String(raw || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+import { getBackendBaseUrl, getSessionTokenFromReq, requireVerified } from "@/lib/server/verification";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -14,33 +6,44 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // Must be verified first.
-  const verification = await requireVerified(req, res);
-  if (!verification) return; // requireVerified already responded 403
+  // Must be verified before teacher redemption.
+  const status = await requireVerified(req, res);
+  if (!status) return;
 
   const code = String(req.body?.code || "").trim();
   if (!code) return res.status(400).json({ ok: false, error: "missing_code" });
 
-  const allowList = normalizeCodes(process.env.TEACHER_INVITE_CODES);
-  if (!allowList.length) {
-    return res.status(500).json({ ok: false, error: "invite_not_configured" });
+  const backend = getBackendBaseUrl();
+  const sessionToken = getSessionTokenFromReq(req);
+  if (!sessionToken) return res.status(401).json({ ok: false, error: "missing_session" });
+
+  try {
+    const r = await fetch(`${backend}/api/teacher/redeem`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    const data = await r.json().catch(() => null);
+
+    if (!r.ok || !data?.ok) {
+      // Normalize a few common backend errors to the frontend vocabulary.
+      const err = String(data?.error || "invalid_invite");
+      const mapped =
+        err === "invalid_code"
+          ? "invalid_invite"
+          : err === "teacher_invites_not_configured"
+          ? "invite_not_configured"
+          : err;
+      return res.status(r.status || 400).json({ ok: false, error: mapped });
+    }
+
+    // Backend persisted role in KV; frontend will reflect it via /api/session/status.
+    return res.status(200).json({ ok: true });
+  } catch {
+    return res.status(502).json({ ok: false, error: "backend_unreachable" });
   }
-
-  if (!allowList.includes(code)) {
-    return res.status(401).json({ ok: false, error: "invalid_invite" });
-  }
-
-  const secret = process.env.ELORA_TEACHER_COOKIE_SECRET || process.env.SESSION_SECRET;
-  if (!secret) {
-    return res.status(500).json({ ok: false, error: "teacher_cookie_secret_missing" });
-  }
-
-  const token = signTeacherCookiePayload(
-    { teacher: true, email: verification.email },
-    secret,
-    60 * 60 * 24 * 30
-  );
-
-  res.setHeader("Set-Cookie", makeTeacherCookie(token));
-  return res.status(200).json({ ok: true });
 }

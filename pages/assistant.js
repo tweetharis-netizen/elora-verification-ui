@@ -81,36 +81,18 @@ function stripInternalTags(text) {
 }
 
 function cleanAssistantText(text) {
-  // Goal: keep output readable for teachers/judges (no # headings, no **bold**, no code fences).
   let t = stripInternalTags(text || "");
-
-  // Remove fenced code blocks
   t = t.replace(/```[\s\S]*?```/g, "");
-
-  // Remove inline backticks
   t = t.replace(/`+/g, "");
-
-  // Remove Markdown headings (#, ##, ### ...)
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-
-  // Remove bold/italic markers
   t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
   t = t.replace(/\*([^*]+)\*/g, "$1");
   t = t.replace(/__([^_]+)__/g, "$1");
   t = t.replace(/_([^_]+)_/g, "$1");
-
-  // Remove blockquote marker
   t = t.replace(/^\s*>\s?/gm, "");
-
-  // Links [text](url) => text
   t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-
-  // Remove stray markdown horizontal rules
   t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
-
-  // Collapse excess blank lines
   t = t.replace(/\n{3,}/g, "\n\n").trim();
-
   return t;
 }
 
@@ -136,7 +118,7 @@ export default function AssistantPage() {
   const [customStyleText, setCustomStyleText] = useState("");
 
   const [action, setAction] = useState(() => session?.action || "explain");
-  const [messages, setsetMessages] = useState(() => session?.messages || []);
+  const [messages, setMessages] = useState(() => session?.messages || []);
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -153,8 +135,6 @@ export default function AssistantPage() {
     educator: [
       { id: "explain", label: "Explain a concept", hint: "Clear, classroom-ready explanation + example" },
       { id: "custom", label: "Custom request", hint: "Ask anything as a teacher (tone, structure, etc.)" },
-
-      // Teacher-only tools (locked until invite code is activated)
       { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
       { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions, export-ready" },
       { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
@@ -190,7 +170,6 @@ export default function AssistantPage() {
   }, [guest, action]);
 
   useEffect(() => {
-    // Keep scroll pinned to bottom when new messages arrive
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
@@ -261,12 +240,11 @@ export default function AssistantPage() {
       const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
-      const clean = cleanAssistantText(data.reply || "");
+      const clean = cleanAssistantText(data?.reply || "");
       setMessages((m) => [...m, { from: "elora", text: clean }]);
 
       if (role === "student") setAttempt(nextAttempt);
 
-      // Persist key state
       persistSessionPatch({
         role,
         country,
@@ -274,7 +252,11 @@ export default function AssistantPage() {
         subject,
         topic,
         action,
-        messages: [...messages, { from: "user", text: lastUser }, { from: "elora", text: clean }],
+        messages: [
+          ...messages,
+          { from: "user", text: lastUser },
+          { from: "elora", text: clean },
+        ],
       });
     } catch (e) {
       setMessages((m) => [
@@ -383,7 +365,6 @@ export default function AssistantPage() {
     };
 
     const refinement = map[chipId] || "Improve the answer.";
-
     setMessages((m) => [...m, { from: "user", text: refinement }]);
     await callElora({ messageOverride: refinement });
   }
@@ -408,7 +389,6 @@ export default function AssistantPage() {
         return false;
       }
 
-      // Sync from server so UI always reflects cookie truth.
       await refreshVerifiedFromServer();
       setSession(getSession());
 
@@ -418,10 +398,6 @@ export default function AssistantPage() {
       setTeacherGateStatus("Could not validate right now. Try again.");
       return false;
     }
-  }
-
-  function resetTutorAttempts() {
-    setAttempt(0);
   }
 
   const refinementChips = useMemo(() => {
@@ -440,9 +416,7 @@ export default function AssistantPage() {
             {/* LEFT */}
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-slate-950 dark:text-white">
-                  Setup
-                </h1>
+                <h1 className="text-2xl font-black text-slate-950 dark:text-white">Setup</h1>
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
@@ -451,21 +425,14 @@ export default function AssistantPage() {
                       : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      verified ? "bg-emerald-400" : "bg-amber-400"
-                    )}
-                  />
+                  <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
                   {verified ? "Verified" : guest ? "Guest" : "Unverified"}
                 </span>
               </div>
 
               {/* Role */}
               <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  Role
-                </div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {["student", "parent", "educator"].map((r) => (
                     <button
@@ -509,9 +476,7 @@ export default function AssistantPage() {
               <div className="mt-6 grid gap-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">
-                      Country
-                    </label>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
                     <select
                       value={country}
                       onChange={(e) => setCountry(e.target.value)}
@@ -526,9 +491,7 @@ export default function AssistantPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">
-                      Level
-                    </label>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Level</label>
                     <select
                       value={level}
                       onChange={(e) => setLevel(e.target.value)}
@@ -544,9 +507,7 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">
-                    Subject
-                  </label>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
@@ -561,9 +522,7 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">
-                    Topic (optional)
-                  </label>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
                   <input
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
@@ -575,9 +534,7 @@ export default function AssistantPage() {
 
               {/* Constraints */}
               <div className="mt-5">
-                <label className="text-sm font-bold text-slate-900 dark:text-white">
-                  Constraints (optional)
-                </label>
+                <label className="text-sm font-bold text-slate-900 dark:text-white">Constraints (optional)</label>
                 <textarea
                   value={constraints}
                   onChange={(e) => setConstraints(e.target.value)}
@@ -625,9 +582,7 @@ export default function AssistantPage() {
 
               {/* Quick actions */}
               <div className="mt-6">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  Quick actions
-                </div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
                 <div className="mt-2 grid gap-2 md:grid-cols-2">
                   {ROLE_QUICK_ACTIONS[role].map((a) => {
                     const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
@@ -640,15 +595,12 @@ export default function AssistantPage() {
                         type="button"
                         onClick={() => {
                           if (disabled) {
-                            if (!verified) {
-                              setVerifyGateOpen(true);
-                            } else if (!teacher) {
-                              setTeacherGateOpen(true);
-                            }
+                            if (!verified) setVerifyGateOpen(true);
+                            else if (!teacher) setTeacherGateOpen(true);
                             return;
                           }
                           setAction(a.id);
-                          resetTutorAttempts();
+                          setAttempt(0);
                         }}
                         disabled={disabled}
                         className={cn(
@@ -660,18 +612,10 @@ export default function AssistantPage() {
                         )}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                            {a.label}
-                          </div>
-                          {disabled ? (
-                            <span className="text-xs font-bold text-amber-700 dark:text-amber-200">
-                              Locked
-                            </span>
-                          ) : null}
+                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
+                          {disabled ? <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span> : null}
                         </div>
-                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                          {a.hint}
-                        </div>
+                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
                       </button>
                     );
                   })}
@@ -696,12 +640,9 @@ export default function AssistantPage() {
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px]">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">
-                    Elora Assistant
-                  </h2>
+                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
                   <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                    {country} • {level} • {subject} •{" "}
-                    <span className="font-semibold">{role}</span>
+                    {country} • {level} • {subject} • <span className="font-semibold">{role}</span>
                     {role === "student" ? (
                       <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
                         Attempts: {Math.min(3, attempt)}/3
@@ -754,9 +695,7 @@ export default function AssistantPage() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">
-                  Export last answer:
-                </div>
+                <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">Export last answer:</div>
 
                 <button
                   type="button"
@@ -832,11 +771,7 @@ export default function AssistantPage() {
       </div>
 
       {/* Verify gate modal */}
-      <Modal
-        open={verifyGateOpen}
-        title="Verify to unlock Elora"
-        onClose={() => setVerifyGateOpen(false)}
-      >
+      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Educator mode and exports are locked behind verification. You can still preview as a limited guest.
         </div>
@@ -863,20 +798,14 @@ export default function AssistantPage() {
       </Modal>
 
       {/* Teacher gate modal */}
-      <Modal
-        open={teacherGateOpen}
-        title="Unlock Teacher Tools"
-        onClose={() => setTeacherGateOpen(false)}
-      >
+      <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
           This keeps teacher-only tools from being misused.
         </div>
 
         <div className="mt-4">
-          <label className="text-sm font-bold text-slate-900 dark:text-white">
-            Teacher Invite Code
-          </label>
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Teacher Invite Code</label>
           <input
             value={teacherGateCode}
             onChange={(e) => setTeacherGateCode(e.target.value)}
@@ -884,9 +813,7 @@ export default function AssistantPage() {
             placeholder="e.g., GENESIS2026"
           />
           {teacherGateStatus ? (
-            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-              {teacherGateStatus}
-            </div>
+            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div>
           ) : null}
         </div>
 
@@ -895,9 +822,7 @@ export default function AssistantPage() {
             type="button"
             onClick={async () => {
               const ok = await validateAndActivateInvite(teacherGateCode);
-              if (ok) {
-                setTeacherGateOpen(false);
-              }
+              if (ok) setTeacherGateOpen(false);
             }}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >

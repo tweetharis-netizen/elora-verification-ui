@@ -4,10 +4,9 @@ import { useRouter } from "next/router";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
-  getResolvedTheme,
   getSession,
-  isTeacher,
   refreshVerifiedFromServer,
+  saveSession,
   setGuest as storeGuest,
   setRole as storeRole,
 } from "../lib/session";
@@ -119,17 +118,29 @@ export default function AssistantPage() {
   const router = useRouter();
 
   const [session, setSession] = useState(() => getSession());
-  useEffect(() => {
-    setSession(getSession());
-  }, []);
+  const messagesRef = useRef(session?.messages || []);
+  const listRef = useRef(null);
 
-  // Sync cookie truth once on load so verified/teacher state is consistent.
+  const [showJump, setShowJump] = useState(false);
+
   useEffect(() => {
-    refreshVerifiedFromServer?.().then(() => setSession(getSession())).catch(() => {});
+    let mounted = true;
+
+    const sync = () => mounted && setSession(getSession());
+    window.addEventListener("elora:session", sync);
+
+    refreshVerifiedFromServer().then(() => {
+      if (mounted) setSession(getSession());
+    });
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("elora:session", sync);
+    };
   }, []);
 
   const verified = Boolean(session?.verified);
-  const teacher = Boolean(isTeacher());
+  const teacher = Boolean(session?.teacher);
   const guest = Boolean(session?.guest);
 
   const [role, setRole] = useState(() => session?.role || "student");
@@ -152,28 +163,6 @@ export default function AssistantPage() {
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
   const [teacherGateCode, setTeacherGateCode] = useState("");
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
-
-  const theme = useMemo(() => getResolvedTheme(), []);
-  const listRef = useRef(null);
-
-  // Chat UX: show a “Jump to latest” button if user scrolls up.
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [showJump, setShowJump] = useState(false);
-
-  function scrollToBottom() {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }
-
-  function onChatScroll() {
-    const el = listRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distanceFromBottom < 120; // px threshold
-    setStickToBottom(atBottom);
-    setShowJump(!atBottom);
-  }
 
   const ROLE_QUICK_ACTIONS = {
     educator: [
@@ -201,6 +190,10 @@ export default function AssistantPage() {
   };
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
     const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain";
     setAction(first);
     setAttempt(0);
@@ -216,24 +209,28 @@ export default function AssistantPage() {
   }, [guest, action]);
 
   useEffect(() => {
-    // Keep scroll pinned ONLY if the user is already near the bottom.
-    if (!stickToBottom) return;
-    scrollToBottom();
-  }, [messages, loading, stickToBottom]);
+    // Keep scroll pinned to bottom when new messages arrive
+    const el = listRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
 
-  async function persistSessionPatch(patch) {
-    try {
-      await fetch("/api/session/set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-    } catch {
-      // non-blocking
-    }
+  function persistLocalPatch(patch) {
+    const s = getSession();
+    const next = { ...s, ...(patch || {}) };
+    saveSession(next);
+    setSession(next);
   }
 
-  async function callElora({ messageOverride = "" } = {}) {
+  function handleChatScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    setShowJump(!nearBottom);
+  }
+
+  async function callElora({ messageOverride = "", includeUser = false } = {}) {
     if (!verified && !guest) {
       setVerifyGateOpen(true);
       return;
@@ -255,6 +252,11 @@ export default function AssistantPage() {
 
     const lastUser = messageOverride || chatText.trim();
     if (!lastUser) return;
+
+    const base = messagesRef.current || [];
+    const baseWithUser = includeUser ? [...base, { from: "user", text: lastUser }] : base;
+
+    if (includeUser) setMessages(baseWithUser);
 
     setLoading(true);
 
@@ -287,25 +289,22 @@ export default function AssistantPage() {
       if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
       const clean = cleanAssistantText(data.reply || "");
-      setMessages((m) => [...m, { from: "elora", text: clean }]);
+      const finalMessages = [...baseWithUser, { from: "elora", text: clean }];
 
+      setMessages(finalMessages);
       if (role === "student") setAttempt(nextAttempt);
 
-      // Persist key state
-      persistSessionPatch({
+      persistLocalPatch({
         role,
         country,
         level,
         subject,
         topic,
         action,
-        messages: [...messages, { from: "user", text: lastUser }, { from: "elora", text: clean }],
+        messages: finalMessages,
       });
     } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { from: "elora", text: `Error: ${String(e?.message || e)}` },
-      ]);
+      setMessages((m) => [...m, { from: "elora", text: `Error: ${String(e?.message || e)}` }]);
     } finally {
       setLoading(false);
     }
@@ -367,20 +366,8 @@ export default function AssistantPage() {
     const msg = chatText.trim();
     if (!msg) return;
 
-    if (!verified && !guest) {
-      setVerifyGateOpen(true);
-      return;
-    }
-
-    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(action);
-    if (teacherOnly && !teacher) {
-      setTeacherGateOpen(true);
-      return;
-    }
-
     setChatText("");
-    setMessages((m) => [...m, { from: "user", text: msg }]);
-    await callElora({ messageOverride: msg });
+    await callElora({ messageOverride: msg, includeUser: true });
   }
 
   async function applyRefinement(chipId) {
@@ -408,9 +395,7 @@ export default function AssistantPage() {
     };
 
     const refinement = map[chipId] || "Improve the answer.";
-
-    setMessages((m) => [...m, { from: "user", text: refinement }]);
-    await callElora({ messageOverride: refinement });
+    await callElora({ messageOverride: refinement, includeUser: true });
   }
 
   async function validateAndActivateInvite(code) {
@@ -433,7 +418,6 @@ export default function AssistantPage() {
         return false;
       }
 
-      // Sync from server so UI always reflects cookie truth.
       await refreshVerifiedFromServer();
       setSession(getSession());
 
@@ -459,13 +443,12 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
-      {/* IMPORTANT: Navbar is rendered globally in _app.js. Do not render it here. */}
-
       <div className="elora-page">
         <div className="elora-container">
-          <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
+          {/* fixed-height split on desktop so you can scroll panels independently */}
+          <div className="grid gap-6 lg:grid-cols-[420px,1fr] lg:h-[calc(100dvh-var(--elora-nav-height)-64px)]">
             {/* LEFT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col overflow-hidden">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-slate-950 dark:text-white">
                   Setup
@@ -475,254 +458,253 @@ export default function AssistantPage() {
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
                     verified
                       ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                      : "border-slate-400/30 bg-slate-500/10 text-slate-700 dark:text-slate-200"
+                      : guest
+                      ? "border-sky-400/30 bg-sky-500/10 text-sky-800 dark:text-sky-200"
+                      : "border-slate-300/40 bg-white/40 dark:bg-slate-950/20 text-slate-700 dark:text-slate-200"
                   )}
                 >
                   <span
                     className={cn(
                       "h-2 w-2 rounded-full",
-                      verified ? "bg-emerald-400" : "bg-slate-400"
+                      verified ? "bg-emerald-400" : guest ? "bg-sky-400" : "bg-slate-400"
                     )}
                   />
-                  {verified ? "Verified" : guest ? "Guest" : "Not verified"}
+                  {verified ? "Verified" : guest ? "Guest" : "Unverified"}
                 </span>
               </div>
 
-              {/* Role */}
-              <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  Role
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {["student", "parent", "educator"].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        if (r === "educator" && !verified) {
-                          setVerifyGateOpen(true);
-                          return;
-                        }
-                        setRole(r);
-                      }}
-                      className={cn(
-                        "rounded-2xl border px-3 py-2 text-sm font-extrabold transition",
-                        role === r
-                          ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
-                          : "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      )}
-                    >
-                      {ROLE_LABEL[r]}
-                    </button>
-                  ))}
-                </div>
-
-                {role === "educator" && verified && !teacher ? (
-                  <div className="mt-3 rounded-xl border border-slate-400/30 bg-slate-500/10 px-3 py-2 text-xs text-slate-900 dark:text-slate-200">
-                    Teacher tools are locked until you enter a Teacher Invite Code in{" "}
-                    <button
-                      type="button"
-                      onClick={() => setTeacherGateOpen(true)}
-                      className="underline font-extrabold"
-                    >
-                      Unlock Teacher Tools
-                    </button>
-                    .
+              <div className="mt-4 overflow-auto pr-1">
+                {/* Role */}
+                <div className="mt-1">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">
+                    Role
                   </div>
-                ) : null}
-              </div>
-
-              {/* Region / Level / Subject */}
-              <div className="mt-6 grid gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">
-                      Country
-                    </label>
-                    <select
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="elora-input mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      {COUNTRIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">
-                      Level
-                    </label>
-                    <select
-                      value={level}
-                      onChange={(e) => setLevel(e.target.value)}
-                      className="elora-input mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      {LEVELS.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">
-                    Subject
-                  </label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="elora-input mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {SUBJECTS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">
-                    Topic (optional)
-                  </label>
-                  <input
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    placeholder="e.g., Fractions, Photosynthesis, Loops in Python"
-                  />
-                </div>
-              </div>
-
-              {/* Constraints */}
-              <div className="mt-5">
-                <label className="text-sm font-bold text-slate-900 dark:text-white">
-                  Constraints (optional)
-                </label>
-                <textarea
-                  value={constraints}
-                  onChange={(e) => setConstraints(e.target.value)}
-                  rows={3}
-                  className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  placeholder="e.g., Keep under 120 words; Use Singapore syllabus; Include 1 example."
-                />
-              </div>
-
-              {/* Response style */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Response style</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Optional</div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {RESPONSE_STYLE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setResponseStyle(opt.id)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
-                        responseStyle === opt.id
-                          ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
-                          : "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {responseStyle === "custom" ? (
-                  <textarea
-                    value={customStyleText}
-                    onChange={(e) => setCustomStyleText(e.target.value)}
-                    rows={2}
-                    placeholder="e.g., Use short paragraphs, include 1 example, and end with a 1-sentence summary."
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                ) : null}
-              </div>
-
-              {/* Quick actions */}
-              <div className="mt-6">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  Quick actions
-                </div>
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  {ROLE_QUICK_ACTIONS[role].map((a) => {
-                    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
-                    const disabled = (teacherOnly && !teacher) || (guest && teacherOnly);
-                    const active = action === a.id;
-
-                    return (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {["student", "parent", "educator"].map((r) => (
                       <button
-                        key={a.id}
+                        key={r}
                         type="button"
                         onClick={() => {
-                          if (disabled) {
-                            if (!verified) {
-                              setVerifyGateOpen(true);
-                            } else if (!teacher) {
-                              setTeacherGateOpen(true);
-                            }
+                          if (r === "educator" && !verified) {
+                            setVerifyGateOpen(true);
                             return;
                           }
-                          setAction(a.id);
-                          resetTutorAttempts();
+                          setRole(r);
                         }}
-                        disabled={disabled}
                         className={cn(
-                          "rounded-2xl border p-4 text-left transition",
-                          active
-                            ? "border-indigo-500/50 bg-indigo-600/10 shadow-lg shadow-indigo-500/10"
-                            : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 hover:bg-white dark:hover:bg-slate-950/40",
-                          disabled ? "opacity-50 cursor-not-allowed" : ""
+                          "rounded-2xl border px-3 py-2 text-sm font-extrabold transition",
+                          role === r
+                            ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
+                            : "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                         )}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                            {a.label}
-                          </div>
-                          {disabled ? (
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                              Locked
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                          {a.hint}
-                        </div>
+                        {ROLE_LABEL[r]}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {role === "educator" && verified && !teacher ? (
+                    <div className="mt-3 rounded-xl border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-900 dark:text-sky-200">
+                      Teacher tools are locked until you enter a Teacher Invite Code in{" "}
+                      <button
+                        type="button"
+                        onClick={() => setTeacherGateOpen(true)}
+                        className="underline font-extrabold"
+                      >
+                        Unlock Teacher Tools
+                      </button>
+                      .
+                    </div>
+                  ) : null}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMessages([]);
-                    setAttempt(0);
-                    setChatText("");
-                    persistSessionPatch({ messages: [] });
-                    setStickToBottom(true);
-                    setShowJump(false);
-                  }}
-                  className="mt-4 w-full rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 transition"
-                >
-                  Clear chat
-                </button>
+                {/* Region / Level / Subject */}
+                <div className="mt-6 grid gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-bold text-slate-900 dark:text-white">
+                        Country
+                      </label>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="elora-input mt-2"
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-slate-900 dark:text-white">
+                        Level
+                      </label>
+                      <select
+                        value={level}
+                        onChange={(e) => setLevel(e.target.value)}
+                        className="elora-input mt-2"
+                      >
+                        {LEVELS.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">
+                      Subject
+                    </label>
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="elora-input mt-2"
+                    >
+                      {SUBJECTS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">
+                      Topic (optional)
+                    </label>
+                    <input
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      className="elora-input mt-2"
+                      placeholder="e.g., Fractions, Photosynthesis, Loops in Python"
+                    />
+                  </div>
+                </div>
+
+                {/* Constraints */}
+                <div className="mt-5">
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">
+                    Constraints (optional)
+                  </label>
+                  <textarea
+                    value={constraints}
+                    onChange={(e) => setConstraints(e.target.value)}
+                    rows={3}
+                    className="elora-input mt-2"
+                    placeholder="e.g., Keep under 120 words; Use Singapore syllabus; Include 1 example."
+                  />
+                </div>
+
+                {/* Response style */}
+                <div className="mt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Response style</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Optional</div>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {RESPONSE_STYLE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setResponseStyle(opt.id)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
+                          responseStyle === opt.id
+                            ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
+                            : "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {responseStyle === "custom" ? (
+                    <textarea
+                      value={customStyleText}
+                      onChange={(e) => setCustomStyleText(e.target.value)}
+                      rows={2}
+                      placeholder="e.g., Short paragraphs, 1 example, end with 1-sentence summary."
+                      className="elora-input mt-2"
+                    />
+                  ) : null}
+                </div>
+
+                {/* Quick actions */}
+                <div className="mt-6">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">
+                    Quick actions
+                  </div>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    {ROLE_QUICK_ACTIONS[role].map((a) => {
+                      const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
+                      const disabled = (teacherOnly && !teacher) || (guest && teacherOnly);
+                      const active = action === a.id;
+
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => {
+                            if (disabled) {
+                              if (!verified) setVerifyGateOpen(true);
+                              else if (!teacher) setTeacherGateOpen(true);
+                              return;
+                            }
+                            setAction(a.id);
+                            resetTutorAttempts();
+                          }}
+                          disabled={disabled}
+                          className={cn(
+                            "rounded-2xl border p-4 text-left transition",
+                            active
+                              ? "border-indigo-500/50 bg-indigo-600/10 shadow-lg shadow-indigo-500/10"
+                              : "border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 hover:bg-white dark:hover:bg-slate-950/40",
+                            disabled ? "opacity-50 cursor-not-allowed" : ""
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                              {a.label}
+                            </div>
+                            {disabled ? (
+                              <span className="text-xs font-bold text-sky-700 dark:text-sky-200">
+                                Locked
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                            {a.hint}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMessages([]);
+                      setAttempt(0);
+                      setChatText("");
+                      persistLocalPatch({ messages: [] });
+                    }}
+                    className="mt-4 w-full rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 transition"
+                  >
+                    Clear chat
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px] relative">
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col overflow-hidden">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">
@@ -758,45 +740,50 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {showJump ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStickToBottom(true);
-                    scrollToBottom();
-                  }}
-                  className="absolute right-6 top-[92px] z-10 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-3 py-1.5 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/60 transition"
+              {/* Scrollable chat area */}
+              <div className="mt-4 flex-1 overflow-hidden relative">
+                <div
+                  ref={listRef}
+                  onScroll={handleChatScroll}
+                  className="h-full overflow-auto pr-1"
                 >
-                  Jump to latest ↓
-                </button>
-              ) : null}
+                  <div className="space-y-3">
+                    {messages.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
+                          m.from === "user"
+                            ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
+                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10"
+                        )}
+                      >
+                        <div className="whitespace-pre-wrap">{cleanAssistantText(m.text)}</div>
+                      </div>
+                    ))}
 
-              <div
-                ref={listRef}
-                onScroll={onChatScroll}
-                className="mt-4 flex-1 overflow-auto pr-1"
-              >
-                <div className="space-y-3">
-                  {messages.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                        m.from === "user"
-                          ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                          : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10"
-                      )}
-                    >
-                      <div className="whitespace-pre-wrap">{cleanAssistantText(m.text)}</div>
-                    </div>
-                  ))}
-
-                  {loading ? (
-                    <div className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
-                      Thinking…
-                    </div>
-                  ) : null}
+                    {loading ? (
+                      <div className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
+                        Thinking…
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
+
+                {showJump ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = listRef.current;
+                      if (!el) return;
+                      el.scrollTop = el.scrollHeight;
+                      setShowJump(false);
+                    }}
+                    className="absolute bottom-3 right-3 rounded-full px-4 py-2 text-xs font-extrabold border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 text-slate-800 dark:text-slate-200 shadow-lg"
+                  >
+                    Jump to latest ↓
+                  </button>
+                ) : null}
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -898,7 +885,8 @@ export default function AssistantPage() {
             type="button"
             onClick={() => {
               storeGuest(true);
-              setSession(getSession());
+              const next = getSession();
+              setSession(next);
               setVerifyGateOpen(false);
             }}
             className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
@@ -941,9 +929,7 @@ export default function AssistantPage() {
             type="button"
             onClick={async () => {
               const ok = await validateAndActivateInvite(teacherGateCode);
-              if (ok) {
-                setTeacherGateOpen(false);
-              }
+              if (ok) setTeacherGateOpen(false);
             }}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >

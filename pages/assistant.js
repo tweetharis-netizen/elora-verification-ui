@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
-  getResolvedTheme,
   getSession,
   isTeacher,
   refreshVerifiedFromServer,
@@ -123,11 +122,6 @@ export default function AssistantPage() {
     setSession(getSession());
   }, []);
 
-  // Sync cookie truth once on load so verified/teacher state is consistent.
-  useEffect(() => {
-    refreshVerifiedFromServer?.().then(() => setSession(getSession())).catch(() => {});
-  }, []);
-
   const verified = Boolean(session?.verified);
   const teacher = Boolean(isTeacher());
   const guest = Boolean(session?.guest);
@@ -142,7 +136,7 @@ export default function AssistantPage() {
   const [customStyleText, setCustomStyleText] = useState("");
 
   const [action, setAction] = useState(() => session?.action || "explain");
-  const [messages, setMessages] = useState(() => session?.messages || []);
+  const [messages, setsetMessages] = useState(() => session?.messages || []);
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -153,27 +147,7 @@ export default function AssistantPage() {
   const [teacherGateCode, setTeacherGateCode] = useState("");
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
-  const theme = useMemo(() => getResolvedTheme(), []);
   const listRef = useRef(null);
-
-  // Chat UX: show a “Jump to latest” button if user scrolls up.
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [showJump, setShowJump] = useState(false);
-
-  function scrollToBottom() {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }
-
-  function onChatScroll() {
-    const el = listRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distanceFromBottom < 120; // px threshold
-    setStickToBottom(atBottom);
-    setShowJump(!atBottom);
-  }
 
   const ROLE_QUICK_ACTIONS = {
     educator: [
@@ -216,10 +190,11 @@ export default function AssistantPage() {
   }, [guest, action]);
 
   useEffect(() => {
-    // Keep scroll pinned ONLY if the user is already near the bottom.
-    if (!stickToBottom) return;
-    scrollToBottom();
-  }, [messages, loading, stickToBottom]);
+    // Keep scroll pinned to bottom when new messages arrive
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
 
   async function persistSessionPatch(patch) {
     try {
@@ -459,8 +434,6 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
-      {/* IMPORTANT: Navbar is rendered globally in _app.js. Do not render it here. */}
-
       <div className="elora-page">
         <div className="elora-container">
           <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
@@ -475,16 +448,16 @@ export default function AssistantPage() {
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
                     verified
                       ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                      : "border-slate-400/30 bg-slate-500/10 text-slate-700 dark:text-slate-200"
+                      : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
                   )}
                 >
                   <span
                     className={cn(
                       "h-2 w-2 rounded-full",
-                      verified ? "bg-emerald-400" : "bg-slate-400"
+                      verified ? "bg-emerald-400" : "bg-amber-400"
                     )}
                   />
-                  {verified ? "Verified" : guest ? "Guest" : "Not verified"}
+                  {verified ? "Verified" : guest ? "Guest" : "Unverified"}
                 </span>
               </div>
 
@@ -518,7 +491,7 @@ export default function AssistantPage() {
                 </div>
 
                 {role === "educator" && verified && !teacher ? (
-                  <div className="mt-3 rounded-xl border border-slate-400/30 bg-slate-500/10 px-3 py-2 text-xs text-slate-900 dark:text-slate-200">
+                  <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
                     Teacher tools are locked until you enter a Teacher Invite Code in{" "}
                     <button
                       type="button"
@@ -691,7 +664,7 @@ export default function AssistantPage() {
                             {a.label}
                           </div>
                           {disabled ? (
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                            <span className="text-xs font-bold text-amber-700 dark:text-amber-200">
                               Locked
                             </span>
                           ) : null}
@@ -711,8 +684,6 @@ export default function AssistantPage() {
                     setAttempt(0);
                     setChatText("");
                     persistSessionPatch({ messages: [] });
-                    setStickToBottom(true);
-                    setShowJump(false);
                   }}
                   className="mt-4 w-full rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 transition"
                 >
@@ -722,7 +693,7 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px] relative">
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px]">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">
@@ -758,24 +729,7 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {showJump ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStickToBottom(true);
-                    scrollToBottom();
-                  }}
-                  className="absolute right-6 top-[92px] z-10 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-3 py-1.5 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/60 transition"
-                >
-                  Jump to latest ↓
-                </button>
-              ) : null}
-
-              <div
-                ref={listRef}
-                onScroll={onChatScroll}
-                className="mt-4 flex-1 overflow-auto pr-1"
-              >
+              <div ref={listRef} className="mt-4 flex-1 overflow-auto pr-1">
                 <div className="space-y-3">
                   {messages.map((m, idx) => (
                     <div

@@ -226,14 +226,12 @@ export default function AssistantPage() {
     let mounted = true;
 
     (async () => {
-      // Always refresh from server snapshot on load
       await refreshVerifiedFromServer();
-
       if (!mounted) return;
+
       const s = getSession();
       setSession(s);
 
-      // If verified, pull server chat (KV) as truth
       await loadServerChatIfVerified(s);
     })();
 
@@ -241,6 +239,69 @@ export default function AssistantPage() {
       mounted = false;
     };
   }, []);
+
+  // ====== Genesis Demo triggers (query-driven, safe, run-once) ======
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    // 1) If demoRole is provided, set it once (so judge sees teacher view immediately).
+    const demoRole = String(router.query.demoRole || "").trim();
+    if (demoRole && (demoRole === "educator" || demoRole === "student" || demoRole === "parent")) {
+      try {
+        const already = sessionStorage.getItem("elora_demo_role_set_v1");
+        if (!already) {
+          sessionStorage.setItem("elora_demo_role_set_v1", "1");
+          setRole(demoRole);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2) If unlockTeacher=1, open teacher gate (only when verified and not teacher).
+    const unlockTeacher = String(router.query.unlockTeacher || "") === "1";
+    if (unlockTeacher) {
+      const s = getSession();
+      if (s?.verified && !isTeacher()) setTeacherGateOpen(true);
+      if (!s?.verified && !s?.guest) setVerifyGateOpen(true);
+    }
+
+    // 3) If demoMsg exists, auto-send it once.
+    const demoMsg = String(router.query.demoMsg || "").trim();
+    if (demoMsg) {
+      try {
+        const sent = sessionStorage.getItem("elora_demo_sent_v1");
+        if (sent) return;
+        sessionStorage.setItem("elora_demo_sent_v1", "1");
+      } catch {
+        // if storage blocked, we still try once per mount (fine)
+      }
+
+      const s = getSession();
+      if (!s?.verified && !s?.guest) {
+        setVerifyGateOpen(true);
+        return;
+      }
+
+      // Queue send after UI settles
+      setTimeout(() => {
+        setChatText(demoMsg);
+      }, 50);
+    }
+  }, [router.isReady, router.query]);
+
+  // If demoMsg filled chatText (above), send it once when chatText matches demoMsg and we’re idle.
+  useEffect(() => {
+    if (!router.isReady) return;
+    const demoMsg = String(router.query.demoMsg || "").trim();
+    if (!demoMsg) return;
+    if (loading) return;
+    if (chatText !== demoMsg) return;
+
+    // auto-send once
+    sendChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatText, loading, router.isReady]);
 
   async function callElora({ messageOverride = "", baseMessages = null } = {}) {
     const currentSession = getSession();
@@ -300,7 +361,6 @@ export default function AssistantPage() {
       const clean = cleanAssistantText(data?.reply || "");
       const eloraMsg = { from: "elora", text: clean, ts: Date.now() };
 
-      // We must build next messages from the latest base (avoid stale closure bugs)
       const base = Array.isArray(baseMessages) ? baseMessages : messages;
       const nextMessages = [...base, eloraMsg];
 
@@ -308,7 +368,6 @@ export default function AssistantPage() {
 
       if (role === "student") setAttempt(nextAttempt);
 
-      // Persist client snapshot (fast UI) + server chat (truth for verified users)
       persistSessionPatch({
         role,
         country,
@@ -404,7 +463,6 @@ export default function AssistantPage() {
     setChatText("");
     setMessages(nextMessages);
 
-    // Persist immediately + save to server if verified
     persistSessionPatch({ messages: nextMessages });
     await saveServerChatIfVerified(currentSession, nextMessages);
 

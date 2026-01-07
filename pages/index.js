@@ -55,7 +55,6 @@ function StatusChip({ variant, children }) {
 function HomePreview({ verified, teacher }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-2xl shadow-slate-900/10 dark:shadow-black/30">
-      {/* soft glow */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -inset-24 bg-gradient-to-br from-indigo-500/20 via-sky-400/10 to-fuchsia-500/15 blur-3xl" />
       </div>
@@ -75,7 +74,6 @@ function HomePreview({ verified, teacher }) {
           </div>
         </div>
 
-        {/* mini assistant snippet */}
         <div className="mt-5 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-4">
           <div className="flex items-center justify-between">
             <div className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Assistant</div>
@@ -92,7 +90,6 @@ function HomePreview({ verified, teacher }) {
           </div>
         </div>
 
-        {/* upload teaser row */}
         <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-4">
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center">
@@ -120,7 +117,6 @@ export default function HomePage() {
 
   const [role, setRoleState] = useState("educator");
   const [session, setSession] = useState(() => getSession());
-
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
 
   const verified = Boolean(session?.verified);
@@ -157,7 +153,6 @@ export default function HomePage() {
       return;
     }
 
-    // Verified users go straight in. Unverified go to verify.
     if (verified) {
       setGuest(false);
       router.push("/assistant");
@@ -171,16 +166,12 @@ export default function HomePage() {
     <>
       <Head>
         <title>Elora — Teacher verification + calm AI assistant</title>
-        <meta
-          name="description"
-          content="Elora helps teachers verify student work and explain concepts in clear, human language."
-        />
+        <meta name="description" content="Elora helps teachers verify student work and explain concepts in clear, human language." />
       </Head>
 
       <div className="elora-page">
         <div className="elora-container">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-            {/* LEFT: Hero */}
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 backdrop-blur-xl px-4 py-2">
                 <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Genesis demo build</span>
@@ -196,7 +187,6 @@ export default function HomePage() {
                 {meta.subcopy}
               </p>
 
-              {/* Role pills (kept, but calmer + smaller) */}
               <div className="mt-6 flex flex-wrap gap-2">
                 {["educator", "student", "parent"].map((r) => (
                   <button
@@ -215,7 +205,6 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* CTAs */}
               <div className="mt-7 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
@@ -235,14 +224,13 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/help")}
-                  className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-5 py-3 text-sm font-extrabold text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
+                  onClick={() => router.push("/demo")}
+                  className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-5 py-3 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
                 >
-                  How it works
+                  Start Genesis Demo
                 </button>
               </div>
 
-              {/* tiny status line */}
               <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
                 <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
                 {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
@@ -253,13 +241,11 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* RIGHT: Preview */}
             <div className="relative">
               <HomePreview verified={verified} teacher={teacher} />
             </div>
           </div>
 
-          {/* 3-card clarity strip */}
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
               {
@@ -297,7 +283,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Verify modal (only if user tries “Open Assistant” while unverified) */}
       <Modal open={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title="Verify to unlock Elora">
         <div className="space-y-3">
           <p className="text-sm text-slate-700 dark:text-slate-200">

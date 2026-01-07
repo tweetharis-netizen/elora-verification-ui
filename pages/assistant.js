@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -100,10 +101,6 @@ export default function AssistantPage() {
   const router = useRouter();
 
   const [session, setSession] = useState(() => getSession());
-  useEffect(() => {
-    setSession(getSession());
-  }, []);
-
   const verified = Boolean(session?.verified);
   const teacher = Boolean(isTeacher());
   const guest = Boolean(session?.guest);
@@ -158,10 +155,8 @@ export default function AssistantPage() {
     const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain";
     setAction(first);
     setAttempt(0);
-  }, [role]);
-
-  useEffect(() => {
     storeRole(role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
   const guestBlocked = useMemo(() => {
@@ -187,14 +182,76 @@ export default function AssistantPage() {
     }
   }
 
-  async function callElora({ messageOverride = "" } = {}) {
-    if (!verified && !guest) {
+  // ====== Server-backed chat memory (verified users) ======
+  async function loadServerChatIfVerified(nextSession) {
+    if (!nextSession?.verified) return;
+
+    try {
+      const r = await fetch("/api/chat/get", { cache: "no-store" });
+      const data = await r.json().catch(() => null);
+      if (!r.ok || !data?.ok) return;
+
+      if (Array.isArray(data?.messages) && data.messages.length) {
+        setMessages(data.messages);
+        persistSessionPatch({ messages: data.messages });
+      }
+    } catch {
+      // keep UI stable
+    }
+  }
+
+  async function saveServerChatIfVerified(nextSession, nextMessages) {
+    if (!nextSession?.verified) return;
+    try {
+      await fetch("/api/chat/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+    } catch {
+      // best-effort
+    }
+  }
+
+  async function clearServerChatIfVerified(nextSession) {
+    if (!nextSession?.verified) return;
+    try {
+      await fetch("/api/chat/clear", { method: "POST" });
+    } catch {
+      // best-effort
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      // Always refresh from server snapshot on load
+      await refreshVerifiedFromServer();
+
+      if (!mounted) return;
+      const s = getSession();
+      setSession(s);
+
+      // If verified, pull server chat (KV) as truth
+      await loadServerChatIfVerified(s);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function callElora({ messageOverride = "", baseMessages = null } = {}) {
+    const currentSession = getSession();
+
+    if (!currentSession?.verified && !currentSession?.guest) {
       setVerifyGateOpen(true);
       return;
     }
 
     const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(action);
-    if (teacherOnly && !teacher) {
+    if (teacherOnly && !isTeacher()) {
       setTeacherGateOpen(true);
       return;
     }
@@ -202,12 +259,12 @@ export default function AssistantPage() {
     if (guestBlocked) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: "Guest mode is limited — verify to unlock teacher tools and exports." },
+        { from: "elora", text: "Guest mode is limited — verify to unlock teacher tools and exports.", ts: Date.now() },
       ]);
       return;
     }
 
-    const lastUser = messageOverride || chatText.trim();
+    const lastUser = (messageOverride || "").trim() || chatText.trim();
     if (!lastUser) return;
 
     setLoading(true);
@@ -224,11 +281,11 @@ export default function AssistantPage() {
         action,
         message: lastUser,
         options: constraints,
-        guest,
+        guest: Boolean(currentSession?.guest),
         attempt: role === "student" ? nextAttempt : 0,
         responseStyle,
         customStyle: responseStyle === "custom" ? customStyleText : "",
-        teacherInvite: session?.teacherCode || "",
+        teacherInvite: currentSession?.teacherCode || "",
       };
 
       const r = await fetch("/api/assistant", {
@@ -241,10 +298,17 @@ export default function AssistantPage() {
       if (!r.ok) throw new Error(data?.error || "AI request failed.");
 
       const clean = cleanAssistantText(data?.reply || "");
-      setMessages((m) => [...m, { from: "elora", text: clean }]);
+      const eloraMsg = { from: "elora", text: clean, ts: Date.now() };
+
+      // We must build next messages from the latest base (avoid stale closure bugs)
+      const base = Array.isArray(baseMessages) ? baseMessages : messages;
+      const nextMessages = [...base, eloraMsg];
+
+      setMessages(nextMessages);
 
       if (role === "student") setAttempt(nextAttempt);
 
+      // Persist client snapshot (fast UI) + server chat (truth for verified users)
       persistSessionPatch({
         role,
         country,
@@ -252,16 +316,14 @@ export default function AssistantPage() {
         subject,
         topic,
         action,
-        messages: [
-          ...messages,
-          { from: "user", text: lastUser },
-          { from: "elora", text: clean },
-        ],
+        messages: nextMessages,
       });
+
+      await saveServerChatIfVerified(currentSession, nextMessages);
     } catch (e) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: `Error: ${String(e?.message || e)}` },
+        { from: "elora", text: `Error: ${String(e?.message || e)}`, ts: Date.now() },
       ]);
     } finally {
       setLoading(false);
@@ -315,29 +377,38 @@ export default function AssistantPage() {
     } catch (e) {
       setMessages((m) => [
         ...m,
-        { from: "elora", text: `Export error: ${String(e?.message || e)}` },
+        { from: "elora", text: `Export error: ${String(e?.message || e)}`, ts: Date.now() },
       ]);
     }
   }
 
   async function sendChat() {
+    const currentSession = getSession();
     const msg = chatText.trim();
     if (!msg) return;
 
-    if (!verified && !guest) {
+    if (!currentSession?.verified && !currentSession?.guest) {
       setVerifyGateOpen(true);
       return;
     }
 
     const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(action);
-    if (teacherOnly && !teacher) {
+    if (teacherOnly && !isTeacher()) {
       setTeacherGateOpen(true);
       return;
     }
 
+    const userMsg = { from: "user", text: msg, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
     setChatText("");
-    setMessages((m) => [...m, { from: "user", text: msg }]);
-    await callElora({ messageOverride: msg });
+    setMessages(nextMessages);
+
+    // Persist immediately + save to server if verified
+    persistSessionPatch({ messages: nextMessages });
+    await saveServerChatIfVerified(currentSession, nextMessages);
+
+    await callElora({ messageOverride: msg, baseMessages: nextMessages });
   }
 
   async function applyRefinement(chipId) {
@@ -365,8 +436,16 @@ export default function AssistantPage() {
     };
 
     const refinement = map[chipId] || "Improve the answer.";
-    setMessages((m) => [...m, { from: "user", text: refinement }]);
-    await callElora({ messageOverride: refinement });
+    const currentSession = getSession();
+
+    const userMsg = { from: "user", text: refinement, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    setMessages(nextMessages);
+    persistSessionPatch({ messages: nextMessages });
+    await saveServerChatIfVerified(currentSession, nextMessages);
+
+    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
   }
 
   async function validateAndActivateInvite(code) {
@@ -390,7 +469,8 @@ export default function AssistantPage() {
       }
 
       await refreshVerifiedFromServer();
-      setSession(getSession());
+      const s = getSession();
+      setSession(s);
 
       setTeacherGateStatus("Teacher tools unlocked ✅");
       return true;
@@ -400,15 +480,15 @@ export default function AssistantPage() {
     }
   }
 
-  const refinementChips = useMemo(() => {
-    return REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain;
-  }, [action]);
+  const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
 
   return (
     <>
       <Head>
         <title>Elora Assistant</title>
       </Head>
+
+      <Navbar />
 
       <div className="elora-page">
         <div className="elora-container">
@@ -460,11 +540,7 @@ export default function AssistantPage() {
                 {role === "educator" && verified && !teacher ? (
                   <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
                     Teacher tools are locked until you enter a Teacher Invite Code in{" "}
-                    <button
-                      type="button"
-                      onClick={() => setTeacherGateOpen(true)}
-                      className="underline font-extrabold"
-                    >
+                    <button type="button" onClick={() => setTeacherGateOpen(true)} className="underline font-extrabold">
                       Unlock Teacher Tools
                     </button>
                     .
@@ -623,11 +699,13 @@ export default function AssistantPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    const currentSession = getSession();
                     setMessages([]);
                     setAttempt(0);
                     setChatText("");
                     persistSessionPatch({ messages: [] });
+                    await clearServerChatIfVerified(currentSession);
                   }}
                   className="mt-4 w-full rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 transition"
                 >
@@ -787,7 +865,8 @@ export default function AssistantPage() {
             type="button"
             onClick={() => {
               storeGuest(true);
-              setSession(getSession());
+              const s = getSession();
+              setSession(s);
               setVerifyGateOpen(false);
             }}
             className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"

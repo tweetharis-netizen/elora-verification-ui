@@ -5,20 +5,7 @@ function readCode(req) {
   // - GET /api/teacher-invite?code=GENESIS2026
   // - POST /api/teacher-invite  { code: "GENESIS2026" }
   const fromQuery = Array.isArray(req?.query?.code) ? req.query.code[0] : req?.query?.code;
-
-  const body = req?.body;
-  const fromBody =
-    typeof body === "string"
-      ? (() => {
-          try {
-            const parsed = JSON.parse(body);
-            return parsed?.code;
-          } catch {
-            return "";
-          }
-        })()
-      : body?.code;
-
+  const fromBody = req?.body?.code;
   return String(fromBody || fromQuery || "").trim();
 }
 
@@ -57,7 +44,6 @@ export default async function handler(req, res) {
       return res.status(r.status || 401).json({ ok: false, error: err });
     }
 
-    // Backend persisted role in KV; frontend reflects it via /api/session/status.
     return res.status(200).json({ ok: true, role: data?.role || "teacher" });
   } catch {
     return res.status(502).json({ ok: false, error: "backend_unreachable" });

@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import {
-  getSession,
-  saveSession,
-  activateTeacher,
-  refreshVerifiedFromServer,
-} from "@/lib/session";
+import { getSession, saveSession, activateTeacher, refreshVerifiedFromServer } from "@/lib/session";
 
 export default function Success() {
   const router = useRouter();
@@ -28,33 +23,33 @@ export default function Success() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code }),
         });
+
         const data = await r.json().catch(() => null);
         if (!r.ok || !data?.ok) throw new Error(data?.error || "Exchange failed.");
 
-        // Sync local cache for UI
+        // Sync local cache for UI (verified, role, hasSession)
         await refreshVerifiedFromServer();
 
         const s = getSession();
 
-        // If pending invite exists, validate server-side and unlock educator
         if (s.pendingInvite) {
           const inviteCode = String(s.pendingInvite).trim();
-          try {
-            const res = await fetch(`/api/teacher-invite?code=${encodeURIComponent(inviteCode)}`);
-            const out = await res.json().catch(() => null);
-            if (res.ok && out?.ok) {
-              activateTeacher(inviteCode);
-              setMsg("Verified + educator unlocked. Redirecting…");
-            } else {
-              setMsg("Verified, but invite invalid. Redirecting…");
-            }
-          } catch {
-            setMsg("Verified, but invite validation failed. Redirecting…");
-          }
+          setMsg("Verified. Applying teacher invite…");
+
+          const out = await activateTeacher(inviteCode);
+
+          // Refresh again so teacher status becomes true if redeemed.
+          await refreshVerifiedFromServer();
 
           const s2 = getSession();
           s2.pendingInvite = "";
           saveSession(s2);
+
+          if (out?.ok) {
+            setMsg("Verified + teacher tools unlocked. Redirecting…");
+          } else {
+            setMsg("Verified, but invite invalid. Redirecting…");
+          }
         } else {
           setMsg("Verified. Redirecting…");
         }

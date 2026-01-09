@@ -15,6 +15,16 @@ function isGuestAllowedAction(action) {
 
 function actionTemplate(action) {
   switch (String(action || "").toLowerCase()) {
+    case "verify":
+    case "check":
+      return `Output format (work verification):
+- Verdict: Likely correct / Uncertain / Likely incorrect
+- Checks:
+  1) Correctness check (where it matches / first mistake)
+  2) Reasoning check (is the method valid?)
+  3) Assumptions/units check (if relevant)
+- One next-step hint (only ONE)
+- (Optional) Teacher note (1 short sentence, if helpful)`;
     case "lesson":
       return `Output format (lesson plan):
 - Lesson goal (1 sentence)
@@ -43,6 +53,11 @@ Only include a rubric or answer key if the user asks for it.`;
   - Slide title
   - 2–4 bullets
   - Optional teacher note (1 short line)`;
+    case "custom":
+      return `Output format (custom):
+- Start with the main answer (1–2 lines).
+- Then 3–7 short steps or bullets, if applicable.
+- End with one quick check question when useful.`;
     case "explain":
     default:
       return `Output format (explain):
@@ -53,7 +68,7 @@ Only include a rubric or answer key if the user asks for it.`;
   }
 }
 
-function systemPrompt({ uiRole, country, level, subject, topic, attempt, responseStyle, action, customStyle }) {
+function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action, customStyle }) {
   const mode = String(responseStyle || "standard").toLowerCase();
 
   const modeRules =
@@ -67,7 +82,7 @@ function systemPrompt({ uiRole, country, level, subject, topic, attempt, respons
 - Ask 1 quick check-for-understanding question.`
       : mode === "custom"
       ? `Mode: custom
-- Follow the user's custom style if provided, as long as it does not violate hard rules below.`
+- Follow the user's custom style instructions if provided, as long as it does not violate the hard rules.`
       : `Mode: standard
 - Clear, friendly, concise.
 - End with 1 quick check question when reasonable.`;
@@ -78,24 +93,17 @@ function systemPrompt({ uiRole, country, level, subject, topic, attempt, respons
 ${String(customStyle).trim()}`
       : "";
 
-  return `You are Elora — a calm, professional teaching assistant built for real educators and learners.
+  return `You are Elora — a calm, professional teaching assistant for educators and learners.
 
-HARD RULES (must follow):
-1) Plain language by default. No raw LaTeX/TeX. Do NOT output \\frac, \\sqrt, \\times, \\( \\), $$, etc.
-2) Do NOT use Markdown formatting. No headings starting with #, no **bold**, no code fences.
-3) Keep it short and readable:
-   - Prefer 3–7 steps. Each step 1–2 lines max.
-   - Avoid long paragraphs.
-4) Use human-readable math:
-   - Say: "5 divided by 4 is 1.25".
-   - If helpful, you may include "5/4" AFTER the words (optional).
-5) If the user asks for a homework/test answer with no attempt, do hints-first:
-   - Ask for their attempt OR give the next-step hint.
-   - Only give a final answer if they explicitly insist after effort, or if it's clearly not an assessment.
-6) Be warm, calm, and non-intimidating. No "as an AI model" disclaimers.
+Hard rules (must follow):
+- Plain language by default. Use human-readable math (words first).
+- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
+- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
+- Keep it short and readable: 3–7 steps, each 1–2 lines. Avoid long paragraphs.
+- Be warm and non-intimidating. No "as an AI model" disclaimers.
 
-Context (from app):
-- UI role (persona): ${uiRole}
+Context:
+- User type: ${role}
 - Country/curriculum: ${country}
 - Level: ${level}
 - Subject: ${subject}
@@ -108,19 +116,16 @@ ${customLine}
 
 ${actionTemplate(action)}
 
-If the user provides a student attempt/solution, use verification style:
-- Verdict: Likely correct / Uncertain / Likely incorrect
-- 3 checks: correctness, reasoning, assumptions/units (if relevant)
-- ONE next-step hint (do not dump the full solution unless asked)
+For work verification actions ("check" or "verify"):
+- Always follow the work verification output format above.
+- If unsure, say "Uncertain" and explain what information is missing.
 
-Return plain text only. If you need structure:
-- Use numbered steps like "1) ...".
-- Use simple bullets with "-".`;
+Return plain text only. Use simple bullets "-" and numbered steps "1)".`;
 }
 
-function userPrompt({ uiRole, action, topic, message, options, attempt }) {
+function userPrompt({ role, action, topic, message, options, attempt, customStyle }) {
   return `Action: ${action}
-UI role: ${uiRole}
+User type: ${role}
 Topic: ${topic}
 Attempt: ${attempt}
 
@@ -128,7 +133,10 @@ User message:
 ${message}
 
 Constraints/options (optional):
-${options || ""}`;
+${options || ""}
+
+Extra request (optional):
+${customStyle || ""}`;
 }
 
 function normalizeMathToPlainText(text) {
@@ -207,8 +215,7 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-
-    const uiRole = clampStr(body.role || "student", 20); // UI persona role, not account role
+    const role = clampStr(body.role || "student", 20);
     const country = clampStr(body.country || "Singapore", 40);
     const level = clampStr(body.level || "Secondary", 40);
     const subject = clampStr(body.subject || "General", 60);
@@ -218,10 +225,11 @@ export default async function handler(req, res) {
     const options = clampStr(body.options || "", 1400);
 
     const responseStyle = clampStr(body.responseStyle || body.style || "", 60);
-    const customStyle = clampStr(body.customStyle || "", 700);
+    const customStyle = clampStr(body.customStyle || "", 600);
 
     const guest = Boolean(body.guest);
     const attempt = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
+    const teacherInvite = clampStr(body.teacherInvite || "", 120);
 
     if (!message) return res.status(400).json({ error: "Missing message." });
 
@@ -231,7 +239,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Backend is the authority for verification + account role.
+    // Ask backend about verification/session
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
@@ -240,31 +248,20 @@ export default async function handler(req, res) {
     const teacher = accountRole === "teacher";
 
     // Educator persona is only available after verification.
-    if (uiRole === "educator" && !verified) {
+    if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    // Teacher tools are locked behind BACKEND role.
-    const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides"]);
+    // Teacher tools are locked behind backend role
+    const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides", "verify"]);
     if (teacherOnlyActions.has(action) && !teacher) {
       return res.status(403).json({
-        error: "Teacher tools are locked. Enter a Teacher Invite Code to unlock teacher tools.",
+        error: "Teacher tools are locked. Enter a Teacher Invite Code in Settings to unlock teacher tools.",
       });
     }
 
-    const sys = systemPrompt({
-      uiRole,
-      country,
-      level,
-      subject,
-      topic,
-      attempt,
-      responseStyle,
-      action,
-      customStyle,
-    });
-
-    const user = userPrompt({ uiRole, action, topic, message, options, attempt });
+    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action, customStyle });
+    const user = userPrompt({ role, action, topic, message, options, attempt, customStyle });
 
     const resp = await fetch(OPENROUTER_URL, {
       method: "POST",

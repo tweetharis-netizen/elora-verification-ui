@@ -1,214 +1,321 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/router";
-import Navbar from "../components/Navbar";
-import { getSession, isTeacher, refreshVerifiedFromServer } from "../lib/session";
+import Modal from "../components/Modal";
+import {
+  activateTeacher,
+  getSession,
+  refreshVerifiedFromServer,
+  setGuest as storeGuest,
+  setRole as storeRole,
+} from "../lib/session";
 
-function cn(...xs) {
-  return xs.filter(Boolean).join(" ");
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function Chip({ variant, children }) {
+function Chip({ children, variant = "neutral" }) {
   const styles =
     variant === "good"
-      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
       : variant === "warn"
-      ? "border-amber-400/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200";
+      ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+      : variant === "accent"
+      ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200"
+      : "border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-700 dark:text-slate-200";
 
-  const dot =
-    variant === "good"
-      ? "bg-emerald-400"
-      : variant === "warn"
-      ? "bg-amber-400"
-      : "bg-slate-300 dark:bg-white/30";
-
-  return (
-    <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold", styles)}>
-      <span className={cn("h-2 w-2 rounded-full", dot)} />
-      {children}
-    </span>
-  );
+  return <span className={cn("rounded-full px-3 py-1 text-xs font-extrabold border", styles)}>{children}</span>;
 }
 
-function StepCard({ num, title, desc, status, actionLabel, onAction, disabled }) {
-  const variant = status === "done" ? "good" : status === "next" ? "warn" : "neutral";
-  const statusText = status === "done" ? "Done" : status === "next" ? "Next" : "Locked";
-
+function PreviewCard({ title, children }) {
   return (
-    <div className="rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-5 shadow-xl shadow-slate-900/5 dark:shadow-black/20">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center font-black text-slate-900 dark:text-white">
-            {num}
-          </div>
-          <div>
-            <div className="text-sm font-extrabold text-slate-950 dark:text-white">{title}</div>
-            <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{desc}</div>
-          </div>
-        </div>
-        <Chip variant={variant}>{statusText}</Chip>
-      </div>
-
-      {actionLabel ? (
-        <div className="mt-4">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onAction}
-            className={cn(
-              "rounded-2xl px-4 py-2 text-sm font-extrabold border transition",
-              disabled
-                ? "border-slate-200/60 dark:border-white/10 text-slate-400 cursor-not-allowed bg-white/40 dark:bg-slate-950/10"
-                : "border-indigo-500/30 bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
-            )}
-          >
-            {actionLabel}
-          </button>
-        </div>
-      ) : null}
+    <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
+      <div className="text-sm font-black text-slate-950 dark:text-white">{title}</div>
+      <div className="mt-3">{children}</div>
     </div>
   );
 }
 
 export default function DemoPage() {
-  const router = useRouter();
   const [session, setSession] = useState(() => getSession());
-
   const verified = Boolean(session?.verified);
-  const teacher = Boolean(isTeacher());
+  const teacher = Boolean(session?.teacher);
+
+  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
+
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [verifyStatus, setVerifyStatus] = useState("");
+
+  const [teacherGateCode, setTeacherGateCode] = useState("");
+  const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      await refreshVerifiedFromServer();
-      if (!mounted) return;
-      setSession(getSession());
-    })();
+
+    async function refresh() {
+      try {
+        await refreshVerifiedFromServer();
+      } finally {
+        const s = getSession();
+        if (!mounted) return;
+        setSession(s);
+      }
+    }
+
+    refresh();
+
+    const onSession = () => setSession(getSession());
+    window.addEventListener("elora:session", onSession);
+    window.addEventListener("storage", onSession);
     return () => {
       mounted = false;
+      window.removeEventListener("elora:session", onSession);
+      window.removeEventListener("storage", onSession);
     };
   }, []);
 
-  const demoMsg = useMemo(() => {
-    // Short, judge-friendly, shows "human language + steps" without LaTeX.
-    return "Explain photosynthesis in 4 short steps for a Secondary student, add 1 simple example, then end with 2 quick check questions.";
-  }, []);
+  const nextSteps = useMemo(() => {
+    const items = [];
+    if (!verified) items.push("Verify your email to unlock persistent sessions and exports.");
+    if (verified && !teacher) items.push("Enter a teacher invite code to unlock teacher tools.");
+    items.push("Open Assistant and ask a question in plain language.");
+    return items;
+  }, [verified, teacher]);
 
-  const step1 = verified ? "done" : "next";
-  const step2 = !verified ? "locked" : teacher ? "done" : "next";
-  const step3 = !verified ? "locked" : "next";
-  const step4 = !verified ? "locked" : "next";
+  async function doVerifySend() {
+    const email = verifyEmail.trim();
+    if (!email) return;
+
+    setVerifyStatus("Sending…");
+
+    try {
+      const r = await fetch("/api/verification/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.error || "Failed to send verification email.");
+      setVerifyStatus("Sent! Check your inbox.");
+    } catch (e) {
+      setVerifyStatus(String(e?.message || e));
+    }
+  }
+
+  async function doTeacherRedeem() {
+    setTeacherGateStatus("");
+    const code = teacherGateCode.trim();
+    if (!code) {
+      setTeacherGateStatus("Enter a code.");
+      return false;
+    }
+
+    try {
+      const ok = await activateTeacher(code);
+      if (!ok) {
+        setTeacherGateStatus("Invalid code.");
+        return false;
+      }
+
+      await refreshVerifiedFromServer();
+      const s = getSession();
+      setSession(s);
+
+      setTeacherGateStatus("Teacher tools unlocked ✅");
+      return true;
+    } catch {
+      setTeacherGateStatus("Could not validate right now. Try again.");
+      return false;
+    }
+  }
 
   return (
     <>
       <Head>
-        <title>Genesis Demo — Elora</title>
+        <title>Elora Demo</title>
       </Head>
-
-      <Navbar />
 
       <div className="elora-page">
         <div className="elora-container">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-3xl font-black text-slate-950 dark:text-white">Start Genesis Demo</h1>
-              <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 max-w-2xl">
-                Follow these steps in order. This is designed to take <span className="font-extrabold">3–5 minutes</span> and
-                shows verification, teacher gating, memory, and exports.
-              </p>
+          <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+            <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-6">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-950 dark:text-white">Elora</h1>
+                  <div className="mt-2 text-sm text-slate-700 dark:text-slate-300 max-w-[56ch]">
+                    A professional but warm teaching assistant that helps educators verify student work and give clear,
+                    human explanations.
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Chip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</Chip>
+                  <Chip variant={teacher ? "accent" : "neutral"}>{teacher ? "Teacher mode" : "Standard mode"}</Chip>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4">
+                <PreviewCard title="What judges should see in 5 minutes">
+                  <ol className="list-decimal ml-5 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                    {nextSteps.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                </PreviewCard>
+
+                <PreviewCard title="Quick actions">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVerifyGateOpen(true)}
+                      className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500 transition"
+                    >
+                      Verify email
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        storeRole("educator");
+                        setSession(getSession());
+                      }}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-950/25"
+                    >
+                      Set role: Teacher
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        storeRole("student");
+                        setSession(getSession());
+                      }}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-950/25"
+                    >
+                      Set role: Student
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTeacherGateOpen(true)}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-950/25"
+                    >
+                      Unlock teacher tools
+                    </button>
+                  </div>
+                </PreviewCard>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Chip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</Chip>
-              <Chip variant={teacher ? "good" : "neutral"}>{teacher ? "Teacher mode" : "Teacher locked"}</Chip>
-            </div>
-          </div>
+            <div className="grid gap-4">
+              <PreviewCard title="Assistant preview">
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                    “Explain why 5 divided by 4 is 1.25, like I’m 13.”
+                  </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <StepCard
-              num={1}
-              title="Verify your email"
-              desc="This unlocks full access and makes state persist across refreshes."
-              status={step1}
-              actionLabel={verified ? "Open Assistant" : "Go to verification"}
-              onAction={() => router.push(verified ? "/assistant" : "/verify")}
-              disabled={false}
-            />
+                  <div className="rounded-2xl border border-indigo-500/20 bg-indigo-600 text-white px-4 py-3 text-sm">
+                    5 divided by 4 means: split 5 into 4 equal parts. Each part is 1, and you have 1 left over. The leftover
+                    is 1 out of 4, which is 0.25. So 1 + 0.25 = 1.25.
+                  </div>
+                </div>
+              </PreviewCard>
 
-            <StepCard
-              num={2}
-              title="Unlock Teacher Tools"
-              desc="Enter a Teacher Invite Code (e.g., GENESIS2026) to unlock lesson plans, worksheets, slides, and assessments."
-              status={step2}
-              actionLabel={teacher ? "Teacher already unlocked" : "Open teacher unlock"}
-              onAction={() => router.push("/assistant?demo=1&unlockTeacher=1")}
-              disabled={!verified || teacher}
-            />
-
-            <StepCard
-              num={3}
-              title="Run a 1-click example"
-              desc="This auto-fills a judge-friendly prompt and sends it once (no repeated spam on refresh)."
-              status={step3}
-              actionLabel="Run example in Assistant"
-              onAction={() =>
-                router.push(
-                  `/assistant?demo=1&demoRole=educator&demoMsg=${encodeURIComponent(demoMsg)}`
-                )
-              }
-              disabled={!verified}
-            />
-
-            <StepCard
-              num={4}
-              title="Export"
-              desc="Export the last answer to DOCX / PPTX / PDF to prove it’s classroom-ready."
-              status={step4}
-              actionLabel="Open Assistant (Export)"
-              onAction={() => router.push("/assistant?demo=1")}
-              disabled={!verified}
-            />
-          </div>
-
-          <div className="mt-6 rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-5">
-            <div className="text-sm font-extrabold text-slate-950 dark:text-white">Pro demo tip</div>
-            <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              After step 3, refresh the Assistant page once to prove chat memory + verification persistence.
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => router.push("/")}
-                className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-              >
-                Back to Home
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/help")}
-                className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
-              >
-                Help / FAQ
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    sessionStorage.removeItem("elora_demo_sent_v1");
-                    sessionStorage.removeItem("elora_demo_role_set_v1");
-                  } catch {}
-                  router.push("/demo");
-                }}
-                className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
-              >
-                Reset demo (local)
-              </button>
+              <PreviewCard title="Status">
+                <div className="flex flex-wrap gap-2">
+                  <Chip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</Chip>
+                  <Chip variant={teacher ? "accent" : "neutral"}>{teacher ? "Teacher mode enabled" : "Teacher tools locked"}</Chip>
+                </div>
+                <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+                  (Status comes from session + server refresh on load.)
+                </div>
+              </PreviewCard>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Verify gate modal */}
+      <Modal open={verifyGateOpen} title="Verify to continue" onClose={() => setVerifyGateOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Verification unlocks exports and persistent sessions. For demo: use a real email you can access.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Email</label>
+          <input
+            value={verifyEmail}
+            onChange={(e) => setVerifyEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+          />
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={doVerifySend}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500 transition"
+            >
+              Send link
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                storeGuest(true);
+                setSession(getSession());
+                setVerifyGateOpen(false);
+              }}
+              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-950/25"
+            >
+              Continue as guest
+            </button>
+          </div>
+
+          {verifyStatus ? <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">{verifyStatus}</div> : null}
+        </div>
+      </Modal>
+
+      {/* Teacher gate modal */}
+      <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Invite code</label>
+          <input
+            value={teacherGateCode}
+            onChange={(e) => setTeacherGateCode(e.target.value)}
+            placeholder="e.g. GENESIS2026"
+            className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+          />
+
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await doTeacherRedeem();
+                if (ok) setTeacherGateOpen(false);
+              }}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500 transition"
+            >
+              Unlock
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTeacherGateOpen(false)}
+              className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-950/25"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {teacherGateStatus ? (
+            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">{teacherGateStatus}</div>
+          ) : null}
+        </div>
+      </Modal>
     </>
   );
 }

@@ -53,7 +53,7 @@ Only include a rubric or answer key if the user asks for it.`;
   }
 }
 
-function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action }) {
+function systemPrompt({ uiRole, country, level, subject, topic, attempt, responseStyle, action, customStyle }) {
   const mode = String(responseStyle || "standard").toLowerCase();
 
   const modeRules =
@@ -67,10 +67,16 @@ function systemPrompt({ role, country, level, subject, topic, attempt, responseS
 - Ask 1 quick check-for-understanding question.`
       : mode === "custom"
       ? `Mode: custom
-- Follow the user's custom style instructions if provided, as long as it does not violate the hard rules.`
+- Follow the user's custom style if provided, as long as it does not violate hard rules below.`
       : `Mode: standard
 - Clear, friendly, concise.
 - End with 1 quick check question when reasonable.`;
+
+  const customLine =
+    mode === "custom" && String(customStyle || "").trim()
+      ? `Custom style instructions:
+${String(customStyle).trim()}`
+      : "";
 
   return `You are Elora — a calm, professional teaching assistant built for real educators and learners.
 
@@ -82,14 +88,14 @@ HARD RULES (must follow):
    - Avoid long paragraphs.
 4) Use human-readable math:
    - Say: "5 divided by 4 is 1.25".
-   - If helpful, you may include "5/4" AFTER the words (not required).
-5) If the user asks for a homework/test answer with no attempt, do hints-first.
-   - Ask for their attempt OR give the next step hint.
+   - If helpful, you may include "5/4" AFTER the words (optional).
+5) If the user asks for a homework/test answer with no attempt, do hints-first:
+   - Ask for their attempt OR give the next-step hint.
    - Only give a final answer if they explicitly insist after effort, or if it's clearly not an assessment.
-6) Be warm and non-intimidating. No "as an AI model" disclaimers.
+6) Be warm, calm, and non-intimidating. No "as an AI model" disclaimers.
 
-Context:
-- User type: ${role}
+Context (from app):
+- UI role (persona): ${uiRole}
 - Country/curriculum: ${country}
 - Level: ${level}
 - Subject: ${subject}
@@ -98,10 +104,11 @@ Context:
 - Attempt count: ${attempt}
 
 ${modeRules}
+${customLine}
 
 ${actionTemplate(action)}
 
-If the user provides a student attempt/solution, do "verification style":
+If the user provides a student attempt/solution, use verification style:
 - Verdict: Likely correct / Uncertain / Likely incorrect
 - 3 checks: correctness, reasoning, assumptions/units (if relevant)
 - ONE next-step hint (do not dump the full solution unless asked)
@@ -111,9 +118,9 @@ Return plain text only. If you need structure:
 - Use simple bullets with "-".`;
 }
 
-function userPrompt({ role, action, topic, message, options, attempt, customStyle }) {
+function userPrompt({ uiRole, action, topic, message, options, attempt }) {
   return `Action: ${action}
-User type: ${role}
+UI role: ${uiRole}
 Topic: ${topic}
 Attempt: ${attempt}
 
@@ -121,10 +128,7 @@ User message:
 ${message}
 
 Constraints/options (optional):
-${options || ""}
-
-Custom style (optional):
-${customStyle || ""}`;
+${options || ""}`;
 }
 
 function normalizeMathToPlainText(text) {
@@ -149,14 +153,14 @@ function normalizeMathToPlainText(text) {
   // \sqrt{a} => sqrt(a)
   t = t.replace(/\\sqrt\{([^{}\n]+)\}/g, (_m, a) => `sqrt(${a})`);
 
+  // Remove \left / \right noise
+  t = t.replace(/\\left/g, "").replace(/\\right/g, "");
+
   // Remove stray backslashes left from TeX commands
   t = t.replace(/\\[a-zA-Z]+/g, "");
 
-  // Clean up double spaces
-  t = t.replace(/[ \t]{2,}/g, " ");
-
-  // \left / \right add noise for beginners.
-  t = t.replace(/\\left/g, "").replace(/\\right/g, "");
+  // Clean up spacing
+  t = t.replace(/[ \t]{2,}/g, " ").trim();
 
   return t;
 }
@@ -165,7 +169,7 @@ function stripMarkdownToPlainText(text) {
   if (!text) return "";
   let t = String(text);
 
-  // Remove fenced code blocks completely (they often come with Markdown noise).
+  // Remove fenced code blocks
   t = t.replace(/```[\s\S]*?```/g, "");
 
   // Remove inline code backticks
@@ -203,7 +207,8 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    const role = clampStr(body.role || "student", 20);
+
+    const uiRole = clampStr(body.role || "student", 20); // UI persona role, not account role
     const country = clampStr(body.country || "Singapore", 40);
     const level = clampStr(body.level || "Secondary", 40);
     const subject = clampStr(body.subject || "General", 60);
@@ -213,7 +218,7 @@ export default async function handler(req, res) {
     const options = clampStr(body.options || "", 1400);
 
     const responseStyle = clampStr(body.responseStyle || body.style || "", 60);
-    const customStyle = clampStr(body.customStyle || "", 600);
+    const customStyle = clampStr(body.customStyle || "", 700);
 
     const guest = Boolean(body.guest);
     const attempt = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
@@ -226,29 +231,40 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ask backend about verification/session/role (backend is authority)
+    // Backend is the authority for verification + account role.
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
     const verified = Boolean(status?.verified);
     const accountRole = String(status?.role || (verified ? "regular" : "guest")).toLowerCase();
-    const isTeacher = accountRole === "teacher";
+    const teacher = accountRole === "teacher";
 
-    // Educator mode is only available after verification.
-    if (role === "educator" && !verified) {
+    // Educator persona is only available after verification.
+    if (uiRole === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    // Teacher tools are locked behind BACKEND role checks (no local cookie authority).
+    // Teacher tools are locked behind BACKEND role.
     const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    if (teacherOnlyActions.has(action) && !isTeacher) {
+    if (teacherOnlyActions.has(action) && !teacher) {
       return res.status(403).json({
         error: "Teacher tools are locked. Enter a Teacher Invite Code to unlock teacher tools.",
       });
     }
 
-    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action });
-    const user = userPrompt({ role, action, topic, message, options, attempt, customStyle });
+    const sys = systemPrompt({
+      uiRole,
+      country,
+      level,
+      subject,
+      topic,
+      attempt,
+      responseStyle,
+      action,
+      customStyle,
+    });
+
+    const user = userPrompt({ uiRole, action, topic, message, options, attempt });
 
     const resp = await fetch(OPENROUTER_URL, {
       method: "POST",

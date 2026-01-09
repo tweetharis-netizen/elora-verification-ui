@@ -1,5 +1,4 @@
 import { getSessionTokenFromReq, fetchBackendStatus } from "@/lib/server/verification";
-import { isTeacherFromReq } from "@/lib/server/teacher";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -14,42 +13,117 @@ function isGuestAllowedAction(action) {
   return !disallowed.has(action);
 }
 
-function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle }) {
-  return `You are Elora: a calm, professional teaching assistant for educators and learners.
+function actionTemplate(action) {
+  switch (String(action || "").toLowerCase()) {
+    case "lesson":
+      return `Output format (lesson plan):
+- Lesson goal (1 sentence)
+- Learning objectives (3 bullets)
+- Lesson flow (timed steps; 30–60 minutes total)
+- Common misconceptions (2–4 bullets)
+- Differentiation (Support + Stretch)
+- Exit ticket (1–2 questions)`;
+    case "worksheet":
+      return `Output format (worksheet):
+- Topic + level label (1 line)
+- Warm-up (2–3 questions)
+- Core (4–6 questions)
+- Challenge (2–3 questions)
+Only include an answer key if the user asks for it.`;
+    case "assessment":
+      return `Output format (assessment):
+- Topic + level label (1 line)
+- 6–10 test-style questions
+- Simple mark allocation
+Only include a rubric or answer key if the user asks for it.`;
+    case "slides":
+      return `Output format (slides outline):
+- Title slide (1 line)
+- 6–10 slides:
+  - Slide title
+  - 2–4 bullets
+  - Optional teacher note (1 short line)`;
+    case "explain":
+    default:
+      return `Output format (explain):
+- One-sentence answer (simple)
+- Steps: 3–7 short numbered steps
+- Mini example (only if helpful; 2–4 lines)
+- Quick check: 1 question (+ short answer)`;
+  }
+}
 
-Hard rules (important):
-- Use plain, human-readable math. Example: "5 divided by 4 = 1.25" and (if helpful) "5/4".
-- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
-- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
-- Keep tone warm, non-intimidating, and clear for beginners.
-- Do not include hashtags, decorative separators, or stylized formatting.
+function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action }) {
+  const mode = String(responseStyle || "standard").toLowerCase();
+
+  const modeRules =
+    mode === "exam"
+      ? `Mode: exam prep
+- Be concise. Focus on method + answer check.
+- Give minimal hints. Do not over-explain.`
+      : mode === "tutor"
+      ? `Mode: tutor
+- Be more guided: short steps + gentle hints.
+- Ask 1 quick check-for-understanding question.`
+      : mode === "custom"
+      ? `Mode: custom
+- Follow the user's custom style instructions if provided, as long as it does not violate the hard rules.`
+      : `Mode: standard
+- Clear, friendly, concise.
+- End with 1 quick check question when reasonable.`;
+
+  return `You are Elora — a calm, professional teaching assistant built for real educators and learners.
+
+HARD RULES (must follow):
+1) Plain language by default. No raw LaTeX/TeX. Do NOT output \\frac, \\sqrt, \\times, \\( \\), $$, etc.
+2) Do NOT use Markdown formatting. No headings starting with #, no **bold**, no code fences.
+3) Keep it short and readable:
+   - Prefer 3–7 steps. Each step 1–2 lines max.
+   - Avoid long paragraphs.
+4) Use human-readable math:
+   - Say: "5 divided by 4 is 1.25".
+   - If helpful, you may include "5/4" AFTER the words (not required).
+5) If the user asks for a homework/test answer with no attempt, do hints-first.
+   - Ask for their attempt OR give the next step hint.
+   - Only give a final answer if they explicitly insist after effort, or if it's clearly not an assessment.
+6) Be warm and non-intimidating. No "as an AI model" disclaimers.
 
 Context:
-Role: ${role}
-Country: ${country}
-Level: ${level}
-Subject: ${subject}
-Topic: ${topic}
-Attempt: ${attempt}
-Response style: ${responseStyle || "standard"}
+- User type: ${role}
+- Country/curriculum: ${country}
+- Level: ${level}
+- Subject: ${subject}
+- Topic: ${topic}
+- Action: ${action}
+- Attempt count: ${attempt}
 
-Return plain text (no Markdown markers like #, **, backticks).
-If you need structure, use short paragraphs, numbered steps like "1) ...", and simple bullet points using "-".`;
+${modeRules}
+
+${actionTemplate(action)}
+
+If the user provides a student attempt/solution, do "verification style":
+- Verdict: Likely correct / Uncertain / Likely incorrect
+- 3 checks: correctness, reasoning, assumptions/units (if relevant)
+- ONE next-step hint (do not dump the full solution unless asked)
+
+Return plain text only. If you need structure:
+- Use numbered steps like "1) ...".
+- Use simple bullets with "-".`;
 }
 
 function userPrompt({ role, action, topic, message, options, attempt, customStyle }) {
   return `Action: ${action}
-Role: ${role}
+User type: ${role}
 Topic: ${topic}
 Attempt: ${attempt}
 
 User message:
 ${message}
 
-Constraints/options:
-${options}
+Constraints/options (optional):
+${options || ""}
 
-Extra request (optional):
+Custom style (optional):
 ${customStyle || ""}`;
 }
 
@@ -143,7 +217,6 @@ export default async function handler(req, res) {
 
     const guest = Boolean(body.guest);
     const attempt = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
-    const teacherInvite = clampStr(body.teacherInvite || "", 120);
 
     if (!message) return res.status(400).json({ error: "Missing message." });
 
@@ -153,28 +226,28 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ask backend about verification/session
+    // Ask backend about verification/session/role (backend is authority)
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
     const verified = Boolean(status?.verified);
-    const teacher = isTeacherFromReq(req);
+    const accountRole = String(status?.role || (verified ? "regular" : "guest")).toLowerCase();
+    const isTeacher = accountRole === "teacher";
 
     // Educator mode is only available after verification.
     if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    // Teacher tools are locked behind a signed httpOnly teacher cookie.
+    // Teacher tools are locked behind BACKEND role checks (no local cookie authority).
     const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    if (teacherOnlyActions.has(action) && !teacher) {
+    if (teacherOnlyActions.has(action) && !isTeacher) {
       return res.status(403).json({
-        error:
-          "Teacher tools are locked. Enter a Teacher Invite Code in Settings to activate Educator tools.",
+        error: "Teacher tools are locked. Enter a Teacher Invite Code to unlock teacher tools.",
       });
     }
 
-    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle });
+    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action });
     const user = userPrompt({ role, action, topic, message, options, attempt, customStyle });
 
     const resp = await fetch(OPENROUTER_URL, {
@@ -206,7 +279,7 @@ export default async function handler(req, res) {
     const reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
 
     return res.status(200).json({ reply });
-  } catch (e) {
+  } catch {
     return res.status(500).json({ error: "Unexpected server error." });
   }
 }

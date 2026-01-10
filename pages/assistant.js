@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
-  activateTeacher,
   getSession,
   isTeacher,
   refreshVerifiedFromServer,
@@ -84,14 +83,6 @@ function cn(...arr) {
   return arr.filter(Boolean).join(" ");
 }
 
-function safeParseJSON(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 function persistSessionPatch(patch) {
   try {
     const s = getSession() || {};
@@ -105,7 +96,7 @@ function persistSessionPatch(patch) {
 async function saveServerChatIfVerified(session, messages) {
   try {
     if (!session?.verified) return;
-    await fetch("/api/chat/save", {
+    await fetch("/api/chat/set", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
@@ -113,6 +104,15 @@ async function saveServerChatIfVerified(session, messages) {
   } catch {
     // ignore
   }
+}
+
+function buildWorkVerificationDisplay(question, attempt, focus) {
+  const q = String(question || "").trim();
+  const a = String(attempt || "").trim();
+  const f = String(focus || "").trim();
+
+  const focusLine = f ? `\n\nFocus:\n${f}` : "";
+  return `[Work Verification]\nQuestion:\n${q}\n\nStudent attempt:\n${a}${focusLine}`;
 }
 
 export default function Assistant() {
@@ -220,11 +220,10 @@ export default function Assistant() {
     })();
   }, []);
 
-  // ====== Demo triggers (query-driven, safe, run-once) ======
+  // Demo triggers (query-driven, safe, run-once)
   useEffect(() => {
     if (!router.isReady) return;
 
-    // 1) If demoRole is provided, set it once (so judge sees teacher view immediately).
     const demoRole = String(router.query.demoRole || "").trim();
     if (demoRole && (demoRole === "educator" || demoRole === "student" || demoRole === "parent")) {
       try {
@@ -238,7 +237,6 @@ export default function Assistant() {
       }
     }
 
-    // 2) If unlockTeacher=1, open teacher gate (only when verified and not teacher).
     const unlockTeacher = String(router.query.unlockTeacher || "") === "1";
     if (unlockTeacher) {
       try {
@@ -291,20 +289,32 @@ export default function Assistant() {
     persistSessionPatch(patch);
   }, [role, country, level, subject, topic, workQuestion, workAttempt, action]);
 
+  function jumpToLatest() {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    setStickToBottom(true);
+  }
+
+  function loadDemoExample() {
+    // Purpose-built: 1-click demo that always produces a clear verdict.
+    setSubject("Math");
+    setTopic("Linear equations");
+
+    setWorkQuestion("Solve: 2x + 3 = 11");
+    setWorkAttempt("Student wrote:\n2x = 11\nx = 5.5");
+
+    setChatText("Focus on the first mistake only, and give ONE next-step hint.");
+    persistSessionPatch({
+      subject: "Math",
+      topic: "Linear equations",
+      workQuestion: "Solve: 2x + 3 = 11",
+      workAttempt: "Student wrote:\n2x = 11\nx = 5.5",
+    });
+  }
+
   async function callElora({ messageOverride, baseMessages }) {
     if (loading) return;
-
-    // If no messages, show a short hint message in chat
-    if (!baseMessages?.length) {
-      setMessages([
-        {
-          from: "elora",
-          text: "Tell me what you’re working on. If you paste your attempt, I can check it and explain where it went wrong.",
-          ts: Date.now(),
-        },
-      ]);
-      return;
-    }
 
     const rawUser = (messageOverride || "").trim() || chatText.trim();
     const needsWorkInputs = action === "check" || action === "verify";
@@ -326,7 +336,7 @@ export default function Assistant() {
       }
 
       const focus = rawUser || "Verify this attempt and point out the first mistake (if any).";
-      var lastUser = `[Work Verification]\nQuestion:\n${q}\n\nStudent attempt:\n${a}\n\nFocus:\n${focus}`;
+      var lastUser = buildWorkVerificationDisplay(q, a, focus);
     } else {
       var lastUser = rawUser;
     }
@@ -433,9 +443,7 @@ export default function Assistant() {
     }
 
     const focus = msg || "Verify this attempt and point out the first mistake (if any).";
-    const displayText = needsWorkInputs
-      ? `[Work Verification]\nQuestion:\n${q}\n\nStudent attempt:\n${a}\n\nFocus:\n${focus}`
-      : msg;
+    const displayText = needsWorkInputs ? buildWorkVerificationDisplay(q, a, focus) : msg;
 
     const userMsg = { from: "user", text: displayText, ts: Date.now() };
     const nextMessages = [...messages, userMsg];
@@ -446,7 +454,6 @@ export default function Assistant() {
     persistSessionPatch({ messages: nextMessages });
     await saveServerChatIfVerified(currentSession, nextMessages);
 
-    // For work verification, msg is an optional focus line; callElora will inject q + a from state.
     await callElora({ messageOverride: msg, baseMessages: nextMessages });
   }
 
@@ -527,7 +534,6 @@ export default function Assistant() {
         return;
       }
 
-      // Persist teacherCode for later use in assistant API, and refresh status.
       persistSessionPatch({ teacherCode: code });
       setTeacherCodeStatus("Unlocked ✅");
 
@@ -540,9 +546,7 @@ export default function Assistant() {
   }
 
   const chips = REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom;
-
   const quickActions = ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student;
-
   const activeAction = quickActions.find((a) => a.id === action) || quickActions[0];
 
   return (
@@ -627,7 +631,13 @@ export default function Assistant() {
                     key={a.id}
                     type="button"
                     onClick={() => {
-                      if (a.id === "lesson" || a.id === "worksheet" || a.id === "assessment" || a.id === "slides" || a.id === "verify") {
+                      if (
+                        a.id === "lesson" ||
+                        a.id === "worksheet" ||
+                        a.id === "assessment" ||
+                        a.id === "slides" ||
+                        a.id === "verify"
+                      ) {
                         if (!isTeacher()) {
                           setTeacherGateOpen(true);
                           return;
@@ -717,38 +727,51 @@ export default function Assistant() {
                 </div>
               </div>
 
-                {action === "check" || action === "verify" ? (
-                  <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-600/5 p-4">
-                    <div className="text-sm font-black text-slate-900 dark:text-white">Work Verification</div>
-                    <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">
-                      Paste the question and the student’s attempt. Elora will give a verdict, checks, and one next-step hint.
+              {action === "check" || action === "verify" ? (
+                <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-600/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white">Work Verification</div>
+                      <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                        Paste the question and the student’s attempt. Elora gives a verdict, checks, and one next-step hint.
+                      </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3">
-                      <div>
-                        <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Question</label>
-                        <textarea
-                          value={workQuestion}
-                          onChange={(e) => setWorkQuestion(e.target.value)}
-                          rows={4}
-                          placeholder="E.g. Solve: 2x + 3 = 11"
-                          className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                        />
-                      </div>
+                    <button
+                      type="button"
+                      onClick={loadDemoExample}
+                      className="rounded-xl border border-indigo-500/30 bg-indigo-600/10 px-3 py-2 text-[11px] font-black text-indigo-700 hover:bg-indigo-600/15 dark:text-indigo-200"
+                      title="Loads a safe demo example (1 click)"
+                    >
+                      Load demo example
+                    </button>
+                  </div>
 
-                      <div>
-                        <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Student attempt</label>
-                        <textarea
-                          value={workAttempt}
-                          onChange={(e) => setWorkAttempt(e.target.value)}
-                          rows={6}
-                          placeholder="Paste the student's working/steps here…"
-                          className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                        />
-                      </div>
+                  <div className="mt-4 grid gap-3">
+                    <div>
+                      <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Question</label>
+                      <textarea
+                        value={workQuestion}
+                        onChange={(e) => setWorkQuestion(e.target.value)}
+                        rows={4}
+                        placeholder="E.g. Solve: 2x + 3 = 11"
+                        className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Student attempt</label>
+                      <textarea
+                        value={workAttempt}
+                        onChange={(e) => setWorkAttempt(e.target.value)}
+                        rows={6}
+                        placeholder="Paste the student's working/steps here…"
+                        className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
+                      />
                     </div>
                   </div>
-                ) : null}
+                </div>
+              ) : null}
 
               {/* Constraints */}
               <div className="mt-5">
@@ -803,9 +826,7 @@ export default function Assistant() {
               {/* Teacher invite */}
               <div className="mt-5 rounded-2xl border border-slate-200/70 bg-white/60 p-4 dark:border-white/10 dark:bg-white/5">
                 <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Teacher Invite Code</div>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  Unlock teacher tools (works after verification).
-                </div>
+                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">Unlock teacher tools (works after verification).</div>
 
                 <div className="mt-3 flex items-center gap-2">
                   <input
@@ -870,7 +891,7 @@ export default function Assistant() {
             </div>
 
             {/* Messages list */}
-            <div ref={listRef} className="h-[560px] overflow-y-auto p-4">
+            <div ref={listRef} className="relative h-[560px] overflow-y-auto p-4">
               {messages?.length ? (
                 <div className="grid gap-3">
                   {messages.map((m, i) => (
@@ -893,6 +914,17 @@ export default function Assistant() {
                   verify it.
                 </div>
               )}
+
+              {!stickToBottom && messages?.length ? (
+                <button
+                  type="button"
+                  onClick={jumpToLatest}
+                  className="absolute bottom-4 right-4 rounded-full border border-indigo-500/30 bg-indigo-600/10 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm hover:bg-indigo-600/15 dark:text-indigo-200"
+                  title="Jump to latest message"
+                >
+                  Jump to latest
+                </button>
+              ) : null}
             </div>
 
             {/* Chips + input */}
@@ -917,7 +949,11 @@ export default function Assistant() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") sendChat();
                   }}
-                  placeholder={action === "check" || action === "verify" ? "Optional: what should Elora focus on? (e.g., first mistake only)" : "Ask Elora to refine, explain, or guide your next attempt…"}
+                  placeholder={
+                    action === "check" || action === "verify"
+                      ? "Optional: what should Elora focus on? (e.g., first mistake only)"
+                      : "Ask Elora to refine, explain, or guide your next attempt…"
+                  }
                   className="flex-1 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
                 <button
@@ -939,9 +975,7 @@ export default function Assistant() {
 
       {/* Verify gate */}
       <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)} title="Verify to continue">
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          To use Educator tools and persist your session, verify your email.
-        </div>
+        <div className="text-sm text-slate-700 dark:text-slate-200">To use Educator tools and persist your session, verify your email.</div>
         <div className="mt-4 flex gap-2">
           <button
             type="button"

@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
+  activateTeacher,
   getSession,
   isTeacher,
   refreshVerifiedFromServer,
@@ -37,100 +38,88 @@ const REFINEMENT_CHIPS = {
   worksheet: [
     { id: "easier", label: "Make it easier" },
     { id: "harder", label: "Make it harder" },
-    { id: "answers", label: "Add answer key" },
-    { id: "variants", label: "Add variants" },
+    { id: "answers", label: "Add teacher answers" },
+    { id: "variants", label: "Add A/B versions" },
   ],
   assessment: [
-    { id: "shorter", label: "Shorter" },
-    { id: "harder", label: "Harder" },
-    { id: "markscheme", label: "Add marking scheme" },
+    { id: "markscheme", label: "Add mark scheme" },
     { id: "variants", label: "Add variants" },
+    { id: "harder", label: "Make it harder" },
+    { id: "easier", label: "Make it easier" },
   ],
   slides: [
-    { id: "outline", label: "Tighter outline" },
-    { id: "hooks", label: "Add hooks" },
-    { id: "examples", label: "More examples" },
-    { id: "notes", label: "Teacher notes" },
+    { id: "outline", label: "Tighten outline" },
+    { id: "hooks", label: "Add hook" },
+    { id: "examples", label: "Add examples" },
+    { id: "notes", label: "Add teacher notes" },
   ],
   check: [
-    { id: "stricter", label: "Be stricter" },
-    { id: "mistake", label: "Focus on the mistake" },
-    { id: "hint", label: "Give only 1 hint" },
-    { id: "explain-why", label: "Explain why it's wrong" },
+    { id: "more-steps", label: "Show more steps" },
+    { id: "simpler", label: "Make it simpler" },
+    { id: "example", label: "Add an example" },
   ],
-  verify: [
-    { id: "stricter", label: "Be stricter" },
-    { id: "mistake", label: "Focus on the mistake" },
-    { id: "hint", label: "Give only 1 hint" },
-    { id: "explain-why", label: "Explain why it's wrong" },
+  study: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "steps", label: "Show steps" },
+    { id: "check", label: "Add a check question" },
+  ],
+  coach: [
+    { id: "simpler", label: "Make it simpler" },
+    { id: "steps", label: "Give steps" },
+    { id: "check", label: "Add a check question" },
+  ],
+  message: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "simpler", label: "Make it simpler" },
   ],
   custom: [
-    { id: "shorter", label: "Shorter" },
-    { id: "clearer", label: "Clearer" },
-    { id: "more-steps", label: "More steps" },
-    { id: "example", label: "Add example" },
+    { id: "simpler", label: "Make it simpler" },
+    { id: "example", label: "Add an example" },
+    { id: "steps", label: "Show steps" },
   ],
 };
 
-const RESPONSE_STYLE_OPTIONS = [
-  { id: "standard", label: "Standard", hint: "Clear + friendly" },
-  { id: "tutor", label: "Tutor", hint: "Guided steps + checks" },
-  { id: "exam", label: "Exam", hint: "Concise method + verify" },
-  { id: "custom", label: "Custom", hint: "Follow your style" },
-];
-
-function cn(...arr) {
-  return arr.filter(Boolean).join(" ");
+function cn(...xs) {
+  return xs.filter(Boolean).join(" ");
 }
 
-function persistSessionPatch(patch) {
-  try {
-    const s = getSession() || {};
-    const next = { ...s, ...patch };
-    localStorage.setItem("elora_session_v1", JSON.stringify(next));
-  } catch {
-    // ignore
-  }
+function stripInternalTags(text) {
+  return String(text || "")
+    .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
+    .replace(/<\s*internal\s*\/\s*>/gi, "")
+    .replace(/<\s*internal\s*>/gi, "")
+    .trim();
 }
 
-async function saveServerChatIfVerified(session, messages) {
-  try {
-    if (!session?.verified) return;
-    await fetch("/api/chat/set", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    });
-  } catch {
-    // ignore
-  }
+function cleanAssistantText(text) {
+  let t = stripInternalTags(text || "");
+  t = t.replace(/```[\s\S]*?```/g, "");
+  t = t.replace(/`+/g, "");
+  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+  t = t.replace(/\*([^*]+)\*/g, "$1");
+  t = t.replace(/__([^_]+)__/g, "$1");
+  t = t.replace(/_([^_]+)_/g, "$1");
+  t = t.replace(/^\s*>\s?/gm, "");
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
+  t = t.replace(/\n{3,}/g, "\n\n").trim();
+  return t;
 }
 
-function buildWorkVerificationDisplay(question, attempt, focus) {
-  const q = String(question || "").trim();
-  const a = String(attempt || "").trim();
-  const f = String(focus || "").trim();
-
-  const focusLine = f ? `\n\nFocus:\n${f}` : "";
-  return `[Work Verification]\nQuestion:\n${q}\n\nStudent attempt:\n${a}${focusLine}`;
-}
-
-export default function Assistant() {
+export default function AssistantPage() {
   const router = useRouter();
 
-  const session = useMemo(() => getSession(), []);
-  const [role, setRole] = useState(() => session?.role || "student");
-  const [guest, setGuest] = useState(() => Boolean(session?.guest));
-  const [verified, setVerified] = useState(() => Boolean(session?.verified));
-  const [teacherUnlocked, setTeacherUnlocked] = useState(() => Boolean(session?.teacherUnlocked));
-  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [session, setSession] = useState(() => getSession());
+  const verified = Boolean(session?.verified);
+  const teacher = Boolean(isTeacher());
+  const guest = Boolean(session?.guest);
 
+  const [role, setRole] = useState(() => session?.role || "student");
   const [country, setCountry] = useState(() => session?.country || "Singapore");
   const [level, setLevel] = useState(() => session?.level || "Secondary");
   const [subject, setSubject] = useState(() => session?.subject || "General");
   const [topic, setTopic] = useState(() => session?.topic || "");
-  const [workQuestion, setWorkQuestion] = useState(() => session?.workQuestion || "");
-  const [workAttempt, setWorkAttempt] = useState(() => session?.workAttempt || "");
   const [constraints, setConstraints] = useState("");
   const [responseStyle, setResponseStyle] = useState("standard");
   const [customStyleText, setCustomStyleText] = useState("");
@@ -144,21 +133,21 @@ export default function Assistant() {
 
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-
-  const [teacherCode, setTeacherCode] = useState(() => session?.teacherCode || "");
-  const [teacherCodeStatus, setTeacherCodeStatus] = useState("");
-
-  const [exportOpen, setExportOpen] = useState(false);
-
-  const [stickToBottom, setStickToBottom] = useState(true);
+  const [teacherGateCode, setTeacherGateCode] = useState("");
+  const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   const listRef = useRef(null);
+
+  const [stickToBottom, setStickToBottom] = useState(true);
+  const [showJump, setShowJump] = useState(false);
+
+  const [dismissGuestBanner, setDismissGuestBanner] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(-1);
 
   const ROLE_QUICK_ACTIONS = {
     educator: [
       { id: "explain", label: "Explain a concept", hint: "Clear, classroom-ready explanation + example" },
       { id: "custom", label: "Custom request", hint: "Ask anything as a teacher (tone, structure, etc.)" },
-      { id: "verify", label: "Verify student work", hint: "Verdict + checks + one next-step hint" },
       { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
       { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions, export-ready" },
       { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
@@ -186,182 +175,181 @@ export default function Assistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
-  useEffect(() => {
-    // Load session + status from server on first mount
-    (async () => {
-      const s = getSession();
-      if (s) {
-        if (typeof s?.role === "string") setRole(s.role);
-        if (typeof s?.guest === "boolean") setGuest(Boolean(s.guest));
-        if (typeof s?.teacherCode === "string") setTeacherCode(s.teacherCode);
-        if (typeof s?.country === "string") setCountry(s.country);
-        if (typeof s?.level === "string") setLevel(s.level);
-        if (typeof s?.subject === "string") setSubject(s.subject);
-        if (typeof s?.topic === "string") setTopic(s.topic);
-        if (typeof s?.workQuestion === "string") setWorkQuestion(s.workQuestion);
-        if (typeof s?.workAttempt === "string") setWorkAttempt(s.workAttempt);
-        if (Array.isArray(s?.messages)) setMessages(s.messages);
-        if (typeof s?.verified === "boolean") setVerified(Boolean(s.verified));
-      }
+  const guestBlocked = useMemo(() => {
+    if (!guest) return false;
+    return ["lesson", "worksheet", "assessment", "slides"].includes(action);
+  }, [guest, action]);
 
-      try {
-        await refreshVerifiedFromServer();
-        const s2 = getSession();
-        if (s2?.role) setRole(s2.role);
-        if (typeof s2?.workQuestion === "string") setWorkQuestion(s2.workQuestion);
-        if (typeof s2?.workAttempt === "string") setWorkAttempt(s2.workAttempt);
-        if (typeof s2?.verified === "boolean") setVerified(Boolean(s2.verified));
-        if (typeof s2?.teacherUnlocked === "boolean") setTeacherUnlocked(Boolean(s2.teacherUnlocked));
-      } catch {
-        // ignore
-      } finally {
-        setLoadingStatus(false);
-      }
-    })();
-  }, []);
-
-  // Demo triggers (query-driven, safe, run-once)
-  useEffect(() => {
-    if (!router.isReady) return;
-
-    const demoRole = String(router.query.demoRole || "").trim();
-    if (demoRole && (demoRole === "educator" || demoRole === "student" || demoRole === "parent")) {
-      try {
-        const already = sessionStorage.getItem("elora_demo_role_set_v1");
-        if (!already) {
-          sessionStorage.setItem("elora_demo_role_set_v1", "1");
-          setRole(demoRole);
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    const unlockTeacher = String(router.query.unlockTeacher || "") === "1";
-    if (unlockTeacher) {
-      try {
-        const already = sessionStorage.getItem("elora_demo_unlock_teacher_v1");
-        if (!already) {
-          sessionStorage.setItem("elora_demo_unlock_teacher_v1", "1");
-          if (!isTeacher()) setTeacherGateOpen(true);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [router.isReady, router.query]);
-
-  // Track stick-to-bottom behavior
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
+    if (stickToBottom) el.scrollTop = el.scrollHeight;
+  }, [messages, loading, stickToBottom]);
 
-    const onScroll = () => {
-      const threshold = 30;
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-      setStickToBottom(atBottom);
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Auto-scroll new messages only when user is already at bottom
-  useEffect(() => {
+  function handleListScroll() {
     const el = listRef.current;
     if (!el) return;
-    if (!stickToBottom) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, stickToBottom]);
-
-  // Persist key settings
-  useEffect(() => {
-    const patch = {
-      role,
-      country,
-      level,
-      subject,
-      topic,
-      workQuestion,
-      workAttempt,
-      action,
-    };
-    persistSessionPatch(patch);
-  }, [role, country, level, subject, topic, workQuestion, workAttempt, action]);
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    setStickToBottom(atBottom);
+    setShowJump(!atBottom);
+  }
 
   function jumpToLatest() {
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
     setStickToBottom(true);
+    setShowJump(false);
   }
 
-  function loadDemoExample() {
-    // Purpose-built: 1-click demo that always produces a clear verdict.
-    setSubject("Math");
-    setTopic("Linear equations");
+  async function copyToClipboard(text, idx) {
+    const value = String(text || "").trim();
+    if (!value) return;
 
-    setWorkQuestion("Solve: 2x + 3 = 11");
-    setWorkAttempt("Student wrote:\n2x = 11\nx = 5.5");
-
-    setChatText("Focus on the first mistake only, and give ONE next-step hint.");
-    persistSessionPatch({
-      subject: "Math",
-      topic: "Linear equations",
-      workQuestion: "Solve: 2x + 3 = 11",
-      workAttempt: "Student wrote:\n2x = 11\nx = 5.5",
-    });
-  }
-
-  async function callElora({ messageOverride, baseMessages }) {
-    if (loading) return;
-
-    const rawUser = (messageOverride || "").trim() || chatText.trim();
-    const needsWorkInputs = action === "check" || action === "verify";
-
-    if (needsWorkInputs) {
-      const q = (workQuestion || "").trim();
-      const a = (workAttempt || "").trim();
-
-      if (!q || !a) {
-        setMessages((m) => [
-          ...m,
-          {
-            from: "elora",
-            text: "To verify work, paste the question and the student attempt in the Work Verification box (left panel).",
-            ts: Date.now(),
-          },
-        ]);
-        return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
       }
 
-      const focus = rawUser || "Verify this attempt and point out the first mistake (if any).";
-      var lastUser = buildWorkVerificationDisplay(q, a, focus);
-    } else {
-      var lastUser = rawUser;
+      setCopiedIdx(idx);
+      window.setTimeout(() => setCopiedIdx(-1), 900);
+    } catch {
+      // no-op
     }
+  }
 
-    if (!lastUser) return;
+  async function persistSessionPatch(patch) {
+    try {
+      await fetch("/api/session/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function saveServerChatIfVerified(currentSession, nextMessages) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function clearServerChatIfVerified(currentSession) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function restoreServerChatIfVerified() {
+    try {
+      const currentSession = getSession();
+      if (!currentSession?.verified) return;
+      const r = await fetch("/api/chat/get", { cache: "no-store" });
+      const data = await r.json().catch(() => null);
+      const serverMsgs = Array.isArray(data?.messages) ? data.messages : null;
+      if (!serverMsgs) return;
+
+      setMessages(serverMsgs);
+      await persistSessionPatch({ messages: serverMsgs });
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      await refreshVerifiedFromServer();
+      if (!mounted) return;
+
+      const s = getSession();
+      setSession(s);
+
+      if (s?.verified) {
+        // If verified, we can restore server chat.
+        await restoreServerChatIfVerified();
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Keep client session cache aligned as user changes setup inputs.
+    persistSessionPatch({
+      role,
+      country,
+      level,
+      subject,
+      topic,
+      action,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, country, level, subject, topic, action]);
+
+  async function callElora({ messageOverride, baseMessages }) {
+    const currentSession = getSession();
+
+    const userText = String(messageOverride || chatText || "").trim();
+    if (!userText) return;
 
     setLoading(true);
 
     try {
-      const nextAttempt = role === "student" ? attempt + 1 : 0;
+      // Block educator-only actions for guests (teacher tools) and for unverified educator role.
+      if (role === "educator" && !currentSession?.verified) {
+        setVerifyGateOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      if (guestBlocked) {
+        setTeacherGateOpen(true);
+        setLoading(false);
+        return;
+      }
 
       const payload = {
         role,
+        action,
         country,
         level,
         subject,
-        topic: topic || "General",
-        action,
-        message: lastUser,
-        options: constraints,
+        topic,
+        constraints,
         responseStyle,
-        customStyle: customStyleText,
-        guest,
-        attempt: nextAttempt,
-        teacherInvite: getSession()?.teacherCode || "",
+        customStyleText,
+        verified: Boolean(currentSession?.verified),
+        teacher: Boolean(isTeacher()),
+        attempt: role === "student" ? Math.min(3, attempt) : 0,
+        message: userText,
+        messages: Array.isArray(baseMessages) ? baseMessages : messages,
       };
 
       const r = await fetch("/api/assistant", {
@@ -373,310 +361,227 @@ export default function Assistant() {
       const data = await r.json().catch(() => null);
 
       if (!r.ok) {
-        const msg = data?.error || "Assistant failed. Try again.";
-        setMessages((m) => [...m, { from: "elora", text: msg, ts: Date.now() }]);
+        const err = data?.error || "Request failed.";
+        if (String(err).includes("verify")) setVerifyGateOpen(true);
+        setMessages((prev) => [...prev, { from: "elora", text: String(err), ts: Date.now() }]);
+        setLoading(false);
         return;
       }
 
-      const reply = String(data?.reply || "").trim() || "I didn’t get a response. Try again.";
-      const eloraMsg = { from: "elora", text: reply, ts: Date.now() };
-
-      const nextMessages = [...(baseMessages || messages), eloraMsg];
-      setMessages(nextMessages);
-
-      if (role === "student") setAttempt(nextAttempt);
-
-      persistSessionPatch({
-        role,
-        country,
-        level,
-        subject,
-        topic,
-        workQuestion,
-        workAttempt,
-        action,
-        messages: nextMessages,
+      const out = cleanAssistantText(data?.text || data?.answer || "");
+      setMessages((prev) => {
+        const next = [...prev, { from: "elora", text: out, ts: Date.now() }];
+        persistSessionPatch({ messages: next });
+        saveServerChatIfVerified(currentSession, next);
+        return next;
       });
 
-      await saveServerChatIfVerified(getSession(), nextMessages);
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { from: "elora", text: `Network error: ${String(e?.message || e)}`, ts: Date.now() },
-      ]);
+      if (role === "student") {
+        setAttempt((a) => a + 1);
+      }
+    } catch {
+      setMessages((prev) => [...prev, { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() }]);
     } finally {
+      setChatText("");
       setLoading(false);
     }
   }
 
   async function sendChat() {
+    const trimmed = String(chatText || "").trim();
+    if (!trimmed || loading) return;
+
     const currentSession = getSession();
-    const msg = chatText.trim();
+    const userMsg = { from: "user", text: trimmed, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
 
-    const needsWorkInputs = action === "check" || action === "verify";
-    const q = (workQuestion || "").trim();
-    const a = (workAttempt || "").trim();
+    setMessages(nextMessages);
+    persistSessionPatch({ messages: nextMessages });
+    await saveServerChatIfVerified(currentSession, nextMessages);
 
-    if (!msg && !needsWorkInputs) return;
+    await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
+  }
 
-    if (needsWorkInputs && (!q || !a)) {
-      setMessages((m) => [
-        ...m,
-        {
-          from: "elora",
-          text: "To verify work, paste the question and the student attempt in the Work Verification box (left panel).",
-          ts: Date.now(),
-        },
-      ]);
-      return;
-    }
+  async function exportLast(type) {
+    const last = [...messages].reverse().find((m) => m?.from === "elora");
+    if (!last?.text) return;
 
-    if (!currentSession?.verified && !currentSession?.guest) {
+    if (!verified) {
       setVerifyGateOpen(true);
       return;
     }
 
-    const teacherOnly = ["lesson", "worksheet", "assessment", "slides", "verify"].includes(action);
-    if (teacherOnly && !isTeacher()) {
-      setTeacherGateOpen(true);
-      return;
+    try {
+      const endpoint =
+        type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
+
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleanAssistantText(last.text) }),
+      });
+
+      if (!r.ok) return;
+
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
     }
+  }
 
-    const focus = msg || "Verify this attempt and point out the first mistake (if any).";
-    const displayText = needsWorkInputs ? buildWorkVerificationDisplay(q, a, focus) : msg;
+  async function applyRefinement(chipId) {
+    const map = {
+      simpler: "Make it simpler and more beginner-friendly.",
+      example: "Add one clear example that matches the topic.",
+      steps: "Show the steps clearly (short).",
+      check: "Give one quick check question at the end.",
+      diff: "Add differentiation: easier + harder extension.",
+      timing: "Add a simple timeline with approximate minutes.",
+      resources: "Add a short list of materials/resources.",
+      easier: "Make it easier while keeping the same topic.",
+      harder: "Make it harder and add a challenge question.",
+      answers: "Add a teacher answer key after the questions.",
+      rubric: "Add a short marking guide/rubric.",
+      shorter: "Make it shorter and more direct.",
+      markscheme: "Include a clear marking scheme.",
+      variants: "Add two variants (A/B) with the same skills tested.",
+      outline: "Tighten the slide outline into clear sections.",
+      hooks: "Add 1-2 engaging hooks or questions for the start.",
+      examples: "Add more examples that students can relate to.",
+      notes: "Add short teacher notes for each section.",
+      "more-steps": "Add more steps and explain the reasoning clearly.",
+    };
 
-    const userMsg = { from: "user", text: displayText, ts: Date.now() };
+    const refinement = map[chipId] || "Improve the answer.";
+    const currentSession = getSession();
+
+    const userMsg = { from: "user", text: refinement, ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
-    setChatText("");
     setMessages(nextMessages);
-
     persistSessionPatch({ messages: nextMessages });
     await saveServerChatIfVerified(currentSession, nextMessages);
 
-    await callElora({ messageOverride: msg, baseMessages: nextMessages });
+    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
   }
 
-  async function applyRefinement(chip) {
-    if (!messages?.length) return;
-    if (loading) return;
+  async function validateAndActivateInvite(code) {
+    const trimmed = (code || "").trim();
+    setTeacherGateStatus("");
 
-    const prompt =
-      chip === "example"
-        ? "Add a short example."
-        : chip === "simpler"
-        ? "Rewrite this simpler."
-        : chip === "steps"
-        ? "Show short steps."
-        : chip === "check"
-        ? "Add one quick check question with answer."
-        : chip === "diff"
-        ? "Add differentiation: support + stretch."
-        : chip === "timing"
-        ? "Add timings."
-        : chip === "resources"
-        ? "Add resources."
-        : chip === "easier"
-        ? "Make it easier."
-        : chip === "harder"
-        ? "Make it harder."
-        : chip === "answers"
-        ? "Add answer key."
-        : chip === "markscheme"
-        ? "Add marking scheme."
-        : chip === "variants"
-        ? "Add variants."
-        : chip === "outline"
-        ? "Make the outline tighter."
-        : chip === "hooks"
-        ? "Add hooks."
-        : chip === "notes"
-        ? "Add teacher notes."
-        : chip === "stricter"
-        ? "Be stricter in your checking."
-        : chip === "mistake"
-        ? "Focus on the first mistake and explain it."
-        : chip === "hint"
-        ? "Give only ONE next-step hint."
-        : chip === "explain-why"
-        ? "Explain why it is wrong in plain language."
-        : chip === "shorter"
-        ? "Make it shorter."
-        : chip === "clearer"
-        ? "Make it clearer."
-        : chip === "more-steps"
-        ? "Add a few more steps."
-        : "Refine this.";
-
-    setChatText(prompt);
-    await sendChat();
-  }
-
-  async function redeemTeacherCode() {
-    const code = String(teacherCode || "").trim();
-    if (!code) {
-      setTeacherCodeStatus("Enter a code.");
-      return;
+    if (!trimmed) {
+      setTeacherGateStatus("Enter a code.");
+      return false;
     }
-    setTeacherCodeStatus("Checking…");
+    if (!verified) {
+      setTeacherGateStatus("Verify your email first.");
+      return false;
+    }
 
     try {
-      const r = await fetch("/api/teacher-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      const data = await r.json().catch(() => null);
-
-      if (!r.ok || !data?.ok) {
-        const err = String(data?.error || "invalid_code");
-        setTeacherCodeStatus(err === "missing_session" ? "Please verify first." : "Invalid code.");
-        return;
+      const act = await activateTeacher(trimmed);
+      if (!act?.ok) {
+        setTeacherGateStatus("Invalid code.");
+        return false;
       }
 
-      persistSessionPatch({ teacherCode: code });
-      setTeacherCodeStatus("Unlocked ✅");
-
       await refreshVerifiedFromServer();
-      const s2 = getSession();
-      setTeacherUnlocked(Boolean(s2?.teacherUnlocked));
+      const s = getSession();
+      setSession(s);
+
+      // Ruthless correctness: only claim success if the teacher flag is actually active.
+      if (isTeacher()) {
+        setTeacherGateStatus("Teacher role active ✅");
+        return true;
+      }
+
+      setTeacherGateStatus("Code accepted, but teacher role not active. Refresh and try again.");
+      return false;
     } catch {
-      setTeacherCodeStatus("Could not redeem. Try again.");
+      setTeacherGateStatus("Could not validate right now. Try again.");
+      return false;
     }
   }
 
-  const chips = REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.custom;
-  const quickActions = ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student;
-  const activeAction = quickActions.find((a) => a.id === action) || quickActions[0];
+  const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#070a10] dark:text-white">
+    <>
       <Head>
-        <title>Elora — Assistant</title>
+        <title>Elora Assistant</title>
       </Head>
 
       <Navbar />
 
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <div className="grid gap-6 lg:grid-cols-[360px,1fr]">
-          {/* Left: Setup / controls */}
-          <div className="rounded-3xl border border-slate-200/70 bg-white/70 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-black text-slate-900 dark:text-white">Assistant Setup</div>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  Role, topic, and tools. Keep it simple for a clean demo.
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
+      <div className="elora-page">
+        <div className="elora-container">
+          <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
+            {/* LEFT */}
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-black text-slate-950 dark:text-white">Setup</h1>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-1 text-[11px] font-extrabold",
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
                     verified
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
-                      : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                      : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
                   )}
                 >
+                  <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
                   {verified ? "Verified" : guest ? "Guest" : "Unverified"}
                 </span>
-
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-1 text-[11px] font-extrabold",
-                    teacherUnlocked || isTeacher()
-                      ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
-                      : "bg-slate-500/10 text-slate-700 dark:text-slate-300"
-                  )}
-                >
-                  {teacherUnlocked || isTeacher() ? "Teacher tools" : "Standard"}
-                </span>
               </div>
-            </div>
 
-            {/* Role selector */}
-            <div className="mt-5">
-              <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Role</div>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {["student", "parent", "educator"].map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => {
-                      if (r === "educator" && !verified) {
-                        setVerifyGateOpen(true);
-                        return;
-                      }
-                      setRole(r);
-                    }}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-sm font-extrabold transition",
-                      role === r
-                        ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-700 dark:text-indigo-200"
-                        : "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-50/60 dark:hover:bg-white/5"
-                    )}
-                  >
-                    {ROLE_LABEL[r]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick actions */}
-            <div className="mt-5">
-              <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Quick action</div>
-              <div className="mt-2 grid gap-2">
-                {quickActions.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => {
-                      if (
-                        a.id === "lesson" ||
-                        a.id === "worksheet" ||
-                        a.id === "assessment" ||
-                        a.id === "slides" ||
-                        a.id === "verify"
-                      ) {
-                        if (!isTeacher()) {
-                          setTeacherGateOpen(true);
+              {/* Role */}
+              <div className="mt-5">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {["student", "parent", "educator"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        if (r === "educator" && !verified) {
+                          setVerifyGateOpen(true);
                           return;
                         }
-                      }
-                      setAction(a.id);
-                      persistSessionPatch({ action: a.id });
-                    }}
-                    className={cn(
-                      "rounded-2xl border p-3 text-left transition",
-                      action === a.id
-                        ? "border-indigo-500/50 bg-indigo-600/10"
-                        : "border-slate-200/70 dark:border-white/10 hover:bg-slate-50/60 dark:hover:bg-white/5"
-                    )}
-                  >
-                    <div className="text-sm font-black text-slate-900 dark:text-white">{a.label}</div>
-                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">{a.hint}</div>
-                  </button>
-                ))}
+                        setRole(r);
+                      }}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
+                        role === r
+                          ? "border-indigo-500/40 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
+                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                      )}
+                    >
+                      {ROLE_LABEL[r]}
+                    </button>
+                  ))}
+                </div>
+                {role === "educator" && !verified ? (
+                  <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
+                    Educator mode requires verification.
+                  </div>
+                ) : null}
               </div>
 
-              {activeAction?.id === "verify" && (
-                <div className="mt-3 rounded-2xl border border-indigo-500/20 bg-indigo-600/5 p-3 text-xs text-slate-700 dark:text-slate-200">
-                  Teacher tool: gives a verdict + checks + one next-step hint (not a full solve unless asked).
-                </div>
-              )}
-            </div>
-
-            {/* Context */}
-            <div className="mt-5">
-              <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Context</div>
-
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              {/* Country + level */}
+              <div className="mt-5 grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Country</div>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
                     {COUNTRIES.map((c) => (
                       <option key={c} value={c}>
@@ -687,11 +592,11 @@ export default function Assistant() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Level</label>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Level</div>
                   <select
                     value={level}
                     onChange={(e) => setLevel(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
                     {LEVELS.map((l) => (
                       <option key={l} value={l}>
@@ -700,347 +605,366 @@ export default function Assistant() {
                     ))}
                   </select>
                 </div>
+              </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {SUBJECTS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+              {/* Subject + topic */}
+              <div className="mt-5">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Subject</div>
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                >
+                  {SUBJECTS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</div>
+                <input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., Fractions, Photosynthesis, Essay structure…"
+                  className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                />
+              </div>
+
+              {/* Action */}
+              <div className="mt-5">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Action</div>
+                <div className="mt-2 grid gap-2">
+                  {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
+                    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
+                    const disabled = teacherOnly && !teacher;
+
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          if (disabled) {
+                            setTeacherGateOpen(true);
+                            return;
+                          }
+                          setAction(a.id);
+                        }}
+                        className={cn(
+                          "rounded-xl border p-3 text-left transition",
+                          action === a.id
+                            ? "border-indigo-500/40 bg-indigo-600/10"
+                            : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 hover:bg-white dark:hover:bg-slate-950/35",
+                          disabled ? "opacity-70" : ""
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
+                          {disabled ? (
+                            <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span>
+                          ) : null}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
+                      </button>
+                    );
+                  })}
                 </div>
 
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const currentSession = getSession();
+                    setMessages([]);
+                    setAttempt(0);
+                    await persistSessionPatch({ messages: [] });
+                    await clearServerChatIfVerified(currentSession);
+                  }}
+                  className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                >
+                  Clear chat
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT */}
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px]">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
-                  <input
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    placeholder="e.g., Fractions, Photosynthesis, Loops in Python"
-                  />
+                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
+                  <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                    {country} • {level} • {subject} • <span className="font-semibold">{role}</span>
+                    {role === "student" ? (
+                      <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Attempts: {Math.min(3, attempt)}/3
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {refinementChips.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={loading || messages.length === 0}
+                      onClick={() => applyRefinement(c.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
+                        "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
+                        loading || messages.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {action === "check" || action === "verify" ? (
-                <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-600/5 p-4">
+              {guest && !dismissGuestBanner ? (
+                <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-black text-slate-900 dark:text-white">Work Verification</div>
-                      <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">
-                        Paste the question and the student’s attempt. Elora gives a verdict, checks, and one next-step hint.
+                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">Guest preview</div>
+                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                        Educator mode and exports require verification. You&apos;re previewing Elora in Student mode.
                       </div>
                     </div>
-
                     <button
                       type="button"
-                      onClick={loadDemoExample}
-                      className="rounded-xl border border-indigo-500/30 bg-indigo-600/10 px-3 py-2 text-[11px] font-black text-indigo-700 hover:bg-indigo-600/15 dark:text-indigo-200"
-                      title="Loads a safe demo example (1 click)"
+                      onClick={() => setDismissGuestBanner(true)}
+                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
+                      aria-label="Dismiss"
+                      title="Dismiss"
                     >
-                      Load demo example
+                      ✕
                     </button>
                   </div>
-
-                  <div className="mt-4 grid gap-3">
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Question</label>
-                      <textarea
-                        value={workQuestion}
-                        onChange={(e) => setWorkQuestion(e.target.value)}
-                        rows={4}
-                        placeholder="E.g. Solve: 2x + 3 = 11"
-                        className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Student attempt</label>
-                      <textarea
-                        value={workAttempt}
-                        onChange={(e) => setWorkAttempt(e.target.value)}
-                        rows={6}
-                        placeholder="Paste the student's working/steps here…"
-                        className="mt-2 w-full rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                      />
-                    </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push("/verify")}
+                      className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700"
+                    >
+                      Verify email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        storeGuest(true);
+                        const s = getSession();
+                        setSession(s);
+                      }}
+                      className="rounded-full border border-slate-200/70 dark:border-white/10 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    >
+                      Stay in preview
+                    </button>
                   </div>
                 </div>
               ) : null}
 
-              {/* Constraints */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Constraints (optional)</div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    e.g., “no LaTeX”, “short steps”, “SG syllabus”
-                  </span>
-                </div>
-                <textarea
-                  value={constraints}
-                  onChange={(e) => setConstraints(e.target.value)}
-                  rows={3}
-                  placeholder="Optional constraints..."
-                  className="mt-2 w-full rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                />
-              </div>
+              <div ref={listRef} onScroll={handleListScroll} className="mt-4 flex-1 overflow-auto pr-1 relative">
+                <div className="space-y-3">
+                  {messages.map((m, idx) => {
+                    const isUser = m.from === "user";
+                    const display = cleanAssistantText(m.text);
 
-              {/* Response style */}
-              <div className="mt-5">
-                <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Response style</div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {RESPONSE_STYLE_OPTIONS.map((o) => (
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
+                          isUser
+                            ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
+                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10 relative group"
+                        )}
+                      >
+                        {!isUser ? (
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(display, idx)}
+                            className="absolute top-2 right-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition hover:bg-white dark:hover:bg-slate-950/60"
+                            title="Copy"
+                          >
+                            {copiedIdx === idx ? "Copied" : "Copy"}
+                          </button>
+                        ) : null}
+                        <div className="whitespace-pre-wrap">{display}</div>
+                      </div>
+                    );
+                  })}
+
+                  {loading ? (
+                    <div className="mr-auto max-w-[92%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
+                      Thinking…
+                    </div>
+                  ) : null}
+                </div>
+
+                {showJump ? (
+                  <div className="sticky bottom-3 flex justify-end pointer-events-none">
                     <button
-                      key={o.id}
                       type="button"
-                      onClick={() => setResponseStyle(o.id)}
-                      className={cn(
-                        "rounded-2xl border p-3 text-left transition",
-                        responseStyle === o.id
-                          ? "border-indigo-500/50 bg-indigo-600/10"
-                          : "border-slate-200/70 dark:border-white/10 hover:bg-slate-50/60 dark:hover:bg-white/5"
-                      )}
+                      onClick={jumpToLatest}
+                      className="pointer-events-auto rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 shadow-sm hover:bg-white dark:hover:bg-slate-950/60"
                     >
-                      <div className="text-sm font-black text-slate-900 dark:text-white">{o.label}</div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">{o.hint}</div>
+                      Jump to latest
                     </button>
-                  ))}
-                </div>
-
-                {responseStyle === "custom" ? (
-                  <textarea
-                    value={customStyleText}
-                    onChange={(e) => setCustomStyleText(e.target.value)}
-                    rows={4}
-                    placeholder='E.g. “Use very short steps, and end with a quick check question.”'
-                    className="mt-3 w-full rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                  />
+                  </div>
                 ) : null}
               </div>
 
-              {/* Teacher invite */}
-              <div className="mt-5 rounded-2xl border border-slate-200/70 bg-white/60 p-4 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Teacher Invite Code</div>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">Unlock teacher tools (works after verification).</div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">Export last answer:</div>
 
-                <div className="mt-3 flex items-center gap-2">
-                  <input
-                    value={teacherCode}
-                    onChange={(e) => setTeacherCode(e.target.value)}
-                    placeholder="GENESIS2026"
-                    className="flex-1 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={redeemTeacherCode}
-                    className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white hover:bg-indigo-500"
-                  >
-                    Apply
-                  </button>
-                </div>
-
-                {teacherCodeStatus ? (
-                  <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">{teacherCodeStatus}</div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: chat */}
-          <div className="rounded-3xl border border-slate-200/70 bg-white/70 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 p-4 dark:border-white/10">
-              <div>
-                <div className="text-sm font-black text-slate-900 dark:text-white">Chat</div>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  {loadingStatus ? "Loading status…" : "Ask. Paste attempts. Refine with chips."}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMessages([]);
-                    persistSessionPatch({ messages: [] });
-                  }}
-                  className="rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-xs font-black text-slate-800 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
+                  onClick={() => exportLast("docx")}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                    verified
+                      ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
+                  )}
+                  disabled={!verified}
+                  title={!verified ? "Verify to export" : "Export as .docx"}
                 >
-                  Clear
+                  Docs (.docx)
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setExportOpen(true)}
+                  onClick={() => exportLast("pptx")}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                    verified
+                      ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
+                  )}
+                  disabled={!verified}
+                  title={!verified ? "Verify to export" : "Export as .pptx"}
+                >
+                  PowerPoint (.pptx)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => exportLast("pdf")}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                    verified
+                      ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
+                  )}
                   disabled={!verified}
                   title={!verified ? "Verify to export" : "Export as PDF (Kami-friendly)"}
-                  className={cn(
-                    "rounded-xl border px-3 py-2 text-xs font-black",
-                    verified
-                      ? "border-indigo-500/30 bg-indigo-600/10 text-indigo-700 hover:bg-indigo-600/15 dark:text-indigo-200"
-                      : "border-slate-200/70 bg-white/50 text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500"
-                  )}
                 >
-                  Export
+                  Kami (PDF)
                 </button>
               </div>
-            </div>
 
-            {/* Messages list */}
-            <div ref={listRef} className="relative h-[560px] overflow-y-auto p-4">
-              {messages?.length ? (
-                <div className="grid gap-3">
-                  {messages.map((m, i) => (
-                    <div
-                      key={`${m.ts || i}-${i}`}
-                      className={cn(
-                        "rounded-2xl border p-3 text-sm leading-relaxed",
-                        m.from === "user"
-                          ? "ml-auto max-w-[92%] border-indigo-500/30 bg-indigo-600/10 text-slate-900 dark:text-white"
-                          : "mr-auto max-w-[92%] border-slate-200/70 bg-white/70 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                      )}
-                    >
-                      <div className="whitespace-pre-wrap">{m.text}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-200/70 bg-white/50 p-6 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                  Start by choosing a quick action (left) and sending a message. If you paste a student attempt, Elora can
-                  verify it.
-                </div>
-              )}
-
-              {!stickToBottom && messages?.length ? (
-                <button
-                  type="button"
-                  onClick={jumpToLatest}
-                  className="absolute bottom-4 right-4 rounded-full border border-indigo-500/30 bg-indigo-600/10 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm hover:bg-indigo-600/15 dark:text-indigo-200"
-                  title="Jump to latest message"
-                >
-                  Jump to latest
-                </button>
-              ) : null}
-            </div>
-
-            {/* Chips + input */}
-            <div className="border-t border-slate-200/60 p-4 dark:border-white/10">
-              <div className="flex flex-wrap gap-2">
-                {chips.map((c) => (
+              <div className="mt-4">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChat();
+                      }
+                    }}
+                    rows={2}
+                    placeholder="Ask Elora to refine, explain, or guide your next attempt…"
+                    className="flex-1 resize-none rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
                   <button
-                    key={c.id}
                     type="button"
-                    onClick={() => applyRefinement(c.id)}
-                    className="rounded-full border border-slate-200/70 bg-white/60 px-3 py-2 text-xs font-black text-slate-800 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
+                    onClick={sendChat}
+                    disabled={loading}
+                    className={cn(
+                      "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
+                      loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
+                    )}
                   >
-                    {c.label}
+                    Send
                   </button>
-                ))}
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <input
-                  value={chatText}
-                  onChange={(e) => setChatText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") sendChat();
-                  }}
-                  placeholder={
-                    action === "check" || action === "verify"
-                      ? "Optional: what should Elora focus on? (e.g., first mistake only)"
-                      : "Ask Elora to refine, explain, or guide your next attempt…"
-                  }
-                  className="flex-1 rounded-full border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                />
-                <button
-                  type="button"
-                  onClick={sendChat}
-                  disabled={loading}
-                  className={cn(
-                    "rounded-full px-4 py-3 text-sm font-black text-white transition",
-                    loading ? "bg-slate-400" : "bg-indigo-600 hover:bg-indigo-500"
-                  )}
-                >
-                  {loading ? "Thinking…" : "Send"}
-                </button>
+                </div>
+                <div className="mt-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  Enter to send • Shift+Enter for a new line
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Verify gate */}
-      <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)} title="Verify to continue">
-        <div className="text-sm text-slate-700 dark:text-slate-200">To use Educator tools and persist your session, verify your email.</div>
-        <div className="mt-4 flex gap-2">
+      {/* Verify gate modal */}
+      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Educator mode and exports are locked behind verification. You can still preview as a limited guest.
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => router.push("/verify")}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500"
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >
-            Verify now
+            Verify email
           </button>
           <button
             type="button"
             onClick={() => {
-              setGuest(true);
               storeGuest(true);
-              persistSessionPatch({ guest: true });
+              const s = getSession();
+              setSession(s);
               setVerifyGateOpen(false);
             }}
-            className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-2 text-sm font-black text-slate-800 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
           >
             Continue as guest
           </button>
         </div>
       </Modal>
 
-      {/* Teacher gate */}
-      <Modal open={teacherGateOpen} onClose={() => setTeacherGateOpen(false)} title="Teacher tools locked">
+      {/* Teacher gate modal */}
+      <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
-          Enter a Teacher Invite Code in Settings to unlock teacher-only tools.
+          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code. This keeps teacher-only tools from being misused.
         </div>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTeacherGateOpen(false);
-              const el = document.querySelector('input[placeholder="GENESIS2026"]');
-              if (el) el.focus();
-            }}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500"
-          >
-            Enter code
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/help")}
-            className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-2 text-sm font-black text-slate-800 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
-          >
-            See help
-          </button>
-        </div>
-      </Modal>
 
-      {/* Export modal (placeholder UI) */}
-      <Modal open={exportOpen} onClose={() => setExportOpen(false)} title="Export">
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Export will generate a Kami-friendly PDF in a later batch. For now, copy/paste is supported.
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Teacher Invite Code</label>
+          <input
+            value={teacherGateCode}
+            onChange={(e) => setTeacherGateCode(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., GENESIS2026"
+          />
+          {teacherGateStatus ? (
+            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div>
+          ) : null}
         </div>
-        <div className="mt-4 flex gap-2">
+
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setExportOpen(false)}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-500"
+            onClick={async () => {
+              const ok = await validateAndActivateInvite(teacherGateCode);
+              if (ok) setTeacherGateOpen(false);
+            }}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >
-            Close
+            Unlock teacher tools
+          </button>
+          <button
+            type="button"
+            onClick={() => setTeacherGateOpen(false)}
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+          >
+            Not now
           </button>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

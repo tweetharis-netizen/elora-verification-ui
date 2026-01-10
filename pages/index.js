@@ -143,7 +143,12 @@ export default function HomePage() {
   };
 
   const goAssistant = async ({ asGuest } = { asGuest: false }) => {
-    setRole(role);
+    // Critical: guest mode must never open "Educator" persona, because Educator requires verification.
+    // If user is on Teacher tab and clicks guest, we intentionally route them into Student guest mode.
+    const sessionRole = asGuest && role === "educator" ? "student" : role;
+
+    setRole(sessionRole);
+    if (asGuest && role === "educator") setRoleState("student");
 
     if (asGuest) {
       setVerified(false);

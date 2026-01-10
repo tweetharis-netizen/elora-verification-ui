@@ -1,96 +1,105 @@
 import Link from "next/link";
 
+function Step({ n, title, children, href, cta }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-5">
+      <div className="flex items-start gap-3">
+        <div className="h-9 w-9 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center">
+          <span className="text-sm font-black text-slate-900 dark:text-white">{n}</span>
+        </div>
+        <div className="flex-1">
+          <div className="text-sm font-extrabold text-slate-950 dark:text-white">{title}</div>
+          <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">{children}</div>
+          {href ? (
+            <div className="mt-3">
+              <Link
+                href={href}
+                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700"
+              >
+                {cta || "Open"}
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Help() {
   return (
-    <div className="mx-auto max-w-4xl px-4">
+    <div className="mx-auto max-w-5xl px-4">
       <div className="elora-card p-6 sm:p-8">
-        <h1 className="font-black text-[clamp(1.6rem,2.4vw,2.2rem)]">Help</h1>
+        <h1 className="font-black text-[clamp(1.7rem,2.6vw,2.4rem)]">Demo (5–7 minutes)</h1>
         <p className="mt-2 elora-muted">
-          This page is the judge-proof script. If you follow it top-to-bottom, the demo lands in under 7 minutes.
+          Judges have zero patience. This is the exact click-path. If you follow it, the demo lands.
         </p>
 
-        <hr className="my-6 border-white/10 dark:border-white/10" />
-
-        <section>
-          <h2 className="font-black text-lg">Genesis Demo Script (5–7 minutes)</h2>
-          <ol className="mt-3 grid gap-2 elora-muted">
-            <li>
-              <b>1)</b> Go to <Link className="underline" href="/verify">Verify</Link> → send email → click link → return to app.
-              <div className="mt-1 text-xs">
-                Success looks like a green “Verified” state across pages (no yellow/confusing states).
-              </div>
-            </li>
-            <li>
-              <b>2)</b> Go to <Link className="underline" href="/assistant">Assistant</Link> → choose <b>Educator</b>.
-              <div className="mt-1 text-xs">
-                If you’re not verified, Educator mode is intentionally blocked. That’s the security story.
-              </div>
-            </li>
-            <li>
-              <b>3)</b> Enter Teacher Invite Code (GENESIS2026 / ELORA-TEACHER / ABC123) in the Assistant left panel → <b>Apply</b>.
-              <div className="mt-1 text-xs">
-                Teacher tools unlock only after backend role checks — not UI-only.
-              </div>
-            </li>
-            <li>
-              <b>4)</b> Choose <b>Verify student work</b> → click <b>Load demo example</b> → Send.
-              <div className="mt-1 text-xs">
-                Judges should see: Verdict → 3 checks → ONE next-step hint (consistent structure every time).
-              </div>
-            </li>
-            <li>
-              <b>5)</b> Show lock behavior: switch to a teacher-only tool while not teacher (or in a private window) → it blocks.
-              <div className="mt-1 text-xs">
-                This proves role gating is real and enforced.
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="font-black text-lg">Guest Mode (important)</h2>
-          <p className="mt-2 elora-muted">
-            Guest mode is for quick preview only. Educator mode requires verification. If you click “Try assistant (guest)” from the Teacher tab,
-            Elora automatically opens as a Student guest so the experience stays functional.
-          </p>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="font-black text-lg">Exports</h2>
-          <p className="mt-2 elora-muted">
-            Exports are designed to be verification-locked. If your export buttons are currently in “preview/coming soon” state,
-            that’s fine for Genesis — the core judging signal is verification + teacher role locking + work verification output.
-          </p>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="font-black text-lg">FAQ</h2>
-          <div className="mt-3 grid gap-4">
-            <div>
-              <div className="font-extrabold">Why am I still seeing “Verify” after clicking the email link?</div>
-              <div className="elora-muted mt-1">
-                Verification is stored on the backend. If you opened the link in an in-app browser (Telegram/Instagram), open it in Safari/Chrome and try again.
-              </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <Step n="1" title="Verify email (shows persistence + security)" href="/verify" cta="Open Verify">
+            Enter email → click the link → return to the app.
+            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+              Success signal: a green “Verified” badge stays after refresh.
             </div>
-            <div>
-              <div className="font-extrabold">Where’s my email?</div>
-              <div className="elora-muted mt-1">
-                Check spam/promotions. SMTP deliverability varies — a dedicated provider improves reliability.
-              </div>
+          </Step>
+
+          <Step n="2" title="Open Assistant (student-safe explanations)" href="/assistant" cta="Open Assistant">
+            Ask a simple question (e.g. “What is 5 divided by 4?”).
+            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+              Success signal: plain language, short steps, no raw LaTeX.
             </div>
-            <div>
-              <div className="font-extrabold">Does guest mode work?</div>
-              <div className="elora-muted mt-1">
-                Yes, but it’s intentionally limited. Verification unlocks persistence and teacher tools.
-              </div>
+          </Step>
+
+          <Step n="3" title="Unlock Teacher Tools (invite-gated, not cosmetic)" href="/assistant" cta="Back to Assistant">
+            Enter a Teacher Invite Code: <b>GENESIS2026</b>, <b>ELORA-TEACHER</b>, or <b>ABC123</b> → Apply.
+            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+              Success signal: it says “Teacher role active ✅” and teacher tools stop blocking.
             </div>
-          </div>
-        </section>
+          </Step>
+
+          <Step n="4" title="Run “Verify student work” (the hero feature)" href="/assistant" cta="Verify Work">
+            Click <b>Verify student work</b> → load a demo example → Send.
+            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+              Success signal: Verdict → 3 checks → 1 next step (consistent structure).
+            </div>
+          </Step>
+        </div>
+
+        <div className="mt-4">
+          <Step n="5" title="Prove locks work (in a private window)">
+            Open a private/incognito window → go to Assistant → try teacher tools.
+            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+              Success signal: teacher tools are blocked until invite is redeemed (backend enforced).
+            </div>
+          </Step>
+        </div>
+
+        <hr className="my-8 border-white/10 dark:border-white/10" />
+
+        <h2 className="text-lg font-black text-slate-950 dark:text-white">Quick fixes (demo day)</h2>
+        <ul className="mt-3 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
+          <li>
+            <b>Email delayed?</b> Use a pre-verified account for the live run, then mention verification takes 30–60 seconds normally.
+          </li>
+          <li>
+            <b>Guest mode confusion?</b> Guest preview intentionally runs Student mode; Educator requires verification.
+          </li>
+          <li>
+            <b>Need to paste multi-line?</b> In chat: <b>Shift+Enter</b> for a new line.
+          </li>
+        </ul>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/verify" className="elora-btn elora-btn-primary">Verify</Link>
-          <Link href="/assistant" className="elora-btn">Assistant</Link>
-          <Link href="/settings" className="elora-btn">Settings</Link>
+          <Link href="/verify" className="elora-btn elora-btn-primary">
+            Verify
+          </Link>
+          <Link href="/assistant" className="elora-btn">
+            Assistant
+          </Link>
+          <Link href="/settings" className="elora-btn">
+            Settings
+          </Link>
         </div>
       </div>
     </div>

@@ -119,6 +119,7 @@ ${actionTemplate(action)}
 For work verification actions ("check" or "verify"):
 - Always follow the work verification output format above.
 - If unsure, say "Uncertain" and explain what information is missing.
+- Only ONE next-step hint. No extra hints.
 
 Return plain text only. Use simple bullets "-" and numbered steps "1)".`;
 }
@@ -204,6 +205,113 @@ function stripMarkdownToPlainText(text) {
   return t;
 }
 
+function firstSentence(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const m = t.match(/(.+?[.!?])(\s|$)/);
+  return (m ? m[1] : t.split("\n")[0]).trim();
+}
+
+function splitSentences(text, max = 3) {
+  const t = String(text || "").replace(/\n+/g, " ").trim();
+  if (!t) return [];
+  const parts = t.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  return parts.slice(0, max);
+}
+
+function pickHint(text) {
+  const t = String(text || "").trim();
+  if (!t) return "Try rewriting your steps carefully, then re-check the arithmetic/algebra.";
+  const lines = t.split("\n").map((l) => l.trim()).filter(Boolean);
+  const explicit = lines.find((l) => /next[- ]?step hint|hint:/i.test(l));
+  if (explicit) {
+    const cleaned = explicit
+      .replace(/^(one\s+)?next[- ]?step hint\s*:\s*/i, "")
+      .replace(/^hint\s*:\s*/i, "")
+      .trim();
+    return firstSentence(cleaned) || "Try checking the step where values were moved across the equals sign.";
+  }
+  return firstSentence(lines[lines.length - 1]) || "Try checking each operation you applied to both sides of the equation.";
+}
+
+function enforceWorkVerificationFormat(action, reply) {
+  const a = String(action || "").toLowerCase();
+  if (a !== "check" && a !== "verify") return String(reply || "").trim();
+
+  const raw = String(reply || "").trim();
+  if (!raw) {
+    return [
+      "Verdict: Uncertain",
+      "Checks:",
+      "1) Correctness check: I didn’t receive enough information to judge correctness.",
+      "2) Reasoning check: Please include the student’s working/steps.",
+      "3) Assumptions/units check: Include units/constraints if this is a word problem.",
+      "One next-step hint: Paste the question and the student’s attempt, then I’ll check the first mistake.",
+    ].join("\n");
+  }
+
+  const hasVerdict = /(^|\n)\s*Verdict\s*:/i.test(raw);
+
+  // If already structured, keep it but enforce exactly ONE hint line.
+  if (hasVerdict) {
+    const lines = raw.split("\n");
+    const out = [];
+    let seenHint = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (
+        /^\s*One\s+next-step\s+hint\s*:/i.test(line) ||
+        /^\s*Next[- ]?step\s+hint\s*:/i.test(line) ||
+        /^\s*Hint\s*:/i.test(line)
+      ) {
+        if (seenHint) continue;
+        seenHint = true;
+
+        const cleaned = line
+          .replace(/^\s*Next[- ]?step\s+hint\s*:\s*/i, "One next-step hint: ")
+          .replace(/^\s*Hint\s*:\s*/i, "One next-step hint: ")
+          .trim();
+
+        out.push(`One next-step hint: ${firstSentence(cleaned.replace(/^One next-step hint:\s*/i, ""))}`);
+        continue;
+      }
+
+      if (seenHint && /hint/i.test(line)) continue;
+
+      out.push(line);
+    }
+
+    if (!seenHint) out.push(`One next-step hint: ${pickHint(raw)}`);
+
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  // Fallback: wrap into the correct structure.
+  const sentences = splitSentences(raw, 3);
+  const c1 = sentences[0] || firstSentence(raw) || "The attempt needs a closer check.";
+  const c2 = sentences[1] || "I need the student’s steps and what method they used.";
+  const c3 = sentences[2] || "If this is a word problem, units and assumptions matter.";
+
+  const hint = pickHint(raw);
+
+  const verdictGuess = /correct|right|works out|looks good/i.test(raw)
+    ? "Likely correct"
+    : /wrong|incorrect|mistake|doesn’t|does not|fails/i.test(raw)
+    ? "Likely incorrect"
+    : "Uncertain";
+
+  return [
+    `Verdict: ${verdictGuess}`,
+    "Checks:",
+    `1) Correctness check: ${firstSentence(c1)}`,
+    `2) Reasoning check: ${firstSentence(c2)}`,
+    `3) Assumptions/units check: ${firstSentence(c3)}`,
+    `One next-step hint: ${firstSentence(hint)}`,
+  ].join("\n");
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -229,7 +337,6 @@ export default async function handler(req, res) {
 
     const guest = Boolean(body.guest);
     const attempt = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
-    const teacherInvite = clampStr(body.teacherInvite || "", 120);
 
     if (!message) return res.status(400).json({ error: "Missing message." });
 
@@ -239,7 +346,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ask backend about verification/session
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
@@ -247,12 +353,10 @@ export default async function handler(req, res) {
     const accountRole = String(status?.role || (verified ? "regular" : "guest")).toLowerCase();
     const teacher = accountRole === "teacher";
 
-    // Educator persona is only available after verification.
     if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    // Teacher tools are locked behind backend role
     const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides", "verify"]);
     if (teacherOnlyActions.has(action) && !teacher) {
       return res.status(403).json({
@@ -289,7 +393,8 @@ export default async function handler(req, res) {
     }
 
     const replyRaw = data?.choices?.[0]?.message?.content || "";
-    const reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
+    const replyClean = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
+    const reply = enforceWorkVerificationFormat(action, replyClean);
 
     return res.status(200).json({ reply });
   } catch {

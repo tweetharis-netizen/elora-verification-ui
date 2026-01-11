@@ -1,8 +1,7 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Modal from "../components/Modal";
-import { getSession, refreshVerifiedFromServer, setGuest, setRole, setVerified } from "../lib/session";
+import { getSession, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -45,7 +44,12 @@ function StatusChip({ variant, children }) {
       : "bg-slate-300 dark:bg-white/30";
 
   return (
-    <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold", styles)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold",
+        styles
+      )}
+    >
       <span className={cn("h-2 w-2 rounded-full", dot)} />
       {children}
     </span>
@@ -69,15 +73,21 @@ function HomePreview({ verified, teacher }) {
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end">
-            <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Email verified" : "Verify email"}</StatusChip>
-            <StatusChip variant={teacher ? "good" : "neutral"}>{teacher ? "Teacher mode" : "Teacher tools locked"}</StatusChip>
+            <StatusChip variant={verified ? "good" : "warn"}>
+              {verified ? "Email verified" : "Verify email"}
+            </StatusChip>
+            <StatusChip variant={teacher ? "good" : "neutral"}>
+              {teacher ? "Teacher mode" : "Teacher tools locked"}
+            </StatusChip>
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-4">
           <div className="flex items-center justify-between">
             <div className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Assistant</div>
-            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Plain language • short steps</div>
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              Plain language • short steps
+            </div>
           </div>
 
           <div className="mt-3 space-y-2">
@@ -96,7 +106,9 @@ function HomePreview({ verified, teacher }) {
               <span aria-hidden="true">📎</span>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-extrabold text-slate-950 dark:text-white">Upload student work (coming next)</div>
+              <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                Upload student work (coming next)
+              </div>
               <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                 Drop a photo / PDF and Elora explains + flags what needs review.
               </div>
@@ -105,7 +117,8 @@ function HomePreview({ verified, teacher }) {
         </div>
 
         <div className="mt-4 text-xs text-slate-600 dark:text-slate-300">
-          Designed for a <span className="font-extrabold">5–7 minute</span> competition demo: clear, stable, and teacher-friendly.
+          Designed for a <span className="font-extrabold">5–7 minute</span> competition demo: clear, stable, and
+          teacher-friendly.
         </div>
       </div>
     </div>
@@ -117,7 +130,6 @@ export default function HomePage() {
 
   const [role, setRoleState] = useState("educator");
   const [session, setSession] = useState(() => getSession());
-  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
 
   const verified = Boolean(session?.verified);
   const teacher = Boolean(session?.teacher);
@@ -138,40 +150,23 @@ export default function HomePage() {
   const goVerify = () => {
     setRole(role);
     setGuest(false);
-    setVerifyModalOpen(false);
     router.push("/verify");
   };
 
-  const goAssistant = async ({ asGuest } = { asGuest: false }) => {
-    // Critical: guest mode must never open "Educator" persona, because Educator requires verification.
-    // If user is on Teacher tab and clicks guest, we intentionally route them into Student guest mode.
-    const sessionRole = asGuest && role === "educator" ? "student" : role;
-
-    setRole(sessionRole);
-    if (asGuest && role === "educator") setRoleState("student");
-
-    if (asGuest) {
-      setVerified(false);
-      setGuest(true);
-      setVerifyModalOpen(false);
-      router.push("/assistant");
-      return;
-    }
-
-    if (verified) {
-      setGuest(false);
-      router.push("/assistant");
-      return;
-    }
-
-    setVerifyModalOpen(true);
+  const goAssistant = () => {
+    setRole(role);
+    setGuest(false);
+    router.push("/assistant");
   };
 
   return (
     <>
       <Head>
         <title>Elora — Teacher verification + calm AI assistant</title>
-        <meta name="description" content="Elora helps teachers verify student work and explain concepts in clear, human language." />
+        <meta
+          name="description"
+          content="Elora helps teachers verify student work and explain concepts in clear, human language."
+        />
       </Head>
 
       <div className="elora-page">
@@ -213,18 +208,10 @@ export default function HomePage() {
               <div className="mt-7 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
-                  onClick={() => (verified ? goAssistant({ asGuest: false }) : goVerify())}
+                  onClick={() => (verified ? goAssistant() : goVerify())}
                   className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
                 >
                   {verified ? "Open Assistant" : "Verify email"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => goAssistant({ asGuest: true })}
-                  className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-5 py-3 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                >
-                  Try assistant (guest)
                 </button>
 
                 <button
@@ -287,30 +274,6 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
-      <Modal open={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title="Verify to unlock Elora">
-        <div className="space-y-3">
-          <p className="text-sm text-slate-700 dark:text-slate-200">
-            Verification unlocks exports and teacher tools. You can still preview as a guest.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-              onClick={goVerify}
-              type="button"
-            >
-              Verify email
-            </button>
-            <button
-              className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-              onClick={() => goAssistant({ asGuest: true })}
-              type="button"
-            >
-              Continue as guest
-            </button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 }

@@ -103,14 +103,14 @@ function HomePreview({ verified, teacher }) {
         <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-4">
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center">
-              <span aria-hidden="true">📎</span>
+              <span aria-hidden="true">✅</span>
             </div>
             <div className="flex-1">
               <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                Upload student work (coming next)
+                Verify student work (demo)
               </div>
               <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                Drop a photo / PDF and Elora explains + flags what needs review.
+                Consistent output: verdict → checks → next step. Built for teacher trust, not flashy AI.
               </div>
             </div>
           </div>

@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -289,7 +288,6 @@ export default function AssistantPage() {
       setSession(s);
 
       if (s?.verified) {
-        // If verified, we can restore server chat.
         await restoreServerChatIfVerified();
       }
     })();
@@ -301,7 +299,6 @@ export default function AssistantPage() {
   }, []);
 
   useEffect(() => {
-    // Keep client session cache aligned as user changes setup inputs.
     persistSessionPatch({
       role,
       country,
@@ -322,7 +319,6 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      // Block educator-only actions for guests (teacher tools) and for unverified educator role.
       if (role === "educator" && !currentSession?.verified) {
         setVerifyGateOpen(true);
         setLoading(false);
@@ -368,7 +364,7 @@ export default function AssistantPage() {
         return;
       }
 
-      const out = cleanAssistantText(data?.text || data?.answer || "");
+      const out = cleanAssistantText(data?.reply || data?.text || data?.answer || "");
       setMessages((prev) => {
         const next = [...prev, { from: "elora", text: out, ts: Date.now() }];
         persistSessionPatch({ messages: next });
@@ -497,7 +493,6 @@ export default function AssistantPage() {
       const s = getSession();
       setSession(s);
 
-      // Ruthless correctness: only claim success if the teacher flag is actually active.
       if (isTeacher()) {
         setTeacherGateStatus("Teacher role active ✅");
         return true;
@@ -518,8 +513,6 @@ export default function AssistantPage() {
       <Head>
         <title>Elora Assistant</title>
       </Head>
-
-      <Navbar />
 
       <div className="elora-page">
         <div className="elora-container">

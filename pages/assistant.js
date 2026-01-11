@@ -400,10 +400,14 @@ export default function AssistantPage() {
 
   async function exportLast(type) {
     const last = [...messages].reverse().find((m) => m?.from === "elora");
-    if (!last?.text) return;
+    if (!last?.text) {
+      setMessages((prev) => [...prev, { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() }]);
+      return;
+    }
 
     if (!verified) {
       setVerifyGateOpen(true);
+      setMessages((prev) => [...prev, { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() }]);
       return;
     }
 
@@ -418,13 +422,38 @@ export default function AssistantPage() {
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // IMPORTANT: backend expects { title, content } (not { text })
         body: JSON.stringify({ title, content }),
       });
 
-      if (!r.ok) return;
+      const ct = String(r.headers.get("content-type") || "");
+
+      // If server returned JSON, it's very likely an error (e.g. { error: "not_verified" })
+      if (!r.ok || ct.includes("application/json")) {
+        let err = `Export failed (HTTP ${r.status}).`;
+        let data = null;
+        try {
+          data = await r.json();
+        } catch {}
+
+        const code = String(data?.error || data?.message || "").trim();
+
+        if (r.status === 403 || code === "not_verified") {
+          setVerifyGateOpen(true);
+          err = "Export blocked: your session isn’t verified on the server. Re-verify to unlock exports.";
+        } else if (code) {
+          err = `Export failed: ${code}`;
+        }
+
+        setMessages((prev) => [...prev, { from: "elora", text: err, ts: Date.now() }]);
+        return;
+      }
 
       const blob = await r.blob();
+      if (!blob || blob.size === 0) {
+        setMessages((prev) => [...prev, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }]);
+        return;
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -434,7 +463,7 @@ export default function AssistantPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      // ignore
+      setMessages((prev) => [...prev, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }]);
     }
   }
 
@@ -685,9 +714,7 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT */}
-            <div
-              className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]"
-            >
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
@@ -762,12 +789,7 @@ export default function AssistantPage() {
                 </div>
               ) : null}
 
-              {/* IMPORTANT: min-h-0 enables flex children to shrink so overflow scrolling works */}
-              <div
-                ref={listRef}
-                onScroll={handleListScroll}
-                className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative"
-              >
+              <div ref={listRef} onScroll={handleListScroll} className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative">
                 <div className="space-y-3">
                   {messages.map((m, idx) => {
                     const isUser = m.from === "user";

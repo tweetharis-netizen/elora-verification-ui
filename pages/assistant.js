@@ -411,10 +411,15 @@ export default function AssistantPage() {
       const endpoint =
         type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
 
+      const content = cleanAssistantText(last.text);
+      const title =
+        type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
+
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: cleanAssistantText(last.text) }),
+        // IMPORTANT: backend expects { title, content } (not { text })
+        body: JSON.stringify({ title, content }),
       });
 
       if (!r.ok) return;
@@ -680,7 +685,9 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col lg:min-h-[680px]">
+            <div
+              className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]"
+            >
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
@@ -755,7 +762,12 @@ export default function AssistantPage() {
                 </div>
               ) : null}
 
-              <div ref={listRef} onScroll={handleListScroll} className="mt-4 flex-1 overflow-auto pr-1 relative">
+              {/* IMPORTANT: min-h-0 enables flex children to shrink so overflow scrolling works */}
+              <div
+                ref={listRef}
+                onScroll={handleListScroll}
+                className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative"
+              >
                 <div className="space-y-3">
                   {messages.map((m, idx) => {
                     const isUser = m.from === "user";

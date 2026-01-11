@@ -1,4 +1,5 @@
 import { getSessionTokenFromReq, fetchBackendStatus } from "@/lib/server/verification";
+import { isTeacherFromReq } from "@/lib/server/teacher";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -8,136 +9,15 @@ function clampStr(v, max = 1200) {
   return s.length <= max ? s : s.slice(0, max);
 }
 
+function clampInt(v, min = 0, max = 10) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
 function isGuestAllowedAction(action) {
   const disallowed = new Set(["assessment", "slides", "lesson", "worksheet"]);
   return !disallowed.has(action);
-}
-
-function actionTemplate(action) {
-  switch (String(action || "").toLowerCase()) {
-    case "verify":
-    case "check":
-      return `Output format (work verification):
-- Verdict: Likely correct / Uncertain / Likely incorrect
-- Checks:
-  1) Correctness check (where it matches / first mistake)
-  2) Reasoning check (is the method valid?)
-  3) Assumptions/units check (if relevant)
-- One next-step hint (only ONE)
-- (Optional) Teacher note (1 short sentence, if helpful)`;
-    case "lesson":
-      return `Output format (lesson plan):
-- Lesson goal (1 sentence)
-- Learning objectives (3 bullets)
-- Lesson flow (timed steps; 30–60 minutes total)
-- Common misconceptions (2–4 bullets)
-- Differentiation (Support + Stretch)
-- Exit ticket (1–2 questions)`;
-    case "worksheet":
-      return `Output format (worksheet):
-- Topic + level label (1 line)
-- Warm-up (2–3 questions)
-- Core (4–6 questions)
-- Challenge (2–3 questions)
-Only include an answer key if the user asks for it.`;
-    case "assessment":
-      return `Output format (assessment):
-- Topic + level label (1 line)
-- 6–10 test-style questions
-- Simple mark allocation
-Only include a rubric or answer key if the user asks for it.`;
-    case "slides":
-      return `Output format (slides outline):
-- Title slide (1 line)
-- 6–10 slides:
-  - Slide title
-  - 2–4 bullets
-  - Optional teacher note (1 short line)`;
-    case "custom":
-      return `Output format (custom):
-- Start with the main answer (1–2 lines).
-- Then 3–7 short steps or bullets, if applicable.
-- End with one quick check question when useful.`;
-    case "explain":
-    default:
-      return `Output format (explain):
-- One-sentence answer (simple)
-- Steps: 3–7 short numbered steps
-- Mini example (only if helpful; 2–4 lines)
-- Quick check: 1 question (+ short answer)`;
-  }
-}
-
-function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action, customStyle }) {
-  const mode = String(responseStyle || "standard").toLowerCase();
-
-  const modeRules =
-    mode === "exam"
-      ? `Mode: exam prep
-- Be concise. Focus on method + answer check.
-- Give minimal hints. Do not over-explain.`
-      : mode === "tutor"
-      ? `Mode: tutor
-- Be more guided: short steps + gentle hints.
-- Ask 1 quick check-for-understanding question.`
-      : mode === "custom"
-      ? `Mode: custom
-- Follow the user's custom style instructions if provided, as long as it does not violate the hard rules.`
-      : `Mode: standard
-- Clear, friendly, concise.
-- End with 1 quick check question when reasonable.`;
-
-  const customLine =
-    mode === "custom" && String(customStyle || "").trim()
-      ? `Custom style instructions:
-${String(customStyle).trim()}`
-      : "";
-
-  return `You are Elora — a calm, professional teaching assistant for educators and learners.
-
-Hard rules (must follow):
-- Plain language by default. Use human-readable math (words first).
-- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
-- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
-- Keep it short and readable: 3–7 steps, each 1–2 lines. Avoid long paragraphs.
-- Be warm and non-intimidating. No "as an AI model" disclaimers.
-
-Context:
-- User type: ${role}
-- Country/curriculum: ${country}
-- Level: ${level}
-- Subject: ${subject}
-- Topic: ${topic}
-- Action: ${action}
-- Attempt count: ${attempt}
-
-${modeRules}
-${customLine}
-
-${actionTemplate(action)}
-
-For work verification actions ("check" or "verify"):
-- Always follow the work verification output format above.
-- If unsure, say "Uncertain" and explain what information is missing.
-- Only ONE next-step hint. No extra hints.
-
-Return plain text only. Use simple bullets "-" and numbered steps "1)".`;
-}
-
-function userPrompt({ role, action, topic, message, options, attempt, customStyle }) {
-  return `Action: ${action}
-User type: ${role}
-Topic: ${topic}
-Attempt: ${attempt}
-
-User message:
-${message}
-
-Constraints/options (optional):
-${options || ""}
-
-Extra request (optional):
-${customStyle || ""}`;
 }
 
 function normalizeMathToPlainText(text) {
@@ -162,14 +42,14 @@ function normalizeMathToPlainText(text) {
   // \sqrt{a} => sqrt(a)
   t = t.replace(/\\sqrt\{([^{}\n]+)\}/g, (_m, a) => `sqrt(${a})`);
 
-  // Remove \left / \right noise
-  t = t.replace(/\\left/g, "").replace(/\\right/g, "");
-
   // Remove stray backslashes left from TeX commands
   t = t.replace(/\\[a-zA-Z]+/g, "");
 
-  // Clean up spacing
-  t = t.replace(/[ \t]{2,}/g, " ").trim();
+  // Clean up double spaces
+  t = t.replace(/[ \t]{2,}/g, " ");
+
+  // \left / \right add noise for beginners.
+  t = t.replace(/\\left/g, "").replace(/\\right/g, "");
 
   return t;
 }
@@ -178,7 +58,7 @@ function stripMarkdownToPlainText(text) {
   if (!text) return "";
   let t = String(text);
 
-  // Remove fenced code blocks
+  // Remove fenced code blocks completely (they often come with Markdown noise).
   t = t.replace(/```[\s\S]*?```/g, "");
 
   // Remove inline code backticks
@@ -205,111 +85,116 @@ function stripMarkdownToPlainText(text) {
   return t;
 }
 
-function firstSentence(text) {
-  const t = String(text || "").trim();
-  if (!t) return "";
-  const m = t.match(/(.+?[.!?])(\s|$)/);
-  return (m ? m[1] : t.split("\n")[0]).trim();
+function deHedge(text) {
+  if (!text) return "";
+  let t = String(text);
+
+  // Remove weak/uncertain filler words that make Elora sound unsure.
+  // (We prefer asking a clarifying question instead.)
+  t = t.replace(/\b(likely|probably|maybe)\b/gi, "");
+
+  // Reduce "I think" style hedging without changing meaning too much.
+  t = t.replace(/\bI think\b/gi, "I");
+
+  // Clean spacing after removals.
+  t = t.replace(/[ \t]{2,}/g, " ");
+  t = t.replace(/\s+([,.;:!?])/g, "$1");
+  t = t.replace(/\n{3,}/g, "\n\n").trim();
+
+  return t;
 }
 
-function splitSentences(text, max = 3) {
-  const t = String(text || "").replace(/\n+/g, " ").trim();
-  if (!t) return [];
-  const parts = t.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  return parts.slice(0, max);
+function wantsRevealFromMessage(message) {
+  const m = String(message || "").trim().toLowerCase();
+  if (!m) return false;
+
+  // Keep this broad but safe: only for student attempt>=3 behavior.
+  return (
+    /\b(yes|yep|yeah|reveal|show|give)\b/.test(m) &&
+    /\b(answer|solution|full|everything|it)\b/.test(m)
+  ) || /\b(final answer|full solution|reveal it|show me the answer|give me the answer)\b/.test(m);
 }
 
-function pickHint(text) {
-  const t = String(text || "").trim();
-  if (!t) return "Try rewriting your steps carefully, then re-check the arithmetic/algebra.";
-  const lines = t.split("\n").map((l) => l.trim()).filter(Boolean);
-  const explicit = lines.find((l) => /next[- ]?step hint|hint:/i.test(l));
-  if (explicit) {
-    const cleaned = explicit
-      .replace(/^(one\s+)?next[- ]?step hint\s*:\s*/i, "")
-      .replace(/^hint\s*:\s*/i, "")
-      .trim();
-    return firstSentence(cleaned) || "Try checking the step where values were moved across the equals sign.";
+function coerceHistoryMessages(rawMessages, latestUserText) {
+  if (!Array.isArray(rawMessages)) return [];
+
+  const latest = String(latestUserText || "").trim();
+  const sliced = rawMessages.slice(-12); // small, stable context window
+
+  const out = [];
+  for (const item of sliced) {
+    const from = item?.from === "user" ? "user" : item?.from === "elora" ? "assistant" : null;
+    if (!from) continue;
+
+    let content = clampStr(String(item?.text || ""), 900);
+    content = stripMarkdownToPlainText(normalizeMathToPlainText(content));
+    content = content.trim();
+    if (!content) continue;
+
+    // Avoid duplicating the newest user message (we add it in the final user prompt)
+    if (from === "user" && latest && content.trim() === latest) continue;
+
+    out.push({ role: from, content });
   }
-  return firstSentence(lines[lines.length - 1]) || "Try checking each operation you applied to both sides of the equation.";
+
+  return out;
 }
 
-function enforceWorkVerificationFormat(action, reply) {
-  const a = String(action || "").toLowerCase();
-  if (a !== "check" && a !== "verify") return String(reply || "").trim();
+function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle }) {
+  const studentRules =
+    role === "student"
+      ? `
+Student attempt rules (STRICT):
+- Attempts 1–2 (Attempt value 0 or 1): Do NOT reveal the final answer. Give a hint + the next step only. Ask for the student's attempt/work.
+- Attempt 3 (Attempt value 2): Still do NOT reveal the final answer. Ask: "Do you want the full solution + final answer now? Reply: 'Yes, reveal it.'"
+- After attempt 3 (Attempt value 3+): Only reveal the full solution + final answer IF the user explicitly asks to reveal it (e.g. "Yes, reveal it", "show the full solution", "give me the answer"). Otherwise, ask the permission question again.
+- If the student asks for the answer early (attempt 0–2), refuse politely and ask for their attempt first.`
+      : "";
 
-  const raw = String(reply || "").trim();
-  if (!raw) {
-    return [
-      "Verdict: Uncertain",
-      "Checks:",
-      "1) Correctness check: I didn’t receive enough information to judge correctness.",
-      "2) Reasoning check: Please include the student’s working/steps.",
-      "3) Assumptions/units check: Include units/constraints if this is a word problem.",
-      "One next-step hint: Paste the question and the student’s attempt, then I’ll check the first mistake.",
-    ].join("\n");
-  }
+  return `You are Elora: a calm, professional teaching assistant for educators, students, and parents.
 
-  const hasVerdict = /(^|\n)\s*Verdict\s*:/i.test(raw);
+Hard rules (important):
+- Be accurate. If you are missing a key detail or the question is ambiguous, ask ONE short clarifying question and stop.
+- Do NOT guess. Do NOT invent facts.
+- NEVER use uncertainty filler words like "likely", "probably", or "maybe". Either be confident, or ask a clarifying question.
+- Use plain, human-readable math. Example: "5 divided by 4 = 1.25" and (if helpful) "5/4".
+- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
+- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
+- Keep tone warm, non-intimidating, and clear for beginners.
 
-  // If already structured, keep it but enforce exactly ONE hint line.
-  if (hasVerdict) {
-    const lines = raw.split("\n");
-    const out = [];
-    let seenHint = false;
+Output format:
+- Start with 1 short sentence restating what the user asked.
+- Then give short steps using: "1) ...", "2) ...".
+- End with either a quick check question OR a single "Next step:" line.
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+Context:
+Role: ${role}
+Country: ${country}
+Level: ${level}
+Subject: ${subject}
+Topic: ${topic}
+Attempt: ${attempt}
+Response style: ${responseStyle || "standard"}
+${studentRules}
 
-      if (
-        /^\s*One\s+next-step\s+hint\s*:/i.test(line) ||
-        /^\s*Next[- ]?step\s+hint\s*:/i.test(line) ||
-        /^\s*Hint\s*:/i.test(line)
-      ) {
-        if (seenHint) continue;
-        seenHint = true;
+Return plain text only.`;
+}
 
-        const cleaned = line
-          .replace(/^\s*Next[- ]?step\s+hint\s*:\s*/i, "One next-step hint: ")
-          .replace(/^\s*Hint\s*:\s*/i, "One next-step hint: ")
-          .trim();
+function userPrompt({ role, action, topic, message, options, attempt, customStyle, wantsReveal }) {
+  return `Action: ${action}
+Role: ${role}
+Topic: ${topic}
+Attempt: ${attempt}
+Reveal intent: ${wantsReveal ? "YES" : "NO"}
 
-        out.push(`One next-step hint: ${firstSentence(cleaned.replace(/^One next-step hint:\s*/i, ""))}`);
-        continue;
-      }
+User message:
+${message}
 
-      if (seenHint && /hint/i.test(line)) continue;
+Constraints/options:
+${options}
 
-      out.push(line);
-    }
-
-    if (!seenHint) out.push(`One next-step hint: ${pickHint(raw)}`);
-
-    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  }
-
-  // Fallback: wrap into the correct structure.
-  const sentences = splitSentences(raw, 3);
-  const c1 = sentences[0] || firstSentence(raw) || "The attempt needs a closer check.";
-  const c2 = sentences[1] || "I need the student’s steps and what method they used.";
-  const c3 = sentences[2] || "If this is a word problem, units and assumptions matter.";
-
-  const hint = pickHint(raw);
-
-  const verdictGuess = /correct|right|works out|looks good/i.test(raw)
-    ? "Likely correct"
-    : /wrong|incorrect|mistake|doesn’t|does not|fails/i.test(raw)
-    ? "Likely incorrect"
-    : "Uncertain";
-
-  return [
-    `Verdict: ${verdictGuess}`,
-    "Checks:",
-    `1) Correctness check: ${firstSentence(c1)}`,
-    `2) Reasoning check: ${firstSentence(c2)}`,
-    `3) Assumptions/units check: ${firstSentence(c3)}`,
-    `One next-step hint: ${firstSentence(hint)}`,
-  ].join("\n");
+Extra request (optional):
+${customStyle || ""}`;
 }
 
 export default async function handler(req, res) {
@@ -323,12 +208,14 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
+
     const role = clampStr(body.role || "student", 20);
     const country = clampStr(body.country || "Singapore", 40);
     const level = clampStr(body.level || "Secondary", 40);
     const subject = clampStr(body.subject || "General", 60);
     const topic = clampStr(body.topic || "General", 80);
     const action = clampStr(body.action || "explain", 40);
+
     const message = clampStr(body.message || "", 3000);
     const options = clampStr(body.options || "", 1400);
 
@@ -336,7 +223,7 @@ export default async function handler(req, res) {
     const customStyle = clampStr(body.customStyle || "", 600);
 
     const guest = Boolean(body.guest);
-    const attempt = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
+    const attempt = clampInt(body.attempt, 0, 6);
 
     if (!message) return res.status(400).json({ error: "Missing message." });
 
@@ -346,26 +233,31 @@ export default async function handler(req, res) {
       });
     }
 
+    // Ask backend about verification/session
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
     const verified = Boolean(status?.verified);
-    const accountRole = String(status?.role || (verified ? "regular" : "guest")).toLowerCase();
-    const teacher = accountRole === "teacher";
+    const teacher = isTeacherFromReq(req);
 
+    // Educator mode is only available after verification.
     if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides", "verify"]);
+    // Teacher tools are locked behind a signed httpOnly teacher cookie.
+    const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides"]);
     if (teacherOnlyActions.has(action) && !teacher) {
       return res.status(403).json({
-        error: "Teacher tools are locked. Enter a Teacher Invite Code in Settings to unlock teacher tools.",
+        error: "Teacher tools are locked. Enter a Teacher Invite Code in Settings to activate Educator tools.",
       });
     }
 
-    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle, action, customStyle });
-    const user = userPrompt({ role, action, topic, message, options, attempt, customStyle });
+    const wantsReveal = wantsRevealFromMessage(message);
+    const history = coerceHistoryMessages(body.messages, message);
+
+    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle });
+    const user = userPrompt({ role, action, topic, message, options, attempt, customStyle, wantsReveal });
 
     const resp = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -377,11 +269,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        temperature: 0.4,
+        messages: [{ role: "system", content: sys }, ...history, { role: "user", content: user }],
+        temperature: 0.25, // lower = fewer hallucinations
         max_tokens: 900,
       }),
     });
@@ -393,11 +282,11 @@ export default async function handler(req, res) {
     }
 
     const replyRaw = data?.choices?.[0]?.message?.content || "";
-    const replyClean = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
-    const reply = enforceWorkVerificationFormat(action, replyClean);
+    let reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
+    reply = deHedge(reply);
 
     return res.status(200).json({ reply });
-  } catch {
+  } catch (e) {
     return res.status(500).json({ error: "Unexpected server error." });
   }
 }

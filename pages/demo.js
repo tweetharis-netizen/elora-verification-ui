@@ -1,7 +1,8 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { getSession, isTeacher, refreshVerifiedFromServer } from "../lib/session";
+import Navbar from "../components/Navbar";
+import { getSession, isTeacher, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -30,133 +31,284 @@ function Chip({ variant, children }) {
   );
 }
 
-function DemoCard({ title, desc, children }) {
+function StepCard({ num, title, desc, status, actionLabel, onAction, disabled }) {
+  const variant = status === "done" ? "good" : status === "next" ? "warn" : "neutral";
+  const statusText = status === "done" ? "Done" : status === "next" ? "Next" : "Locked";
+
   return (
-    <div className="rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-6 shadow-xl shadow-slate-900/5 dark:shadow-black/20">
-      <div className="text-lg font-black text-slate-950 dark:text-white">{title}</div>
-      <div className="mt-2 text-sm text-slate-700 dark:text-slate-300">{desc}</div>
-      {children ? <div className="mt-5">{children}</div> : null}
+    <div className="rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-5 shadow-xl shadow-slate-900/5 dark:shadow-black/20">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center font-black text-slate-900 dark:text-white">
+            {num}
+          </div>
+          <div>
+            <div className="text-sm font-extrabold text-slate-950 dark:text-white">{title}</div>
+            <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{desc}</div>
+          </div>
+        </div>
+        <Chip variant={variant}>{statusText}</Chip>
+      </div>
+
+      {actionLabel ? (
+        <div className="mt-4">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onAction}
+            className={cn(
+              "rounded-2xl px-4 py-2 text-sm font-extrabold border transition",
+              disabled
+                ? "border-slate-200/60 dark:border-white/10 text-slate-400 cursor-not-allowed bg-white/40 dark:bg-slate-950/10"
+                : "border-indigo-500/30 bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
+            )}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-export default function Demo() {
-  const router = useRouter();
+function RoleCard({ title, desc, icon, tone, primaryLabel, secondaryLabel, onPrimary, onSecondary }) {
+  const toneRing =
+    tone === "indigo"
+      ? "border-indigo-500/25"
+      : tone === "sky"
+      ? "border-sky-500/25"
+      : "border-emerald-500/25";
 
-  const [session, setSession] = useState(() => getSession());
+  const toneGlow =
+    tone === "indigo"
+      ? "from-indigo-500/15 via-sky-400/8 to-fuchsia-500/10"
+      : tone === "sky"
+      ? "from-sky-500/15 via-indigo-400/8 to-fuchsia-500/10"
+      : "from-emerald-500/12 via-sky-400/8 to-indigo-500/10";
+
+  const primaryBtn =
+    tone === "indigo"
+      ? "bg-indigo-600 hover:bg-indigo-700"
+      : tone === "sky"
+      ? "bg-sky-600 hover:bg-sky-700"
+      : "bg-emerald-600 hover:bg-emerald-700";
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-3xl border bg-white/70 dark:bg-slate-950/20 p-5 shadow-xl shadow-slate-900/5 dark:shadow-black/20", toneRing, "border-slate-200/60 dark:border-white/10")}>
+      <div className="pointer-events-none absolute inset-0">
+        <div className={cn("absolute -inset-24 bg-gradient-to-br blur-3xl", toneGlow)} />
+      </div>
+
+      <div className="relative">
+        <div className="flex items-start gap-3">
+          <div className="h-12 w-12 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center text-xl">
+            {icon}
+          </div>
+          <div className="flex-1">
+            <div className="text-lg font-black text-slate-950 dark:text-white">{title}</div>
+            <div className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{desc}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onPrimary}
+            className={cn("rounded-2xl px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/10", primaryBtn)}
+          >
+            {primaryLabel}
+          </button>
+
+          {secondaryLabel ? (
+            <button
+              type="button"
+              onClick={onSecondary}
+              className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+            >
+              {secondaryLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DemoPage() {
+  const router = useRouter();
+  const [session, setSessionState] = useState(() => getSession());
   const verified = Boolean(session?.verified);
   const teacher = Boolean(isTeacher());
 
   useEffect(() => {
     let mounted = true;
-    refreshVerifiedFromServer().then(() => {
+    (async () => {
+      await refreshVerifiedFromServer();
       if (!mounted) return;
-      setSession(getSession());
-    });
+      setSessionState(getSession());
+    })();
     return () => {
       mounted = false;
     };
   }, []);
 
-  const nextSteps = useMemo(() => {
-    if (!verified) {
-      return [
-        { label: "Verify email", href: "/verify", note: "Unlock educator mode + exports" },
-        { label: "Open Assistant", href: "/assistant", note: "Plain-language explanations" },
-      ];
+  const demoMsg = useMemo(() => {
+    return "Explain photosynthesis in 4 short steps for a Secondary student, add 1 simple example, then end with 2 quick check questions.";
+  }, []);
+
+  function setPostVerifyRedirect(path) {
+    try {
+      window.localStorage.setItem("elora_post_verify_redirect_v1", String(path || "/assistant"));
+    } catch {}
+  }
+
+  async function chooseRole(role) {
+    // Make role selection feel real: set role once here.
+    // (We’ll lock switching inside Assistant in a later batch with your green light.)
+    setRole(role);
+
+    // Keep guest OFF here to reduce “guest confusion”.
+    // Student/Parent can still use the assistant unverified; exports remain locked.
+    setGuest(false);
+
+    if (role === "educator") {
+      if (verified) {
+        router.push("/assistant");
+        return;
+      }
+      setPostVerifyRedirect("/assistant");
+      router.push("/verify");
+      return;
     }
-    if (!teacher) {
-      return [
-        { label: "Open Assistant", href: "/assistant", note: "Enter a Teacher Invite Code to unlock tools" },
-        { label: "Help (demo script)", href: "/help", note: "5–7 minute run-through" },
-      ];
-    }
-    return [
-      { label: "Open Assistant", href: "/assistant", note: "Teacher tools unlocked" },
-      { label: "Help (demo script)", href: "/help", note: "Follow the 5 steps live" },
-    ];
-  }, [verified, teacher]);
+
+    // Student / Parent can proceed directly.
+    router.push("/assistant");
+  }
+
+  const step1 = verified ? "done" : "next";
+  const step2 = !verified ? "locked" : teacher ? "done" : "next";
+  const step3 = !verified ? "locked" : "next";
+  const step4 = !verified ? "locked" : "next";
 
   return (
     <>
       <Head>
-        <title>Elora — Genesis Demo</title>
+        <title>Get started — Elora</title>
       </Head>
+
+      <Navbar />
 
       <div className="elora-page">
         <div className="elora-container">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-3xl font-black text-slate-950 dark:text-white">Genesis Demo</h1>
-              <p className="mt-2 text-slate-700 dark:text-slate-300 max-w-2xl">
-                This page is the judge-friendly launchpad. It shows what to do next based on verification + role.
+              <h1 className="text-3xl font-black text-slate-950 dark:text-white">Get started</h1>
+              <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 max-w-2xl">
+                Choose your role. Educator mode is verification-gated for security. Student and Parent can jump in immediately.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Chip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</Chip>
-              <Chip variant={teacher ? "good" : "neutral"}>{teacher ? "Teacher mode" : "Teacher tools locked"}</Chip>
+              <Chip variant={teacher ? "good" : "neutral"}>{teacher ? "Teacher mode" : "Teacher locked"}</Chip>
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <DemoCard
-              title="The point"
-              desc="Elora is a calm teaching assistant: verifies student work and explains concepts in human language, in a structure teachers can reuse."
+          {/* Role selection (the 3 boxes you asked for) */}
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <RoleCard
+              title="Educator"
+              icon="👩‍🏫"
+              tone="indigo"
+              desc="Verify student work, generate lesson materials, export classroom-ready docs."
+              primaryLabel={verified ? "Continue" : "Verify to continue"}
+              secondaryLabel={verified ? "" : "I’m just previewing"}
+              onPrimary={() => chooseRole("educator")}
+              onSecondary={() => chooseRole("student")}
             />
 
-            <DemoCard
-              title="What judges should notice"
-              desc="Verification persists after refresh. Teacher tools are invite-gated and enforced. The assistant is readable and not intimidating."
+            <RoleCard
+              title="Student"
+              icon="🎓"
+              tone="sky"
+              desc="Get hints first, then reveal the full answer only after 3 attempts (if you ask)."
+              primaryLabel="Continue"
+              secondaryLabel=""
+              onPrimary={() => chooseRole("student")}
+              onSecondary={() => {}}
+            />
+
+            <RoleCard
+              title="Parent"
+              icon="🏠"
+              tone="emerald"
+              desc="Clear explanations and practical guidance you can use at home without stress."
+              primaryLabel="Continue"
+              secondaryLabel=""
+              onPrimary={() => chooseRole("parent")}
+              onSecondary={() => {}}
             />
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <DemoCard title="Next steps" desc="Click these in order. This is the fastest clean demo.">
-              <div className="grid gap-3">
-                {nextSteps.map((s) => (
-                  <button
-                    key={s.href}
-                    type="button"
-                    onClick={() => router.push(s.href)}
-                    className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-5 py-4 text-left hover:bg-white dark:hover:bg-slate-950/35"
-                  >
-                    <div className="text-sm font-extrabold text-slate-950 dark:text-white">{s.label}</div>
-                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">{s.note}</div>
-                  </button>
-                ))}
+          {/* Keep the judge-friendly checklist (optional) */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-sm font-extrabold text-slate-950 dark:text-white">Optional: Genesis demo checklist</div>
+                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  If a judge asks for the “full flow”, use this to prove verification, teacher gating, memory, and exports.
+                </div>
               </div>
-            </DemoCard>
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+              >
+                Back to Home
+              </button>
+            </div>
 
-            <DemoCard title="Fast demo route" desc="If time is tight, do this:">
-              <ol className="mt-2 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
-                <li>
-                  <b>1)</b> Verify email
-                </li>
-                <li>
-                  <b>2)</b> Assistant → Teacher code → unlock
-                </li>
-                <li>
-                  <b>3)</b> Verify student work demo
-                </li>
-              </ol>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => router.push("/verify")}
-                  className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700"
-                >
-                  Go to Verify
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push("/assistant")}
-                  className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                >
-                  Go to Assistant
-                </button>
-              </div>
-            </DemoCard>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <StepCard
+                num={1}
+                title="Verify your email"
+                desc="This unlocks full access and makes state persist across refreshes."
+                status={step1}
+                actionLabel={verified ? "Open Assistant" : "Go to verification"}
+                onAction={() => router.push(verified ? "/assistant" : "/verify")}
+                disabled={false}
+              />
+
+              <StepCard
+                num={2}
+                title="Unlock Teacher Tools"
+                desc="Enter a Teacher Invite Code (e.g., GENESIS2026) to unlock lesson plans, worksheets, slides, and assessments."
+                status={step2}
+                actionLabel={teacher ? "Teacher already unlocked" : "Open teacher unlock"}
+                onAction={() => router.push("/assistant?demo=1&unlockTeacher=1")}
+                disabled={!verified || teacher}
+              />
+
+              <StepCard
+                num={3}
+                title="Run a 1-click example"
+                desc="This auto-fills a judge-friendly prompt and sends it once (no repeated spam on refresh)."
+                status={step3}
+                actionLabel="Run example in Assistant"
+                onAction={() => router.push(`/assistant?demo=1&demoRole=educator&demoMsg=${encodeURIComponent(demoMsg)}`)}
+                disabled={!verified}
+              />
+
+              <StepCard
+                num={4}
+                title="Export"
+                desc="Export the last answer to DOCX / PPTX / PDF to prove it’s classroom-ready."
+                status={step4}
+                actionLabel="Open Assistant (Export)"
+                onAction={() => router.push("/assistant?demo=1")}
+                disabled={!verified}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -136,6 +136,7 @@ export default function AssistantPage() {
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   const listRef = useRef(null);
+  const roleRef = useRef(role);
 
   const [stickToBottom, setStickToBottom] = useState(true);
   const [showJump, setShowJump] = useState(false);
@@ -173,6 +174,33 @@ export default function AssistantPage() {
     storeRole(role);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
+
+  // If Settings changes role/chat, reflect it here without requiring a refresh.
+  useEffect(() => {
+    function onSession() {
+      const s = getSession();
+      setSession(s);
+
+      const nextRole = String(s?.role || "student");
+      if (nextRole !== roleRef.current) {
+        roleRef.current = nextRole;
+        setRole(nextRole);
+        setAttempt(0);
+      }
+
+      const nextMsgs = Array.isArray(s?.messages) ? s.messages : [];
+      setMessages(nextMsgs);
+    }
+
+    if (typeof window === "undefined") return;
+    window.addEventListener("elora:session", onSession);
+    return () => window.removeEventListener("elora:session", onSession);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const guestBlocked = useMemo(() => {
     if (!guest) return false;
@@ -570,30 +598,26 @@ export default function AssistantPage() {
 
               {/* Role */}
               <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {["student", "parent", "educator"].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        if (r === "educator" && !verified) {
-                          setVerifyGateOpen(true);
-                          return;
-                        }
-                        setRole(r);
-                      }}
-                      className={cn(
-                        "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
-                        role === r
-                          ? "border-indigo-500/40 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
-                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                      )}
-                    >
-                      {ROLE_LABEL[r]}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/settings?focus=role")}
+                    className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                  >
+                    Change
+                  </button>
                 </div>
+
+                <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-3 py-2">
+                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                    {ROLE_LABEL[role] || "Student"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Change role in Settings (resets chat).
+                  </div>
+                </div>
+
                 {role === "educator" && !verified ? (
                   <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
                     Educator mode requires verification.

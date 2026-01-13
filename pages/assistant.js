@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -11,8 +12,22 @@ import {
   setRole as storeRole,
 } from "../lib/session";
 
-const LEVELS = ["Primary", "Secondary", "JC/IB", "University", "Adult learning"];
 const COUNTRIES = ["Singapore", "Malaysia", "UK", "US", "Australia", "Other"];
+
+const LEVELS_BY_COUNTRY = {
+  Singapore: ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Secondary 5", "JC 1", "JC 2", "University", "Adult learning"],
+  Malaysia: ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Secondary 5", "University", "Adult learning"],
+  UK: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "Year 13", "University", "Adult learning"],
+  US: ["Grade K", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Adult learning"],
+  Australia: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Adult learning"],
+  Other: ["Primary", "Lower secondary", "Upper secondary", "Pre-university", "University", "Adult learning"],
+};
+
+function getLevelsForCountry(country) {
+  const c = String(country || "Other");
+  return LEVELS_BY_COUNTRY[c] || LEVELS_BY_COUNTRY.Other;
+}
+
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
 
 const ROLE_LABEL = {
@@ -37,61 +52,62 @@ const REFINEMENT_CHIPS = {
   worksheet: [
     { id: "easier", label: "Make it easier" },
     { id: "harder", label: "Make it harder" },
-    { id: "answers", label: "Add teacher answers" },
-    { id: "variants", label: "Add A/B versions" },
+    { id: "ans", label: "Add answer key" },
+    { id: "format", label: "Change format" },
   ],
   assessment: [
-    { id: "markscheme", label: "Add mark scheme" },
-    { id: "variants", label: "Add variants" },
+    { id: "marks", label: "Add marks" },
+    { id: "rubric", label: "Add rubric" },
     { id: "harder", label: "Make it harder" },
     { id: "easier", label: "Make it easier" },
   ],
   slides: [
-    { id: "outline", label: "Tighten outline" },
-    { id: "hooks", label: "Add hook" },
+    { id: "shorter", label: "Make it shorter" },
+    { id: "activity", label: "Add activity" },
+    { id: "checks", label: "Add check points" },
     { id: "examples", label: "Add examples" },
-    { id: "notes", label: "Add teacher notes" },
   ],
   check: [
-    { id: "more-steps", label: "Show more steps" },
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-  ],
-  study: [
-    { id: "shorter", label: "Make it shorter" },
-    { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a check question" },
-  ],
-  coach: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "steps", label: "Give steps" },
-    { id: "check", label: "Add a check question" },
-  ],
-  message: [
-    { id: "shorter", label: "Make it shorter" },
-    { id: "simpler", label: "Make it simpler" },
-  ],
-  custom: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
+    { id: "hint", label: "Give a hint" },
+    { id: "mistake", label: "Explain my mistake" },
+    { id: "steps", label: "Show the steps (no final answer yet)" },
+    { id: "try", label: "Let me try again" },
   ],
 };
 
-function cn(...xs) {
-  return xs.filter(Boolean).join(" ");
+const ROLE_QUICK_ACTIONS = {
+  student: [
+    { id: "explain", label: "Explain", hint: "Make it simple and clear." },
+    { id: "check", label: "Check my answer", hint: "Tell me if I’m correct (limited attempts)." },
+    { id: "practice", label: "Practice", hint: "Give me a question to try." },
+  ],
+  parent: [
+    { id: "explain", label: "Explain", hint: "Help me understand so I can help my child." },
+    { id: "practice", label: "Practice", hint: "Create a simple practice plan." },
+    { id: "plan", label: "Study plan", hint: "A calm, realistic plan." },
+  ],
+  educator: [
+    { id: "explain", label: "Explain", hint: "Clear explanation for class." },
+    { id: "lesson", label: "Lesson plan", hint: "Structured lesson plan." },
+    { id: "worksheet", label: "Worksheet", hint: "Practice worksheet." },
+    { id: "assessment", label: "Assessment", hint: "Assessment items and rubric." },
+    { id: "slides", label: "Slides outline", hint: "Slide-by-slide outline." },
+  ],
+};
+
+function cn(...a) {
+  return a.filter(Boolean).join(" ");
 }
 
-function stripInternalTags(text) {
-  return String(text || "")
-    .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*>/gi, "")
-    .replace(/<\s*internal\s*>/gi, "")
-    .trim();
+function clampStr(v, max = 120000) {
+  if (typeof v !== "string") return "";
+  const s = v.trim();
+  return s.length <= max ? s : s.slice(0, max);
 }
 
 function cleanAssistantText(text) {
-  let t = stripInternalTags(text || "");
+  let t = String(text || "");
+  // remove accidental markdown artifacts
   t = t.replace(/```[\s\S]*?```/g, "");
   t = t.replace(/`+/g, "");
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
@@ -100,451 +116,290 @@ function cleanAssistantText(text) {
   t = t.replace(/__([^_]+)__/g, "$1");
   t = t.replace(/_([^_]+)_/g, "$1");
   t = t.replace(/^\s*>\s?/gm, "");
-  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-  t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
   t = t.replace(/\n{3,}/g, "\n\n").trim();
   return t;
+}
+
+function lastAssistantMessage(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.from === "elora" && messages[i]?.text) return messages[i].text;
+  }
+  return "";
+}
+
+async function safeFetchJson(url, opts) {
+  try {
+    const r = await fetch(url, opts);
+    const data = await r.json().catch(() => null);
+    return { ok: r.ok, status: r.status, data };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  }
+}
+
+async function copyToClipboard(text, idx, setCopiedIdx) {
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(-1), 900);
+  } catch {}
+}
+
+async function persistSessionPatch(patch) {
+  const current = getSession();
+  const next = { ...current, ...patch };
+  try {
+    localStorage.setItem("elora_session_v1", JSON.stringify(next));
+    localStorage.setItem("elora_session", JSON.stringify(next));
+  } catch {}
+}
+
+async function clearServerChatIfVerified(session) {
+  if (!session?.verified) return;
+  await safeFetchJson("/api/chat/clear", { method: "POST" });
 }
 
 export default function AssistantPage() {
   const router = useRouter();
 
   const [session, setSession] = useState(() => getSession());
-  const verified = Boolean(session?.verified);
-  const teacher = Boolean(isTeacher());
-  const guest = Boolean(session?.guest);
+  const [verified, setVerified] = useState(Boolean(session?.verified));
+  const [guest, setGuest] = useState(Boolean(session?.guest));
+  const [teacher, setTeacher] = useState(Boolean(session?.teacher));
 
-  const [role, setRole] = useState(() => session?.role || "student");
-  const [country, setCountry] = useState(() => session?.country || "Singapore");
-  const [level, setLevel] = useState(() => session?.level || "Secondary");
-  const [subject, setSubject] = useState(() => session?.subject || "General");
-  const [topic, setTopic] = useState(() => session?.topic || "");
-  const [constraints, setConstraints] = useState("");
-  const [responseStyle, setResponseStyle] = useState("standard");
-  const [customStyleText, setCustomStyleText] = useState("");
+  const [role, setRoleState] = useState(() => session?.role || "student");
+  const [country, setCountryState] = useState(() => session?.country || "Singapore");
+  const [level, setLevel] = useState(() => session?.level || (getLevelsForCountry(session?.country || "Singapore")[0] || "Secondary"));
 
-  const [action, setAction] = useState(() => session?.action || "explain");
-  const [messages, setMessages] = useState(() => session?.messages || []);
+  const levelOptions = useMemo(() => getLevelsForCountry(country), [country]);
+
+  const [subject, setSubjectState] = useState(() => session?.subject || "Math");
+  const [topic, setTopicState] = useState(() => session?.topicCustom || session?.topic || "");
+  const [action, setAction] = useState(() => session?.task || "explain");
+  const [style, setStyle] = useState(() => session?.style || "clear");
+
+  const [messages, setMessages] = useState(() => Array.isArray(session?.messages) ? session.messages : []);
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [attempt, setAttempt] = useState(0);
 
+  const [copiedIdx, setCopiedIdx] = useState(-1);
+
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [teacherGateCode, setTeacherGateCode] = useState("");
+  const [teacherGateCode, setTeacherGateCode] = useState(() => session?.teacherCode || "");
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   const listRef = useRef(null);
-  const roleRef = useRef(role);
-
-  const [stickToBottom, setStickToBottom] = useState(true);
   const [showJump, setShowJump] = useState(false);
 
-  const [dismissGuestBanner, setDismissGuestBanner] = useState(false);
-  const [copiedIdx, setCopiedIdx] = useState(-1);
-
-  const ROLE_QUICK_ACTIONS = {
-    educator: [
-      { id: "explain", label: "Explain a concept", hint: "Clear, classroom-ready explanation + example" },
-      { id: "custom", label: "Custom request", hint: "Ask anything as a teacher (tone, structure, etc.)" },
-      { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
-      { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions, export-ready" },
-      { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
-      { id: "slides", label: "Design slides", hint: "Deck outline + teacher notes" },
-    ],
-    student: [
-      { id: "explain", label: "Explain it", hint: "Step-by-step, beginner friendly" },
-      { id: "check", label: "Check my answer", hint: "Find mistakes + how to fix" },
-      { id: "study", label: "Study plan", hint: "Simple plan, small steps" },
-      { id: "custom", label: "Custom", hint: "Ask anything" },
-    ],
-    parent: [
-      { id: "explain", label: "Explain to me", hint: "Plain language, no jargon" },
-      { id: "coach", label: "How to help", hint: "What to say and do at home" },
-      { id: "message", label: "Write a message", hint: "To teacher or school" },
-      { id: "custom", label: "Custom", hint: "Ask anything" },
-    ],
-  };
-
   useEffect(() => {
-    const first = ROLE_QUICK_ACTIONS[role]?.[0]?.id || "explain";
-    setAction(first);
-    setAttempt(0);
-    storeRole(role);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
-
-  useEffect(() => {
-    roleRef.current = role;
-  }, [role]);
-
-  // If Settings changes role/chat, reflect it here without requiring a refresh.
-  useEffect(() => {
-    function onSession() {
-      const s = getSession();
-      setSession(s);
-
-      const nextRole = String(s?.role || "student");
-      if (nextRole !== roleRef.current) {
-        roleRef.current = nextRole;
-        setRole(nextRole);
-        setAttempt(0);
-      }
-
-      const nextMsgs = Array.isArray(s?.messages) ? s.messages : [];
-      setMessages(nextMsgs);
-    }
-
-    if (typeof window === "undefined") return;
-    window.addEventListener("elora:session", onSession);
-    return () => window.removeEventListener("elora:session", onSession);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const guestBlocked = useMemo(() => {
-    if (!guest) return false;
-    return ["lesson", "worksheet", "assessment", "slides"].includes(action);
-  }, [guest, action]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    if (stickToBottom) el.scrollTop = el.scrollHeight;
-  }, [messages, loading, stickToBottom]);
-
-  function handleListScroll() {
-    const el = listRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-    setStickToBottom(atBottom);
-    setShowJump(!atBottom);
-  }
-
-  function jumpToLatest() {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    setStickToBottom(true);
-    setShowJump(false);
-  }
-
-  async function copyToClipboard(text, idx) {
-    const value = String(text || "").trim();
-    if (!value) return;
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = value;
-        ta.setAttribute("readonly", "true");
-        ta.style.position = "fixed";
-        ta.style.top = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-
-      setCopiedIdx(idx);
-      window.setTimeout(() => setCopiedIdx(-1), 900);
-    } catch {
-      // no-op
-    }
-  }
-
-  async function persistSessionPatch(patch) {
-    try {
-      await fetch("/api/session/set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-    } catch {
-      // ignore
-    }
-  }
-
-  async function saveServerChatIfVerified(currentSession, nextMessages) {
-    try {
-      if (!currentSession?.verified) return;
-      await fetch("/api/chat/set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
-      });
-    } catch {
-      // ignore
-    }
-  }
-
-  async function clearServerChatIfVerified(currentSession) {
-    try {
-      if (!currentSession?.verified) return;
-      await fetch("/api/chat/clear", { method: "POST" });
-    } catch {
-      // ignore
-    }
-  }
-
-  async function restoreServerChatIfVerified() {
-    try {
-      const currentSession = getSession();
-      if (!currentSession?.verified) return;
-      const r = await fetch("/api/chat/get", { cache: "no-store" });
-      const data = await r.json().catch(() => null);
-      const serverMsgs = Array.isArray(data?.messages) ? data.messages : null;
-      if (!serverMsgs) return;
-
-      setMessages(serverMsgs);
-      await persistSessionPatch({ messages: serverMsgs });
-    } catch {
-      // ignore
-    }
-  }
-
-  useEffect(() => {
-    let mounted = true;
-
+    // Keep session state current
     (async () => {
-      await refreshVerifiedFromServer();
-      if (!mounted) return;
-
+      const status = await refreshVerifiedFromServer();
       const s = getSession();
       setSession(s);
-
-      if (s?.verified) {
-        await restoreServerChatIfVerified();
-      }
+      setVerified(Boolean(status?.verified));
+      setTeacher(Boolean(status?.teacher));
+      setGuest(Boolean(s?.guest));
+      setRoleState(String(s?.role || "student"));
+      setCountryState(String(s?.country || "Singapore"));
+      setLevel(String(s?.level || level));
+      setSubjectState(String(s?.subject || "Math"));
+      setTopicState(String(s?.topicCustom || s?.topic || ""));
+      setAction(String(s?.task || "explain"));
+      setStyle(String(s?.style || "clear"));
+      setMessages(Array.isArray(s?.messages) ? s.messages : []);
     })();
-
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    // keep a live session snapshot for other pages/components
     persistSessionPatch({
       role,
       country,
       level,
       subject,
-      topic,
-      action,
+      topicCustom: topic,
+      task: action,
+      style,
+      messages,
     });
+  }, [role, country, level, subject, topic, action, style, messages]);
+
+  useEffect(() => {
+    if (role) {
+      const current = getSession();
+      storeRole(role);
+      setSession(getSession());
+      setGuest(Boolean(getSession()?.guest));
+      setVerified(Boolean(getSession()?.verified));
+      setTeacher(Boolean(getSession()?.teacher));
+      // keep attempt UI coherent
+      if (role !== "student") setAttempt(0);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    // Keep level valid when country changes (prevents invalid select values).
+    if (!levelOptions.includes(level)) {
+      setLevel(levelOptions[0] || "Secondary");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, country, level, subject, topic, action]);
+  }, [country]);
 
-  async function callElora({ messageOverride, baseMessages }) {
-    const currentSession = getSession();
+  function setRole(r) {
+    setRoleState(String(r || "student"));
+  }
+  function setCountry(v) {
+    setCountryState(String(v || "Singapore"));
+  }
+  function setSubject(v) {
+    setSubjectState(String(v || "Math"));
+  }
+  function setTopic(v) {
+    setTopicState(String(v || ""));
+  }
 
-    const userText = String(messageOverride || chatText || "").trim();
-    if (!userText) return;
+  function jumpToLatest() {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
 
+  function handleListScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    setShowJump(!atBottom);
+  }
+
+  async function callElora(payload) {
+    const r = await safeFetchJson("/api/assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const err = r?.data?.error || "Request failed.";
+      throw new Error(err);
+    }
+    return r.data;
+  }
+
+  async function sendChat(refineId) {
+    const text = clampStr(chatText || "", 4000);
+    if (!text || loading) return;
+
+    const userMsg = { from: "user", text, at: new Date().toISOString() };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    setChatText("");
     setLoading(true);
 
     try {
-      if (role === "educator" && !currentSession?.verified) {
-        setVerifyGateOpen(true);
-        setLoading(false);
-        return;
-      }
-
-      if (guestBlocked) {
-        setTeacherGateOpen(true);
-        setLoading(false);
-        return;
-      }
-
       const payload = {
         role,
-        action,
         country,
         level,
         subject,
         topic,
-        constraints,
-        responseStyle,
-        customStyleText,
-        verified: Boolean(currentSession?.verified),
-        teacher: Boolean(isTeacher()),
-        attempt: role === "student" ? Math.min(3, attempt) : 0,
-        message: userText,
-        messages: Array.isArray(baseMessages) ? baseMessages : messages,
+        action,
+        message: text,
+        options: refineId ? `Refinement chip: ${refineId}` : "",
+        attempt,
+        responseStyle: style,
+        guest: Boolean(getSession()?.guest),
       };
 
-      const r = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const data = await callElora(payload);
 
-      const data = await r.json().catch(() => null);
+      const replyText = cleanAssistantText(data?.reply || "");
+      const eloraMsg = { from: "elora", text: replyText, at: new Date().toISOString() };
+      const finalMsgs = [...next, eloraMsg];
+      setMessages(finalMsgs);
 
-      if (!r.ok) {
-        const err = data?.error || "Request failed.";
-        if (String(err).includes("verify")) setVerifyGateOpen(true);
-        setMessages((prev) => [...prev, { from: "elora", text: String(err), ts: Date.now() }]);
-        setLoading(false);
-        return;
-      }
-
-      const out = cleanAssistantText(data?.reply || data?.text || data?.answer || "");
-      setMessages((prev) => {
-        const next = [...prev, { from: "elora", text: out, ts: Date.now() }];
-        persistSessionPatch({ messages: next });
-        saveServerChatIfVerified(currentSession, next);
-        return next;
-      });
-
-      if (role === "student") {
+      if (role === "student" && typeof data?.attempt === "number") {
+        setAttempt(Math.max(0, Math.min(3, Number(data.attempt) || 0)));
+      } else if (role === "student") {
         setAttempt((a) => a + 1);
       }
-    } catch {
-      setMessages((prev) => [...prev, { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() }]);
+
+      // Auto-scroll when near bottom
+      setTimeout(() => {
+        const el = listRef.current;
+        if (!el) return;
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+        if (atBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }, 60);
+    } catch (e) {
+      const errText = cleanAssistantText(e?.message || "Something went wrong.");
+      setMessages((m) => [...m, { from: "elora", text: errText, at: new Date().toISOString() }]);
     } finally {
-      setChatText("");
       setLoading(false);
     }
   }
 
-  async function sendChat() {
-    const trimmed = String(chatText || "").trim();
-    if (!trimmed || loading) return;
+  async function exportLast(kind) {
+    const last = lastAssistantMessage(messages);
+    if (!last) return;
 
-    const currentSession = getSession();
-    const userMsg = { from: "user", text: trimmed, ts: Date.now() };
-    const nextMessages = [...messages, userMsg];
+    const title = "Elora Export";
+    const content = last;
 
-    setMessages(nextMessages);
-    persistSessionPatch({ messages: nextMessages });
-    await saveServerChatIfVerified(currentSession, nextMessages);
+    const map = {
+      pdf: "/api/export-pdf",
+      docx: "/api/export-docx",
+      pptx: "/api/export-slides",
+    };
 
-    await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
-  }
-
-  async function exportLast(type) {
-    const last = [...messages].reverse().find((m) => m?.from === "elora");
-    if (!last?.text) {
-      setMessages((prev) => [...prev, { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() }]);
-      return;
-    }
-
-    if (!verified) {
-      setVerifyGateOpen(true);
-      setMessages((prev) => [...prev, { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() }]);
-      return;
-    }
+    const url = map[kind] || "";
+    if (!url) return;
 
     try {
-      const endpoint =
-        type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
-
-      const content = cleanAssistantText(last.text);
-      const title =
-        type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
-
-      const r = await fetch(endpoint, {
+      const r = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content }),
       });
 
-      const ct = String(r.headers.get("content-type") || "");
-
-      // If server returned JSON, it's very likely an error (e.g. { error: "not_verified" })
-      if (!r.ok || ct.includes("application/json")) {
-        let err = `Export failed (HTTP ${r.status}).`;
-        let data = null;
-        try {
-          data = await r.json();
-        } catch {}
-
-        const code = String(data?.error || data?.message || "").trim();
-
-        if (r.status === 403 || code === "not_verified") {
-          setVerifyGateOpen(true);
-          err = "Export blocked: your session isn’t verified on the server. Re-verify to unlock exports.";
-        } else if (code) {
-          err = `Export failed: ${code}`;
-        }
-
-        setMessages((prev) => [...prev, { from: "elora", text: err, ts: Date.now() }]);
-        return;
+      if (!r.ok) {
+        const data = await r.json().catch(() => null);
+        throw new Error(data?.error || "Export failed.");
       }
 
       const blob = await r.blob();
-      if (!blob || blob.size === 0) {
-        setMessages((prev) => [...prev, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }]);
-        return;
-      }
-
-      const url = URL.createObjectURL(blob);
+      const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
+      a.href = href;
+      a.download = kind === "pdf" ? "elora-export.pdf" : kind === "docx" ? "elora-export.docx" : "elora-export.pptx";
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      setMessages((prev) => [...prev, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }]);
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (e) {
+      setMessages((m) => [
+        ...m,
+        {
+          from: "elora",
+          text: cleanAssistantText(e?.message || "Export failed."),
+          at: new Date().toISOString(),
+        },
+      ]);
     }
   }
 
-  async function applyRefinement(chipId) {
-    const map = {
-      simpler: "Make it simpler and more beginner-friendly.",
-      example: "Add one clear example that matches the topic.",
-      steps: "Show the steps clearly (short).",
-      check: "Give one quick check question at the end.",
-      diff: "Add differentiation: easier + harder extension.",
-      timing: "Add a simple timeline with approximate minutes.",
-      resources: "Add a short list of materials/resources.",
-      easier: "Make it easier while keeping the same topic.",
-      harder: "Make it harder and add a challenge question.",
-      answers: "Add a teacher answer key after the questions.",
-      rubric: "Add a short marking guide/rubric.",
-      shorter: "Make it shorter and more direct.",
-      markscheme: "Include a clear marking scheme.",
-      variants: "Add two variants (A/B) with the same skills tested.",
-      outline: "Tighten the slide outline into clear sections.",
-      hooks: "Add 1-2 engaging hooks or questions for the start.",
-      examples: "Add more examples that students can relate to.",
-      notes: "Add short teacher notes for each section.",
-      "more-steps": "Add more steps and explain the reasoning clearly.",
-    };
-
-    const refinement = map[chipId] || "Improve the answer.";
-    const currentSession = getSession();
-
-    const userMsg = { from: "user", text: refinement, ts: Date.now() };
-    const nextMessages = [...messages, userMsg];
-
-    setMessages(nextMessages);
-    persistSessionPatch({ messages: nextMessages });
-    await saveServerChatIfVerified(currentSession, nextMessages);
-
-    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
-  }
-
   async function validateAndActivateInvite(code) {
-    const trimmed = (code || "").trim();
-    setTeacherGateStatus("");
-
+    const trimmed = String(code || "").trim();
     if (!trimmed) {
       setTeacherGateStatus("Enter a code.");
       return false;
     }
-    if (!verified) {
-      setTeacherGateStatus("Verify your email first.");
-      return false;
-    }
 
     try {
+      setTeacherGateStatus("Checking…");
       const act = await activateTeacher(trimmed);
       if (!act?.ok) {
         setTeacherGateStatus("Invalid code.");
@@ -576,9 +431,11 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
+      <Navbar />
+
       <div className="elora-page">
         <div className="elora-container">
-          <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
+          <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
             {/* LEFT */}
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
               <div className="flex items-center justify-between">
@@ -598,26 +455,30 @@ export default function AssistantPage() {
 
               {/* Role */}
               <div className="mt-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/settings?focus=role")}
-                    className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                  >
-                    Change
-                  </button>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {["student", "parent", "educator"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        if (r === "educator" && !verified) {
+                          setVerifyGateOpen(true);
+                          return;
+                        }
+                        setRole(r);
+                      }}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
+                        role === r
+                          ? "border-indigo-500/40 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
+                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                      )}
+                    >
+                      {ROLE_LABEL[r]}
+                    </button>
+                  ))}
                 </div>
-
-                <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-3 py-2">
-                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                    {ROLE_LABEL[role] || "Student"}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    Change role in Settings (resets chat).
-                  </div>
-                </div>
-
                 {role === "educator" && !verified ? (
                   <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
                     Educator mode requires verification.
@@ -649,7 +510,7 @@ export default function AssistantPage() {
                     onChange={(e) => setLevel(e.target.value)}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
-                    {LEVELS.map((l) => (
+                    {levelOptions.map((l) => (
                       <option key={l} value={l}>
                         {l}
                       </option>
@@ -757,12 +618,12 @@ export default function AssistantPage() {
                     <button
                       key={c.id}
                       type="button"
-                      disabled={loading || messages.length === 0}
-                      onClick={() => applyRefinement(c.id)}
+                      onClick={() => sendChat(c.id)}
+                      disabled={loading}
                       className={cn(
                         "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
-                        "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
-                        loading || messages.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                        "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35",
+                        loading ? "opacity-70 cursor-wait" : ""
                       )}
                     >
                       {c.label}
@@ -771,25 +632,9 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {guest && !dismissGuestBanner ? (
-                <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">Guest preview</div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        Educator mode and exports require verification. You&apos;re previewing Elora in Student mode.
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDismissGuestBanner(true)}
-                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
-                      aria-label="Dismiss"
-                      title="Dismiss"
-                    >
-                      ✕
-                    </button>
-                  </div>
+              {!verified && !guest ? (
+                <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
+                  You’re not verified yet. You can preview, but exports and educator mode are locked.
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -832,7 +677,7 @@ export default function AssistantPage() {
                         {!isUser ? (
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(display, idx)}
+                            onClick={() => copyToClipboard(display, idx, setCopiedIdx)}
                             className="absolute top-2 right-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition hover:bg-white dark:hover:bg-slate-950/60"
                             title="Copy"
                           >
@@ -930,7 +775,7 @@ export default function AssistantPage() {
                   />
                   <button
                     type="button"
-                    onClick={sendChat}
+                    onClick={() => sendChat()}
                     disabled={loading}
                     className={cn(
                       "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",

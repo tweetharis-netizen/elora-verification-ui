@@ -1,7 +1,10 @@
-import { getSessionTokenFromReq, fetchBackendStatus } from "@/lib/server/verification";
+import crypto from "crypto";
+import { getBackendBaseUrl, getSessionTokenFromReq, fetchBackendStatus } from "@/lib/server/verification";
 import { isTeacherFromReq } from "@/lib/server/teacher";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MAX_CHECK_ATTEMPTS = 3;
+const CHECK_ATTEMPTS_TTL_SECONDS = 6 * 60 * 60; // backend also enforces its own TTL; this is informational
 
 function clampStr(v, max = 1200) {
   if (typeof v !== "string") return "";
@@ -9,15 +12,96 @@ function clampStr(v, max = 1200) {
   return s.length <= max ? s : s.slice(0, max);
 }
 
-function clampInt(v, min = 0, max = 10) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.min(max, Math.floor(n)));
+function sha256Hex(input) {
+  return crypto.createHash("sha256").update(String(input || "")).digest("hex");
 }
 
 function isGuestAllowedAction(action) {
   const disallowed = new Set(["assessment", "slides", "lesson", "worksheet"]);
   return !disallowed.has(action);
+}
+
+function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle }) {
+  return `You are Elora: a calm, professional teaching assistant for educators and learners.
+
+Hard rules (important):
+- Use plain, human-readable math. Example: "5 divided by 4 = 1.25" and (if helpful) "5/4".
+- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
+- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
+- Keep tone warm, non-intimidating, and clear for beginners.
+- Avoid hedge words like "likely", "probably", "maybe" unless you truly lack information; if missing info, ask for it directly.
+- Do not include decorative separators, stylized formatting, or hashtags.
+
+Context:
+Role: ${role}
+Country: ${country}
+Level: ${level}
+Subject: ${subject}
+Topic: ${topic}
+Attempt: ${attempt}
+Response style: ${responseStyle || "standard"}
+
+Return plain text (no Markdown markers like #, **, backticks).
+If you need structure, use short paragraphs, numbered steps like "1) ...", and simple bullet points using "-".`;
+}
+
+function checkModeSystemPrompt({ country, level, subject, attemptUsed, attemptsLeft, revealAllowed }) {
+  return `You are Elora: a calm, professional teaching assistant.
+
+Task: "Check my answer" for a STUDENT.
+
+Hard rules (must follow):
+- First, decide if the student's answer is correct or incorrect.
+- If correct: say it is correct, then explain briefly how/why in plain language.
+- If incorrect and revealAllowed is false: DO NOT reveal the final answer. Give a clear explanation of the mistake and 1-2 hints, then ask the student to try again.
+- If incorrect and revealAllowed is true: you may reveal the final answer and show the full working clearly.
+- Use plain, human-readable math. No LaTeX/TeX. No Markdown.
+- Avoid hedge words like "likely", "probably", "maybe" unless the question is genuinely missing information.
+
+Return ONLY valid JSON (no extra text) with this shape:
+{
+  "verdict": "correct" | "incorrect" | "need_info",
+  "reply": "string",
+  "final_answer": "string"
+}
+
+Constraints:
+- If revealAllowed is false, final_answer must be an empty string.
+- reply must not contain the final numeric answer when revealAllowed is false.
+
+Context:
+Country: ${country}
+Level: ${level}
+Subject: ${subject}
+attemptUsed: ${attemptUsed}
+attemptsLeft: ${attemptsLeft}
+revealAllowed: ${revealAllowed ? "true" : "false"}`;
+}
+
+function userPrompt({ role, action, topic, message, options, attempt, customStyle }) {
+  return `Action: ${action}
+Role: ${role}
+Topic: ${topic}
+Attempt: ${attempt}
+
+User message:
+${message}
+
+Constraints/options:
+${options}
+
+Extra request (optional):
+${customStyle || ""}`;
+}
+
+function checkModeUserPrompt({ questionText, studentAnswerText }) {
+  return `Question/problem (as stated by the student):
+${questionText}
+
+Student's proposed answer:
+${studentAnswerText}
+
+Now evaluate correctness and respond following the JSON rules.`;
 }
 
 function normalizeMathToPlainText(text) {
@@ -85,116 +169,84 @@ function stripMarkdownToPlainText(text) {
   return t;
 }
 
-function deHedge(text) {
-  if (!text) return "";
-  let t = String(text);
+function extractExplicitAnswer(text) {
+  const s = String(text || "").trim();
 
-  // Remove weak/uncertain filler words that make Elora sound unsure.
-  // (We prefer asking a clarifying question instead.)
-  t = t.replace(/\b(likely|probably|maybe)\b/gi, "");
+  const m1 = s.match(/(?:=|equals|equal to)\s*([-+]?\d+(?:\.\d+)?)(?!\S)/i);
+  if (m1?.[1]) return { answer: m1[1], mode: "equals" };
 
-  // Reduce "I think" style hedging without changing meaning too much.
-  t = t.replace(/\bI think\b/gi, "I");
+  const m2 = s.match(/\b(?:answer\s*(?:is|=)|i\s*got|my\s*answer\s*(?:is|=|:))\s*([-+]?\d+(?:\.\d+)?)/i);
+  if (m2?.[1]) return { answer: m2[1], mode: "stated" };
 
-  // Clean spacing after removals.
-  t = t.replace(/[ \t]{2,}/g, " ");
-  t = t.replace(/\s+([,.;:!?])/g, "$1");
-  t = t.replace(/\n{3,}/g, "\n\n").trim();
-
-  return t;
+  return { answer: "", mode: "" };
 }
 
-function wantsRevealFromMessage(message) {
-  const m = String(message || "").trim().toLowerCase();
-  if (!m) return false;
+function deriveProblemText(text) {
+  const s = String(text || "").trim();
 
-  // Keep this broad but safe: only for student attempt>=3 behavior.
-  return (
-    /\b(yes|yep|yeah|reveal|show|give)\b/.test(m) &&
-    /\b(answer|solution|full|everything|it)\b/.test(m)
-  ) || /\b(final answer|full solution|reveal it|show me the answer|give me the answer)\b/.test(m);
+  const eq = s.match(/^(.+?)(?:=|equals|equal to)\s*[-+]?\d+(?:\.\d+)?\s*$/i);
+  if (eq?.[1]) return eq[1].trim();
+
+  return s;
 }
 
-function coerceHistoryMessages(rawMessages, latestUserText) {
-  if (!Array.isArray(rawMessages)) return [];
+function looksLikeMathQuestion(text) {
+  const s = String(text || "").toLowerCase();
+  if (!s) return false;
 
-  const latest = String(latestUserText || "").trim();
-  const sliced = rawMessages.slice(-12); // small, stable context window
+  const hasDigit = /\d/.test(s);
+  const hasOp = /[+\-*/×÷]/.test(s);
+  const hasMathWords = /(plus|minus|times|multiply|multiplied|divide|divided|sum|difference|product|quotient|fraction|percent|percentage|ratio)/.test(s);
 
-  const out = [];
-  for (const item of sliced) {
-    const from = item?.from === "user" ? "user" : item?.from === "elora" ? "assistant" : null;
-    if (!from) continue;
+  return hasDigit && (hasOp || hasMathWords);
+}
 
-    let content = clampStr(String(item?.text || ""), 900);
-    content = stripMarkdownToPlainText(normalizeMathToPlainText(content));
-    content = content.trim();
-    if (!content) continue;
-
-    // Avoid duplicating the newest user message (we add it in the final user prompt)
-    if (from === "user" && latest && content.trim() === latest) continue;
-
-    out.push({ role: from, content });
+function safeJsonFromModel(text) {
+  const raw = String(text || "").trim();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const slice = raw.slice(start, end + 1);
+      try {
+        return JSON.parse(slice);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
-
-  return out;
 }
 
-function systemPrompt({ role, country, level, subject, topic, attempt, responseStyle }) {
-  const studentRules =
-    role === "student"
-      ? `
-Student attempt rules (STRICT):
-- Attempts 1–2 (Attempt value 0 or 1): Do NOT reveal the final answer. Give a hint + the next step only. Ask for the student's attempt/work.
-- Attempt 3 (Attempt value 2): Still do NOT reveal the final answer. Ask: "Do you want the full solution + final answer now? Reply: 'Yes, reveal it.'"
-- After attempt 3 (Attempt value 3+): Only reveal the full solution + final answer IF the user explicitly asks to reveal it (e.g. "Yes, reveal it", "show the full solution", "give me the answer"). Otherwise, ask the permission question again.
-- If the student asks for the answer early (attempt 0–2), refuse politely and ask for their attempt first.`
-      : "";
+async function callBackendAttempts({ sessionToken, op, keyHash }) {
+  if (!sessionToken) return null;
 
-  return `You are Elora: a calm, professional teaching assistant for educators, students, and parents.
+  const backend = getBackendBaseUrl();
 
-Hard rules (important):
-- Be accurate. If you are missing a key detail or the question is ambiguous, ask ONE short clarifying question and stop.
-- Do NOT guess. Do NOT invent facts.
-- NEVER use uncertainty filler words like "likely", "probably", or "maybe". Either be confident, or ask a clarifying question.
-- Use plain, human-readable math. Example: "5 divided by 4 = 1.25" and (if helpful) "5/4".
-- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
-- Do NOT use Markdown formatting (no headings starting with #, no **bold**, no code fences).
-- Keep tone warm, non-intimidating, and clear for beginners.
+  try {
+    const r = await fetch(`${backend}/api/chat/attempts`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "attempts",
+        op,
+        key: keyHash,
+        maxAttempts: MAX_CHECK_ATTEMPTS,
+        ttlSeconds: CHECK_ATTEMPTS_TTL_SECONDS,
+      }),
+    });
 
-Output format:
-- Start with 1 short sentence restating what the user asked.
-- Then give short steps using: "1) ...", "2) ...".
-- End with either a quick check question OR a single "Next step:" line.
-
-Context:
-Role: ${role}
-Country: ${country}
-Level: ${level}
-Subject: ${subject}
-Topic: ${topic}
-Attempt: ${attempt}
-Response style: ${responseStyle || "standard"}
-${studentRules}
-
-Return plain text only.`;
-}
-
-function userPrompt({ role, action, topic, message, options, attempt, customStyle, wantsReveal }) {
-  return `Action: ${action}
-Role: ${role}
-Topic: ${topic}
-Attempt: ${attempt}
-Reveal intent: ${wantsReveal ? "YES" : "NO"}
-
-User message:
-${message}
-
-Constraints/options:
-${options}
-
-Extra request (optional):
-${customStyle || ""}`;
+    const data = await r.json().catch(() => null);
+    if (!r.ok || !data?.ok) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export default async function handler(req, res) {
@@ -208,22 +260,20 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-
     const role = clampStr(body.role || "student", 20);
     const country = clampStr(body.country || "Singapore", 40);
-    const level = clampStr(body.level || "Secondary", 40);
+    const level = clampStr(body.level || "Secondary", 60);
     const subject = clampStr(body.subject || "General", 60);
-    const topic = clampStr(body.topic || "General", 80);
+    const topic = clampStr(body.topic || "General", 120);
     const action = clampStr(body.action || "explain", 40);
-
-    const message = clampStr(body.message || "", 3000);
+    const message = clampStr(body.message || "", 4000);
     const options = clampStr(body.options || "", 1400);
 
     const responseStyle = clampStr(body.responseStyle || body.style || "", 60);
-    const customStyle = clampStr(body.customStyle || "", 600);
+    const customStyle = clampStr(body.customStyle || "", 700);
 
     const guest = Boolean(body.guest);
-    const attempt = clampInt(body.attempt, 0, 6);
+    const attemptFromClient = Number.isFinite(body.attempt) ? Number(body.attempt) : 0;
 
     if (!message) return res.status(400).json({ error: "Missing message." });
 
@@ -233,7 +283,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ask backend about verification/session
+    // Ask backend about verification/session (cookie-backed truth)
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
@@ -253,11 +303,126 @@ export default async function handler(req, res) {
       });
     }
 
-    const wantsReveal = wantsRevealFromMessage(message);
-    const history = coerceHistoryMessages(body.messages, message);
+    // STUDENT "Check my answer" gate: do not reveal final answer until attempts are used.
+    if (role === "student" && action === "check") {
+      const { answer } = extractExplicitAnswer(message);
 
-    const sys = systemPrompt({ role, country, level, subject, topic, attempt, responseStyle });
-    const user = userPrompt({ role, action, topic, message, options, attempt, customStyle, wantsReveal });
+      if (!answer) {
+        const attemptUsed = Math.max(0, Math.min(MAX_CHECK_ATTEMPTS, Math.floor(attemptFromClient) || 0));
+        return res.status(200).json({
+          reply:
+            "I can check it — what answer did you get?\n\nReply in this format:\n- Your working (optional)\n- Your final answer (example: “10 + 5 = 14”)\n\nI’ll tell you if it’s correct and help you fix it if not.",
+          attempt: attemptUsed,
+        });
+      }
+
+      if (!looksLikeMathQuestion(message)) {
+        const attemptUsed = Math.max(0, Math.min(MAX_CHECK_ATTEMPTS, Math.floor(attemptFromClient) || 0));
+        return res.status(200).json({
+          reply:
+            "I can check it, but I need the full question.\n\nPlease send:\n1) The question\n2) Your answer\n\nExample: “What is 10 + 5? My answer is 14.”",
+          attempt: attemptUsed,
+        });
+      }
+
+      const problemText = deriveProblemText(message);
+      const keyHash = sha256Hex(`check:v1:${subject}:${problemText}`);
+
+      let attemptUsed = Math.max(0, Math.min(MAX_CHECK_ATTEMPTS, Math.floor(attemptFromClient) || 0));
+
+      // Prefer server-tracked attempts when verified (prevents refresh bypass).
+      if (verified && sessionToken) {
+        const used = await callBackendAttempts({ sessionToken, op: "use", keyHash });
+        if (typeof used?.count === "number") attemptUsed = Math.max(0, Math.min(MAX_CHECK_ATTEMPTS, used.count));
+      } else {
+        // Preview fallback: client-tracked only (not secure)
+        attemptUsed = Math.max(0, Math.min(MAX_CHECK_ATTEMPTS, attemptUsed + 1));
+      }
+
+      const attemptsLeft = Math.max(0, MAX_CHECK_ATTEMPTS - attemptUsed);
+      const revealAllowed = attemptUsed >= MAX_CHECK_ATTEMPTS;
+
+      const sys = checkModeSystemPrompt({
+        country,
+        level,
+        subject,
+        attemptUsed,
+        attemptsLeft,
+        revealAllowed,
+      });
+
+      const user = checkModeUserPrompt({
+        questionText: problemText,
+        studentAnswerText: message,
+      });
+
+      const resp = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.OPENROUTER_REFERER || process.env.NEXT_PUBLIC_SITE_URL || "",
+          "X-Title": "Elora Verification UI",
+        },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          temperature: 0.2,
+          max_tokens: 700,
+        }),
+      });
+
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        const msg = data?.error?.message || data?.error || "AI request failed.";
+        return res.status(500).json({ error: msg });
+      }
+
+      const raw = data?.choices?.[0]?.message?.content || "";
+      const parsed = safeJsonFromModel(raw);
+
+      let reply = "";
+      if (parsed && typeof parsed === "object") {
+        const verdict = String(parsed.verdict || "").toLowerCase();
+        const modelReply = stripMarkdownToPlainText(normalizeMathToPlainText(parsed.reply || ""));
+        const finalAnswer = stripMarkdownToPlainText(normalizeMathToPlainText(parsed.final_answer || ""));
+
+        if (verdict === "correct") {
+          reply = `✅ Correct.\n\n${modelReply || "Nice work — your method checks out."}`;
+        } else if (verdict === "incorrect") {
+          if (!revealAllowed) {
+            reply =
+              `❌ Not quite.\n\n${modelReply || "Let’s fix the mistake step by step."}\n\nTry again with your corrected final answer.`;
+          } else {
+            reply =
+              `❌ Not quite.\n\n${modelReply || ""}\n\nFull answer:\n${finalAnswer || "Here is the correct final answer and working."}`;
+          }
+        } else {
+          reply =
+            modelReply ||
+            "I’m missing part of the question. Please send the full question and your answer so I can check it.";
+        }
+
+        if (!revealAllowed) {
+          reply = reply.replace(/^\s*(final\s+answer|answer)\s*:\s*.*$/gim, "").trim();
+        }
+      } else {
+        const cleaned = stripMarkdownToPlainText(normalizeMathToPlainText(raw));
+        reply = cleaned;
+        if (!revealAllowed) {
+          reply = reply.replace(/^\s*(final\s+answer|answer)\s*:\s*.*$/gim, "").trim();
+        }
+      }
+
+      return res.status(200).json({ reply, attempt: attemptUsed });
+    }
+
+    // Default mode (all other actions)
+    const sys = systemPrompt({ role, country, level, subject, topic, attempt: attemptFromClient, responseStyle });
+    const user = userPrompt({ role, action, topic, message, options, attempt: attemptFromClient, customStyle });
 
     const resp = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -269,8 +434,11 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
-        messages: [{ role: "system", content: sys }, ...history, { role: "user", content: user }],
-        temperature: 0.25, // lower = fewer hallucinations
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+        temperature: 0.4,
         max_tokens: 900,
       }),
     });
@@ -282,11 +450,10 @@ export default async function handler(req, res) {
     }
 
     const replyRaw = data?.choices?.[0]?.message?.content || "";
-    let reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
-    reply = deHedge(reply);
+    const reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
 
     return res.status(200).json({ reply });
-  } catch (e) {
+  } catch {
     return res.status(500).json({ error: "Unexpected server error." });
   }
 }

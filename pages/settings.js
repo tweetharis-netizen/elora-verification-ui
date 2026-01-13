@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import {
   activateTeacher,
   clearTeacher,
@@ -8,15 +9,20 @@ import {
   refreshVerifiedFromServer,
   setFontScale,
   setRole,
+  setRoleAndResetAssistant,
   setTeacherCode,
   setTheme,
 } from "@/lib/session";
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const roleSectionRef = useRef(null);
+
   const [theme, setThemeState] = useState("system");
   const [scale, setScaleState] = useState(1);
   const [verified, setVerifiedState] = useState(false);
   const [teacher, setTeacherState] = useState(false);
+  const [role, setRoleState] = useState("student");
 
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,15 +36,25 @@ export default function SettingsPage() {
     setScaleState(typeof s.fontScale === "number" ? s.fontScale : 1);
     setVerifiedState(Boolean(s.verified));
     setTeacherState(Boolean(s.teacher));
+    setRoleState(String(s.role || "student"));
     setInviteCode(s.teacherCode || "");
 
     refreshVerifiedFromServer().then(() => {
       const next = getSession();
       setVerifiedState(Boolean(next.verified));
       setTeacherState(Boolean(next.teacher));
+      setRoleState(String(next.role || "student"));
       setInviteCode(next.teacherCode || "");
     });
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (String(router.query.focus || "") !== "role") return;
+    const el = roleSectionRef.current;
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [router.isReady, router.query.focus]);
 
   function onTheme(next) {
     setThemeState(next);
@@ -93,6 +109,39 @@ export default function SettingsPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function changeRole(nextRole) {
+    const target = String(nextRole || "student");
+    if (target === role) return;
+
+    if (target === "educator" && !verified) {
+      setMsg("Verify your email first to use Educator mode.");
+      router.push("/verify");
+      return;
+    }
+
+    const label = target === "educator" ? "Educator" : target === "parent" ? "Parent" : "Student";
+    const ok =
+      typeof window === "undefined"
+        ? true
+        : window.confirm(`Switch to ${label}? This will reset your Assistant chat.`);
+    if (!ok) return;
+
+    setMsg("");
+
+    // Reset local assistant context so we never mix roles.
+    setRoleAndResetAssistant(target);
+    setRoleState(target);
+
+    // Best-effort: clear server chat for verified users (so it feels real).
+    if (verified) {
+      try {
+        await fetch("/api/chat/clear", { method: "POST" });
+      } catch {}
+    }
+
+    setMsg(`Role set to ${label}.`);
   }
 
   return (
@@ -185,6 +234,31 @@ export default function SettingsPage() {
                   Scale: <span className="font-extrabold">{scale.toFixed(2)}x</span>
                 </div>
               </div>
+
+              <div className="mt-7" ref={roleSectionRef}>
+                <div className="text-sm font-extrabold">Role</div>
+                <div className="elora-muted mt-1 text-sm">
+                  Student / Parent is free to switch. Educator requires verification. Changing role resets your Assistant chat.
+                </div>
+
+                <div className="mt-3 elora-segmented" role="tablist" aria-label="Role">
+                  {[
+                    { id: "student", label: "Student" },
+                    { id: "parent", label: "Parent" },
+                    { id: "educator", label: verified ? "Educator" : "Educator (verify)" },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      className={r.id === role ? "active" : ""}
+                      onClick={() => changeRole(r.id)}
+                      type="button"
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
             </section>
 
             {/* Access */}

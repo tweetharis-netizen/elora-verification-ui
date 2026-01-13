@@ -9,17 +9,93 @@ import {
   isTeacher,
   refreshVerifiedFromServer,
   setGuest as storeGuest,
-  setRole as storeRole,
 } from "../lib/session";
 
 const COUNTRIES = ["Singapore", "Malaysia", "UK", "US", "Australia", "Other"];
 
 const LEVELS_BY_COUNTRY = {
-  Singapore: ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Secondary 5", "JC 1", "JC 2", "University", "Adult learning"],
-  Malaysia: ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Secondary 5", "University", "Adult learning"],
-  UK: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "Year 13", "University", "Adult learning"],
-  US: ["Grade K", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University", "Adult learning"],
-  Australia: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "University", "Adult learning"],
+  Singapore: [
+    "Primary 1",
+    "Primary 2",
+    "Primary 3",
+    "Primary 4",
+    "Primary 5",
+    "Primary 6",
+    "Secondary 1",
+    "Secondary 2",
+    "Secondary 3",
+    "Secondary 4",
+    "Secondary 5",
+    "JC 1",
+    "JC 2",
+    "University",
+    "Adult learning",
+  ],
+  Malaysia: [
+    "Primary 1",
+    "Primary 2",
+    "Primary 3",
+    "Primary 4",
+    "Primary 5",
+    "Primary 6",
+    "Secondary 1",
+    "Secondary 2",
+    "Secondary 3",
+    "Secondary 4",
+    "Secondary 5",
+    "University",
+    "Adult learning",
+  ],
+  UK: [
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "Year 10",
+    "Year 11",
+    "Year 12",
+    "Year 13",
+    "University",
+    "Adult learning",
+  ],
+  US: [
+    "Grade K",
+    "Grade 1",
+    "Grade 2",
+    "Grade 3",
+    "Grade 4",
+    "Grade 5",
+    "Grade 6",
+    "Grade 7",
+    "Grade 8",
+    "Grade 9",
+    "Grade 10",
+    "Grade 11",
+    "Grade 12",
+    "University",
+    "Adult learning",
+  ],
+  Australia: [
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "Year 10",
+    "Year 11",
+    "Year 12",
+    "University",
+    "Adult learning",
+  ],
   Other: ["Primary", "Lower secondary", "Upper secondary", "Pre-university", "University", "Adult learning"],
 };
 
@@ -70,7 +146,7 @@ const REFINEMENT_CHIPS = {
   check: [
     { id: "hint", label: "Give a hint" },
     { id: "mistake", label: "Explain my mistake" },
-    { id: "steps", label: "Show the steps (no final answer yet)" },
+    { id: "steps", label: "Show steps (no final answer yet)" },
     { id: "try", label: "Let me try again" },
   ],
 };
@@ -107,7 +183,6 @@ function clampStr(v, max = 120000) {
 
 function cleanAssistantText(text) {
   let t = String(text || "");
-  // remove accidental markdown artifacts
   t = t.replace(/```[\s\S]*?```/g, "");
   t = t.replace(/`+/g, "");
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
@@ -167,58 +242,91 @@ export default function AssistantPage() {
   const [guest, setGuest] = useState(Boolean(session?.guest));
   const [teacher, setTeacher] = useState(Boolean(session?.teacher));
 
-  const [role, setRoleState] = useState(() => session?.role || "student");
-  const [country, setCountryState] = useState(() => session?.country || "Singapore");
-  const [level, setLevel] = useState(() => session?.level || (getLevelsForCountry(session?.country || "Singapore")[0] || "Secondary"));
+  const [role, setRole] = useState(() => String(session?.role || "student"));
+  const [country, setCountry] = useState(() => String(session?.country || "Singapore"));
+  const [level, setLevel] = useState(() => {
+    const sCountry = String(session?.country || "Singapore");
+    const fallback = getLevelsForCountry(sCountry)[0] || "Secondary";
+    return String(session?.level || fallback);
+  });
 
   const levelOptions = useMemo(() => getLevelsForCountry(country), [country]);
 
-  const [subject, setSubjectState] = useState(() => session?.subject || "Math");
-  const [topic, setTopicState] = useState(() => session?.topicCustom || session?.topic || "");
-  const [action, setAction] = useState(() => session?.task || "explain");
-  const [style, setStyle] = useState(() => session?.style || "clear");
+  const [subject, setSubject] = useState(() => String(session?.subject || "Math"));
+  const [topic, setTopic] = useState(() => String(session?.topicCustom || session?.topic || ""));
+  const [action, setAction] = useState(() => String(session?.task || "explain"));
+  const [style] = useState(() => String(session?.style || "clear"));
 
-  const [messages, setMessages] = useState(() => Array.isArray(session?.messages) ? session.messages : []);
+  const [messages, setMessages] = useState(() => (Array.isArray(session?.messages) ? session.messages : []));
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [attempt, setAttempt] = useState(0);
-
   const [copiedIdx, setCopiedIdx] = useState(-1);
 
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
 
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [teacherGateCode, setTeacherGateCode] = useState(() => session?.teacherCode || "");
+  const [teacherGateCode, setTeacherGateCode] = useState(() => String(session?.teacherCode || ""));
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   const listRef = useRef(null);
   const [showJump, setShowJump] = useState(false);
 
+  // Sync session state (and reflect role changes done in Settings)
   useEffect(() => {
-    // Keep session state current
-    (async () => {
-      const status = await refreshVerifiedFromServer();
+    function onSessionUpdate() {
       const s = getSession();
       setSession(s);
-      setVerified(Boolean(status?.verified));
-      setTeacher(Boolean(status?.teacher));
+      setVerified(Boolean(s?.verified));
       setGuest(Boolean(s?.guest));
-      setRoleState(String(s?.role || "student"));
-      setCountryState(String(s?.country || "Singapore"));
+      setTeacher(Boolean(s?.teacher));
+      setRole(String(s?.role || "student"));
+      setCountry(String(s?.country || "Singapore"));
       setLevel(String(s?.level || level));
-      setSubjectState(String(s?.subject || "Math"));
-      setTopicState(String(s?.topicCustom || s?.topic || ""));
+      setSubject(String(s?.subject || "Math"));
+      setTopic(String(s?.topicCustom || s?.topic || ""));
       setAction(String(s?.task || "explain"));
-      setStyle(String(s?.style || "clear"));
       setMessages(Array.isArray(s?.messages) ? s.messages : []);
+      if (String(s?.role || "student") !== "student") setAttempt(0);
+    }
+
+    if (typeof window === "undefined") return;
+    window.addEventListener("elora:session", onSessionUpdate);
+    return () => window.removeEventListener("elora:session", onSessionUpdate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level]);
+
+  useEffect(() => {
+    (async () => {
+      await refreshVerifiedFromServer();
+      const s = getSession();
+      setSession(s);
+      setVerified(Boolean(s?.verified));
+      setTeacher(Boolean(s?.teacher));
+      setGuest(Boolean(s?.guest));
+      setRole(String(s?.role || "student"));
+      setCountry(String(s?.country || "Singapore"));
+      setLevel(String(s?.level || level));
+      setSubject(String(s?.subject || "Math"));
+      setTopic(String(s?.topicCustom || s?.topic || ""));
+      setAction(String(s?.task || "explain"));
+      setMessages(Array.isArray(s?.messages) ? s.messages : []);
+      if (String(s?.role || "student") !== "student") setAttempt(0);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // keep a live session snapshot for other pages/components
+    // Keep level valid when country changes.
+    if (!levelOptions.includes(level)) {
+      setLevel(levelOptions[0] || "Secondary");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country]);
+
+  useEffect(() => {
     persistSessionPatch({
-      role,
       country,
       level,
       subject,
@@ -227,41 +335,7 @@ export default function AssistantPage() {
       style,
       messages,
     });
-  }, [role, country, level, subject, topic, action, style, messages]);
-
-  useEffect(() => {
-    if (role) {
-      const current = getSession();
-      storeRole(role);
-      setSession(getSession());
-      setGuest(Boolean(getSession()?.guest));
-      setVerified(Boolean(getSession()?.verified));
-      setTeacher(Boolean(getSession()?.teacher));
-      // keep attempt UI coherent
-      if (role !== "student") setAttempt(0);
-    }
-  }, [role]);
-
-  useEffect(() => {
-    // Keep level valid when country changes (prevents invalid select values).
-    if (!levelOptions.includes(level)) {
-      setLevel(levelOptions[0] || "Secondary");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country]);
-
-  function setRole(r) {
-    setRoleState(String(r || "student"));
-  }
-  function setCountry(v) {
-    setCountryState(String(v || "Singapore"));
-  }
-  function setSubject(v) {
-    setSubjectState(String(v || "Math"));
-  }
-  function setTopic(v) {
-    setTopicState(String(v || ""));
-  }
+  }, [country, level, subject, topic, action, style, messages]);
 
   function jumpToLatest() {
     const el = listRef.current;
@@ -300,6 +374,12 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
+      // Guard educator mode here too (in case someone toggled role elsewhere but is not verified)
+      if (role === "educator" && !verified) {
+        setVerifyGateOpen(true);
+        throw new Error("Educator mode requires verification.");
+      }
+
       const payload = {
         role,
         country,
@@ -327,7 +407,6 @@ export default function AssistantPage() {
         setAttempt((a) => a + 1);
       }
 
-      // Auto-scroll when near bottom
       setTimeout(() => {
         const el = listRef.current;
         if (!el) return;
@@ -382,11 +461,7 @@ export default function AssistantPage() {
     } catch (e) {
       setMessages((m) => [
         ...m,
-        {
-          from: "elora",
-          text: cleanAssistantText(e?.message || "Export failed."),
-          at: new Date().toISOString(),
-        },
+        { from: "elora", text: cleanAssistantText(e?.message || "Export failed."), at: new Date().toISOString() },
       ]);
     }
   }
@@ -425,6 +500,8 @@ export default function AssistantPage() {
 
   const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
 
+  const roleLabel = ROLE_LABEL[role] || "Student";
+
   return (
     <>
       <Head>
@@ -453,32 +530,26 @@ export default function AssistantPage() {
                 </span>
               </div>
 
-              {/* Role */}
+              {/* Role (display-only) */}
               <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {["student", "parent", "educator"].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        if (r === "educator" && !verified) {
-                          setVerifyGateOpen(true);
-                          return;
-                        }
-                        setRole(r);
-                      }}
-                      className={cn(
-                        "rounded-xl border px-3 py-2 text-sm font-extrabold transition",
-                        role === r
-                          ? "border-indigo-500/40 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
-                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                      )}
-                    >
-                      {ROLE_LABEL[r]}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/settings?focus=role")}
+                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                  >
+                    Change
+                  </button>
                 </div>
+
+                <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-3 py-2">
+                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">{roleLabel}</div>
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Role is set in Settings (switching resets chat).
+                  </div>
+                </div>
+
                 {role === "educator" && !verified ? (
                   <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
                     Educator mode requires verification.
@@ -492,7 +563,7 @@ export default function AssistantPage() {
                   <div className="text-sm font-bold text-slate-900 dark:text-white">Country</div>
                   <select
                     value={country}
-                    onChange={(e) => setCountry(e.target.value)}
+                    onChange={(e) => setCountry(String(e.target.value || "Singapore"))}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
                     {COUNTRIES.map((c) => (
@@ -507,7 +578,7 @@ export default function AssistantPage() {
                   <div className="text-sm font-bold text-slate-900 dark:text-white">Level</div>
                   <select
                     value={level}
-                    onChange={(e) => setLevel(e.target.value)}
+                    onChange={(e) => setLevel(String(e.target.value || levelOptions[0] || "Secondary"))}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
                     {levelOptions.map((l) => (
@@ -524,7 +595,7 @@ export default function AssistantPage() {
                 <div className="text-sm font-bold text-slate-900 dark:text-white">Subject</div>
                 <select
                   value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  onChange={(e) => setSubject(String(e.target.value || "Math"))}
                   className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                 >
                   {SUBJECTS.map((s) => (
@@ -537,7 +608,7 @@ export default function AssistantPage() {
                 <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</div>
                 <input
                   value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
+                  onChange={(e) => setTopic(String(e.target.value || ""))}
                   placeholder="e.g., Fractions, Photosynthesis, Essay structure…"
                   className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
@@ -604,7 +675,7 @@ export default function AssistantPage() {
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
                   <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                    {country} • {level} • {subject} • <span className="font-semibold">{role}</span>
+                    {country} • {level} • {subject} • <span className="font-semibold">{roleLabel}</span>
                     {role === "student" ? (
                       <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
                         Attempts: {Math.min(3, attempt)}/3
@@ -722,7 +793,6 @@ export default function AssistantPage() {
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
                   disabled={!verified}
-                  title={!verified ? "Verify to export" : "Export as .docx"}
                 >
                   Docs (.docx)
                 </button>
@@ -737,7 +807,6 @@ export default function AssistantPage() {
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
                   disabled={!verified}
-                  title={!verified ? "Verify to export" : "Export as .pptx"}
                 >
                   PowerPoint (.pptx)
                 </button>
@@ -752,7 +821,6 @@ export default function AssistantPage() {
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
                   disabled={!verified}
-                  title={!verified ? "Verify to export" : "Export as PDF (Kami-friendly)"}
                 >
                   Kami (PDF)
                 </button>
@@ -797,7 +865,7 @@ export default function AssistantPage() {
       {/* Verify gate modal */}
       <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
-          Educator mode and exports are locked behind verification. You can still preview as a limited guest.
+          Educator mode and exports are locked behind verification.
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -809,15 +877,10 @@ export default function AssistantPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              storeGuest(true);
-              const s = getSession();
-              setSession(s);
-              setVerifyGateOpen(false);
-            }}
+            onClick={() => setVerifyGateOpen(false)}
             className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
           >
-            Continue as guest
+            Not now
           </button>
         </div>
       </Modal>
@@ -825,7 +888,7 @@ export default function AssistantPage() {
       {/* Teacher gate modal */}
       <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
-          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code. This keeps teacher-only tools from being misused.
+          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
         </div>
 
         <div className="mt-4">

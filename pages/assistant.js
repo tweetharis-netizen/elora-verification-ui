@@ -1,14 +1,12 @@
 import Head from "next/head";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import Navbar from "../components/Navbar";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
   getSession,
   isTeacher,
   refreshVerifiedFromServer,
-  setGuest as storeGuest,
 } from "../lib/session";
 
 const COUNTRIES = ["Singapore", "Malaysia", "UK", "US", "Australia", "Other"];
@@ -99,17 +97,30 @@ const LEVELS_BY_COUNTRY = {
   Other: ["Primary", "Lower secondary", "Upper secondary", "Pre-university", "University", "Adult learning"],
 };
 
-function getLevelsForCountry(country) {
-  const c = String(country || "Other");
-  return LEVELS_BY_COUNTRY[c] || LEVELS_BY_COUNTRY.Other;
-}
-
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
 
 const ROLE_LABEL = {
   student: "Student",
   parent: "Parent",
   educator: "Educator",
+};
+
+const ACTION_LABEL = {
+  explain: "Explain",
+  check: "Check my answer",
+  practice: "Practice",
+  coach: "How to help",
+  plan: "Study plan",
+  lesson: "Lesson plan",
+  worksheet: "Worksheet",
+  assessment: "Assessment",
+  slides: "Slides outline",
+};
+
+const ACTIONS_BY_ROLE = {
+  student: ["explain", "check", "practice"],
+  parent: ["explain", "coach", "plan"],
+  educator: ["explain", "lesson", "worksheet", "assessment", "slides"],
 };
 
 const REFINEMENT_CHIPS = {
@@ -122,7 +133,7 @@ const REFINEMENT_CHIPS = {
   lesson: [
     { id: "diff", label: "Add differentiation" },
     { id: "timing", label: "Add timings" },
-    { id: "check", label: "Add checks for understanding" },
+    { id: "checks", label: "Add checks for understanding" },
     { id: "resources", label: "Add resources" },
   ],
   worksheet: [
@@ -149,25 +160,23 @@ const REFINEMENT_CHIPS = {
     { id: "steps", label: "Show steps (no final answer yet)" },
     { id: "try", label: "Let me try again" },
   ],
-};
-
-const ROLE_QUICK_ACTIONS = {
-  student: [
-    { id: "explain", label: "Explain", hint: "Make it simple and clear." },
-    { id: "check", label: "Check my answer", hint: "Tell me if I’m correct (limited attempts)." },
-    { id: "practice", label: "Practice", hint: "Give me a question to try." },
+  practice: [
+    { id: "easier", label: "Easier" },
+    { id: "harder", label: "Harder" },
+    { id: "steps", label: "Show steps" },
+    { id: "check", label: "Add a check question" },
   ],
-  parent: [
-    { id: "explain", label: "Explain", hint: "Help me understand so I can help my child." },
-    { id: "practice", label: "Practice", hint: "Create a simple practice plan." },
-    { id: "plan", label: "Study plan", hint: "A calm, realistic plan." },
+  coach: [
+    { id: "script", label: "What to say" },
+    { id: "steps", label: "Simple steps" },
+    { id: "avoid", label: "What to avoid" },
+    { id: "check", label: "Add a quick check" },
   ],
-  educator: [
-    { id: "explain", label: "Explain", hint: "Clear explanation for class." },
-    { id: "lesson", label: "Lesson plan", hint: "Structured lesson plan." },
-    { id: "worksheet", label: "Worksheet", hint: "Practice worksheet." },
-    { id: "assessment", label: "Assessment", hint: "Assessment items and rubric." },
-    { id: "slides", label: "Slides outline", hint: "Slide-by-slide outline." },
+  plan: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "longer", label: "Make it longer" },
+    { id: "daily", label: "Daily routine" },
+    { id: "check", label: "Add checkpoints" },
   ],
 };
 
@@ -175,14 +184,27 @@ function cn(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function clampStr(v, max = 120000) {
+function getLevelsForCountry(country) {
+  const c = String(country || "Other");
+  return LEVELS_BY_COUNTRY[c] || LEVELS_BY_COUNTRY.Other;
+}
+
+function clampStr(v, max = 4000) {
   if (typeof v !== "string") return "";
   const s = v.trim();
   return s.length <= max ? s : s.slice(0, max);
 }
 
+function stripInternalTags(text) {
+  return String(text || "")
+    .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
+    .replace(/<\s*internal\s*\/\s*>/gi, "")
+    .replace(/<\s*internal\s*>/gi, "")
+    .trim();
+}
+
 function cleanAssistantText(text) {
-  let t = String(text || "");
+  let t = stripInternalTags(text || "");
   t = t.replace(/```[\s\S]*?```/g, "");
   t = t.replace(/`+/g, "");
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
@@ -191,8 +213,32 @@ function cleanAssistantText(text) {
   t = t.replace(/__([^_]+)__/g, "$1");
   t = t.replace(/_([^_]+)_/g, "$1");
   t = t.replace(/^\s*>\s?/gm, "");
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
   t = t.replace(/\n{3,}/g, "\n\n").trim();
   return t;
+}
+
+function inferActionFromMessage(message) {
+  const s = String(message || "").toLowerCase();
+
+  // “Check my answer” intent
+  const checkSignals = [
+    "check my answer",
+    "is this correct",
+    "is it correct",
+    "am i right",
+    "did i do it right",
+    "is my answer correct",
+    "is my answer right",
+    "correct?",
+    "right?",
+  ];
+  if (checkSignals.some((k) => s.includes(k))) return "check";
+
+  // Common pattern: a question containing "=" (e.g. "is 10+5=15?")
+  if (s.includes("=") && s.includes("?")) return "check";
+
+  return null;
 }
 
 function lastAssistantMessage(messages) {
@@ -202,279 +248,367 @@ function lastAssistantMessage(messages) {
   return "";
 }
 
-async function safeFetchJson(url, opts) {
-  try {
-    const r = await fetch(url, opts);
-    const data = await r.json().catch(() => null);
-    return { ok: r.ok, status: r.status, data };
-  } catch {
-    return { ok: false, status: 0, data: null };
-  }
-}
-
-async function copyToClipboard(text, idx, setCopiedIdx) {
-  try {
-    await navigator.clipboard.writeText(text);
-    setCopiedIdx(idx);
-    setTimeout(() => setCopiedIdx(-1), 900);
-  } catch {}
-}
-
-async function persistSessionPatch(patch) {
-  const current = getSession();
-  const next = { ...current, ...patch };
-  try {
-    localStorage.setItem("elora_session_v1", JSON.stringify(next));
-    localStorage.setItem("elora_session", JSON.stringify(next));
-  } catch {}
-}
-
-async function clearServerChatIfVerified(session) {
-  if (!session?.verified) return;
-  await safeFetchJson("/api/chat/clear", { method: "POST" });
-}
-
 export default function AssistantPage() {
   const router = useRouter();
 
   const [session, setSession] = useState(() => getSession());
-  const [verified, setVerified] = useState(Boolean(session?.verified));
-  const [guest, setGuest] = useState(Boolean(session?.guest));
-  const [teacher, setTeacher] = useState(Boolean(session?.teacher));
+  const verified = Boolean(session?.verified);
+  const teacher = Boolean(isTeacher());
+  const role = String(session?.role || "student");
 
-  const [role, setRole] = useState(() => String(session?.role || "student"));
   const [country, setCountry] = useState(() => String(session?.country || "Singapore"));
-  const [level, setLevel] = useState(() => {
-    const sCountry = String(session?.country || "Singapore");
-    const fallback = getLevelsForCountry(sCountry)[0] || "Secondary";
-    return String(session?.level || fallback);
+  const levelOptions = useMemo(() => getLevelsForCountry(country), [country]);
+  const [level, setLevel] = useState(() => String(session?.level || levelOptions[0] || "Secondary 1"));
+
+  const [showMore, setShowMore] = useState(() => {
+    const s = getSession();
+    return Boolean((s?.topic && String(s.topic).trim()) || (s?.subject && s.subject !== "General"));
   });
 
-  const levelOptions = useMemo(() => getLevelsForCountry(country), [country]);
+  const [subject, setSubject] = useState(() => String(session?.subject || "General"));
+  const [topic, setTopic] = useState(() => String(session?.topic || ""));
 
-  const [subject, setSubject] = useState(() => String(session?.subject || "Math"));
-  const [topic, setTopic] = useState(() => String(session?.topicCustom || session?.topic || ""));
-  const [action, setAction] = useState(() => String(session?.task || "explain"));
-  const [style] = useState(() => String(session?.style || "clear"));
-
+  const [action, setAction] = useState(() => String(session?.action || "explain"));
   const [messages, setMessages] = useState(() => (Array.isArray(session?.messages) ? session.messages : []));
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [attempt, setAttempt] = useState(0);
-  const [copiedIdx, setCopiedIdx] = useState(-1);
 
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
-
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [teacherGateCode, setTeacherGateCode] = useState(() => String(session?.teacherCode || ""));
+  const [teacherGateCode, setTeacherGateCode] = useState("");
   const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
   const listRef = useRef(null);
+  const [stickToBottom, setStickToBottom] = useState(true);
   const [showJump, setShowJump] = useState(false);
-
-  // Sync session state (and reflect role changes done in Settings)
-  useEffect(() => {
-    function onSessionUpdate() {
-      const s = getSession();
-      setSession(s);
-      setVerified(Boolean(s?.verified));
-      setGuest(Boolean(s?.guest));
-      setTeacher(Boolean(s?.teacher));
-      setRole(String(s?.role || "student"));
-      setCountry(String(s?.country || "Singapore"));
-      setLevel(String(s?.level || level));
-      setSubject(String(s?.subject || "Math"));
-      setTopic(String(s?.topicCustom || s?.topic || ""));
-      setAction(String(s?.task || "explain"));
-      setMessages(Array.isArray(s?.messages) ? s.messages : []);
-      if (String(s?.role || "student") !== "student") setAttempt(0);
-    }
-
-    if (typeof window === "undefined") return;
-    window.addEventListener("elora:session", onSessionUpdate);
-    return () => window.removeEventListener("elora:session", onSessionUpdate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level]);
-
-  useEffect(() => {
-    (async () => {
-      await refreshVerifiedFromServer();
-      const s = getSession();
-      setSession(s);
-      setVerified(Boolean(s?.verified));
-      setTeacher(Boolean(s?.teacher));
-      setGuest(Boolean(s?.guest));
-      setRole(String(s?.role || "student"));
-      setCountry(String(s?.country || "Singapore"));
-      setLevel(String(s?.level || level));
-      setSubject(String(s?.subject || "Math"));
-      setTopic(String(s?.topicCustom || s?.topic || ""));
-      setAction(String(s?.task || "explain"));
-      setMessages(Array.isArray(s?.messages) ? s.messages : []);
-      if (String(s?.role || "student") !== "student") setAttempt(0);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     // Keep level valid when country changes.
     if (!levelOptions.includes(level)) {
-      setLevel(levelOptions[0] || "Secondary");
+      setLevel(levelOptions[0] || "Secondary 1");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
   useEffect(() => {
-    persistSessionPatch({
-      country,
-      level,
-      subject,
-      topicCustom: topic,
-      task: action,
-      style,
-      messages,
-    });
-  }, [country, level, subject, topic, action, style, messages]);
+    let mounted = true;
 
-  function jumpToLatest() {
+    (async () => {
+      await refreshVerifiedFromServer();
+      if (!mounted) return;
+      const s = getSession();
+      setSession(s);
+      setMessages(Array.isArray(s?.messages) ? s.messages : []);
+      setCountry(String(s?.country || "Singapore"));
+      setLevel(String(s?.level || getLevelsForCountry(String(s?.country || "Singapore"))[0] || "Secondary 1"));
+      setSubject(String(s?.subject || "General"));
+      setTopic(String(s?.topic || ""));
+      setAction(String(s?.action || "explain"));
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function persistSessionPatch(patch) {
+    try {
+      await fetch("/api/session/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function saveServerChatIfVerified(currentSession, nextMessages) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function clearServerChatIfVerified(currentSession) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }
+    if (stickToBottom) el.scrollTop = el.scrollHeight;
+  }, [messages, loading, stickToBottom]);
 
   function handleListScroll() {
     const el = listRef.current;
     if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    setStickToBottom(atBottom);
     setShowJump(!atBottom);
   }
 
-  async function callElora(payload) {
-    const r = await safeFetchJson("/api/assistant", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      const err = r?.data?.error || "Request failed.";
-      throw new Error(err);
-    }
-    return r.data;
+  function jumpToLatest() {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    setStickToBottom(true);
+    setShowJump(false);
   }
 
-  async function sendChat(refineId) {
-    const text = clampStr(chatText || "", 4000);
-    if (!text || loading) return;
+  const allowedActions = useMemo(() => ACTIONS_BY_ROLE[role] || ACTIONS_BY_ROLE.student, [role]);
+  const effectiveAction = allowedActions.includes(action) ? action : allowedActions[0];
 
-    const userMsg = { from: "user", text, at: new Date().toISOString() };
-    const next = [...messages, userMsg];
-    setMessages(next);
-    setChatText("");
+  const hasAssistantAnswer = useMemo(
+    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
+    [messages]
+  );
+
+  const refinementChips = useMemo(
+    () => REFINEMENT_CHIPS[effectiveAction] || REFINEMENT_CHIPS.explain,
+    [effectiveAction]
+  );
+
+  async function callElora({ messageOverride, baseMessages, actionOverride }) {
+    const currentSession = getSession();
+
+    const userText = String(messageOverride || "").trim();
+    if (!userText) return;
+
     setLoading(true);
 
     try {
-      // Guard educator mode here too (in case someone toggled role elsewhere but is not verified)
-      if (role === "educator" && !verified) {
+      if (role === "educator" && !currentSession?.verified) {
         setVerifyGateOpen(true);
-        throw new Error("Educator mode requires verification.");
+        setLoading(false);
+        return;
+      }
+
+      const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides"]);
+      if (teacherOnly.has(String(actionOverride || effectiveAction)) && !teacher) {
+        setTeacherGateOpen(true);
+        setLoading(false);
+        return;
       }
 
       const payload = {
         role,
+        action: String(actionOverride || effectiveAction),
         country,
         level,
         subject,
         topic,
-        action,
-        message: text,
-        options: refineId ? `Refinement chip: ${refineId}` : "",
-        attempt,
-        responseStyle: style,
-        guest: Boolean(getSession()?.guest),
+        verified: Boolean(currentSession?.verified),
+        teacher: Boolean(isTeacher()),
+        attempt: role === "student" ? Math.min(3, attempt) : 0,
+        message: userText,
+        messages: Array.isArray(baseMessages) ? baseMessages : messages,
       };
 
-      const data = await callElora(payload);
+      const r = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-      const replyText = cleanAssistantText(data?.reply || "");
-      const eloraMsg = { from: "elora", text: replyText, at: new Date().toISOString() };
-      const finalMsgs = [...next, eloraMsg];
-      setMessages(finalMsgs);
+      const data = await r.json().catch(() => null);
 
-      if (role === "student" && typeof data?.attempt === "number") {
-        setAttempt(Math.max(0, Math.min(3, Number(data.attempt) || 0)));
-      } else if (role === "student") {
-        setAttempt((a) => a + 1);
+      if (!r.ok) {
+        const err = cleanAssistantText(data?.error || "Request failed.");
+        if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
+        setMessages((prev) => [...prev, { from: "elora", text: err, ts: Date.now() }]);
+        setLoading(false);
+        return;
       }
 
-      setTimeout(() => {
-        const el = listRef.current;
-        if (!el) return;
-        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
-        if (atBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-      }, 60);
-    } catch (e) {
-      const errText = cleanAssistantText(e?.message || "Something went wrong.");
-      setMessages((m) => [...m, { from: "elora", text: errText, at: new Date().toISOString() }]);
+      const out = cleanAssistantText(data?.reply || data?.text || "");
+      setMessages((prev) => {
+        const next = [...prev, { from: "elora", text: out, ts: Date.now() }];
+        persistSessionPatch({ messages: next });
+        saveServerChatIfVerified(currentSession, next);
+        return next;
+      });
+
+      if (role === "student" && String(actionOverride || effectiveAction) === "check") {
+        setAttempt((a) => Math.min(3, a + 1));
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() },
+      ]);
     } finally {
+      setChatText("");
       setLoading(false);
     }
   }
 
-  async function exportLast(kind) {
-    const last = lastAssistantMessage(messages);
-    if (!last) return;
+  async function sendChat() {
+    const trimmed = clampStr(chatText || "", 4000);
+    if (!trimmed || loading) return;
 
-    const title = "Elora Export";
-    const content = last;
+    // Self-adapting: infer action from message (only when it’s very clear).
+    const inferred = inferActionFromMessage(trimmed);
+    const actionOverride = inferred && allowedActions.includes(inferred) ? inferred : null;
+
+    // If we just switched into check mode, reset attempts for a cleaner experience.
+    if (actionOverride === "check" && effectiveAction !== "check") {
+      setAttempt(0);
+      setAction("check");
+      await persistSessionPatch({ action: "check" });
+    }
+
+    const currentSession = getSession();
+    const userMsg = { from: "user", text: trimmed, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    setMessages(nextMessages);
+    persistSessionPatch({
+      messages: nextMessages,
+      country,
+      level,
+      subject,
+      topic,
+      action: actionOverride || effectiveAction,
+    });
+    await saveServerChatIfVerified(currentSession, nextMessages);
+
+    await callElora({ messageOverride: trimmed, baseMessages: nextMessages, actionOverride });
+  }
+
+  async function applyRefinement(chipId) {
+    if (!hasAssistantAnswer || loading) return;
 
     const map = {
-      pdf: "/api/export-pdf",
-      docx: "/api/export-docx",
-      pptx: "/api/export-slides",
+      simpler: "Make it simpler and more beginner-friendly.",
+      example: "Add one clear example.",
+      steps: "Show short, clear steps.",
+      check: "Add one quick check question at the end.",
+      diff: "Add differentiation: easier + harder extension.",
+      timing: "Add timings with approximate minutes.",
+      checks: "Add 2 quick checks for understanding.",
+      resources: "Add a short list of materials/resources.",
+      easier: "Make it easier while keeping the same topic.",
+      harder: "Make it harder and add a challenge question.",
+      ans: "Add an answer key at the end (only if appropriate).",
+      format: "Change the format to be clearer for students.",
+      marks: "Add marks per question.",
+      rubric: "Add a short rubric/marking guide.",
+      activity: "Add a short activity students can do.",
+      examples: "Add more examples students can relate to.",
+      hint: "Give a hint only (no final answer yet).",
+      mistake: "Explain the most likely mistake and how to fix it.",
+      try: "Ask me one guiding question and let me try again.",
+      script: "Give me a short script of what to say to my child.",
+      avoid: "Tell me what to avoid saying/doing.",
+      longer: "Make it a bit more detailed but still simple.",
+      daily: "Turn it into a simple daily routine.",
     };
 
-    const url = map[kind] || "";
-    if (!url) return;
+    const refinement = map[chipId] || "Improve the answer.";
+    const currentSession = getSession();
+
+    const userMsg = { from: "user", text: refinement, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    setMessages(nextMessages);
+    persistSessionPatch({ messages: nextMessages });
+    await saveServerChatIfVerified(currentSession, nextMessages);
+
+    await callElora({ messageOverride: refinement, baseMessages: nextMessages, actionOverride: effectiveAction });
+  }
+
+  async function exportLast(type) {
+    const last = lastAssistantMessage(messages);
+    if (!last) {
+      setMessages((prev) => [
+        ...prev,
+        { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() },
+      ]);
+      return;
+    }
+
+    if (!verified) {
+      setVerifyGateOpen(true);
+      setMessages((prev) => [
+        ...prev,
+        { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() },
+      ]);
+      return;
+    }
 
     try {
-      const r = await fetch(url, {
+      const endpoint =
+        type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
+
+      const title = type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
+
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify({ title, content: cleanAssistantText(last) }),
       });
 
-      if (!r.ok) {
+      const ct = String(r.headers.get("content-type") || "");
+      if (!r.ok || ct.includes("application/json")) {
         const data = await r.json().catch(() => null);
-        throw new Error(data?.error || "Export failed.");
+        const msg = cleanAssistantText(data?.error || "Export failed.");
+        setMessages((prev) => [...prev, { from: "elora", text: msg, ts: Date.now() }]);
+        return;
       }
 
       const blob = await r.blob();
-      const href = URL.createObjectURL(blob);
+      if (!blob || blob.size === 0) {
+        setMessages((prev) => [
+          ...prev,
+          { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() },
+        ]);
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = href;
-      a.download = kind === "pdf" ? "elora-export.pdf" : kind === "docx" ? "elora-export.docx" : "elora-export.pptx";
+      a.href = url;
+      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      URL.revokeObjectURL(href);
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { from: "elora", text: cleanAssistantText(e?.message || "Export failed."), at: new Date().toISOString() },
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() },
       ]);
     }
   }
 
   async function validateAndActivateInvite(code) {
-    const trimmed = String(code || "").trim();
+    const trimmed = (code || "").trim();
+    setTeacherGateStatus("");
+
     if (!trimmed) {
       setTeacherGateStatus("Enter a code.");
       return false;
     }
+    if (!verified) {
+      setTeacherGateStatus("Verify your email first.");
+      return false;
+    }
 
     try {
-      setTeacherGateStatus("Checking…");
       const act = await activateTeacher(trimmed);
       if (!act?.ok) {
         setTeacherGateStatus("Invalid code.");
@@ -498,8 +632,6 @@ export default function AssistantPage() {
     }
   }
 
-  const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
-
   const roleLabel = ROLE_LABEL[role] || "Student";
 
   return (
@@ -508,15 +640,13 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
-      <Navbar />
-
       <div className="elora-page">
         <div className="elora-container">
-          <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
             {/* LEFT */}
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-slate-950 dark:text-white">Setup</h1>
+                <h1 className="text-2xl font-black text-slate-950 dark:text-white">Preferences</h1>
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
@@ -526,7 +656,7 @@ export default function AssistantPage() {
                   )}
                 >
                   <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                  {verified ? "Verified" : guest ? "Guest" : "Unverified"}
+                  {verified ? "Verified" : "Unverified"}
                 </span>
               </div>
 
@@ -546,15 +676,9 @@ export default function AssistantPage() {
                 <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-3 py-2">
                   <div className="text-sm font-extrabold text-slate-950 dark:text-white">{roleLabel}</div>
                   <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    Role is set in Settings (switching resets chat).
+                    Elora adapts automatically. Change role in Settings only.
                   </div>
                 </div>
-
-                {role === "educator" && !verified ? (
-                  <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
-                    Educator mode requires verification.
-                  </div>
-                ) : null}
               </div>
 
               {/* Country + level */}
@@ -578,7 +702,7 @@ export default function AssistantPage() {
                   <div className="text-sm font-bold text-slate-900 dark:text-white">Level</div>
                   <select
                     value={level}
-                    onChange={(e) => setLevel(String(e.target.value || levelOptions[0] || "Secondary"))}
+                    onChange={(e) => setLevel(String(e.target.value || levelOptions[0] || "Secondary 1"))}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
                     {levelOptions.map((l) => (
@@ -590,64 +714,91 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {/* Subject + topic */}
+              {/* Minimal first, advanced later */}
               <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Subject</div>
-                <select
-                  value={subject}
-                  onChange={(e) => setSubject(String(e.target.value || "Math"))}
-                  className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                <button
+                  type="button"
+                  onClick={() => setShowMore((v) => !v)}
+                  className="w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-3 py-2 text-left text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
                 >
-                  {SUBJECTS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  {showMore ? "Hide advanced personalization" : "More personalization (optional)"}
+                  <div className="mt-1 text-xs font-bold text-slate-600 dark:text-slate-400">
+                    Subject + topic improve accuracy when needed.
+                  </div>
+                </button>
 
-                <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</div>
-                <input
-                  value={topic}
-                  onChange={(e) => setTopic(String(e.target.value || ""))}
-                  placeholder="e.g., Fractions, Photosynthesis, Essay structure…"
-                  className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                />
+                {showMore ? (
+                  <div className="mt-3">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Subject</div>
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(String(e.target.value || "General"))}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                    >
+                      {SUBJECTS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</div>
+                    <input
+                      value={topic}
+                      onChange={(e) => setTopic(String(e.target.value || ""))}
+                      placeholder="e.g., Fractions, Photosynthesis, Essay structure…"
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {/* Action */}
               <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Action</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">What do you want to do?</div>
                 <div className="mt-2 grid gap-2">
-                  {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
-                    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
-                    const disabled = teacherOnly && !teacher;
+                  {allowedActions.map((a) => {
+                    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a);
+                    const locked = teacherOnly && !teacher;
 
                     return (
                       <button
-                        key={a.id}
+                        key={a}
                         type="button"
                         onClick={() => {
-                          if (disabled) {
+                          if (locked) {
                             setTeacherGateOpen(true);
                             return;
                           }
-                          setAction(a.id);
+                          setAction(a);
+                          if (a !== "check") setAttempt(0);
+                          persistSessionPatch({ action: a });
                         }}
                         className={cn(
                           "rounded-xl border p-3 text-left transition",
-                          action === a.id
+                          effectiveAction === a
                             ? "border-indigo-500/40 bg-indigo-600/10"
                             : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 hover:bg-white dark:hover:bg-slate-950/35",
-                          disabled ? "opacity-70" : ""
+                          locked ? "opacity-70" : ""
                         )}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
-                          {disabled ? (
+                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                            {ACTION_LABEL[a] || a}
+                          </div>
+                          {locked ? (
                             <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span>
                           ) : null}
                         </div>
-                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
+                        {a === "check" && role === "student" ? (
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                            Hints first. Final answer unlocks on attempt 3.
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                            Elora will adapt if your message clearly asks for something else.
+                          </div>
+                        )}
                       </button>
                     );
                   })}
@@ -675,37 +826,52 @@ export default function AssistantPage() {
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
                   <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                    {country} • {level} • {subject} • <span className="font-semibold">{roleLabel}</span>
-                    {role === "student" ? (
+                    <span className="font-semibold">{roleLabel}</span>
+                    <span className="mx-2">•</span>
+                    Personalized for {country} ({level})
+                    {effectiveAction === "check" && role === "student" ? (
                       <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
                         Attempts: {Math.min(3, attempt)}/3
                       </span>
                     ) : null}
                   </div>
+                  {effectiveAction === "check" && role === "student" ? (
+                    <div className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                      Tip: If you include your working + answer, Elora can check it immediately.
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {refinementChips.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => sendChat(c.id)}
-                      disabled={loading}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
-                        "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35",
-                        loading ? "opacity-70 cursor-wait" : ""
-                      )}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Refinement chips (only after at least 1 assistant answer) */}
+                {hasAssistantAnswer ? (
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400">
+                      Refine last answer
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-end max-w-[520px]">
+                      {refinementChips.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          disabled={loading}
+                          onClick={() => applyRefinement(c.id)}
+                          className={cn(
+                            "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
+                            "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
+                            loading ? "opacity-60 cursor-wait" : ""
+                          )}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
-              {!verified && !guest ? (
+              {!verified ? (
                 <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
-                  You’re not verified yet. You can preview, but exports and educator mode are locked.
+                  You’re not verified yet. You can use the Assistant, but exports and Educator mode are locked.
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -716,14 +882,10 @@ export default function AssistantPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        storeGuest(true);
-                        const s = getSession();
-                        setSession(s);
-                      }}
+                      onClick={() => router.push("/settings")}
                       className="rounded-full border border-slate-200/70 dark:border-white/10 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                     >
-                      Stay in preview
+                      Settings
                     </button>
                   </div>
                 </div>
@@ -742,19 +904,9 @@ export default function AssistantPage() {
                           "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
                           isUser
                             ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10 relative group"
+                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10"
                         )}
                       >
-                        {!isUser ? (
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(display, idx, setCopiedIdx)}
-                            className="absolute top-2 right-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition hover:bg-white dark:hover:bg-slate-950/60"
-                            title="Copy"
-                          >
-                            {copiedIdx === idx ? "Copied" : "Copy"}
-                          </button>
-                        ) : null}
                         <div className="whitespace-pre-wrap">{display}</div>
                       </div>
                     );
@@ -780,6 +932,7 @@ export default function AssistantPage() {
                 ) : null}
               </div>
 
+              {/* Export (locked until verified) */}
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">Export last answer:</div>
 
@@ -788,11 +941,12 @@ export default function AssistantPage() {
                   onClick={() => exportLast("docx")}
                   className={cn(
                     "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                    verified
+                    verified && hasAssistantAnswer
                       ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
-                  disabled={!verified}
+                  disabled={!verified || !hasAssistantAnswer}
+                  title={!verified ? "Verify to export" : !hasAssistantAnswer ? "Ask a question first" : "Export as .docx"}
                 >
                   Docs (.docx)
                 </button>
@@ -802,11 +956,12 @@ export default function AssistantPage() {
                   onClick={() => exportLast("pptx")}
                   className={cn(
                     "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                    verified
+                    verified && hasAssistantAnswer
                       ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
-                  disabled={!verified}
+                  disabled={!verified || !hasAssistantAnswer}
+                  title={!verified ? "Verify to export" : !hasAssistantAnswer ? "Ask a question first" : "Export as .pptx"}
                 >
                   PowerPoint (.pptx)
                 </button>
@@ -816,11 +971,12 @@ export default function AssistantPage() {
                   onClick={() => exportLast("pdf")}
                   className={cn(
                     "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                    verified
+                    verified && hasAssistantAnswer
                       ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                       : "border-slate-200/70 dark:border-white/10 text-slate-400 cursor-not-allowed"
                   )}
-                  disabled={!verified}
+                  disabled={!verified || !hasAssistantAnswer}
+                  title={!verified ? "Verify to export" : !hasAssistantAnswer ? "Ask a question first" : "Export as PDF"}
                 >
                   Kami (PDF)
                 </button>
@@ -838,12 +994,16 @@ export default function AssistantPage() {
                       }
                     }}
                     rows={2}
-                    placeholder="Ask Elora to refine, explain, or guide your next attempt…"
+                    placeholder={
+                      effectiveAction === "check" && role === "student"
+                        ? "Paste your working + your final answer (e.g. “I got 15”)."
+                        : "Ask Elora anything…"
+                    }
                     className="flex-1 resize-none rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                   <button
                     type="button"
-                    onClick={() => sendChat()}
+                    onClick={sendChat}
                     disabled={loading}
                     className={cn(
                       "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",

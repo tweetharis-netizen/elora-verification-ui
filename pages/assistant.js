@@ -11,8 +11,7 @@ import {
   setGuest as storeGuest,
 } from "../lib/session";
 
-const LEVELS = ["Primary", "Secondary", "JC/IB", "University", "Adult learning"];
-const COUNTRIES = ["Singapore", "Malaysia", "UK", "US", "Australia", "Other"];
+const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
 
 const ROLE_LABEL = {
@@ -141,7 +140,6 @@ function inferActionFromMessage(text) {
   const t = String(text || "").toLowerCase();
   if (!t.trim()) return null;
 
-  // Strong "check" signals
   if (
     t.includes("check my answer") ||
     t.includes("is this correct") ||
@@ -157,7 +155,6 @@ function inferActionFromMessage(text) {
     return "check";
   }
 
-  // Teacher-ish requests (only applies if role is educator and verified/teacher)
   if (t.includes("lesson plan")) return "lesson";
   if (t.includes("worksheet")) return "worksheet";
   if (t.includes("assessment") || t.includes("test") || t.includes("quiz")) return "assessment";
@@ -166,11 +163,100 @@ function inferActionFromMessage(text) {
   return null;
 }
 
-async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = {}) {
-  // Returns { dataUrl, mime, name } or throws
-  const mime = file.type || "image/jpeg";
+function getCountryLevels(country) {
+  const c = String(country || "").toLowerCase();
 
-  // Fast path: small images (still convert to jpeg to reduce size)
+  if (c.includes("singapore")) {
+    return [
+      "Primary 1",
+      "Primary 2",
+      "Primary 3",
+      "Primary 4",
+      "Primary 5",
+      "Primary 6",
+      "Secondary 1",
+      "Secondary 2",
+      "Secondary 3",
+      "Secondary 4",
+      "Secondary 5",
+      "JC 1",
+      "JC 2",
+    ];
+  }
+
+  if (c.includes("united states") || c === "us" || c.includes("usa")) {
+    return [
+      "Grade 1",
+      "Grade 2",
+      "Grade 3",
+      "Grade 4",
+      "Grade 5",
+      "Grade 6",
+      "Grade 7",
+      "Grade 8",
+      "Grade 9",
+      "Grade 10",
+      "Grade 11",
+      "Grade 12",
+    ];
+  }
+
+  if (c.includes("united kingdom") || c.includes("uk") || c.includes("britain") || c.includes("england")) {
+    return [
+      "Year 1",
+      "Year 2",
+      "Year 3",
+      "Year 4",
+      "Year 5",
+      "Year 6",
+      "Year 7",
+      "Year 8",
+      "Year 9",
+      "Year 10",
+      "Year 11",
+      "Year 12",
+      "Year 13",
+    ];
+  }
+
+  if (c.includes("australia")) {
+    return [
+      "Year 1",
+      "Year 2",
+      "Year 3",
+      "Year 4",
+      "Year 5",
+      "Year 6",
+      "Year 7",
+      "Year 8",
+      "Year 9",
+      "Year 10",
+      "Year 11",
+      "Year 12",
+    ];
+  }
+
+  if (c.includes("malaysia")) {
+    return [
+      "Standard 1",
+      "Standard 2",
+      "Standard 3",
+      "Standard 4",
+      "Standard 5",
+      "Standard 6",
+      "Form 1",
+      "Form 2",
+      "Form 3",
+      "Form 4",
+      "Form 5",
+    ];
+  }
+
+  // Other / fallback (kept simple)
+  return ["Primary", "Secondary", "Pre-U", "University", "Adult learning"];
+}
+
+async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = {}) {
   const readAsDataUrl = (f) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -181,7 +267,6 @@ async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = 
 
   const rawUrl = await readAsDataUrl(file);
 
-  // Use canvas resize for reliable payload sizes
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
@@ -204,13 +289,10 @@ async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = 
   if (!ctx) throw new Error("canvas_failed");
   ctx.drawImage(img, 0, 0, outW, outH);
 
-  // Prefer jpeg for size unless original is png with transparency (rare in homework photos)
   const outMime = "image/jpeg";
   const outUrl = canvas.toDataURL(outMime, quality);
 
-  // Guard: data URL size
   if (outUrl.length > 6_000_000) {
-    // If still too big, compress more
     const smaller = canvas.toDataURL(outMime, 0.68);
     if (smaller.length > 6_000_000) throw new Error("image_too_large");
     return { dataUrl: smaller, mime: outMime, name: file.name || "image.jpg" };
@@ -229,7 +311,10 @@ export default function AssistantPage() {
 
   const [role, setRole] = useState(() => session?.role || "student");
   const [country, setCountry] = useState(() => session?.country || "Singapore");
-  const [level, setLevel] = useState(() => session?.level || "Secondary");
+
+  const countryLevels = useMemo(() => getCountryLevels(country), [country]);
+  const [level, setLevel] = useState(() => session?.level || countryLevels[0] || "Primary 1");
+
   const [subject, setSubject] = useState(() => session?.subject || "General");
   const [topic, setTopic] = useState(() => session?.topic || "");
   const [constraints, setConstraints] = useState("");
@@ -241,7 +326,6 @@ export default function AssistantPage() {
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Attempts apply to Student + Check only.
   const [attempt, setAttempt] = useState(0);
 
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
@@ -257,9 +341,8 @@ export default function AssistantPage() {
   const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(-1);
 
-  // Media
   const fileInputRef = useRef(null);
-  const [attachedImage, setAttachedImage] = useState(null); // { dataUrl, mime, name }
+  const [attachedImage, setAttachedImage] = useState(null);
   const [attachErr, setAttachErr] = useState("");
 
   const teacherOnlyBlocked = useMemo(() => {
@@ -273,7 +356,6 @@ export default function AssistantPage() {
   const canShowExports = verified && hasEloraAnswer;
 
   useEffect(() => {
-    // Sync dismissed preview notice (Option B): persist until verified.
     if (typeof window === "undefined") return;
 
     try {
@@ -285,7 +367,6 @@ export default function AssistantPage() {
   }, []);
 
   useEffect(() => {
-    // When verified becomes true: clear preview dismissal key so it can show again on other devices (optional).
     if (!verified) return;
     if (typeof window === "undefined") return;
     try {
@@ -295,13 +376,25 @@ export default function AssistantPage() {
   }, [verified]);
 
   useEffect(() => {
-    // Keep assistant in sync with Settings changes.
+    // When country changes: ensure level is valid for that country.
+    const allowed = getCountryLevels(country);
+    if (!allowed.includes(level)) {
+      setLevel(allowed[0] || "Primary 1");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country]);
+
+  useEffect(() => {
     function onSessionEvent() {
       const s = getSession();
       setSession(s);
       setRole(s?.role || "student");
       setCountry(s?.country || "Singapore");
-      setLevel(s?.level || "Secondary");
+
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
+      setLevel(nextLevel);
+
       setSubject(s?.subject || "General");
       setTopic(s?.topic || "");
       setAction(s?.action || "explain");
@@ -319,7 +412,6 @@ export default function AssistantPage() {
   }, []);
 
   useEffect(() => {
-    // Attempts reset if not Student+Check
     if (!(role === "student" && action === "check")) {
       setAttempt(0);
     }
@@ -443,6 +535,9 @@ export default function AssistantPage() {
       setSession(s);
       setRole(s?.role || "student");
 
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      setLevel(allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1");
+
       if (s?.verified) {
         await restoreServerChatIfVerified();
       }
@@ -470,19 +565,17 @@ export default function AssistantPage() {
     const currentSession = getSession();
 
     const userText = String(messageOverride || chatText || "").trim();
-    if (!userText) return;
+    if (!userText && !attachedImage?.dataUrl) return;
 
     setLoading(true);
 
     try {
-      // Educator mode requires verification (server-enforced too).
       if (role === "educator" && !currentSession?.verified) {
         setVerifyGateOpen(true);
         setLoading(false);
         return;
       }
 
-      // Teacher-only actions require teacher cookie.
       if (teacherOnlyBlocked) {
         setTeacherGateOpen(true);
         setLoading(false);
@@ -531,12 +624,10 @@ export default function AssistantPage() {
         return next;
       });
 
-      // Attempts only increment for Student + Check
       if (role === "student" && action === "check") {
         setAttempt((a) => a + 1);
       }
 
-      // After a successful send, clear attachment (keeps UI simple)
       setAttachedImage(null);
       setAttachErr("");
     } catch {
@@ -549,9 +640,8 @@ export default function AssistantPage() {
 
   async function sendChat() {
     const trimmed = String(chatText || "").trim();
-    if (!trimmed || loading) return;
+    if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
-    // Self-adapting: if user clearly asks for correctness, switch into Check automatically.
     const inferred = inferActionFromMessage(trimmed);
     if (inferred === "check" && action !== "check") {
       setAction("check");
@@ -560,7 +650,7 @@ export default function AssistantPage() {
     }
 
     const currentSession = getSession();
-    const userMsg = { from: "user", text: trimmed, ts: Date.now() };
+    const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
     setMessages(nextMessages);
@@ -717,7 +807,6 @@ export default function AssistantPage() {
       return;
     }
 
-    // Hard guard: 5MB raw
     if (file.size > 5 * 1024 * 1024) {
       setAttachErr("That image is too large. Try a smaller photo (max 5MB).");
       return;
@@ -777,7 +866,7 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {/* Country + level */}
+              {/* Country + level (country-specific) */}
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-sm font-bold text-slate-900 dark:text-white">Country</div>
@@ -801,7 +890,7 @@ export default function AssistantPage() {
                     onChange={(e) => setLevel(e.target.value)}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
                   >
-                    {LEVELS.map((l) => (
+                    {countryLevels.map((l) => (
                       <option key={l} value={l}>
                         {l}
                       </option>
@@ -917,7 +1006,7 @@ export default function AssistantPage() {
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
                   <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                    {ROLE_LABEL[role] || "Student"} • Personalized for {country} ({level})
+                    {ROLE_LABEL[role] || "Student"} • {country} • {level}
                     {role === "student" && action === "check" ? (
                       <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
                         Attempts: {Math.min(3, attempt)}/3
@@ -926,7 +1015,6 @@ export default function AssistantPage() {
                   </div>
                 </div>
 
-                {/* Refinements: only useful after an Elora answer exists */}
                 {hasEloraAnswer ? (
                   <div className="flex flex-wrap gap-2">
                     {refinementChips.map((c) => (
@@ -948,7 +1036,6 @@ export default function AssistantPage() {
                 ) : null}
               </div>
 
-              {/* Preview notice: dismissible, non-blocking (Option B) */}
               {!verified && !dismissPreviewNotice ? (
                 <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
@@ -988,7 +1075,6 @@ export default function AssistantPage() {
               ) : null}
 
               <div ref={listRef} onScroll={handleListScroll} className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative">
-                {/* Empty state */}
                 {!messages.length && !loading ? (
                   <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
                     <div className="text-sm font-extrabold text-slate-900 dark:text-white">Try one of these</div>
@@ -1004,9 +1090,7 @@ export default function AssistantPage() {
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-                      Tip: attach a photo if the question is long.
-                    </div>
+                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">Tip: attach a photo if the question is long.</div>
                   </div>
                 ) : null}
 
@@ -1060,7 +1144,6 @@ export default function AssistantPage() {
                 ) : null}
               </div>
 
-              {/* Exports: hidden unless verified + has an Elora answer */}
               {canShowExports ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">Export last answer:</div>
@@ -1094,11 +1177,8 @@ export default function AssistantPage() {
                 </div>
               ) : null}
 
-              {/* Attachment chip + input */}
               <div className="mt-4">
-                {attachErr ? (
-                  <div className="mb-2 text-xs font-extrabold text-amber-700 dark:text-amber-200">{attachErr}</div>
-                ) : null}
+                {attachErr ? <div className="mb-2 text-xs font-extrabold text-amber-700 dark:text-amber-200">{attachErr}</div> : null}
 
                 {attachedImage ? (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1176,7 +1256,6 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Verify gate modal */}
       <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Educator mode and exports are locked behind verification. You can still preview Student/Parent modes.
@@ -1204,7 +1283,6 @@ export default function AssistantPage() {
         </div>
       </Modal>
 
-      {/* Teacher gate modal */}
       <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
@@ -1218,9 +1296,7 @@ export default function AssistantPage() {
             className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
             placeholder="e.g., GENESIS2026"
           />
-          {teacherGateStatus ? (
-            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div>
-          ) : null}
+          {teacherGateStatus ? <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div> : null}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

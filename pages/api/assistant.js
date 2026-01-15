@@ -4,15 +4,14 @@ import { isTeacherFromReq } from "@/lib/server/teacher";
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: "6mb", // allow a compressed image data URL
+      sizeLimit: "6mb",
     },
   },
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Keep stable + maintainable: a few simple helpers, no magic.
-function clampStr(v, max = 1200) {
+function clampStr(v, max = 2400) {
   if (typeof v !== "string") return "";
   const s = v.trim();
   return s.length <= max ? s : s.slice(0, max);
@@ -43,7 +42,6 @@ function stripMarkdownToPlainText(text) {
 function normalizeMathToPlainText(text) {
   let t = String(text || "");
 
-  // Remove common LaTeX markers defensively
   t = t.replace(/\$\$[\s\S]*?\$\$/g, (m) => m.replace(/\$/g, ""));
   t = t.replace(/\$([^$]+)\$/g, "$1");
   t = t.replace(/\\frac\s*{([^}]+)}\s*{([^}]+)}/g, "$1/$2");
@@ -56,7 +54,6 @@ function normalizeMathToPlainText(text) {
   t = t.replace(/\\\[|\\\]/g, "");
   t = t.replace(/\\text\s*{([^}]+)}/g, "$1");
 
-  // Clean invisible tokens sometimes returned by models
   t = t.replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "");
   t = t.replace(/<\s*internal\s*\/\s*>/gi, "");
   t = t.replace(/<\s*internal\s*>/gi, "");
@@ -81,8 +78,368 @@ function inferActionFromMessage(message, fallbackAction) {
     return "check";
   }
 
-  // Otherwise stick to chosen action.
   return String(fallbackAction || "explain");
+}
+
+function isTeacherOnlyAction(action) {
+  return new Set(["lesson", "worksheet", "assessment", "slides"]).has(String(action || ""));
+}
+
+function looksLikeAnswerLeak(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  if (t.includes("the answer is") || t.includes("final answer") || t.includes("correct answer")) return true;
+  if (/\b=\s*-?\d/.test(t)) return true;
+
+  const lines = t.split("\n").map((x) => x.trim()).filter(Boolean);
+  if (lines.some((l) => l.length <= 24 && /^[\d\s().,+\-/*÷×=]+$/.test(l) && /\d/.test(l))) return true;
+
+  return false;
+}
+
+/**
+ * Deterministic math checker (for "Check my answer").
+ * Stable scope (demo-ready):
+ * - arithmetic with + - * / (and × ÷), parentheses
+ * - decimals
+ * - simple fractions in input (e.g., 5/4)
+ * - percentages in student answer or expression (e.g., 20% => 0.2)
+ *
+ * Returns null if it can't safely determine correctness.
+ */
+function tryDeterministicCheck(message) {
+  const raw = String(message || "").trim();
+  if (!raw) return null;
+
+  // Only do deterministic check if the user provided an answer.
+  // Pattern 1: "expression = answer"
+  const eqIdx = raw.lastIndexOf("=");
+  let exprStr = "";
+  let ansStr = "";
+
+  if (eqIdx !== -1) {
+    exprStr = raw.slice(0, eqIdx).trim();
+    ansStr = raw.slice(eqIdx + 1).trim();
+  } else {
+    // Pattern 2: "my answer is ___" or "answer: ___"
+    const m = raw.match(/\b(my answer is|answer\s*:)\s*([^\n\r]+)$/i);
+    if (m) {
+      ansStr = String(m[2] || "").trim();
+      // Try to find an expression earlier in the string (best-effort)
+      exprStr = raw.slice(0, m.index).trim();
+    }
+  }
+
+  // If no answer found, we don't "solve" in check mode.
+  if (!ansStr) return null;
+
+  // If expression is empty, try to extract something that looks like an expression from the message.
+  if (!exprStr) {
+    // Pull the first chunk with digits/operators
+    const m = raw.match(/([\d\s().,+\-/*÷×%]+)\s*(?:=|$)/);
+    exprStr = m ? String(m[1] || "").trim() : "";
+  }
+
+  if (!exprStr) return null;
+
+  const exprVal = safeEvalExpression(exprStr);
+  const ansVal = parseNumericValue(ansStr);
+
+  if (exprVal == null || ansVal == null) return null;
+
+  const ok = nearlyEqual(exprVal, ansVal);
+
+  return { ok, exprVal, ansVal, exprStr, ansStr };
+}
+
+function nearlyEqual(a, b) {
+  const A = Number(a);
+  const B = Number(b);
+  if (!Number.isFinite(A) || !Number.isFinite(B)) return false;
+  const diff = Math.abs(A - B);
+  const scale = Math.max(1, Math.abs(A), Math.abs(B));
+  return diff <= 1e-9 * scale;
+}
+
+function parseNumericValue(s) {
+  const t = String(s || "").trim();
+  if (!t) return null;
+
+  // Strip trailing punctuation
+  const cleaned = t.replace(/[.,;:!?]+$/g, "").trim();
+
+  // Percent
+  if (/%$/.test(cleaned)) {
+    const n = parseNumericValue(cleaned.replace(/%$/, "").trim());
+    if (n == null) return null;
+    return n / 100;
+  }
+
+  // Mixed number: "1 1/2"
+  const mixed = cleaned.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const whole = Number(mixed[1]);
+    const num = Number(mixed[2]);
+    const den = Number(mixed[3]);
+    if (!Number.isFinite(whole) || !Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
+    const sign = whole < 0 ? -1 : 1;
+    return whole + sign * (num / den);
+  }
+
+  // Fraction: "5/4"
+  const frac = cleaned.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  if (frac) {
+    const num = Number(frac[1]);
+    const den = Number(frac[2]);
+    if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
+    return num / den;
+  }
+
+  // Plain number
+  const n = Number(cleaned.replace(/,/g, ""));
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+/**
+ * Safe expression evaluator: + - * / parentheses, decimals, fractions as "a/b", and %.
+ * No variables, no functions, no exponents.
+ */
+function safeEvalExpression(expr) {
+  const cleaned = String(expr || "")
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return null;
+
+  // Tokenize
+  const tokens = tokenize(cleaned);
+  if (!tokens) return null;
+
+  // Shunting-yard to RPN
+  const rpn = toRpn(tokens);
+  if (!rpn) return null;
+
+  // Evaluate RPN
+  const val = evalRpn(rpn);
+  if (!Number.isFinite(val)) return null;
+  return val;
+}
+
+function tokenize(s) {
+  const tokens = [];
+  let i = 0;
+
+  const isOp = (c) => c === "+" || c === "-" || c === "*" || c === "/";
+  const isDigit = (c) => c >= "0" && c <= "9";
+
+  while (i < s.length) {
+    const c = s[i];
+
+    if (c === " ") {
+      i++;
+      continue;
+    }
+
+    if (c === "(" || c === ")") {
+      tokens.push({ type: "paren", value: c });
+      i++;
+      continue;
+    }
+
+    if (isOp(c)) {
+      tokens.push({ type: "op", value: c });
+      i++;
+      continue;
+    }
+
+    // Number / fraction / percent
+    if (isDigit(c) || c === ".") {
+      let j = i;
+      while (j < s.length && (isDigit(s[j]) || s[j] === "." || s[j] === ",")) j++;
+      let numStr = s.slice(i, j).replace(/,/g, "");
+
+      // Fraction support: "12/5"
+      if (j < s.length && s[j] === "/") {
+        let k = j + 1;
+        while (k < s.length && (isDigit(s[k]) || s[k] === ",")) k++;
+        const denStr = s.slice(j + 1, k).replace(/,/g, "");
+        if (!denStr) return null;
+        const num = Number(numStr);
+        const den = Number(denStr);
+        if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
+        tokens.push({ type: "num", value: num / den });
+        i = k;
+        continue;
+      }
+
+      let num = Number(numStr);
+      if (!Number.isFinite(num)) return null;
+
+      // Percent support: "20%"
+      if (j < s.length && s[j] === "%") {
+        num = num / 100;
+        j++;
+      }
+
+      tokens.push({ type: "num", value: num });
+      i = j;
+      continue;
+    }
+
+    // Any other char => unsafe / unsupported
+    return null;
+  }
+
+  // Handle unary minus: convert "-x" into "0 - x" where appropriate
+  const fixed = [];
+  for (let idx = 0; idx < tokens.length; idx++) {
+    const t = tokens[idx];
+    if (t.type === "op" && t.value === "-") {
+      const prev = fixed[fixed.length - 1];
+      const isUnary = !prev || (prev.type === "op") || (prev.type === "paren" && prev.value === "(");
+      if (isUnary) {
+        fixed.push({ type: "num", value: 0 });
+        fixed.push({ type: "op", value: "-" });
+        continue;
+      }
+    }
+    fixed.push(t);
+  }
+
+  return fixed;
+}
+
+function toRpn(tokens) {
+  const out = [];
+  const ops = [];
+
+  const prec = (op) => (op === "+" || op === "-" ? 1 : op === "*" || op === "/" ? 2 : 0);
+
+  for (const t of tokens) {
+    if (t.type === "num") {
+      out.push(t);
+      continue;
+    }
+
+    if (t.type === "op") {
+      while (ops.length) {
+        const top = ops[ops.length - 1];
+        if (top.type === "op" && prec(top.value) >= prec(t.value)) {
+          out.push(ops.pop());
+          continue;
+        }
+        break;
+      }
+      ops.push(t);
+      continue;
+    }
+
+    if (t.type === "paren" && t.value === "(") {
+      ops.push(t);
+      continue;
+    }
+
+    if (t.type === "paren" && t.value === ")") {
+      let found = false;
+      while (ops.length) {
+        const top = ops.pop();
+        if (top.type === "paren" && top.value === "(") {
+          found = true;
+          break;
+        }
+        out.push(top);
+      }
+      if (!found) return null; // mismatched
+      continue;
+    }
+
+    return null;
+  }
+
+  while (ops.length) {
+    const top = ops.pop();
+    if (top.type === "paren") return null;
+    out.push(top);
+  }
+
+  return out;
+}
+
+function evalRpn(rpn) {
+  const st = [];
+  for (const t of rpn) {
+    if (t.type === "num") {
+      st.push(t.value);
+      continue;
+    }
+    if (t.type === "op") {
+      const b = st.pop();
+      const a = st.pop();
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+      if (t.value === "+") st.push(a + b);
+      else if (t.value === "-") st.push(a - b);
+      else if (t.value === "*") st.push(a * b);
+      else if (t.value === "/") st.push(a / b);
+      else return NaN;
+      continue;
+    }
+    return NaN;
+  }
+  return st.length === 1 ? st[0] : NaN;
+}
+
+function toNiceFraction(x) {
+  const v = Number(x);
+  if (!Number.isFinite(v)) return null;
+
+  // If it's basically an integer, show integer.
+  if (Math.abs(v - Math.round(v)) < 1e-12) return { frac: String(Math.round(v)), dec: String(Math.round(v)) };
+
+  // Continued fraction approximation
+  const maxDen = 1000;
+  let a = Math.floor(v);
+  let h1 = 1, k1 = 0;
+  let h = a, k = 1;
+
+  let x1 = v;
+  for (let i = 0; i < 12; i++) {
+    const frac = x1 - Math.floor(x1);
+    if (Math.abs(frac) < 1e-12) break;
+    x1 = 1 / frac;
+    a = Math.floor(x1);
+
+    const h2 = h1;
+    const k2 = k1;
+    h1 = h;
+    k1 = k;
+    h = a * h1 + h2;
+    k = a * k1 + k2;
+
+    if (k > maxDen) break;
+  }
+
+  if (!k || k > maxDen) return null;
+
+  const approx = h / k;
+  if (Math.abs(approx - v) > 1e-9) return null;
+
+  const fracStr = `${h}/${k}`;
+  const decStr = String(Number(v.toFixed(8)));
+  return { frac: fracStr, dec: decStr };
+}
+
+function formatFinalNumber(x) {
+  const frac = toNiceFraction(x);
+  if (frac && frac.frac !== frac.dec) {
+    return `${frac.frac} (${frac.dec})`;
+  }
+  if (Number.isFinite(Number(x)) && Math.abs(Number(x) - Math.round(Number(x))) < 1e-12) {
+    return String(Math.round(Number(x)));
+  }
+  return String(Number(x.toFixed(8)));
 }
 
 function systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage }) {
@@ -105,29 +462,26 @@ Mode: ${action}
 Attempt: ${attempt}
 Has image: ${hasImage ? "yes" : "no"}
 
-Student "check my answer" policy (critical):
-- Your job is to decide whether the student's answer is correct or not.
-- If correct: say "Correct ✅" and explain briefly (no extra questions).
+Student "check my answer" policy:
+- If correct: say "Correct ✅" and explain briefly.
 - If incorrect:
   - Attempt 1-2: DO NOT reveal the final correct answer. Give hints + show what step to fix.
   - Attempt 3: You MAY reveal the final answer and show clean steps.
 - Never evade. Always say correct/incorrect clearly.
 
 Image policy:
-- If an image is provided, start with ONE short sentence about what you see (e.g. "I can see a worksheet question about...").
-- If the image is unreadable, ask for a clearer photo OR ask the user to type the key line(s). Only one question.`;
+- If an image is provided, start with ONE short sentence about what you see.
+- If unreadable, ask for a clearer photo OR ask the user to type the key line(s). Only one question.`;
 }
 
 function userPrompt({ role, action, topic, message, attempt }) {
   const safeTopic = topic ? `Topic: ${topic}` : "Topic: (not specified)";
-
   const base =
     `Task:\n` +
     `${safeTopic}\n` +
     `User message:\n` +
     `${message}\n`;
 
-  // Tight check-mode framing helps a lot.
   if (role === "student" && action === "check") {
     return (
       base +
@@ -140,7 +494,6 @@ function userPrompt({ role, action, topic, message, attempt }) {
     );
   }
 
-  // Default explain mode
   return (
     base +
     `\nInstructions:\n` +
@@ -150,34 +503,12 @@ function userPrompt({ role, action, topic, message, attempt }) {
   );
 }
 
-function isTeacherOnlyAction(action) {
-  return new Set(["lesson", "worksheet", "assessment", "slides"]).has(String(action || ""));
-}
-
-function looksLikeAnswerLeak(text) {
-  const t = String(text || "").toLowerCase();
-  if (!t) return false;
-
-  // Common "final answer" phrasing or explicit equals.
-  if (t.includes("the answer is") || t.includes("final answer") || t.includes("correct answer")) return true;
-
-  // An equals with a number in assistant output can leak.
-  if (/\b=\s*-?\d/.test(t)) return true;
-
-  // A standalone numeric result line (very rough heuristic)
-  const lines = t.split("\n").map((x) => x.trim()).filter(Boolean);
-  if (lines.some((l) => l.length <= 24 && /^[\d\s().,+\-/*÷×=]+$/.test(l) && /\d/.test(l))) return true;
-
-  return false;
-}
-
 async function callOpenRouter({ apiKey, messages }) {
   const resp = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      // Recommended by OpenRouter (safe even if ignored)
       "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://elora-verification-ui.vercel.app",
       "X-Title": "Elora",
     },
@@ -205,17 +536,15 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
 
-    // Inputs (defensive)
     const role = clampStr(body.role || "student", 20);
-    const country = clampStr(body.country || "Singapore", 40);
-    const level = clampStr(body.level || "Secondary", 40);
+    const country = clampStr(body.country || "Singapore", 60);
+    const level = clampStr(body.level || "Primary 1", 60);
     const subject = clampStr(body.subject || "General", 60);
     const topic = clampStr(body.topic || "", 120);
 
     const requestedAction = clampStr(body.action || "explain", 20);
     const message = clampStr(body.message || "", 2400);
 
-    // Attempt: client may pass 1..3 for check
     const attempt = clampInt(body.attempt, 0, 3, 0);
 
     const imageDataUrl = clampStr(body.imageDataUrl || "", 6_000_000);
@@ -225,30 +554,70 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing message." });
     }
 
-    // Ask backend about verification/session
+    // Auth status (server truth)
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
     const verified = Boolean(status?.verified);
     const teacher = Boolean(isTeacherFromReq(req));
 
-    // Educator mode is only available after verification.
+    // Educator mode requires verification
     if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    // Teacher-only tools locked behind teacher cookie
     const action = inferActionFromMessage(message, requestedAction);
+
+    // Teacher-only tools require teacher cookie
     if (isTeacherOnlyAction(action) && !teacher) {
       return res.status(403).json({
         error: "Teacher tools are locked. Redeem a Teacher Invite Code in Settings to unlock them.",
       });
     }
 
+    // Deterministic checker: only for Student + Check + no image
+    if (role === "student" && action === "check" && !hasImage) {
+      const det = tryDeterministicCheck(message);
+      if (det) {
+        if (det.ok) {
+          const reply =
+            `Correct ✅\n` +
+            `You evaluated "${det.exprStr}" correctly.\n` +
+            `Your answer matches the result.`;
+          return res.status(200).json({ reply });
+        }
+
+        // Incorrect
+        if (attempt >= 3) {
+          const final = formatFinalNumber(det.exprVal);
+          const reply =
+            `Not quite ❌\n` +
+            `On attempt 3, here’s the correct result:\n` +
+            `${det.exprStr} = ${final}\n\n` +
+            `Steps:\n` +
+            `1) Follow order of operations (brackets, then ×/÷, then +/−).\n` +
+            `2) Compute carefully and compare with your answer.\n`;
+          return res.status(200).json({ reply });
+        }
+
+        // Attempt 1–2: do not reveal final answer
+        const reply =
+          `Not quite ❌\n` +
+          `Hint (no final answer yet):\n` +
+          `1) Re-check the order of operations.\n` +
+          `2) Do one operation at a time and write the intermediate result.\n` +
+          `3) Then compare with the answer you wrote.\n\n` +
+          `Try again and send your updated answer like this:\n` +
+          `${det.exprStr} = ?`;
+        return res.status(200).json({ reply });
+      }
+
+      // If we couldn't deterministically check, fall through to model (but still attempt-gated).
+    }
+
     const sys = systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage });
     const userText = userPrompt({ role, action, topic, message, attempt });
 
-    // Build OpenRouter messages with optional image
     const userContent = hasImage
       ? [
           { type: "text", text: userText },
@@ -256,7 +625,6 @@ export default async function handler(req, res) {
         ]
       : userText;
 
-    // Primary call
     let { ok, data } = await callOpenRouter({
       apiKey,
       messages: [
@@ -273,10 +641,9 @@ export default async function handler(req, res) {
     let replyRaw = data?.choices?.[0]?.message?.content || "";
     let reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
 
-    // Enforce attempt gating for Student+Check
+    // Attempt gating for Student+Check (model path only)
     if (role === "student" && action === "check" && attempt > 0 && attempt < 3) {
       if (looksLikeAnswerLeak(reply)) {
-        // One rewrite attempt: remove final answer / numeric result leakage
         const rewriteSys =
           sys +
           `\nRewrite rule:\n- Rewrite your previous reply so it contains NO final numeric answer and NO "the answer is". Keep only hints and next-step guidance.`;
@@ -294,20 +661,18 @@ export default async function handler(req, res) {
           const r2 = second.data?.choices?.[0]?.message?.content || "";
           reply = stripMarkdownToPlainText(normalizeMathToPlainText(r2));
         } else {
-          // Failsafe (still helpful, no leakage)
           reply =
             "Not quite ❌\n" +
             "I can’t reveal the final answer yet.\n\n" +
-            "Here’s a hint:\n" +
-            "- Recheck your first step carefully and write down what you did.\n" +
-            "- Tell me your next step (not the final answer), and I’ll guide you.";
+            "Hint:\n" +
+            "1) Re-check your first step.\n" +
+            "2) Send your next step (not the final answer), and I’ll guide you.";
         }
       }
     }
 
     return res.status(200).json({ reply });
-  } catch (e) {
-    // Keep error simple (no secret leaks)
+  } catch {
     return res.status(500).json({ error: "Assistant failed. Try again." });
   }
 }

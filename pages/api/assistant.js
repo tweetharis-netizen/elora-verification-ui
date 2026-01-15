@@ -1,9 +1,18 @@
 import { getSessionTokenFromReq, fetchBackendStatus } from "@/lib/server/verification";
 import { isTeacherFromReq } from "@/lib/server/teacher";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "6mb", // allow a compressed image data URL
+    },
+  },
+};
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-function clampStr(v, max = 2000) {
+// Keep stable + maintainable: a few simple helpers, no magic.
+function clampStr(v, max = 1200) {
   if (typeof v !== "string") return "";
   const s = v.trim();
   return s.length <= max ? s : s.slice(0, max);
@@ -15,142 +24,173 @@ function clampInt(v, min, max, fallback) {
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
-function isGuestAllowedAction(action) {
-  const disallowed = new Set(["assessment", "slides", "lesson", "worksheet"]);
-  return !disallowed.has(action);
-}
-
-function inferActionFromMessage(message) {
-  const s = String(message || "").toLowerCase();
-  const signals = [
-    "check my answer",
-    "is this correct",
-    "is it correct",
-    "am i right",
-    "did i do it right",
-    "is my answer correct",
-    "is my answer right",
-    "correct?",
-    "right?",
-  ];
-  if (signals.some((k) => s.includes(k))) return "check";
-  if (s.includes("=") && s.includes("?")) return "check";
-  return null;
-}
-
-function hasUserProvidedAnswer(message) {
-  const s = String(message || "");
-  const t = s.toLowerCase();
-  return (
-    /(^|\s)(i got|my answer|answer is|i think it is|i think it's|i got:|result is)\b/i.test(s) ||
-    s.includes("=") ||
-    (/(\b\d+(\.\d+)?\b)/.test(s) && /\b(correct|right)\b/i.test(t))
-  );
-}
-
-function systemPrompt({ role, country, level, subject, topic, action, attemptIndex, responseStyle, userHasAnswer }) {
-  const base = `You are Elora: a calm, professional teaching assistant for educators and learners.
-
-Non-negotiable output rules:
-- Output must be plain text (no Markdown, no headings, no bold, no code blocks).
-- Do NOT output LaTeX/TeX (no \\frac, \\sqrt, \\times, \\( \\), $$, etc.).
-- Use human-readable math and words. Example: "5 divided by 4 equals 1.25" and (only if helpful) "5/4".
-- Avoid hedge-words like "likely", "maybe", "probably". If you truly need missing info, ask 1 short clarifying question.
-- Keep it short, clear, and non-intimidating for beginners.
-
-Personalization context:
-Role: ${role}
-Country: ${country}
-Level: ${level}
-Subject: ${subject}
-Topic: ${topic || "(not provided)"}
-Action: ${action}
-Response style: ${responseStyle || "standard"}`;
-
-  if (role === "student" && action === "check") {
-    const attemptLine = `Attempt: ${attemptIndex + 1} of 3`;
-    const checkRules = `Special rules for "Check my answer" (student):
-- First determine whether the student's answer is correct.
-- If the student's answer is correct: say "Correct" (or equivalent) then give a short explanation.
-- If the student's answer is incorrect:
-  - If Attempt is 1 or 2: do NOT give the final numeric answer or the final result. Instead, explain the mistake and give 1–2 hints and the next step they should do.
-  - If Attempt is 3: you may give the final correct answer and explain it clearly.
-- Do NOT ask "What answer did you get?" if the student already provided their answer (${userHasAnswer ? "they DID provide it" : "they did NOT provide it"}).
-- End with one short question that helps the student continue (example: "Want to try again with that hint?").`;
-
-    return `${base}
-
-${attemptLine}
-
-${checkRules}`;
-  }
-
-  if (role === "educator") {
-    return `${base}
-
-Teacher rules:
-- Make outputs classroom-ready and organized.
-- Use short sections with clear labels (in plain text, no Markdown).`;
-  }
-
-  if (role === "parent") {
-    return `${base}
-
-Parent rules:
-- Explain without jargon.
-- Give practical steps for what to say/do at home.`;
-  }
-
-  return `${base}
-
-Student rules:
-- Keep steps short and clear.
-- Prefer 3–6 bullet-like lines (but still plain text, no Markdown bullets if possible).`;
-}
-
-function normalizeMathToPlainText(text) {
-  if (!text) return "";
-  let t = String(text);
-
-  t = t.replace(/\\times/g, "×");
-  t = t.replace(/\\cdot/g, "·");
-  t = t.replace(/\\div/g, "÷");
-
-  t = t.replace(/\$\$[\s\S]*?\$\$/g, (m) => m.replace(/\$\$/g, ""));
-  t = t.replace(/\$[^$]+\$/g, (m) => m.replace(/\$/g, ""));
-
-  t = t.replace(/\\[a-zA-Z]+(\{[^}]*\})?/g, "");
-
-  t = t.replace(/\r/g, "");
-  t = t.replace(/[ \t]+\n/g, "\n");
-  t = t.replace(/\n{3,}/g, "\n\n");
-
-  return t.trim();
-}
-
 function stripMarkdownToPlainText(text) {
-  if (!text) return "";
-  let t = String(text);
-
+  let t = String(text || "");
   t = t.replace(/```[\s\S]*?```/g, "");
   t = t.replace(/`+/g, "");
-
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-
   t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
   t = t.replace(/\*([^*]+)\*/g, "$1");
   t = t.replace(/__([^_]+)__/g, "$1");
   t = t.replace(/_([^_]+)_/g, "$1");
-
   t = t.replace(/^\s*>\s?/gm, "");
-
   t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-
   t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
-
   t = t.replace(/\n{3,}/g, "\n\n").trim();
-
   return t;
+}
+
+function normalizeMathToPlainText(text) {
+  let t = String(text || "");
+
+  // Remove common LaTeX markers defensively
+  t = t.replace(/\$\$[\s\S]*?\$\$/g, (m) => m.replace(/\$/g, ""));
+  t = t.replace(/\$([^$]+)\$/g, "$1");
+  t = t.replace(/\\frac\s*{([^}]+)}\s*{([^}]+)}/g, "$1/$2");
+  t = t.replace(/\\times/g, "×");
+  t = t.replace(/\\div/g, "÷");
+  t = t.replace(/\\cdot/g, "×");
+  t = t.replace(/\\sqrt\s*{([^}]+)}/g, "sqrt($1)");
+  t = t.replace(/\\left|\\right/g, "");
+  t = t.replace(/\\\(|\\\)/g, "");
+  t = t.replace(/\\\[|\\\]/g, "");
+  t = t.replace(/\\text\s*{([^}]+)}/g, "$1");
+
+  // Clean invisible tokens sometimes returned by models
+  t = t.replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "");
+  t = t.replace(/<\s*internal\s*\/\s*>/gi, "");
+  t = t.replace(/<\s*internal\s*>/gi, "");
+
+  return t.trim();
+}
+
+function inferActionFromMessage(message, fallbackAction) {
+  const t = String(message || "").toLowerCase();
+
+  if (
+    t.includes("check my answer") ||
+    t.includes("is this correct") ||
+    t.includes("is it correct") ||
+    t.includes("am i correct") ||
+    t.includes("did i get it right") ||
+    t.includes("right or wrong") ||
+    /\bmy answer\b/.test(t) ||
+    /\banswer\s*:\s*/.test(t) ||
+    /\b=\s*-?\d/.test(t)
+  ) {
+    return "check";
+  }
+
+  // Otherwise stick to chosen action.
+  return String(fallbackAction || "explain");
+}
+
+function systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage }) {
+  return `You are Elora: a calm, professional teaching assistant.
+
+Hard rules:
+- Plain text only. No Markdown. No headings. No code blocks.
+- No LaTeX/TeX. Do not output \\frac, \\sqrt, \\times, \\( \\), $$, etc.
+- Use human-readable math: "5 divided by 4 = 1.25" (and optionally "5/4" if helpful).
+- Be confident and direct. Do not say "likely", "maybe", "probably", or "I think".
+- If you are missing a key detail, ask exactly ONE clarifying question.
+
+User context:
+Role: ${role}
+Country: ${country}
+Level: ${level}
+Subject: ${subject}
+Topic: ${topic}
+Mode: ${action}
+Attempt: ${attempt}
+Has image: ${hasImage ? "yes" : "no"}
+
+Student "check my answer" policy (critical):
+- Your job is to decide whether the student's answer is correct or not.
+- If correct: say "Correct ✅" and explain briefly (no extra questions).
+- If incorrect:
+  - Attempt 1-2: DO NOT reveal the final correct answer. Give hints + show what step to fix.
+  - Attempt 3: You MAY reveal the final answer and show clean steps.
+- Never evade. Always say correct/incorrect clearly.
+
+Image policy:
+- If an image is provided, start with ONE short sentence about what you see (e.g. "I can see a worksheet question about...").
+- If the image is unreadable, ask for a clearer photo OR ask the user to type the key line(s). Only one question.`;
+}
+
+function userPrompt({ role, action, topic, message, attempt }) {
+  const safeTopic = topic ? `Topic: ${topic}` : "Topic: (not specified)";
+
+  const base =
+    `Task:\n` +
+    `${safeTopic}\n` +
+    `User message:\n` +
+    `${message}\n`;
+
+  // Tight check-mode framing helps a lot.
+  if (role === "student" && action === "check") {
+    return (
+      base +
+      `\nInstructions:\n` +
+      `- First line must be either "Correct ✅" or "Not quite ❌".\n` +
+      `- Then give short steps.\n` +
+      (attempt >= 3
+        ? `- You may reveal the final answer now.\n`
+        : `- Do NOT reveal the final answer. Give hints and the next step only.\n`)
+    );
+  }
+
+  // Default explain mode
+  return (
+    base +
+    `\nInstructions:\n` +
+    `- Keep it clear and short.\n` +
+    `- Prefer small numbered steps (1) 2) 3)).\n` +
+    `- End with a quick check question if it helps.\n`
+  );
+}
+
+function isTeacherOnlyAction(action) {
+  return new Set(["lesson", "worksheet", "assessment", "slides"]).has(String(action || ""));
+}
+
+function looksLikeAnswerLeak(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+
+  // Common "final answer" phrasing or explicit equals.
+  if (t.includes("the answer is") || t.includes("final answer") || t.includes("correct answer")) return true;
+
+  // An equals with a number in assistant output can leak.
+  if (/\b=\s*-?\d/.test(t)) return true;
+
+  // A standalone numeric result line (very rough heuristic)
+  const lines = t.split("\n").map((x) => x.trim()).filter(Boolean);
+  if (lines.some((l) => l.length <= 24 && /^[\d\s().,+\-/*÷×=]+$/.test(l) && /\d/.test(l))) return true;
+
+  return false;
+}
+
+async function callOpenRouter({ apiKey, messages }) {
+  const resp = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      // Recommended by OpenRouter (safe even if ignored)
+      "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://elora-verification-ui.vercel.app",
+      "X-Title": "Elora",
+    },
+    body: JSON.stringify({
+      model: "openai/gpt-4o-mini",
+      temperature: 0.35,
+      max_tokens: 650,
+      messages,
+    }),
+  });
+
+  const data = await resp.json().catch(() => null);
+  return { ok: resp.ok, status: resp.status, data };
 }
 
 export default async function handler(req, res) {
@@ -159,119 +199,115 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const openrouterKey = process.env.OPENROUTER_API_KEY || "";
-  if (!openrouterKey) {
-    return res.status(500).json({ error: "Server misconfigured (missing OPENROUTER_API_KEY)." });
-  }
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "Missing OPENROUTER_API_KEY" });
 
   try {
+    const body = req.body || {};
+
+    // Inputs (defensive)
+    const role = clampStr(body.role || "student", 20);
+    const country = clampStr(body.country || "Singapore", 40);
+    const level = clampStr(body.level || "Secondary", 40);
+    const subject = clampStr(body.subject || "General", 60);
+    const topic = clampStr(body.topic || "", 120);
+
+    const requestedAction = clampStr(body.action || "explain", 20);
+    const message = clampStr(body.message || "", 2400);
+
+    // Attempt: client may pass 1..3 for check
+    const attempt = clampInt(body.attempt, 0, 3, 0);
+
+    const imageDataUrl = clampStr(body.imageDataUrl || "", 6_000_000);
+    const hasImage = Boolean(imageDataUrl && imageDataUrl.startsWith("data:image/"));
+
+    if (!message && !hasImage) {
+      return res.status(400).json({ error: "Missing message." });
+    }
+
+    // Ask backend about verification/session
     const sessionToken = getSessionTokenFromReq(req);
     const status = await fetchBackendStatus(sessionToken);
 
     const verified = Boolean(status?.verified);
-    const serverRole = String(status?.role || "guest");
-    const email = String(status?.email || "");
+    const teacher = Boolean(isTeacherFromReq(req));
 
-    const role = clampStr(req.body?.role || "student", 32).toLowerCase();
-    const country = clampStr(req.body?.country || "Singapore", 64);
-    const level = clampStr(req.body?.level || "Secondary", 64);
-    const subject = clampStr(req.body?.subject || "General", 64);
-    const topic = clampStr(req.body?.topic || "", 160);
-
-    let action = clampStr(req.body?.action || "explain", 32).toLowerCase();
-    const responseStyle = clampStr(req.body?.responseStyle || "standard", 32);
-
-    const message = clampStr(req.body?.message || "", 4000);
-    if (!message) return res.status(400).json({ error: "Missing message." });
-
-    if (!action || action === "explain") {
-      const inferred = inferActionFromMessage(message);
-      if (inferred) action = inferred;
-    }
-
-    const teacher = isTeacherFromReq(req);
-
+    // Educator mode is only available after verification.
     if (role === "educator" && !verified) {
       return res.status(403).json({ error: "Please verify your email to use Educator mode." });
     }
 
-    const teacherOnlyActions = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    if (teacherOnlyActions.has(action) && !teacher) {
+    // Teacher-only tools locked behind teacher cookie
+    const action = inferActionFromMessage(message, requestedAction);
+    if (isTeacherOnlyAction(action) && !teacher) {
       return res.status(403).json({
-        error:
-          "Teacher tools are locked. Enter a Teacher Invite Code in Settings to unlock teacher-only tools.",
+        error: "Teacher tools are locked. Redeem a Teacher Invite Code in Settings to unlock them.",
       });
     }
 
-    if (!verified && !isGuestAllowedAction(action)) {
-      return res.status(403).json({
-        error: "This action requires verification (and teacher access if applicable).",
-      });
-    }
+    const sys = systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage });
+    const userText = userPrompt({ role, action, topic, message, attempt });
 
-    const attemptIndex = clampInt(req.body?.attempt, 0, 2, 0);
-    const userHasAnswer = hasUserProvidedAnswer(message);
+    // Build OpenRouter messages with optional image
+    const userContent = hasImage
+      ? [
+          { type: "text", text: userText },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ]
+      : userText;
 
-    const sys = systemPrompt({
-      role,
-      country,
-      level,
-      subject,
-      topic,
-      action,
-      attemptIndex,
-      responseStyle,
-      userHasAnswer,
-    });
-
-    const history = Array.isArray(req.body?.messages) ? req.body.messages : [];
-    const lastFew = history.slice(-10).map((m) => ({
-      role: m?.from === "user" ? "user" : "assistant",
-      content: clampStr(m?.text || "", 1800),
-    }));
-
-    const payload = {
-      model: "openai/gpt-4o-mini",
+    // Primary call
+    let { ok, data } = await callOpenRouter({
+      apiKey,
       messages: [
         { role: "system", content: sys },
-        ...lastFew,
-        { role: "user", content: message },
+        { role: "user", content: userContent },
       ],
-      temperature: 0.25,
-      max_tokens: 900,
-    };
-
-    const resp = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openrouterKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost",
-        "X-Title": "Elora",
-      },
-      body: JSON.stringify(payload),
     });
 
-    const data = await resp.json().catch(() => null);
-    if (!resp.ok) {
+    if (!ok) {
       const msg = data?.error?.message || data?.error || "AI request failed.";
       return res.status(500).json({ error: String(msg) });
     }
 
-    const replyRaw = data?.choices?.[0]?.message?.content || "";
-    const reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
+    let replyRaw = data?.choices?.[0]?.message?.content || "";
+    let reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
 
-    return res.status(200).json({
-      reply,
-      meta: {
-        verified,
-        serverRole,
-        email,
-        teacher,
-        actionUsed: action,
-      },
-    });
+    // Enforce attempt gating for Student+Check
+    if (role === "student" && action === "check" && attempt > 0 && attempt < 3) {
+      if (looksLikeAnswerLeak(reply)) {
+        // One rewrite attempt: remove final answer / numeric result leakage
+        const rewriteSys =
+          sys +
+          `\nRewrite rule:\n- Rewrite your previous reply so it contains NO final numeric answer and NO "the answer is". Keep only hints and next-step guidance.`;
+        const rewriteUser = `Rewrite this response to follow the attempt policy strictly (no final answer):\n\n${reply}`;
+
+        const second = await callOpenRouter({
+          apiKey,
+          messages: [
+            { role: "system", content: rewriteSys },
+            { role: "user", content: rewriteUser },
+          ],
+        });
+
+        if (second.ok) {
+          const r2 = second.data?.choices?.[0]?.message?.content || "";
+          reply = stripMarkdownToPlainText(normalizeMathToPlainText(r2));
+        } else {
+          // Failsafe (still helpful, no leakage)
+          reply =
+            "Not quite ❌\n" +
+            "I can’t reveal the final answer yet.\n\n" +
+            "Here’s a hint:\n" +
+            "- Recheck your first step carefully and write down what you did.\n" +
+            "- Tell me your next step (not the final answer), and I’ll guide you.";
+        }
+      }
+    }
+
+    return res.status(200).json({ reply });
   } catch (e) {
-    return res.status(500).json({ error: "Unexpected server error." });
+    // Keep error simple (no secret leaks)
+    return res.status(500).json({ error: "Assistant failed. Try again." });
   }
 }

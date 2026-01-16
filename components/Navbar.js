@@ -102,7 +102,6 @@ export default function Navbar() {
   );
 
   const verified = Boolean(session?.verified);
-  const teacher = Boolean(session?.teacher);
 
   const dotClass = verified
     ? "elora-dot elora-dot-good"
@@ -180,12 +179,6 @@ export default function Navbar() {
                     </Link>
                   )}
 
-                  {teacher && (
-                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setMobileOpen(false)}>
-                      Teacher tools
-                    </Link>
-                  )}
-
                   {canLogout && (
                     <>
                       <div className="elora-divider" />
@@ -218,12 +211,6 @@ export default function Navbar() {
                   {!verified && (
                     <Link className="elora-account-item" href="/verify" onClick={() => setAccountOpen(false)}>
                       Verify email
-                    </Link>
-                  )}
-
-                  {teacher && (
-                    <Link className="elora-account-item" href="/dashboard/educator" onClick={() => setAccountOpen(false)}>
-                      Teacher tools
                     </Link>
                   )}
 

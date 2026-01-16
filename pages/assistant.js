@@ -10,6 +10,18 @@ import {
   refreshVerifiedFromServer,
   setGuest as storeGuest,
 } from "../lib/session";
+import {
+  clearThread,
+  createThread,
+  deleteThread,
+  ensureThreadsForUser,
+  getActiveThreadId,
+  getChatUserKey,
+  getThreadMessages,
+  listThreads,
+  setActiveThreadId,
+  upsertThreadMessages,
+} from "../lib/chatThreads";
 
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
@@ -322,7 +334,15 @@ export default function AssistantPage() {
   const [customStyleText, setCustomStyleText] = useState("");
 
   const [action, setAction] = useState(() => session?.action || "explain");
-  const [messages, setMessages] = useState(() => session?.messages || []);
+
+  // Threaded chat state (local, multi-chat)
+  const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
+  const [activeChatId, setActiveChatId] = useState(() => getActiveThreadId(getChatUserKey(getSession())));
+  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
+
+  // Active messages (from the active thread)
+  const [messages, setMessages] = useState(() => getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession()))));
+
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -352,9 +372,13 @@ export default function AssistantPage() {
 
   const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
 
-  const hasEloraAnswer = useMemo(() => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()), [messages]);
+  const hasEloraAnswer = useMemo(
+    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
+    [messages]
+  );
   const canShowExports = verified && hasEloraAnswer;
 
+  // --- preview notice ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -384,6 +408,7 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
+  // --- session event updates ---
   useEffect(() => {
     function onSessionEvent() {
       const s = getSession();
@@ -398,7 +423,8 @@ export default function AssistantPage() {
       setSubject(s?.subject || "General");
       setTopic(s?.topic || "");
       setAction(s?.action || "explain");
-      setMessages(Array.isArray(s?.messages) ? s.messages : []);
+
+      // Messages are now thread-backed. Do NOT overwrite from session storage here.
     }
 
     if (typeof window !== "undefined") {
@@ -486,6 +512,9 @@ export default function AssistantPage() {
     }
   }
 
+  // Server chat endpoints store ONE chat. We only use them as:
+  // - a one-time import if user is verified and has no local chats yet
+  // - optional syncing of the currently active thread (safe, not required)
   async function saveServerChatIfVerified(currentSession, nextMessages) {
     try {
       if (!currentSession?.verified) return;
@@ -508,22 +537,47 @@ export default function AssistantPage() {
     }
   }
 
-  async function restoreServerChatIfVerified() {
+  async function restoreServerChatIfVerifiedIfEmpty(userKey, threadId) {
     try {
       const currentSession = getSession();
       if (!currentSession?.verified) return;
+
+      const store = ensureThreadsForUser(userKey);
+      const onlyOneThread = Array.isArray(store?.threads) && store.threads.length === 1;
+      const activeMsgs = getThreadMessages(userKey, threadId);
+
+      // Only import if user has effectively no local history yet.
+      if (!onlyOneThread) return;
+      if (activeMsgs.length > 0) return;
+
       const r = await fetch("/api/chat/get", { cache: "no-store" });
       const data = await r.json().catch(() => null);
       const serverMsgs = Array.isArray(data?.messages) ? data.messages : null;
-      if (!serverMsgs) return;
+      if (!serverMsgs || serverMsgs.length === 0) return;
 
-      setMessages(serverMsgs);
-      await persistSessionPatch({ messages: serverMsgs });
+      upsertThreadMessages(userKey, threadId, serverMsgs);
+      setThreads(listThreads(userKey));
+      setMessages(getThreadMessages(userKey, threadId));
+
+      // Keep session in sync for compatibility
+      await persistSessionPatch({ activeChatId: threadId, messages: serverMsgs });
     } catch {
       // ignore
     }
   }
 
+  function syncThreadsState(userKey) {
+    const ensured = ensureThreadsForUser(userKey);
+    const nextActive = ensured?.activeId || getActiveThreadId(userKey);
+    setThreads(listThreads(userKey));
+    setActiveChatId(nextActive);
+    setMessages(getThreadMessages(userKey, nextActive));
+    // Keep session patch minimal + compatible (active messages)
+    persistSessionPatch({ activeChatId: nextActive, messages: getThreadMessages(userKey, nextActive) });
+    return nextActive;
+  }
+
+  // Init: refresh verification, then load threads for correct identity (guest vs verified email).
   useEffect(() => {
     let mounted = true;
 
@@ -538,9 +592,13 @@ export default function AssistantPage() {
       const allowed = getCountryLevels(s?.country || "Singapore");
       setLevel(allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1");
 
-      if (s?.verified) {
-        await restoreServerChatIfVerified();
-      }
+      const userKey = getChatUserKey(s);
+      setChatUserKey(userKey);
+
+      const active = syncThreadsState(userKey);
+
+      // If verified user has old server chat but no local threads, import once.
+      await restoreServerChatIfVerifiedIfEmpty(userKey, active);
     })();
 
     return () => {
@@ -548,6 +606,21 @@ export default function AssistantPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When verification/email changes, switch identity (Option A: guest chats stay separate)
+  useEffect(() => {
+    const s = getSession();
+    const nextKey = getChatUserKey(s);
+    if (nextKey === chatUserKey) return;
+
+    setChatUserKey(nextKey);
+    const active = syncThreadsState(nextKey);
+    restoreServerChatIfVerifiedIfEmpty(nextKey, active);
+    setAttempt(0);
+    setAttachedImage(null);
+    setAttachErr("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verified, session?.email]);
 
   useEffect(() => {
     persistSessionPatch({
@@ -560,6 +633,30 @@ export default function AssistantPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, country, level, subject, topic, action]);
+
+  function setActiveThreadAndLoad(nextId) {
+    const id = setActiveThreadId(chatUserKey, nextId);
+    setActiveChatId(id);
+    setThreads(listThreads(chatUserKey));
+    const msgs = getThreadMessages(chatUserKey, id);
+    setMessages(msgs);
+    setAttempt(0);
+    setAttachedImage(null);
+    setAttachErr("");
+    persistSessionPatch({ activeChatId: id, messages: msgs });
+  }
+
+  function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
+    upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
+    setThreads(listThreads(chatUserKey));
+    setMessages(nextMessages);
+    persistSessionPatch({ activeChatId, messages: nextMessages });
+
+    if (alsoSyncServer) {
+      const currentSession = getSession();
+      saveServerChatIfVerified(currentSession, nextMessages);
+    }
+  }
 
   async function callElora({ messageOverride, baseMessages }) {
     const currentSession = getSession();
@@ -582,6 +679,8 @@ export default function AssistantPage() {
         return;
       }
 
+      const attemptNext = role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
+
       const payload = {
         role,
         action,
@@ -592,7 +691,7 @@ export default function AssistantPage() {
         constraints,
         responseStyle,
         customStyleText,
-        attempt: role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0,
+        attempt: attemptNext,
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         imageDataUrl: attachedImage?.dataUrl || "",
@@ -608,21 +707,22 @@ export default function AssistantPage() {
 
       const data = await r.json().catch(() => null);
 
+      const base = Array.isArray(baseMessages) ? baseMessages : messages;
+
       if (!r.ok) {
         const err = data?.error || "Request failed.";
         if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
-        setMessages((prev) => [...prev, { from: "elora", text: String(err), ts: Date.now() }]);
+
+        const next = [...base, { from: "elora", text: String(err), ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
         return;
       }
 
       const out = cleanAssistantText(data?.reply || data?.text || data?.answer || "");
-      setMessages((prev) => {
-        const next = [...prev, { from: "elora", text: out, ts: Date.now() }];
-        persistSessionPatch({ messages: next });
-        saveServerChatIfVerified(currentSession, next);
-        return next;
-      });
+      const next = [...base, { from: "elora", text: out, ts: Date.now() }];
+
+      persistActiveMessages(next, { alsoSyncServer: true });
 
       if (role === "student" && action === "check") {
         setAttempt((a) => a + 1);
@@ -631,7 +731,8 @@ export default function AssistantPage() {
       setAttachedImage(null);
       setAttachErr("");
     } catch {
-      setMessages((prev) => [...prev, { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() }]);
+      const next = [...messages, { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: true });
     } finally {
       setChatText("");
       setLoading(false);
@@ -649,13 +750,11 @@ export default function AssistantPage() {
       await persistSessionPatch({ action: "check" });
     }
 
-    const currentSession = getSession();
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
-    setMessages(nextMessages);
-    persistSessionPatch({ messages: nextMessages });
-    await saveServerChatIfVerified(currentSession, nextMessages);
+    // Save user message to active thread immediately
+    persistActiveMessages(nextMessages, { alsoSyncServer: true });
 
     await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
   }
@@ -663,13 +762,15 @@ export default function AssistantPage() {
   async function exportLast(type) {
     const last = [...messages].reverse().find((m) => m?.from === "elora");
     if (!last?.text) {
-      setMessages((prev) => [...prev, { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() }]);
+      const next = [...messages, { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: false });
       return;
     }
 
     if (!verified) {
       setVerifyGateOpen(true);
-      setMessages((prev) => [...prev, { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() }]);
+      const next = [...messages, { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: false });
       return;
     }
 
@@ -700,13 +801,15 @@ export default function AssistantPage() {
         } else if (code) {
           err = `Export failed: ${code}`;
         }
-        setMessages((prev) => [...prev, { from: "elora", text: err, ts: Date.now() }]);
+        const next = [...messages, { from: "elora", text: err, ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
         return;
       }
 
       const blob = await r.blob();
       if (!blob || blob.size === 0) {
-        setMessages((prev) => [...prev, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }]);
+        const next = [...messages, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
         return;
       }
 
@@ -719,7 +822,8 @@ export default function AssistantPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      setMessages((prev) => [...prev, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }]);
+      const next = [...messages, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: false });
     }
   }
 
@@ -747,15 +851,11 @@ export default function AssistantPage() {
     };
 
     const refinement = map[chipId] || "Improve the answer.";
-    const currentSession = getSession();
 
     const userMsg = { from: "user", text: refinement, ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
-    setMessages(nextMessages);
-    persistSessionPatch({ messages: nextMessages });
-    await saveServerChatIfVerified(currentSession, nextMessages);
-
+    persistActiveMessages(nextMessages, { alsoSyncServer: true });
     await callElora({ messageOverride: refinement, baseMessages: nextMessages });
   }
 
@@ -817,8 +917,36 @@ export default function AssistantPage() {
       setAttachedImage(out);
     } catch (e) {
       const code = String(e?.message || "");
-      setAttachErr(code === "image_too_large" ? "That image is too large to send. Try a closer crop." : "Couldn’t attach that image. Try again.");
+      setAttachErr(
+        code === "image_too_large"
+          ? "That image is too large to send. Try a closer crop."
+          : "Couldn’t attach that image. Try again."
+      );
     }
+  }
+
+  function onNewChat() {
+    const { id } = createThread(chatUserKey);
+    setActiveChatId(id);
+    setThreads(listThreads(chatUserKey));
+    setMessages([]);
+    setAttempt(0);
+    setAttachedImage(null);
+    setAttachErr("");
+    persistSessionPatch({ activeChatId: id, messages: [] });
+  }
+
+  function onDeleteCurrentChat() {
+    // optional: not exposed by default; kept for future if needed
+    const currentId = activeChatId;
+    deleteThread(chatUserKey, currentId);
+    const nextActive = getActiveThreadId(chatUserKey);
+    setActiveChatId(nextActive);
+    setThreads(listThreads(chatUserKey));
+    const msgs = getThreadMessages(chatUserKey, nextActive);
+    setMessages(msgs);
+    setAttempt(0);
+    persistSessionPatch({ activeChatId: nextActive, messages: msgs });
   }
 
   return (
@@ -937,66 +1065,51 @@ export default function AssistantPage() {
                     className="mt-2 w-full resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </div>
-              </div>
 
-              {/* Mode */}
-              <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Mode</div>
-                <div className="mt-2 grid gap-2">
-                  {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
-                    const teacherOnly = ["lesson", "worksheet", "assessment", "slides"].includes(a.id);
-                    const disabled = teacherOnly && !teacher;
+                <div className="mt-5">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Mode</div>
+                  <div className="mt-2 grid gap-2">
+                    {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
+                      const active = a.id === action;
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => setAction(a.id)}
+                          className={cn(
+                            "rounded-2xl border px-4 py-3 text-left transition",
+                            active
+                              ? "border-indigo-500/40 bg-indigo-600 text-white shadow-lg shadow-indigo-500/15"
+                              : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
+                          )}
+                        >
+                          <div className="text-sm font-extrabold">{a.label}</div>
+                          <div className={cn("mt-1 text-xs font-bold", active ? "text-white/90" : "text-slate-600 dark:text-slate-400")}>
+                            {a.hint}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => {
-                          if (role === "educator" && !verified) {
-                            setVerifyGateOpen(true);
-                            return;
-                          }
-                          if (disabled) {
-                            setTeacherGateOpen(true);
-                            return;
-                          }
-                          setAction(a.id);
-                        }}
-                        className={cn(
-                          "rounded-xl border p-3 text-left transition",
-                          action === a.id
-                            ? "border-indigo-500/40 bg-indigo-600/10"
-                            : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 hover:bg-white dark:hover:bg-slate-950/35",
-                          disabled ? "opacity-70" : ""
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-extrabold text-slate-950 dark:text-white">{a.label}</div>
-                          {disabled ? (
-                            <span className="text-xs font-bold text-amber-700 dark:text-amber-200">Locked</span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{a.hint}</div>
-                      </button>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const currentSession = getSession();
+                      clearThread(chatUserKey, activeChatId);
+                      setMessages([]);
+                      setAttempt(0);
+                      await persistSessionPatch({ activeChatId, messages: [] });
+                      await clearServerChatIfVerified(currentSession);
+                      setAttachedImage(null);
+                      setAttachErr("");
+                      setThreads(listThreads(chatUserKey));
+                    }}
+                    className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                  >
+                    Clear current chat
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const currentSession = getSession();
-                    setMessages([]);
-                    setAttempt(0);
-                    await persistSessionPatch({ messages: [] });
-                    await clearServerChatIfVerified(currentSession);
-                    setAttachedImage(null);
-                    setAttachErr("");
-                  }}
-                  className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                >
-                  Clear chat
-                </button>
               </div>
             </div>
 
@@ -1012,6 +1125,32 @@ export default function AssistantPage() {
                         Attempts: {Math.min(3, attempt)}/3
                       </span>
                     ) : null}
+                  </div>
+
+                  {/* Chat selector (small, clean) */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400">Chat</div>
+                    <select
+                      value={activeChatId}
+                      onChange={(e) => setActiveThreadAndLoad(e.target.value)}
+                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200"
+                      aria-label="Select chat"
+                    >
+                      {threads.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title || "New chat"}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-indigo-700"
+                      title="Start a new chat"
+                    >
+                      New chat
+                    </button>
                   </div>
                 </div>
 

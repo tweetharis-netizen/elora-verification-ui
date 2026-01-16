@@ -13,13 +13,15 @@ import {
 import {
   clearThread,
   createThread,
-  deleteThread,
   ensureThreadsForUser,
   getActiveThreadId,
   getChatUserKey,
   getThreadMessages,
+  getThreadMeta,
   listThreads,
+  renameThread,
   setActiveThreadId,
+  togglePinThread,
   upsertThreadMessages,
 } from "../lib/chatThreads";
 
@@ -264,7 +266,6 @@ function getCountryLevels(country) {
     ];
   }
 
-  // Other / fallback (kept simple)
   return ["Primary", "Secondary", "Pre-U", "University", "Adult learning"];
 }
 
@@ -319,7 +320,6 @@ export default function AssistantPage() {
   const [session, setSession] = useState(() => getSession());
   const verified = Boolean(session?.verified);
   const teacher = Boolean(isTeacher());
-  const guest = Boolean(session?.guest);
 
   const [role, setRole] = useState(() => session?.role || "student");
   const [country, setCountry] = useState(() => session?.country || "Singapore");
@@ -335,13 +335,24 @@ export default function AssistantPage() {
 
   const [action, setAction] = useState(() => session?.action || "explain");
 
-  // Threaded chat state (local, multi-chat)
+  // Threaded chat state
   const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
-  const [activeChatId, setActiveChatId] = useState(() => getActiveThreadId(getChatUserKey(getSession())));
+  const [activeChatId, setActiveChatIdState] = useState(() =>
+    getActiveThreadId(getChatUserKey(getSession()))
+  );
   const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
 
-  // Active messages (from the active thread)
-  const [messages, setMessages] = useState(() => getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession()))));
+  const [messages, setMessages] = useState(() =>
+    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())))
+  );
+
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const chatMenuRef = useRef(null);
+
+  const activeMeta = useMemo(() => getThreadMeta(chatUserKey, activeChatId), [chatUserKey, activeChatId, threads]);
+
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -378,7 +389,23 @@ export default function AssistantPage() {
   );
   const canShowExports = verified && hasEloraAnswer;
 
-  // --- preview notice ---
+  const pinnedThreads = useMemo(() => threads.filter((t) => t.pinned), [threads]);
+  const recentThreads = useMemo(() => threads.filter((t) => !t.pinned), [threads]);
+
+  // Close chat menu on outside click
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function onDown(e) {
+      if (!chatMenuRef.current) return;
+      if (!chatMenuRef.current.contains(e.target)) setChatMenuOpen(false);
+    }
+
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, []);
+
+  // Preview notice persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -408,7 +435,7 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
-  // --- session event updates ---
+  // Session events
   useEffect(() => {
     function onSessionEvent() {
       const s = getSession();
@@ -423,8 +450,6 @@ export default function AssistantPage() {
       setSubject(s?.subject || "General");
       setTopic(s?.topic || "");
       setAction(s?.action || "explain");
-
-      // Messages are now thread-backed. Do NOT overwrite from session storage here.
     }
 
     if (typeof window !== "undefined") {
@@ -512,9 +537,7 @@ export default function AssistantPage() {
     }
   }
 
-  // Server chat endpoints store ONE chat. We only use them as:
-  // - a one-time import if user is verified and has no local chats yet
-  // - optional syncing of the currently active thread (safe, not required)
+  // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
   async function saveServerChatIfVerified(currentSession, nextMessages) {
     try {
       if (!currentSession?.verified) return;
@@ -537,47 +560,20 @@ export default function AssistantPage() {
     }
   }
 
-  async function restoreServerChatIfVerifiedIfEmpty(userKey, threadId) {
-    try {
-      const currentSession = getSession();
-      if (!currentSession?.verified) return;
-
-      const store = ensureThreadsForUser(userKey);
-      const onlyOneThread = Array.isArray(store?.threads) && store.threads.length === 1;
-      const activeMsgs = getThreadMessages(userKey, threadId);
-
-      // Only import if user has effectively no local history yet.
-      if (!onlyOneThread) return;
-      if (activeMsgs.length > 0) return;
-
-      const r = await fetch("/api/chat/get", { cache: "no-store" });
-      const data = await r.json().catch(() => null);
-      const serverMsgs = Array.isArray(data?.messages) ? data.messages : null;
-      if (!serverMsgs || serverMsgs.length === 0) return;
-
-      upsertThreadMessages(userKey, threadId, serverMsgs);
-      setThreads(listThreads(userKey));
-      setMessages(getThreadMessages(userKey, threadId));
-
-      // Keep session in sync for compatibility
-      await persistSessionPatch({ activeChatId: threadId, messages: serverMsgs });
-    } catch {
-      // ignore
-    }
-  }
-
   function syncThreadsState(userKey) {
     const ensured = ensureThreadsForUser(userKey);
     const nextActive = ensured?.activeId || getActiveThreadId(userKey);
+
     setThreads(listThreads(userKey));
-    setActiveChatId(nextActive);
-    setMessages(getThreadMessages(userKey, nextActive));
-    // Keep session patch minimal + compatible (active messages)
-    persistSessionPatch({ activeChatId: nextActive, messages: getThreadMessages(userKey, nextActive) });
+    setActiveChatIdState(nextActive);
+    const nextMsgs = getThreadMessages(userKey, nextActive);
+    setMessages(nextMsgs);
+
+    persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
     return nextActive;
   }
 
-  // Init: refresh verification, then load threads for correct identity (guest vs verified email).
+  // Init: refresh verification, then load threads for correct identity (guest vs verified)
   useEffect(() => {
     let mounted = true;
 
@@ -595,10 +591,7 @@ export default function AssistantPage() {
       const userKey = getChatUserKey(s);
       setChatUserKey(userKey);
 
-      const active = syncThreadsState(userKey);
-
-      // If verified user has old server chat but no local threads, import once.
-      await restoreServerChatIfVerifiedIfEmpty(userKey, active);
+      syncThreadsState(userKey);
     })();
 
     return () => {
@@ -607,18 +600,18 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When verification/email changes, switch identity (Option A: guest chats stay separate)
+  // When verification/email changes, switch identity (guest chats stay separate from verified)
   useEffect(() => {
     const s = getSession();
     const nextKey = getChatUserKey(s);
     if (nextKey === chatUserKey) return;
 
     setChatUserKey(nextKey);
-    const active = syncThreadsState(nextKey);
-    restoreServerChatIfVerifiedIfEmpty(nextKey, active);
+    syncThreadsState(nextKey);
     setAttempt(0);
     setAttachedImage(null);
     setAttachErr("");
+    setChatMenuOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verified, session?.email]);
 
@@ -636,13 +629,15 @@ export default function AssistantPage() {
 
   function setActiveThreadAndLoad(nextId) {
     const id = setActiveThreadId(chatUserKey, nextId);
-    setActiveChatId(id);
+    setActiveChatIdState(id);
     setThreads(listThreads(chatUserKey));
     const msgs = getThreadMessages(chatUserKey, id);
     setMessages(msgs);
     setAttempt(0);
     setAttachedImage(null);
     setAttachErr("");
+    setChatMenuOpen(false);
+
     persistSessionPatch({ activeChatId: id, messages: msgs });
   }
 
@@ -753,23 +748,27 @@ export default function AssistantPage() {
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
-    // Save user message to active thread immediately
     persistActiveMessages(nextMessages, { alsoSyncServer: true });
-
     await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
   }
 
   async function exportLast(type) {
     const last = [...messages].reverse().find((m) => m?.from === "elora");
     if (!last?.text) {
-      const next = [...messages, { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() }];
+      const next = [
+        ...messages,
+        { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() },
+      ];
       persistActiveMessages(next, { alsoSyncServer: false });
       return;
     }
 
     if (!verified) {
       setVerifyGateOpen(true);
-      const next = [...messages, { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() }];
+      const next = [
+        ...messages,
+        { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() },
+      ];
       persistActiveMessages(next, { alsoSyncServer: false });
       return;
     }
@@ -927,26 +926,31 @@ export default function AssistantPage() {
 
   function onNewChat() {
     const { id } = createThread(chatUserKey);
-    setActiveChatId(id);
+    setActiveChatIdState(id);
     setThreads(listThreads(chatUserKey));
     setMessages([]);
     setAttempt(0);
     setAttachedImage(null);
     setAttachErr("");
+    setChatMenuOpen(false);
     persistSessionPatch({ activeChatId: id, messages: [] });
   }
 
-  function onDeleteCurrentChat() {
-    // optional: not exposed by default; kept for future if needed
-    const currentId = activeChatId;
-    deleteThread(chatUserKey, currentId);
-    const nextActive = getActiveThreadId(chatUserKey);
-    setActiveChatId(nextActive);
+  function onTogglePin() {
+    togglePinThread(chatUserKey, activeChatId);
     setThreads(listThreads(chatUserKey));
-    const msgs = getThreadMessages(chatUserKey, nextActive);
-    setMessages(msgs);
-    setAttempt(0);
-    persistSessionPatch({ activeChatId: nextActive, messages: msgs });
+  }
+
+  function onOpenRename() {
+    setRenameValue(String(activeMeta?.title || "New chat"));
+    setRenameOpen(true);
+    setChatMenuOpen(false);
+  }
+
+  function onConfirmRename() {
+    renameThread(chatUserKey, activeChatId, renameValue);
+    setThreads(listThreads(chatUserKey));
+    setRenameOpen(false);
   }
 
   return (
@@ -987,14 +991,16 @@ export default function AssistantPage() {
                   </Link>
                 </div>
                 <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-3">
-                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">{ROLE_LABEL[role] || "Student"}</div>
+                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                    {ROLE_LABEL[role] || "Student"}
+                  </div>
                   <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                     Elora adapts automatically. Change role in Settings.
                   </div>
                 </div>
               </div>
 
-              {/* Country + level (country-specific) */}
+              {/* Country + level */}
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-sm font-bold text-slate-900 dark:text-white">Country</div>
@@ -1115,6 +1121,7 @@ export default function AssistantPage() {
 
             {/* RIGHT */}
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]">
+              {/* Title + meta */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
@@ -1126,55 +1133,156 @@ export default function AssistantPage() {
                       </span>
                     ) : null}
                   </div>
-
-                  {/* Chat selector (small, clean) */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400">Chat</div>
-                    <select
-                      value={activeChatId}
-                      onChange={(e) => setActiveThreadAndLoad(e.target.value)}
-                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200"
-                      aria-label="Select chat"
-                    >
-                      {threads.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title || "New chat"}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={onNewChat}
-                      className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-indigo-700"
-                      title="Start a new chat"
-                    >
-                      New chat
-                    </button>
-                  </div>
                 </div>
-
-                {hasEloraAnswer ? (
-                  <div className="flex flex-wrap gap-2">
-                    {refinementChips.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        disabled={loading}
-                        onClick={() => applyRefinement(c.id)}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
-                          "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
-                          loading ? "opacity-50 cursor-not-allowed" : ""
-                        )}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
+              {/* Chat header bar (ChatGPT-inspired) */}
+              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/75 dark:bg-slate-950/20 px-3 py-2 flex items-center justify-between gap-2">
+                <div className="relative" ref={chatMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setChatMenuOpen((v) => !v)}
+                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/40 border border-transparent"
+                    aria-haspopup="menu"
+                    aria-expanded={chatMenuOpen ? "true" : "false"}
+                    title="Switch chats"
+                  >
+                    <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
+                    <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
+                    <span className="text-slate-500 dark:text-slate-400">▾</span>
+                  </button>
+
+                  {chatMenuOpen ? (
+                    <div
+                      className="absolute z-50 mt-2 w-[320px] max-w-[85vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
+                      role="menu"
+                    >
+                      {pinnedThreads.length ? (
+                        <div className="px-3 pt-3 pb-2">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            Pinned
+                          </div>
+                          <div className="mt-2 grid gap-1">
+                            {pinnedThreads.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setActiveThreadAndLoad(t.id)}
+                                className={cn(
+                                  "w-full text-left rounded-xl px-3 py-2 text-sm font-bold border transition",
+                                  t.id === activeChatId
+                                    ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                    : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{t.pinned ? "★" : "☆"}</span>
+                                  <span className="truncate">{t.title || "New chat"}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="px-3 pt-3 pb-3">
+                        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          Recent
+                        </div>
+                        <div className="mt-2 grid gap-1">
+                          {recentThreads.map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setActiveThreadAndLoad(t.id)}
+                              className={cn(
+                                "w-full text-left rounded-xl px-3 py-2 text-sm font-bold border transition",
+                                t.id === activeChatId
+                                  ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                  : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{t.pinned ? "★" : "☆"}</span>
+                                <span className="truncate">{t.title || "New chat"}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={onNewChat}
+                          className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                        >
+                          New chat
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onOpenRename}
+                          className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        >
+                          Rename
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onTogglePin}
+                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                    aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                  >
+                    {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onOpenRename}
+                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                  >
+                    Rename
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onNewChat}
+                    className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                    title="Start a new chat"
+                  >
+                    New
+                  </button>
+                </div>
+              </div>
+
+              {/* Refinement chips (kept clean, below chat bar) */}
+              {hasEloraAnswer ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {refinementChips.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => applyRefinement(c.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
+                        "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
+                        loading ? "opacity-50 cursor-not-allowed" : ""
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Preview notice */}
               {!verified && !dismissPreviewNotice ? (
                 <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
@@ -1213,7 +1321,18 @@ export default function AssistantPage() {
                 </div>
               ) : null}
 
-              <div ref={listRef} onScroll={handleListScroll} className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative">
+              {/* Messages */}
+              <div
+                ref={listRef}
+                onScroll={() => {
+                  const el = listRef.current;
+                  if (!el) return;
+                  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+                  setStickToBottom(atBottom);
+                  setShowJump(!atBottom);
+                }}
+                className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative"
+              >
                 {!messages.length && !loading ? (
                   <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
                     <div className="text-sm font-extrabold text-slate-900 dark:text-white">Try one of these</div>
@@ -1229,7 +1348,9 @@ export default function AssistantPage() {
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">Tip: attach a photo if the question is long.</div>
+                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
+                      Tip: attach a photo if the question is long.
+                    </div>
                   </div>
                 ) : null}
 
@@ -1283,9 +1404,12 @@ export default function AssistantPage() {
                 ) : null}
               </div>
 
+              {/* Export */}
               {canShowExports ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">Export last answer:</div>
+                  <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">
+                    Export last answer:
+                  </div>
 
                   <button
                     type="button"
@@ -1316,8 +1440,13 @@ export default function AssistantPage() {
                 </div>
               ) : null}
 
+              {/* Composer */}
               <div className="mt-4">
-                {attachErr ? <div className="mb-2 text-xs font-extrabold text-amber-700 dark:text-amber-200">{attachErr}</div> : null}
+                {attachErr ? (
+                  <div className="mb-2 text-xs font-extrabold text-amber-700 dark:text-amber-200">
+                    {attachErr}
+                  </div>
+                ) : null}
 
                 {attachedImage ? (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1395,6 +1524,43 @@ export default function AssistantPage() {
         </div>
       </div>
 
+      {/* Rename modal */}
+      <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Give this chat a short name so it’s easy to find later.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Chat title</label>
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., Fractions practice"
+            maxLength={60}
+          />
+          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Max 60 characters.</div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onConfirmRename}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setRenameOpen(false)}
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
+
+      {/* Verification gate */}
       <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Educator mode and exports are locked behind verification. You can still preview Student/Parent modes.
@@ -1422,6 +1588,7 @@ export default function AssistantPage() {
         </div>
       </Modal>
 
+      {/* Teacher gate */}
       <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
         <div className="text-sm text-slate-700 dark:text-slate-200">
           Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
@@ -1435,7 +1602,9 @@ export default function AssistantPage() {
             className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
             placeholder="e.g., GENESIS2026"
           />
-          {teacherGateStatus ? <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div> : null}
+          {teacherGateStatus ? (
+            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{teacherGateStatus}</div>
+          ) : null}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

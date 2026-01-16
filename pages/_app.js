@@ -16,6 +16,56 @@ const fraunces = Fraunces({
   variable: "--elora-font-serif",
 });
 
+/**
+ * Prevent demo confusion: Vercel preview deployment URLs (hashes) are a different domain,
+ * so cookies won't carry over. We always redirect *.vercel.app previews to the canonical
+ * production URL (NEXT_PUBLIC_SITE_URL).
+ *
+ * This does NOT affect localhost or future custom domains.
+ */
+function maybeRedirectToCanonical() {
+  if (typeof window === "undefined") return false;
+
+  const canonical = String(process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+  if (!canonical) return false;
+
+  let canonicalHost = "";
+  let canonicalOrigin = "";
+  try {
+    const u = new URL(canonical);
+    canonicalHost = u.host;
+    canonicalOrigin = u.origin;
+  } catch {
+    return false;
+  }
+
+  const currentHost = window.location.host;
+
+  // Never redirect local dev
+  if (
+    currentHost.includes("localhost") ||
+    currentHost.startsWith("127.0.0.1") ||
+    currentHost.startsWith("0.0.0.0")
+  ) {
+    return false;
+  }
+
+  // Already on canonical
+  if (currentHost === canonicalHost) return false;
+
+  // Only redirect Vercel preview domains -> canonical Vercel prod domain
+  const isVercelHost = currentHost.endsWith(".vercel.app");
+  const canonicalIsVercel = canonicalHost.endsWith(".vercel.app");
+  if (!isVercelHost || !canonicalIsVercel) return false;
+
+  const nextUrl =
+    canonicalOrigin + window.location.pathname + window.location.search + window.location.hash;
+
+  // Use replace so "Back" doesn't return to the preview URL
+  window.location.replace(nextUrl);
+  return true;
+}
+
 function applyThemeAndScale() {
   if (typeof window === "undefined") return;
 
@@ -39,6 +89,10 @@ function applyThemeAndScale() {
 
 export default function App({ Component, pageProps }) {
   useEffect(() => {
+    // If user opened a Vercel preview URL, immediately redirect to the canonical demo URL.
+    const redirected = maybeRedirectToCanonical();
+    if (redirected) return;
+
     applyThemeAndScale();
     hydrateUI();
 

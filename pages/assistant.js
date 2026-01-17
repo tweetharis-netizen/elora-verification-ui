@@ -78,298 +78,635 @@ const REFINEMENT_CHIPS = {
     { id: "variants", label: "Add A/B versions" },
   ],
   assessment: [
-    { id: "easier", label: "Make it easier" },
+    { id: "markscheme", label: "Add mark scheme" },
+    { id: "variants", label: "Add variants" },
     { id: "harder", label: "Make it harder" },
-    { id: "rubric", label: "Add rubric" },
-    { id: "answers", label: "Add marking scheme" },
+    { id: "easier", label: "Make it easier" },
   ],
   slides: [
-    { id: "timing", label: "Add timings" },
-    { id: "questions", label: "Add questions" },
-    { id: "teacher", label: "Add teacher notes" },
-    { id: "visual", label: "Add visuals ideas" },
+    { id: "outline", label: "Tighten outline" },
+    { id: "hooks", label: "Add hook" },
+    { id: "examples", label: "Add examples" },
+    { id: "notes", label: "Add teacher notes" },
   ],
   check: [
-    { id: "steps", label: "Show steps" },
+    { id: "more-steps", label: "Show more steps" },
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
-    { id: "check", label: "Add a quick check question" },
+  ],
+  study: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "steps", label: "Show steps" },
+    { id: "check", label: "Add a check question" },
+  ],
+  coach: [
+    { id: "simpler", label: "Make it simpler" },
+    { id: "steps", label: "Give steps" },
+    { id: "check", label: "Add a check question" },
+  ],
+  message: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "simpler", label: "Make it simpler" },
   ],
   custom: [
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
     { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a quick check question" },
-  ],
-  study: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a quick check question" },
-  ],
-  coach: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a quick check question" },
-  ],
-  message: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a quick check question" },
   ],
 };
 
 const STARTER_PROMPTS = [
-  "Explain fractions simply with one example.",
+  "Explain fractions like I’m 10.",
   "Check my answer: 10 + 5 = 15",
   "Give me 1 Primary-level practice question and then check my answer.",
-  "Help me write a short essay plan.",
-  "Create a simple study plan for my test next week.",
 ];
 
-function cn(...parts) {
-  return parts.filter(Boolean).join(" ");
+const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
+
+function cn(...xs) {
+  return xs.filter(Boolean).join(" ");
 }
 
-function clampStr(v, max = 2000) {
-  if (typeof v !== "string") return "";
-  const s = v.trim();
-  return s.length <= max ? s : s.slice(0, max);
+function stripInternalTags(text) {
+  return String(text || "")
+    .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
+    .replace(/<\s*internal\s*\/\s*>/gi, "")
+    .replace(/<\s*internal\s*>/gi, "")
+    .trim();
 }
 
-function cleanAssistantText(t) {
-  return String(t || "").replace(/\s+\n/g, "\n").trim();
+function cleanAssistantText(text) {
+  let t = stripInternalTags(text || "");
+  t = t.replace(/```[\s\S]*?```/g, "");
+  t = t.replace(/`+/g, "");
+  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+  t = t.replace(/\*([^*]+)\*/g, "$1");
+  t = t.replace(/__([^_]+)__/g, "$1");
+  t = t.replace(/_([^_]+)_/g, "$1");
+  t = t.replace(/^\s*>\s?/gm, "");
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
+  t = t.replace(/\n{3,}/g, "\n\n").trim();
+  return t;
 }
 
-function safeJsonParse(str) {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return null;
+function inferActionFromMessage(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t.trim()) return null;
+
+  if (
+    t.includes("check my answer") ||
+    t.includes("is this correct") ||
+    t.includes("is it correct") ||
+    t.includes("am i correct") ||
+    t.includes("did i get it right") ||
+    t.includes("right or wrong") ||
+    t.includes("correct or not") ||
+    /\bmy answer\b/.test(t) ||
+    /\banswer\s*:\s*/.test(t) ||
+    /\b=\s*-?\d/.test(t)
+  ) {
+    return "check";
   }
+
+  if (t.includes("lesson plan")) return "lesson";
+  if (t.includes("worksheet")) return "worksheet";
+  if (t.includes("assessment") || t.includes("test") || t.includes("quiz")) return "assessment";
+  if (t.includes("slides") || t.includes("powerpoint")) return "slides";
+
+  return null;
 }
 
-function copyToClipboard(text, idx) {
-  try {
-    navigator.clipboard.writeText(text || "");
-  } catch {}
+function getCountryLevels(country) {
+  const c = String(country || "").toLowerCase();
+
+  if (c.includes("singapore")) {
+    return [
+      "Primary 1",
+      "Primary 2",
+      "Primary 3",
+      "Primary 4",
+      "Primary 5",
+      "Primary 6",
+      "Secondary 1",
+      "Secondary 2",
+      "Secondary 3",
+      "Secondary 4",
+      "Secondary 5",
+      "JC 1",
+      "JC 2",
+    ];
+  }
+
+  if (c.includes("united states") || c === "us" || c.includes("usa")) {
+    return [
+      "Grade 1",
+      "Grade 2",
+      "Grade 3",
+      "Grade 4",
+      "Grade 5",
+      "Grade 6",
+      "Grade 7",
+      "Grade 8",
+      "Grade 9",
+      "Grade 10",
+      "Grade 11",
+      "Grade 12",
+    ];
+  }
+
+  if (
+    c.includes("united kingdom") ||
+    c.includes("uk") ||
+    c.includes("britain") ||
+    c.includes("england")
+  ) {
+    return [
+      "Year 1",
+      "Year 2",
+      "Year 3",
+      "Year 4",
+      "Year 5",
+      "Year 6",
+      "Year 7",
+      "Year 8",
+      "Year 9",
+      "Year 10",
+      "Year 11",
+      "Year 12",
+      "Year 13",
+    ];
+  }
+
+  if (c.includes("australia")) {
+    return [
+      "Year 1",
+      "Year 2",
+      "Year 3",
+      "Year 4",
+      "Year 5",
+      "Year 6",
+      "Year 7",
+      "Year 8",
+      "Year 9",
+      "Year 10",
+      "Year 11",
+      "Year 12",
+    ];
+  }
+
+  if (c.includes("malaysia")) {
+    return [
+      "Standard 1",
+      "Standard 2",
+      "Standard 3",
+      "Standard 4",
+      "Standard 5",
+      "Standard 6",
+      "Form 1",
+      "Form 2",
+      "Form 3",
+      "Form 4",
+      "Form 5",
+    ];
+  }
+
+  return ["Primary", "Secondary", "Pre-U", "University", "Adult learning"];
+}
+
+async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = {}) {
+  const readAsDataUrl = (f) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(f);
+    });
+
+  const rawUrl = await readAsDataUrl(file);
+
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("image_decode_failed"));
+    i.src = rawUrl;
+  });
+
+  const w = img.width || 1;
+  const h = img.height || 1;
+
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const outW = Math.max(1, Math.round(w * scale));
+  const outH = Math.max(1, Math.round(h * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) throw new Error("canvas_failed");
+  ctx.drawImage(img, 0, 0, outW, outH);
+
+  const outMime = "image/jpeg";
+  const outUrl = canvas.toDataURL(outMime, quality);
+
+  if (outUrl.length > 6_000_000) {
+    const smaller = canvas.toDataURL(outMime, 0.68);
+    if (smaller.length > 6_000_000) throw new Error("image_too_large");
+    return { dataUrl: smaller, mime: outMime, name: file.name || "image.jpg" };
+  }
+
+  return { dataUrl: outUrl, mime: outMime, name: file.name || "image.jpg" };
 }
 
 export default function AssistantPage() {
   const router = useRouter();
 
-  const [booted, setBooted] = useState(false);
-  const [verified, setVerified] = useState(false);
-  const [teacher, setTeacher] = useState(false);
-  const [email, setEmail] = useState("");
+  const [session, setSession] = useState(() => getSession());
+  const verified = Boolean(session?.verified);
+  const teacher = Boolean(isTeacher());
 
-  const [role, setRole] = useState("student");
-  const [country, setCountry] = useState("Singapore");
-  const [level, setLevel] = useState("Primary 6");
-  const [subject, setSubject] = useState("General");
-  const [topic, setTopic] = useState("");
+  const canManageChats = verified;
+
+  const [role, setRole] = useState(() => session?.role || "student");
+  const [country, setCountry] = useState(() => session?.country || "Singapore");
+
+  const countryLevels = useMemo(() => getCountryLevels(country), [country]);
+  const [level, setLevel] = useState(() => session?.level || countryLevels[0] || "Primary 1");
+
+  const [subject, setSubject] = useState(() => session?.subject || "General");
+  const [topic, setTopic] = useState(() => session?.topic || "");
   const [constraints, setConstraints] = useState("");
-  const [style, setStyle] = useState("standard");
-  const [action, setAction] = useState("explain");
+  const [responseStyle, setResponseStyle] = useState("standard");
+  const [customStyleText, setCustomStyleText] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [chatText, setChatText] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [attempt, setAttempt] = useState(0);
+  const [action, setAction] = useState(() => session?.action || "explain");
 
-  const [copiedIdx, setCopiedIdx] = useState(-1);
+  // Threaded chat state
+  const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
+  const [activeChatId, setActiveChatIdState] = useState(() =>
+    getActiveThreadId(getChatUserKey(getSession()))
+  );
+  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
 
-  const [attachErr, setAttachErr] = useState("");
-  const [attachedImage, setAttachedImage] = useState(null);
+  const [messages, setMessages] = useState(() =>
+    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())))
+  );
 
-  const [showJump, setShowJump] = useState(false);
-  const [stickToBottom, setStickToBottom] = useState(true);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const chatMenuRef = useRef(null);
 
-  const listRef = useRef(null);
-
-  const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
+  const activeMeta = useMemo(
+    () => getThreadMeta(chatUserKey, activeChatId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chatUserKey, activeChatId, threads]
+  );
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [threads, setThreads] = useState([]);
-  const [activeChatId, setActiveChatIdState] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
-  const chatUserKey = useMemo(() => getChatUserKey(email || "guest"), [email]);
+  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
+  const [teacherGateCode, setTeacherGateCode] = useState("");
+  const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
-  const activeMeta = useMemo(() => getThreadMeta(chatUserKey, activeChatId), [chatUserKey, activeChatId]);
-  const refinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain, [action]);
+  const listRef = useRef(null);
 
-  const pinnedThreads = useMemo(() => threads.filter((t) => t.pinned), [threads]);
-  const recentThreads = useMemo(() => threads.filter((t) => !t.pinned), [threads]);
+  const [stickToBottom, setStickToBottom] = useState(true);
+  const [showJump, setShowJump] = useState(false);
 
-  const hasEloraAnswer = useMemo(() => messages.some((m) => m.from === "elora"), [messages]);
+  const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(-1);
 
-  function persistSessionPatch(patch) {
-    const s = getSession();
-    const next = { ...s, ...(patch || {}) };
+  const fileInputRef = useRef(null);
+  const [attachedImage, setAttachedImage] = useState(null);
+  const [attachErr, setAttachErr] = useState("");
+
+  const teacherOnlyBlocked = useMemo(() => {
+    const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides"]);
+    return teacherOnly.has(action) && !teacher;
+  }, [action, teacher]);
+
+  const refinementChips = useMemo(
+    () => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain,
+    [action]
+  );
+
+  const hasEloraAnswer = useMemo(
+    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
+    [messages]
+  );
+  const canShowExports = verified && hasEloraAnswer;
+
+  const pinnedThreads = useMemo(
+    () => (canManageChats ? threads.filter((t) => t.pinned) : []),
+    [threads, canManageChats]
+  );
+  const recentThreads = useMemo(
+    () => (canManageChats ? threads.filter((t) => !t.pinned) : []),
+    [threads, canManageChats]
+  );
+
+  // Close chat menu on outside click
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function onDown(e) {
+      if (!chatMenuRef.current) return;
+      if (!chatMenuRef.current.contains(e.target)) setChatMenuOpen(false);
+    }
+
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, []);
+
+  // Preview notice persistence
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     try {
-      window.localStorage.setItem("elora_session_v1", JSON.stringify(next));
-      window.localStorage.setItem("elora_session", JSON.stringify(next));
+      const dismissed = window.localStorage.getItem(PREVIEW_DISMISS_KEY) === "true";
+      setDismissPreviewNotice(dismissed);
+    } catch {
+      setDismissPreviewNotice(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!verified) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(PREVIEW_DISMISS_KEY);
     } catch {}
-  }
+    setDismissPreviewNotice(false);
+  }, [verified]);
+
+  useEffect(() => {
+    // When country changes: ensure level is valid for that country.
+    const allowed = getCountryLevels(country);
+    if (!allowed.includes(level)) {
+      setLevel(allowed[0] || "Primary 1");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country]);
+
+  // Session events
+  useEffect(() => {
+    function onSessionEvent() {
+      const s = getSession();
+      setSession(s);
+      setRole(s?.role || "student");
+      setCountry(s?.country || "Singapore");
+
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
+      setLevel(nextLevel);
+
+      setSubject(s?.subject || "General");
+      setTopic(s?.topic || "");
+      setAction(s?.action || "explain");
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("elora:session", onSessionEvent);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("elora:session", onSessionEvent);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!(role === "student" && action === "check")) {
+      setAttempt(0);
+    }
+  }, [role, action]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    if (stickToBottom) el.scrollTop = el.scrollHeight;
+  }, [messages, loading, stickToBottom]);
 
   function jumpToLatest() {
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-    setShowJump(false);
     setStickToBottom(true);
+    setShowJump(false);
   }
 
-  useEffect(() => {
-    const s = getSession();
-    setRole(String(s.role || "student"));
-    setCountry(String(s.country || "Singapore"));
-    setLevel(String(s.level || "Primary 6"));
-    setSubject(String(s.subject || "General"));
-    setTopic(String(s.topicCustom || s.topicFixed || s.topic || ""));
-    setConstraints(String(s.constraints || s.extra || ""));
-    setStyle(String(s.style || "standard"));
-    setAction(String(s.task || s.action || "explain"));
-    setDismissPreviewNotice(Boolean(s.dismissPreviewNotice));
+  function dismissPreview() {
+    setDismissPreviewNotice(true);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(PREVIEW_DISMISS_KEY, "true");
+      } catch {}
+    }
+  }
 
-    setMessages(Array.isArray(s.messages) ? s.messages : []);
-    setAttempt(Number(s.attempt || 0) || 0);
+  async function copyToClipboard(text, idx) {
+    const value = String(text || "").trim();
+    if (!value) return;
 
-    setBooted(true);
-  }, []);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
 
-  useEffect(() => {
-    if (!booted) return;
+      setCopiedIdx(idx);
+      window.setTimeout(() => setCopiedIdx(-1), 900);
+    } catch {
+      // no-op
+    }
+  }
 
-    refreshVerifiedFromServer().then((st) => {
-      setVerified(Boolean(st.verified));
-      setEmail(String(st.email || ""));
-      setTeacher(Boolean(st.teacher));
-    });
+  async function persistSessionPatch(patch) {
+    try {
+      await fetch("/api/session/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch {
+      // ignore
+    }
+  }
 
-    setTeacher(Boolean(isTeacher()));
-  }, [booted]);
+  // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
+  async function saveServerChatIfVerified(currentSession, nextMessages) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+    } catch {
+      // ignore
+    }
+  }
 
-  useEffect(() => {
-    if (!booted) return;
+  async function clearServerChatIfVerified(currentSession) {
+    try {
+      if (!currentSession?.verified) return;
+      await fetch("/api/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
+    }
+  }
 
-    ensureThreadsForUser(chatUserKey);
+  function syncThreadsState(userKey) {
+    const ensured = ensureThreadsForUser(userKey);
+    const nextActive = ensured?.activeId || getActiveThreadId(userKey);
 
-    const preferred = getActiveThreadId(chatUserKey);
-    const s = getSession();
-    const preferredFromSession = String(s.activeChatId || "");
-    const nextActive = preferredFromSession || preferred;
-
+    setThreads(listThreads(userKey));
     setActiveChatIdState(nextActive);
 
-    const t = listThreads(chatUserKey);
-    setThreads(t);
+    const nextMsgs = getThreadMessages(userKey, nextActive);
+    setMessages(nextMsgs);
 
-    const m = getThreadMessages(chatUserKey, nextActive);
-    setMessages(Array.isArray(m) ? m : []);
+    persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
+    return nextActive;
+  }
 
-    if (stickToBottom) {
-      setTimeout(() => jumpToLatest(), 0);
-    }
+  // Init: refresh verification, then load threads for correct identity (guest vs verified)
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      await refreshVerifiedFromServer();
+      if (!mounted) return;
+
+      const s = getSession();
+      setSession(s);
+      setRole(s?.role || "student");
+
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      setLevel(allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1");
+
+      const userKey = getChatUserKey(s);
+      setChatUserKey(userKey);
+
+      syncThreadsState(userKey);
+    })();
+
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booted, chatUserKey]);
+  }, []);
+
+  // When verification/email changes, switch identity (guest chats stay separate from verified)
+  useEffect(() => {
+    const s = getSession();
+    const nextKey = getChatUserKey(s);
+    if (nextKey === chatUserKey) return;
+
+    setChatUserKey(nextKey);
+    syncThreadsState(nextKey);
+    setAttempt(0);
+    setAttachedImage(null);
+    setAttachErr("");
+    setChatMenuOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verified, session?.email]);
 
   useEffect(() => {
-    if (!booted) return;
     persistSessionPatch({
       role,
       country,
       level,
       subject,
-      topicCustom: topic,
-      constraints,
-      style,
-      task: action,
+      topic,
+      action,
     });
-  }, [booted, role, country, level, subject, topic, constraints, style, action]);
-
-  useEffect(() => {
-    if (!booted) return;
-
-    upsertThreadMessages(chatUserKey, activeChatId, messages);
-    persistSessionPatch({ activeChatId, messages, attempt });
-
-    if (stickToBottom) {
-      setTimeout(() => jumpToLatest(), 0);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, attempt, activeChatId, booted, chatUserKey]);
+  }, [role, country, level, subject, topic, action]);
 
-  useEffect(() => {
-    if (copiedIdx === -1) return;
-    const t = setTimeout(() => setCopiedIdx(-1), 1000);
-    return () => clearTimeout(t);
-  }, [copiedIdx]);
-
-  function dismissPreview() {
-    setDismissPreviewNotice(true);
-    persistSessionPatch({ dismissPreviewNotice: true });
-  }
-
-  function setActiveThreadAndLoad(id) {
-    const threadId = String(id || "").trim();
-    if (!threadId) return;
-
-    setActiveThreadId(chatUserKey, threadId);
-    setActiveChatIdState(threadId);
-
-    const m = getThreadMessages(chatUserKey, threadId);
-    setMessages(Array.isArray(m) ? m : []);
+  function setActiveThreadAndLoad(nextId) {
+    const id = setActiveThreadId(chatUserKey, nextId);
+    setActiveChatIdState(id);
+    setThreads(listThreads(chatUserKey));
+    const msgs = getThreadMessages(chatUserKey, id);
+    setMessages(msgs);
     setAttempt(0);
-
     setAttachedImage(null);
     setAttachErr("");
-
     setChatMenuOpen(false);
-    persistSessionPatch({ activeChatId: threadId, messages: m, attempt: 0 });
+
+    persistSessionPatch({ activeChatId: id, messages: msgs });
   }
 
-  async function sendMessage(nextText, opts = {}) {
-    const raw = String(nextText || chatText || "");
-    const trimmed = raw.trim();
-
-    if (!trimmed && !attachedImage) return;
-    if (loading) return;
-
-    const nextAttempt = opts.bumpAttempt ? Math.min(3, (attempt || 0) + 1) : attempt || 0;
-
-    const userLine = trimmed || (attachedImage ? "[Attached an image]" : "");
-    const nextMessages = [
-      ...messages,
-      { from: "user", text: userLine, ts: Date.now() },
-    ];
-
+  function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
+    upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
+    setThreads(listThreads(chatUserKey));
     setMessages(nextMessages);
-    setChatText("");
-    setAttachErr("");
+    persistSessionPatch({ activeChatId, messages: nextMessages });
+
+    if (alsoSyncServer) {
+      const currentSession = getSession();
+      saveServerChatIfVerified(currentSession, nextMessages);
+    }
+  }
+
+  async function callElora({ messageOverride, baseMessages }) {
+    const currentSession = getSession();
+
+    const userText = String(messageOverride || chatText || "").trim();
+    if (!userText && !attachedImage?.dataUrl) return;
 
     setLoading(true);
 
     try {
+      if (role === "educator" && !currentSession?.verified) {
+        setVerifyGateOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      if (teacherOnlyBlocked) {
+        setTeacherGateOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      const attemptNext =
+        role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
+
       const payload = {
         role,
+        action,
         country,
         level,
         subject,
-        topic: clampStr(topic || "", 120),
-        constraints: clampStr(constraints || "", 250),
-        style,
-        action,
-        message: userLine,
-        attempt: nextAttempt,
-        messages: nextMessages.map((m) => ({ from: m.from, text: m.text })),
-        imageDataUrl: attachedImage || "",
+        topic,
+        constraints,
+        responseStyle,
+        customStyleText,
+        attempt: attemptNext,
+        message: userText,
+        messages: Array.isArray(baseMessages) ? baseMessages : messages,
+        imageDataUrl: attachedImage?.dataUrl || "",
+        imageMime: attachedImage?.mime || "",
+        imageName: attachedImage?.name || "",
       };
 
       const r = await fetch("/api/assistant", {
@@ -380,80 +717,86 @@ export default function AssistantPage() {
 
       const data = await r.json().catch(() => null);
 
+      const base = Array.isArray(baseMessages) ? baseMessages : messages;
+
       if (!r.ok) {
-        const msg = data?.error || "Something went wrong.";
-        setMessages((prev) => [...prev, { from: "elora", text: msg, ts: Date.now() }]);
+        const err = data?.error || "Request failed.";
+        if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
+
+        const next = [...base, { from: "elora", text: String(err), ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
-        setAttempt(nextAttempt);
-        setAttachedImage(null);
         return;
       }
 
-      const reply = String(data?.reply || "").trim() || "…";
-      setMessages((prev) => [...prev, { from: "elora", text: reply, ts: Date.now() }]);
-      setLoading(false);
-      setAttempt(nextAttempt);
+      const out = cleanAssistantText(data?.reply || data?.text || data?.answer || "");
+      const next = [...base, { from: "elora", text: out, ts: Date.now() }];
+
+      persistActiveMessages(next, { alsoSyncServer: true });
+
+      if (role === "student" && action === "check") {
+        setAttempt((a) => a + 1);
+      }
+
       setAttachedImage(null);
+      setAttachErr("");
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { from: "elora", text: "Assistant failed. Try again.", ts: Date.now() },
-      ]);
+      const next = [
+        ...messages,
+        { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() },
+      ];
+      persistActiveMessages(next, { alsoSyncServer: true });
+    } finally {
+      setChatText("");
       setLoading(false);
-      setAttempt(nextAttempt);
-      setAttachedImage(null);
     }
   }
 
-  function applyRefinement(kind) {
-    if (loading) return;
-    const lastUser = [...messages].reverse().find((m) => m.from === "user");
-    const lastElora = [...messages].reverse().find((m) => m.from === "elora");
-    const base = lastUser?.text || chatText || "";
+  async function sendChat() {
+    const trimmed = String(chatText || "").trim();
+    if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
-    let prompt = base;
-    if (kind === "simpler") prompt = `${base}\n\nMake it simpler.`;
-    if (kind === "example") prompt = `${base}\n\nAdd one clear example.`;
-    if (kind === "steps") prompt = `${base}\n\nShow short steps.`;
-    if (kind === "check") prompt = `${base}\n\nAdd a quick check question at the end.`;
-    if (kind === "diff") prompt = `${base}\n\nAdd differentiation (support + extension).`;
-    if (kind === "timing") prompt = `${base}\n\nAdd timing estimates.`;
-    if (kind === "resources") prompt = `${base}\n\nAdd resources needed.`;
-    if (kind === "answers") prompt = `${base}\n\nInclude teacher answers (if appropriate).`;
-    if (kind === "variants") prompt = `${base}\n\nInclude A/B variants.`;
-    if (kind === "rubric") prompt = `${base}\n\nAdd a simple rubric.`;
-    if (kind === "questions") prompt = `${base}\n\nAdd key questions to ask students.`;
-    if (kind === "teacher") prompt = `${base}\n\nAdd teacher notes.`;
-    if (kind === "visual") prompt = `${base}\n\nAdd ideas for visuals (no images needed).`;
-    if (kind === "easier") prompt = `${base}\n\nMake it easier.`;
-    if (kind === "harder") prompt = `${base}\n\nMake it harder.`;
-
-    if (!base && lastElora?.text) {
-      prompt = `${lastElora.text}\n\n${prompt}`;
+    const inferred = inferActionFromMessage(trimmed);
+    if (inferred === "check" && action !== "check") {
+      setAction("check");
+      setAttempt(0);
+      await persistSessionPatch({ action: "check" });
     }
 
-    sendMessage(prompt);
+    const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    persistActiveMessages(nextMessages, { alsoSyncServer: true });
+    await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
   }
 
-  async function onExport(kind) {
-    if (!verified) {
-      router.push("/verify");
+  async function exportLast(type) {
+    const last = [...messages].reverse().find((m) => m?.from === "elora");
+    if (!last?.text) {
+      const next = [
+        ...messages,
+        { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() },
+      ];
+      persistActiveMessages(next, { alsoSyncServer: false });
       return;
     }
 
-    const lastElora = [...messages].reverse().find((m) => m.from === "elora");
-    const content = String(lastElora?.text || "").trim();
-    if (!content) return;
+    if (!verified) {
+      setVerifyGateOpen(true);
+      const next = [
+        ...messages,
+        { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() },
+      ];
+      persistActiveMessages(next, { alsoSyncServer: false });
+      return;
+    }
 
     try {
       const endpoint =
-        kind === "pdf"
-          ? "/api/export-pdf"
-          : kind === "docx"
-          ? "/api/export-docx"
-          : "/api/export-pptx";
+        type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
 
-      const title = `Elora Export`;
+      const content = cleanAssistantText(last.text);
+      const title = type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
 
       const r = await fetch(endpoint, {
         method: "POST",
@@ -461,23 +804,149 @@ export default function AssistantPage() {
         body: JSON.stringify({ title, content }),
       });
 
-      if (!r.ok) return;
+      const ct = String(r.headers.get("content-type") || "");
+      if (!r.ok || ct.includes("application/json")) {
+        let err = `Export failed (HTTP ${r.status}).`;
+        let data = null;
+        try {
+          data = await r.json();
+        } catch {}
+        const code = String(data?.error || data?.message || "").trim();
+        if (r.status === 403 || code === "not_verified") {
+          setVerifyGateOpen(true);
+          err = "Export blocked: verify your email to unlock exports.";
+        } else if (code) {
+          err = `Export failed: ${code}`;
+        }
+        const next = [...messages, { from: "elora", text: err, ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
+        return;
+      }
 
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
+      if (!blob || blob.size === 0) {
+        const next = [...messages, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
+        return;
+      }
 
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = kind === "pdf" ? "Elora-Export.pdf" : kind === "docx" ? "Elora-Export.docx" : "Elora-Export.pptx";
+      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch {}
+    } catch {
+      const next = [...messages, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: false });
+    }
+  }
+
+  async function applyRefinement(chipId) {
+    const map = {
+      simpler: "Make it simpler and more beginner-friendly.",
+      example: "Add one clear example that matches the topic.",
+      steps: "Show the steps clearly (short).",
+      check: "Give one quick check question at the end.",
+      diff: "Add differentiation: easier + harder extension.",
+      timing: "Add a simple timeline with approximate minutes.",
+      resources: "Add a short list of materials/resources.",
+      easier: "Make it easier while keeping the same topic.",
+      harder: "Make it harder and add a challenge question.",
+      answers: "Add a teacher answer key after the questions.",
+      rubric: "Add a short marking guide/rubric.",
+      shorter: "Make it shorter and more direct.",
+      markscheme: "Include a clear marking scheme.",
+      variants: "Add two variants (A/B) with the same skills tested.",
+      outline: "Tighten the slide outline into clear sections.",
+      hooks: "Add 1-2 engaging hooks or questions for the start.",
+      examples: "Add more examples that students can relate to.",
+      notes: "Add short teacher notes for each section.",
+      "more-steps": "Add more steps and explain the reasoning clearly.",
+    };
+
+    const refinement = map[chipId] || "Improve the answer.";
+
+    const userMsg = { from: "user", text: refinement, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    persistActiveMessages(nextMessages, { alsoSyncServer: true });
+    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
+  }
+
+  async function validateAndActivateInvite(code) {
+    const trimmed = (code || "").trim();
+    setTeacherGateStatus("");
+
+    if (!trimmed) {
+      setTeacherGateStatus("Enter a code.");
+      return false;
+    }
+    if (!verified) {
+      setTeacherGateStatus("Verify your email first.");
+      return false;
+    }
+
+    try {
+      const act = await activateTeacher(trimmed);
+      if (!act?.ok) {
+        setTeacherGateStatus("Invalid code.");
+        return false;
+      }
+
+      await refreshVerifiedFromServer();
+      const s = getSession();
+      setSession(s);
+
+      if (isTeacher()) {
+        setTeacherGateStatus("Teacher role active ✅");
+        return true;
+      }
+
+      setTeacherGateStatus("Code accepted, but teacher role not active. Refresh and try again.");
+      return false;
+    } catch {
+      setTeacherGateStatus("Could not validate right now. Try again.");
+      return false;
+    }
+  }
+
+  async function onPickImage(file) {
+    setAttachErr("");
+    setAttachedImage(null);
+
+    if (!file) return;
+
+    if (!file.type || !file.type.startsWith("image/")) {
+      setAttachErr("Images only (PNG/JPG/WebP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAttachErr("That image is too large. Try a smaller photo (max 5MB).");
+      return;
+    }
+
+    try {
+      const out = await compressImageToDataUrl(file);
+      setAttachedImage(out);
+    } catch (e) {
+      const code = String(e?.message || "");
+      setAttachErr(
+        code === "image_too_large"
+          ? "That image is too large to send. Try a closer crop."
+          : "Couldn’t attach that image. Try again."
+      );
+    }
   }
 
   function onNewChat() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     const { id } = createThread(chatUserKey);
     setActiveChatIdState(id);
     setThreads(listThreads(chatUserKey));
@@ -490,23 +959,29 @@ export default function AssistantPage() {
   }
 
   function onTogglePin() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     togglePinThread(chatUserKey, activeChatId);
     setThreads(listThreads(chatUserKey));
   }
 
   function onOpenRename() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     setRenameValue(String(activeMeta?.title || "New chat"));
     setRenameOpen(true);
     setChatMenuOpen(false);
   }
 
-  function onConfirmRename() {
-    renameThread(chatUserKey, activeChatId, renameValue);
-    setThreads(listThreads(chatUserKey));
-    setRenameOpen(false);
-  }
-
   function onDeleteChat(id) {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     const threadId = String(id || "").trim();
     if (!threadId) return;
 
@@ -535,71 +1010,6 @@ export default function AssistantPage() {
     persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
   }
 
-  async function onAttachImage(file) {
-    setAttachErr("");
-    setAttachedImage(null);
-
-    try {
-      if (!file) return;
-      if (!file.type || !file.type.startsWith("image/")) {
-        setAttachErr("Please upload an image file.");
-        return;
-      }
-
-      const maxBytes = 2.4 * 1024 * 1024;
-      if (file.size > maxBytes) {
-        setAttachErr("That image is too large. Try a closer crop.");
-        return;
-      }
-
-      const dataUrl = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-
-      if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
-        setAttachErr("Couldn’t attach that image. Try again.");
-        return;
-      }
-
-      setAttachedImage(dataUrl);
-    } catch (e) {
-      const code = String(e?.code || "").toLowerCase();
-      setAttachErr(
-        code === "image_too_large"
-          ? "That image is too large to send. Try a closer crop."
-          : "Couldn’t attach that image. Try again."
-      );
-    }
-  }
-
-  async function onRedeemTeacher(code) {
-    const raw = String(code || "").trim();
-    if (!raw) return;
-
-    const r = await activateTeacher(raw);
-    if (r?.ok) {
-      setTeacher(true);
-      await refreshVerifiedFromServer().then((st) => {
-        setVerified(Boolean(st.verified));
-        setEmail(String(st.email || ""));
-        setTeacher(Boolean(st.teacher));
-      });
-      return;
-    }
-  }
-
-  function onKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
-  if (!booted) return null;
-
   return (
     <>
       <Head>
@@ -622,37 +1032,39 @@ export default function AssistantPage() {
                   )}
                 >
                   <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                  {verified ? "Verified" : "Guest"}
+                  {verified ? "Verified" : "Preview"}
                 </span>
               </div>
 
+              {/* Role (display only) */}
               <div className="mt-5">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Role</div>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/settings")}
-                    className="rounded-full border border-slate-200/60 dark:border-white/10 px-3 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                  <Link
+                    href="/settings?focus=role"
+                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-3 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
                   >
                     Change
-                  </button>
+                  </Link>
                 </div>
-
-                <div className="mt-2 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-3">
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">{ROLE_LABEL[role] || "Student"}</div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-3">
+                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                    {ROLE_LABEL[role] || "Student"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                     Elora adapts automatically. Change role in Settings.
                   </div>
                 </div>
               </div>
 
+              {/* Country/Level */}
               <div className="mt-5 grid gap-4">
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Country</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
                     {COUNTRIES.map((c) => (
                       <option key={c} value={c}>
@@ -663,25 +1075,19 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Level</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">
+                    {String(country || "").toLowerCase().includes("united states") ? "Grade" : "Level"}
+                  </label>
                   <select
                     value={level}
                     onChange={(e) => setLevel(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
-                    <option>Primary 1</option>
-                    <option>Primary 2</option>
-                    <option>Primary 3</option>
-                    <option>Primary 4</option>
-                    <option>Primary 5</option>
-                    <option>Primary 6</option>
-                    <option>Secondary 1</option>
-                    <option>Secondary 2</option>
-                    <option>Secondary 3</option>
-                    <option>Secondary 4</option>
-                    <option>Secondary 5</option>
-                    <option>Junior College 1</option>
-                    <option>Junior College 2</option>
+                    {countryLevels.map((lv) => (
+                      <option key={lv} value={lv}>
+                        {lv}
+                      </option>
+                    ))}
                   </select>
                   <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                     This affects the syllabus naming (Primary/Secondary vs Grades/Years).
@@ -689,11 +1095,11 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Subject</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
                     {SUBJECTS.map((s) => (
                       <option key={s} value={s}>
@@ -704,309 +1110,330 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Topic (optional)</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
                   <input
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., Fractions, Photosynthesis, Essay writing..."
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-500"
+                    placeholder="e.g., Fractions, Photosynthesis, Essay writing…"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </div>
 
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Extra constraints (optional)</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</label>
                   <input
                     value={constraints}
                     onChange={(e) => setConstraints(e.target.value)}
-                    placeholder="e.g., Keep it short, use real-life examples..."
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-500"
+                    placeholder="e.g., Keep it short, use real-life examples…"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </div>
 
                 <div>
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Response style</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Response style</label>
                   <select
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    value={responseStyle}
+                    onChange={(e) => setResponseStyle(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
                     <option value="standard">Standard (recommended)</option>
-                    <option value="short">Short</option>
+                    <option value="very-simple">Very simple</option>
                     <option value="detailed">More detailed</option>
+                    <option value="custom">Custom…</option>
                   </select>
-                </div>
-              </div>
 
-              <div className="mt-6">
-                <div className="text-sm font-extrabold text-slate-900 dark:text-white">Quick actions</div>
-                <div className="mt-2 grid gap-2">
-                  {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((qa) => (
-                    <button
-                      key={qa.id}
-                      type="button"
-                      onClick={() => setAction(qa.id)}
-                      className={cn(
-                        "rounded-2xl border px-4 py-3 text-left transition",
-                        action === qa.id
-                          ? "border-indigo-500/40 bg-indigo-600 text-white"
-                          : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 hover:bg-white dark:hover:bg-slate-950/35"
-                      )}
-                    >
-                      <div className={cn("text-sm font-extrabold", action === qa.id ? "text-white" : "text-slate-900 dark:text-slate-100")}>
-                        {qa.label}
-                      </div>
-                      <div className={cn("mt-1 text-xs", action === qa.id ? "text-white/85" : "text-slate-600 dark:text-slate-400")}>
-                        {qa.hint}
-                      </div>
-                    </button>
-                  ))}
+                  {responseStyle === "custom" ? (
+                    <textarea
+                      value={customStyleText}
+                      onChange={(e) => setCustomStyleText(e.target.value)}
+                      placeholder="Tell Elora how to respond (tone, structure, what to avoid)…"
+                      rows={3}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    />
+                  ) : null}
                 </div>
-              </div>
 
-              {teacher ? (
-                <div className="mt-6 rounded-2xl border border-indigo-500/25 bg-indigo-600/10 px-4 py-3">
-                  <div className="text-sm font-extrabold text-indigo-900 dark:text-indigo-100">Teacher tools unlocked</div>
-                  <div className="mt-1 text-xs text-indigo-800/80 dark:text-indigo-100/75">
-                    You can use lesson plans, assessments, worksheets, and slides.
+                {/* Quick actions */}
+                <div className="mt-1">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
+                  <div className="mt-2 grid gap-2">
+                    {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
+                      const active = action === a.id;
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => setAction(a.id)}
+                          className={cn(
+                            "rounded-2xl border px-4 py-3 text-left transition",
+                            active
+                              ? "border-indigo-500/40 bg-indigo-600 text-white shadow-lg shadow-indigo-500/15"
+                              : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
+                          )}
+                        >
+                          <div className="text-sm font-extrabold">{a.label}</div>
+                          <div
+                            className={cn(
+                              "mt-1 text-xs font-bold",
+                              active ? "text-white/90" : "text-slate-600 dark:text-slate-400"
+                            )}
+                          >
+                            {a.hint}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
-              ) : null}
 
-              {!teacher && verified ? (
-                <div className="mt-6 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 px-4 py-3">
-                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">Teacher invite code (optional)</div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    Enter a code in Settings to unlock teacher-only tools.
-                  </div>
                   <button
                     type="button"
-                    onClick={() => router.push("/settings")}
-                    className="mt-3 rounded-full border border-slate-200/70 dark:border-white/10 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    onClick={async () => {
+                      const currentSession = getSession();
+                      clearThread(chatUserKey, activeChatId);
+                      setMessages([]);
+                      setAttempt(0);
+                      await persistSessionPatch({ activeChatId, messages: [] });
+                      await clearServerChatIfVerified(currentSession);
+                      setAttachedImage(null);
+                      setAttachErr("");
+                      setThreads(listThreads(chatUserKey));
+                    }}
+                    className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                   >
-                    Go to Settings
+                    Clear current chat
                   </button>
                 </div>
-              ) : null}
+              </div>
             </div>
 
             {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-32px)]">
-              <div className="flex items-start justify-between gap-4">
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]">
+              {/* Title + meta */}
+              <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
-                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    {ROLE_LABEL[role]} • {country} • {level}
+                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
+                  <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                    {ROLE_LABEL[role] || "Student"} • {country} • {level}
+                    {role === "student" && action === "check" ? (
+                      <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Attempts: {Math.min(3, attempt)}/3
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
-                      verified
-                        ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                        : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-                    )}
-                  >
-                    <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                    {verified ? "Verified" : "Guest"}
-                  </span>
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center justify-between gap-3">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setChatMenuOpen((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                    aria-haspopup="menu"
-                    aria-expanded={chatMenuOpen ? "true" : "false"}
-                    title={activeMeta?.title || "Chat"}
-                  >
-                    <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
-                    <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
-                    <span className="text-slate-500 dark:text-slate-400">▾</span>
-                  </button>
+              {/* Chat header bar */}
+              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/75 dark:bg-slate-950/20 px-3 py-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {canManageChats ? (
+                    <div className="relative" ref={chatMenuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setChatMenuOpen((v) => !v)}
+                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/40 border border-transparent"
+                        aria-haspopup="menu"
+                        aria-expanded={chatMenuOpen ? "true" : "false"}
+                        title="Switch chats"
+                      >
+                        <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
+                        <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
+                        <span className="text-slate-500 dark:text-slate-400">▾</span>
+                      </button>
 
-                  {chatMenuOpen ? (
-                    <div
-                      className="absolute z-50 mt-2 w-[340px] max-w-[90vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
-                      role="menu"
-                    >
-                      {pinnedThreads.length ? (
-                        <div className="px-3 pt-3 pb-2">
-                          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            Pinned
-                          </div>
-                          <div className="mt-2 grid gap-1">
-                            {pinnedThreads.map((t) => (
-                              <div
-                                key={t.id}
-                                className={cn(
-                                  "rounded-xl border transition",
-                                  t.id === activeChatId
-                                    ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                    : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                                )}
-                              >
-                                <div className="flex items-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveThreadAndLoad(t.id)}
-                                    className={cn(
-                                      "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                      t.id === activeChatId
-                                        ? "text-white"
-                                        : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-base">{t.pinned ? "★" : "☆"}</span>
-                                      <span className="truncate">{t.title || "New chat"}</span>
-                                    </div>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      onDeleteChat(t.id);
-                                    }}
-                                    className={cn(
-                                      "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                      t.id === activeChatId
-                                        ? "border-white/20 text-white/90 hover:bg-white/10"
-                                        : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                    )}
-                                    title="Delete chat"
-                                    aria-label="Delete chat"
-                                  >
-                                    🗑
-                                  </button>
-                                </div>
+                      {chatMenuOpen ? (
+                        <div
+                          className="absolute z-50 mt-2 w-[340px] max-w-[90vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
+                          role="menu"
+                        >
+                          {pinnedThreads.length ? (
+                            <div className="px-3 pt-3 pb-2">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Pinned
                               </div>
-                            ))}
+                              <div className="mt-2 grid gap-1">
+                                {pinnedThreads.map((t) => (
+                                  <div
+                                    key={t.id}
+                                    className={cn(
+                                      "rounded-xl border transition",
+                                      t.id === activeChatId
+                                        ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                        : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
+                                    )}
+                                  >
+                                    <div className="flex items-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveThreadAndLoad(t.id)}
+                                        className={cn(
+                                          "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
+                                          t.id === activeChatId
+                                            ? "text-white"
+                                            : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-base">★</span>
+                                          <span className="truncate">{t.title || "New chat"}</span>
+                                        </div>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          onDeleteChat(t.id);
+                                        }}
+                                        className={cn(
+                                          "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
+                                          t.id === activeChatId
+                                            ? "border-white/20 text-white/90 hover:bg-white/10"
+                                            : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
+                                        )}
+                                        title="Delete chat"
+                                        aria-label="Delete chat"
+                                      >
+                                        🗑
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="px-3 pt-3 pb-3">
+                            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Recent
+                            </div>
+                            <div className="mt-2 grid gap-1">
+                              {recentThreads.map((t) => (
+                                <div
+                                  key={t.id}
+                                  className={cn(
+                                    "rounded-xl border transition",
+                                    t.id === activeChatId
+                                      ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
+                                  )}
+                                >
+                                  <div className="flex items-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveThreadAndLoad(t.id)}
+                                      className={cn(
+                                        "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
+                                        t.id === activeChatId
+                                          ? "text-white"
+                                          : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-base">{t.pinned ? "★" : "☆"}</span>
+                                        <span className="truncate">{t.title || "New chat"}</span>
+                                      </div>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onDeleteChat(t.id);
+                                      }}
+                                      className={cn(
+                                        "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
+                                        t.id === activeChatId
+                                          ? "border-white/20 text-white/90 hover:bg-white/10"
+                                          : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
+                                      )}
+                                      title="Delete chat"
+                                      aria-label="Delete chat"
+                                    >
+                                      🗑
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={onNewChat}
+                              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                            >
+                              New chat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={onOpenRename}
+                              className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                            >
+                              Rename
+                            </button>
                           </div>
                         </div>
                       ) : null}
-
-                      <div className="px-3 pt-3 pb-3">
-                        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          Recent
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-900 dark:text-white font-black">
+                        P
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                          Preview chat
                         </div>
-                        <div className="mt-2 grid gap-1">
-                          {recentThreads.map((t) => (
-                            <div
-                              key={t.id}
-                              className={cn(
-                                "rounded-xl border transition",
-                                t.id === activeChatId
-                                  ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                  : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                              )}
-                            >
-                              <div className="flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveThreadAndLoad(t.id)}
-                                  className={cn(
-                                    "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                    t.id === activeChatId
-                                      ? "text-white"
-                                      : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-base">{t.pinned ? "★" : "☆"}</span>
-                                    <span className="truncate">{t.title || "New chat"}</span>
-                                  </div>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onDeleteChat(t.id);
-                                  }}
-                                  className={cn(
-                                    "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                    t.id === activeChatId
-                                      ? "border-white/20 text-white/90 hover:bg-white/10"
-                                      : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                  )}
-                                  title="Delete chat"
-                                  aria-label="Delete chat"
-                                >
-                                  🗑
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">
+                          Verify to save, pin, rename, and manage chats
                         </div>
-                      </div>
-
-                      <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={onNewChat}
-                          className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                        >
-                          New chat
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onOpenRename}
-                          className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        >
-                          Rename
-                        </button>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onTogglePin}
-                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                    aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                  >
-                    {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onOpenRename}
-                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                  >
-                    Rename
-                  </button>
-
-                  {verified ? (
+                {canManageChats ? (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => onDeleteChat(activeChatId)}
-                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-rose-700 dark:text-rose-200 hover:bg-rose-500/10 dark:hover:bg-rose-500/10"
-                      title="Delete this chat"
+                      onClick={onTogglePin}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                      aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
                     >
-                      Delete
+                      {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
                     </button>
-                  ) : null}
 
-                  <button
-                    type="button"
-                    onClick={onNewChat}
+                    <button
+                      type="button"
+                      onClick={onOpenRename}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    >
+                      Rename
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                      title="Start a new chat"
+                    >
+                      New
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/verify"
                     className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                    title="Start a new chat"
+                    title="Verify to unlock saved chats"
                   >
-                    New
-                  </button>
-                </div>
+                    Verify
+                  </Link>
+                )}
               </div>
 
               {/* Refinement chips */}
@@ -1035,7 +1462,9 @@ export default function AssistantPage() {
                 <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">Preview mode</div>
+                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        Preview mode
+                      </div>
                       <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                         Verify to unlock exports + educator tools. You can still use the Assistant now.
                       </div>
@@ -1083,7 +1512,9 @@ export default function AssistantPage() {
               >
                 {!messages.length && !loading ? (
                   <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
-                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">Try one of these</div>
+                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Try one of these
+                    </div>
                     <div className="mt-2 grid gap-2">
                       {STARTER_PROMPTS.map((p) => (
                         <button
@@ -1108,46 +1539,51 @@ export default function AssistantPage() {
                     const display = cleanAssistantText(m.text);
 
                     return (
-                      <div
-                        key={idx}
-                        className={cn(
-                          "max-w-[96%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                          isUser
-                            ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10 relative group"
-                        )}
-                      >
-                        {!isUser ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              copyToClipboard(display, idx);
-                              setCopiedIdx(idx);
-                            }}
-                            className="absolute top-2 right-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition hover:bg-white dark:hover:bg-slate-950/60"
-                            title="Copy"
-                          >
-                            {copiedIdx === idx ? "Copied" : "Copy"}
-                          </button>
-                        ) : null}
-                        <div className="whitespace-pre-wrap">{display}</div>
+                      <div key={idx} className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+                        <div
+                          className={cn(
+                            "max-w-[85%] rounded-2xl border px-4 py-3",
+                            isUser
+                              ? "border-indigo-500/30 bg-indigo-600 text-white shadow-lg shadow-indigo-500/10"
+                              : "border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100"
+                          )}
+                        >
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">{display}</div>
+
+                          {!isUser ? (
+                            <div className="mt-3 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(display, idx)}
+                                className={cn(
+                                  "rounded-full border px-3 py-1 text-[11px] font-extrabold transition",
+                                  "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                                )}
+                              >
+                                {copiedIdx === idx ? "Copied" : "Copy"}
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}
 
                   {loading ? (
-                    <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
-                      Thinking…
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                        Thinking…
+                      </div>
                     </div>
                   ) : null}
                 </div>
 
                 {showJump ? (
-                  <div className="sticky bottom-3 flex justify-end pointer-events-none">
+                  <div className="sticky bottom-3 mt-4 flex justify-center">
                     <button
                       type="button"
                       onClick={jumpToLatest}
-                      className="pointer-events-auto rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 shadow-sm hover:bg-white dark:hover:bg-slate-950/60"
+                      className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-slate-950/70 px-4 py-2 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/90 shadow-lg"
                     >
                       Jump to latest
                     </button>
@@ -1156,125 +1592,258 @@ export default function AssistantPage() {
               </div>
 
               {/* Composer */}
-              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <textarea
-                      value={chatText}
-                      onChange={(e) => setChatText(e.target.value)}
-                      onKeyDown={onKeyDown}
-                      placeholder="Ask Elora anything..."
-                      className="w-full resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-500"
-                      rows={2}
-                    />
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                        Enter to send • Shift+Enter for a new line
-                      </div>
+              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-3">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    placeholder={
+                      role === "student" && action === "check"
+                        ? "Type your answer (Elora will hint first, then unlock the answer on attempt 3)…"
+                        : "Ask Elora anything…"
+                    }
+                    rows={2}
+                    className="flex-1 resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChat();
+                      }
+                    }}
+                  />
 
-                      <label className="inline-flex items-center gap-2 cursor-pointer rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => onAttachImage(e.target.files?.[0])}
-                        />
-                        <span>📎</span>
-                        <span>Attach</span>
-                      </label>
-                    </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Attach image"
+                      aria-label="Attach image"
+                    >
+                      📎
+                    </button>
 
-                    {attachErr ? (
-                      <div className="mt-2 text-xs font-bold text-rose-700 dark:text-rose-200">{attachErr}</div>
-                    ) : null}
-
-                    {attachedImage ? (
-                      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2">
-                        <div className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
-                          Image attached
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAttachedImage(null)}
-                          className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : null}
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={sendChat}
+                      className={cn(
+                        "rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700",
+                        loading ? "opacity-60 cursor-not-allowed" : ""
+                      )}
+                    >
+                      Send
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => sendMessage()}
-                    disabled={loading}
-                    className={cn(
-                      "rounded-xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-indigo-700",
-                      loading ? "opacity-60 cursor-not-allowed" : ""
-                    )}
-                  >
-                    Send
-                  </button>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 mr-2">Export:</div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onPickImage(file);
+                    e.target.value = "";
+                  }}
+                />
+
+                {attachErr ? (
+                  <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
+                    {attachErr}
+                  </div>
+                ) : null}
+
+                {attachedImage?.dataUrl ? (
+                  <div className="mt-3 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Attached image
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAttachedImage(null)}
+                        className="rounded-full border border-slate-200/70 dark:border-white/10 px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        title="Remove"
+                        aria-label="Remove attachment"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <img
+                      src={attachedImage.dataUrl}
+                      alt="attachment preview"
+                      className="mt-2 rounded-xl max-h-[220px] object-contain"
+                    />
+                  </div>
+                ) : null}
+
+                {/* Export row */}
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => onExport("pdf")}
-                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("pdf")}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                    )}
+                    title={canShowExports ? "Export last answer as PDF" : "Verify and ask a question to unlock exports"}
                   >
                     Export PDF
                   </button>
                   <button
                     type="button"
-                    onClick={() => onExport("docx")}
-                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("docx")}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                    )}
+                    title={canShowExports ? "Export last answer as DOCX" : "Verify and ask a question to unlock exports"}
                   >
                     Export DOCX
                   </button>
                   <button
                     type="button"
-                    onClick={() => onExport("pptx")}
-                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("pptx")}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                    )}
+                    title={canShowExports ? "Export last answer as Slides" : "Verify and ask a question to unlock exports"}
                   >
                     Export Slides
                   </button>
+                </div>
+
+                <div className="mt-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  Enter to send • Shift+Enter for a new line
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Rename Modal */}
-        <Modal open={renameOpen} onClose={() => setRenameOpen(false)} title="Rename chat">
-          <div className="space-y-4">
-            <input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              placeholder="Chat name"
-              className="w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none"
-            />
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setRenameOpen(false)}
-                className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirmRename}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </Modal>
       </div>
+
+      {/* Rename modal */}
+      <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Give this chat a short name so it’s easy to find later.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Chat title</label>
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., Fractions practice"
+            maxLength={60}
+          />
+          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Max 60 characters.</div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              renameThread(chatUserKey, activeChatId, renameValue);
+              setThreads(listThreads(chatUserKey));
+              setRenameOpen(false);
+            }}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setRenameOpen(false)}
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
+
+      {/* Verification gate */}
+      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Educator mode and exports are locked behind verification. You can still preview Student/Parent modes.
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => router.push("/verify")}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+          >
+            Verify email
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              storeGuest(true);
+              const s = getSession();
+              setSession(s);
+              setVerifyGateOpen(false);
+            }}
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+          >
+            Continue preview
+          </button>
+        </div>
+      </Modal>
+
+      {/* Teacher gate */}
+      <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Teacher Invite Code</label>
+          <input
+            value={teacherGateCode}
+            onChange={(e) => setTeacherGateCode(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., GENESIS2026"
+          />
+          {teacherGateStatus ? (
+            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+              {teacherGateStatus}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const ok = await validateAndActivateInvite(teacherGateCode);
+              if (ok) setTeacherGateOpen(false);
+            }}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+          >
+            Unlock teacher tools
+          </button>
+          <button
+            type="button"
+            onClick={() => setTeacherGateOpen(false)}
+            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+          >
+            Not now
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }
+

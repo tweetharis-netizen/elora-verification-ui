@@ -63,7 +63,7 @@ const REFINEMENT_CHIPS = {
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
     { id: "steps", label: "Show steps" },
-    { id: "check", label: "Give a quick check question" },
+    { id: "check", label: "Add a quick check question" },
   ],
   lesson: [
     { id: "diff", label: "Add differentiation" },
@@ -359,7 +359,6 @@ export default function AssistantPage() {
 
   const activeMeta = useMemo(
     () => getThreadMeta(chatUserKey, activeChatId),
-    // include threads so title/pin updates re-render
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatUserKey, activeChatId, threads]
   );
@@ -978,16 +977,6 @@ export default function AssistantPage() {
     setChatMenuOpen(false);
   }
 
-  function onConfirmRename() {
-    if (!canManageChats) {
-      setVerifyGateOpen(true);
-      return;
-    }
-    renameThread(chatUserKey, activeChatId, renameValue);
-    setThreads(listThreads(chatUserKey));
-    setRenameOpen(false);
-  }
-
   function onDeleteChat(id) {
     if (!canManageChats) {
       setVerifyGateOpen(true);
@@ -1473,7 +1462,9 @@ export default function AssistantPage() {
                 <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">Preview mode</div>
+                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        Preview mode
+                      </div>
                       <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                         Verify to unlock exports + educator tools. You can still use the Assistant now.
                       </div>
@@ -1521,7 +1512,9 @@ export default function AssistantPage() {
               >
                 {!messages.length && !loading ? (
                   <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
-                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">Try one of these</div>
+                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Try one of these
+                    </div>
                     <div className="mt-2 grid gap-2">
                       {STARTER_PROMPTS.map((p) => (
                         <button
@@ -1546,10 +1539,7 @@ export default function AssistantPage() {
                     const display = cleanAssistantText(m.text);
 
                     return (
-                      <div
-                        key={idx}
-                        className={cn("flex", isUser ? "justify-end" : "justify-start")}
-                      >
+                      <div key={idx} className={cn("flex", isUser ? "justify-end" : "justify-start")}>
                         <div
                           className={cn(
                             "max-w-[85%] rounded-2xl border px-4 py-3",
@@ -1614,6 +1604,12 @@ export default function AssistantPage() {
                     }
                     rows={2}
                     className="flex-1 resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChat();
+                      }
+                    }}
                   />
 
                   <div className="flex flex-col gap-2">
@@ -1622,6 +1618,7 @@ export default function AssistantPage() {
                       onClick={() => fileInputRef.current?.click()}
                       className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                       title="Attach image"
+                      aria-label="Attach image"
                     >
                       📎
                     </button>
@@ -1669,6 +1666,7 @@ export default function AssistantPage() {
                         onClick={() => setAttachedImage(null)}
                         className="rounded-full border border-slate-200/70 dark:border-white/10 px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                         title="Remove"
+                        aria-label="Remove attachment"
                       >
                         ✕
                       </button>
@@ -1726,21 +1724,42 @@ export default function AssistantPage() {
                     Export Slides
                   </button>
                 </div>
+
+                <div className="mt-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  Enter to send • Shift+Enter for a new line
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Rename modal */}
       <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">Give this chat a short name.</div>
-        <input
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          className="mt-3 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-          placeholder="e.g., Fractions practice"
-        />
-        <div className="mt-4 flex gap-2 justify-end">
+        <div className="text-sm text-slate-700 dark:text-slate-200">
+          Give this chat a short name so it’s easy to find later.
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Chat title</label>
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+            placeholder="e.g., Fractions practice"
+            maxLength={60}
+          />
+          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Max 60 characters.</div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onConfirmRename}
+            onClick={() => {
+              renameThread(chatUserKey, activeChatId, renameValue);
+              setThreads(listThreads(chatUserKey));
+              setRenameOpen(false);
+            }}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >
             Save

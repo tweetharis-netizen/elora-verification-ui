@@ -327,6 +327,8 @@ export default function AssistantPage() {
   const verified = Boolean(session?.verified);
   const teacher = Boolean(isTeacher());
 
+  const canManageChats = verified;
+
   const [role, setRole] = useState(() => session?.role || "student");
   const [country, setCountry] = useState(() => session?.country || "Singapore");
 
@@ -403,8 +405,14 @@ export default function AssistantPage() {
   );
   const canShowExports = verified && hasEloraAnswer;
 
-  const pinnedThreads = useMemo(() => threads.filter((t) => t.pinned), [threads]);
-  const recentThreads = useMemo(() => threads.filter((t) => !t.pinned), [threads]);
+  const pinnedThreads = useMemo(
+    () => (canManageChats ? threads.filter((t) => t.pinned) : []),
+    [threads, canManageChats]
+  );
+  const recentThreads = useMemo(
+    () => (canManageChats ? threads.filter((t) => !t.pinned) : []),
+    [threads, canManageChats]
+  );
 
   // Close chat menu on outside click
   useEffect(() => {
@@ -936,6 +944,10 @@ export default function AssistantPage() {
   }
 
   function onNewChat() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     const { id } = createThread(chatUserKey);
     setActiveChatIdState(id);
     setThreads(listThreads(chatUserKey));
@@ -948,23 +960,39 @@ export default function AssistantPage() {
   }
 
   function onTogglePin() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     togglePinThread(chatUserKey, activeChatId);
     setThreads(listThreads(chatUserKey));
   }
 
   function onOpenRename() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     setRenameValue(String(activeMeta?.title || "New chat"));
     setRenameOpen(true);
     setChatMenuOpen(false);
   }
 
   function onConfirmRename() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     renameThread(chatUserKey, activeChatId, renameValue);
     setThreads(listThreads(chatUserKey));
     setRenameOpen(false);
   }
 
   function onDeleteChat(id) {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
     const threadId = String(id || "").trim();
     if (!threadId) return;
 
@@ -1040,14 +1068,14 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {/* Country + level */}
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              {/* Country/Level */}
+              <div className="mt-5 grid gap-4">
                 <div>
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Country</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
                     {COUNTRIES.map((c) => (
                       <option key={c} value={c}>
@@ -1058,34 +1086,31 @@ export default function AssistantPage() {
                 </div>
 
                 <div>
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Level</div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">
+                    {String(country || "").toLowerCase().includes("united states") ? "Grade" : "Level"}
+                  </label>
                   <select
                     value={level}
                     onChange={(e) => setLevel(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
-                    {countryLevels.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
+                    {countryLevels.map((lv) => (
+                      <option key={lv} value={lv}>
+                        {lv}
                       </option>
                     ))}
                   </select>
-                </div>
-              </div>
-
-              {/* Advanced (optional) */}
-              <div className="mt-5">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Advanced (optional)</div>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Only use this if Elora needs more context.
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                    This affects the syllabus naming (Primary/Secondary vs Grades/Years).
+                  </div>
                 </div>
 
-                <div className="mt-3">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Subject</div>
+                <div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   >
                     {SUBJECTS.map((s) => (
                       <option key={s} value={s}>
@@ -1093,30 +1118,58 @@ export default function AssistantPage() {
                       </option>
                     ))}
                   </select>
+                </div>
 
-                  <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</div>
+                <div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
                   <input
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., Fractions, Photosynthesis, Essay structure…"
+                    placeholder="e.g., Fractions, Photosynthesis, Essay writing…"
                     className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-
-                  <div className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</div>
-                  <textarea
-                    value={constraints}
-                    onChange={(e) => setConstraints(e.target.value)}
-                    rows={2}
-                    placeholder="Any special instructions (tone, format, what to avoid)…"
-                    className="mt-2 w-full resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </div>
 
-                <div className="mt-5">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Mode</div>
+                <div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</label>
+                  <input
+                    value={constraints}
+                    onChange={(e) => setConstraints(e.target.value)}
+                    placeholder="e.g., Keep it short, use real-life examples…"
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-white">Response style</label>
+                  <select
+                    value={responseStyle}
+                    onChange={(e) => setResponseStyle(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    <option value="standard">Standard (recommended)</option>
+                    <option value="very-simple">Very simple</option>
+                    <option value="detailed">More detailed</option>
+                    <option value="custom">Custom…</option>
+                  </select>
+
+                  {responseStyle === "custom" ? (
+                    <textarea
+                      value={customStyleText}
+                      onChange={(e) => setCustomStyleText(e.target.value)}
+                      placeholder="Tell Elora how to respond (tone, structure, what to avoid)…"
+                      rows={3}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    />
+                  ) : null}
+                </div>
+
+                {/* Quick actions */}
+                <div className="mt-1">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
                   <div className="mt-2 grid gap-2">
                     {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
-                      const active = a.id === action;
+                      const active = action === a.id;
                       return (
                         <button
                           key={a.id}
@@ -1183,187 +1236,215 @@ export default function AssistantPage() {
 
               {/* Chat header bar */}
               <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/75 dark:bg-slate-950/20 px-3 py-2 flex items-center justify-between gap-2">
-                <div className="relative" ref={chatMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setChatMenuOpen((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/40 border border-transparent"
-                    aria-haspopup="menu"
-                    aria-expanded={chatMenuOpen ? "true" : "false"}
-                    title="Switch chats"
-                  >
-                    <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
-                    <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
-                    <span className="text-slate-500 dark:text-slate-400">▾</span>
-                  </button>
+                <div className="flex items-center gap-2 min-w-0">
+                  {canManageChats ? (
+                    <div className="relative" ref={chatMenuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setChatMenuOpen((v) => !v)}
+                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/40 border border-transparent"
+                        aria-haspopup="menu"
+                        aria-expanded={chatMenuOpen ? "true" : "false"}
+                        title="Switch chats"
+                      >
+                        <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
+                        <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
+                        <span className="text-slate-500 dark:text-slate-400">▾</span>
+                      </button>
 
-                  {chatMenuOpen ? (
-                    <div
-                      className="absolute z-50 mt-2 w-[340px] max-w-[90vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
-                      role="menu"
-                    >
-                      {pinnedThreads.length ? (
-                        <div className="px-3 pt-3 pb-2">
-                          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            Pinned
-                          </div>
-                          <div className="mt-2 grid gap-1">
-                            {pinnedThreads.map((t) => (
-                              <div
-                                key={t.id}
-                                className={cn(
-                                  "rounded-xl border transition",
-                                  t.id === activeChatId
-                                    ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                    : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                                )}
-                              >
-                                <div className="flex items-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveThreadAndLoad(t.id)}
-                                    className={cn(
-                                      "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                      t.id === activeChatId
-                                        ? "text-white"
-                                        : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-base">{t.pinned ? "★" : "☆"}</span>
-                                      <span className="truncate">{t.title || "New chat"}</span>
-                                    </div>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      onDeleteChat(t.id);
-                                    }}
-                                    className={cn(
-                                      "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                      t.id === activeChatId
-                                        ? "border-white/20 text-white/90 hover:bg-white/10"
-                                        : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                    )}
-                                    title="Delete chat"
-                                    aria-label="Delete chat"
-                                  >
-                                    🗑
-                                  </button>
-                                </div>
+                      {chatMenuOpen ? (
+                        <div
+                          className="absolute z-50 mt-2 w-[340px] max-w-[90vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
+                          role="menu"
+                        >
+                          {pinnedThreads.length ? (
+                            <div className="px-3 pt-3 pb-2">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Pinned
                               </div>
-                            ))}
+                              <div className="mt-2 grid gap-1">
+                                {pinnedThreads.map((t) => (
+                                  <div
+                                    key={t.id}
+                                    className={cn(
+                                      "rounded-xl border transition",
+                                      t.id === activeChatId
+                                        ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                        : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
+                                    )}
+                                  >
+                                    <div className="flex items-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveThreadAndLoad(t.id)}
+                                        className={cn(
+                                          "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
+                                          t.id === activeChatId
+                                            ? "text-white"
+                                            : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-base">★</span>
+                                          <span className="truncate">{t.title || "New chat"}</span>
+                                        </div>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          onDeleteChat(t.id);
+                                        }}
+                                        className={cn(
+                                          "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
+                                          t.id === activeChatId
+                                            ? "border-white/20 text-white/90 hover:bg-white/10"
+                                            : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
+                                        )}
+                                        title="Delete chat"
+                                        aria-label="Delete chat"
+                                      >
+                                        🗑
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="px-3 pt-3 pb-3">
+                            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Recent
+                            </div>
+                            <div className="mt-2 grid gap-1">
+                              {recentThreads.map((t) => (
+                                <div
+                                  key={t.id}
+                                  className={cn(
+                                    "rounded-xl border transition",
+                                    t.id === activeChatId
+                                      ? "border-indigo-500/40 bg-indigo-600 text-white"
+                                      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
+                                  )}
+                                >
+                                  <div className="flex items-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveThreadAndLoad(t.id)}
+                                      className={cn(
+                                        "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
+                                        t.id === activeChatId
+                                          ? "text-white"
+                                          : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-base">{t.pinned ? "★" : "☆"}</span>
+                                        <span className="truncate">{t.title || "New chat"}</span>
+                                      </div>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onDeleteChat(t.id);
+                                      }}
+                                      className={cn(
+                                        "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
+                                        t.id === activeChatId
+                                          ? "border-white/20 text-white/90 hover:bg-white/10"
+                                          : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
+                                      )}
+                                      title="Delete chat"
+                                      aria-label="Delete chat"
+                                    >
+                                      🗑
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={onNewChat}
+                              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                            >
+                              New chat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={onOpenRename}
+                              className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                            >
+                              Rename
+                            </button>
                           </div>
                         </div>
                       ) : null}
-
-                      <div className="px-3 pt-3 pb-3">
-                        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          Recent
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-900 dark:text-white font-black">
+                        P
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                          Preview chat
                         </div>
-                        <div className="mt-2 grid gap-1">
-                          {recentThreads.map((t) => (
-                            <div
-                              key={t.id}
-                              className={cn(
-                                "rounded-xl border transition",
-                                t.id === activeChatId
-                                  ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                  : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                              )}
-                            >
-                              <div className="flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveThreadAndLoad(t.id)}
-                                  className={cn(
-                                    "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                    t.id === activeChatId
-                                      ? "text-white"
-                                      : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-base">{t.pinned ? "★" : "☆"}</span>
-                                    <span className="truncate">{t.title || "New chat"}</span>
-                                  </div>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onDeleteChat(t.id);
-                                  }}
-                                  className={cn(
-                                    "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                    t.id === activeChatId
-                                      ? "border-white/20 text-white/90 hover:bg-white/10"
-                                      : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                  )}
-                                  title="Delete chat"
-                                  aria-label="Delete chat"
-                                >
-                                  🗑
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">
+                          Verify to save, pin, rename, and manage chats
                         </div>
-                      </div>
-
-                      <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={onNewChat}
-                          className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                        >
-                          New chat
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onOpenRename}
-                          className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        >
-                          Rename
-                        </button>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onTogglePin}
-                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                    aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                  >
-                    {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
-                  </button>
+                {canManageChats ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onTogglePin}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                      aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                    >
+                      {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={onOpenRename}
-                    className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                  >
-                    Rename
-                  </button>
+                    <button
+                      type="button"
+                      onClick={onOpenRename}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    >
+                      Rename
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={onNewChat}
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                      title="Start a new chat"
+                    >
+                      New
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/verify"
                     className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                    title="Start a new chat"
+                    title="Verify to unlock saved chats"
                   >
-                    New
-                  </button>
-                </div>
+                    Verify
+                  </Link>
+                )}
               </div>
 
               {/* Refinement chips */}
@@ -1467,41 +1548,52 @@ export default function AssistantPage() {
                     return (
                       <div
                         key={idx}
-                        className={cn(
-                          "max-w-[96%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                          isUser
-                            ? "ml-auto bg-indigo-600 text-white border-indigo-500/20"
-                            : "mr-auto bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100 border-slate-200/60 dark:border-white/10 relative group"
-                        )}
+                        className={cn("flex", isUser ? "justify-end" : "justify-start")}
                       >
-                        {!isUser ? (
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(display, idx)}
-                            className="absolute top-2 right-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition hover:bg-white dark:hover:bg-slate-950/60"
-                            title="Copy"
-                          >
-                            {copiedIdx === idx ? "Copied" : "Copy"}
-                          </button>
-                        ) : null}
-                        <div className="whitespace-pre-wrap">{display}</div>
+                        <div
+                          className={cn(
+                            "max-w-[85%] rounded-2xl border px-4 py-3",
+                            isUser
+                              ? "border-indigo-500/30 bg-indigo-600 text-white shadow-lg shadow-indigo-500/10"
+                              : "border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100"
+                          )}
+                        >
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">{display}</div>
+
+                          {!isUser ? (
+                            <div className="mt-3 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(display, idx)}
+                                className={cn(
+                                  "rounded-full border px-3 py-1 text-[11px] font-extrabold transition",
+                                  "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                                )}
+                              >
+                                {copiedIdx === idx ? "Copied" : "Copy"}
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}
 
                   {loading ? (
-                    <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
-                      Thinking…
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                        Thinking…
+                      </div>
                     </div>
                   ) : null}
                 </div>
 
                 {showJump ? (
-                  <div className="sticky bottom-3 flex justify-end pointer-events-none">
+                  <div className="sticky bottom-3 mt-4 flex justify-center">
                     <button
                       type="button"
                       onClick={jumpToLatest}
-                      className="pointer-events-auto rounded-full border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/40 px-3 py-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200 shadow-sm hover:bg-white dark:hover:bg-slate-950/60"
+                      className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-slate-950/70 px-4 py-2 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/90 shadow-lg"
                     >
                       Jump to latest
                     </button>
@@ -1509,152 +1601,146 @@ export default function AssistantPage() {
                 ) : null}
               </div>
 
-              {/* Export */}
-              {canShowExports ? (
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mr-2">
-                    Export last answer:
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => exportLast("docx")}
-                    className="rounded-full px-4 py-2 text-xs font-extrabold border transition border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title="Export as .docx"
-                  >
-                    Docs (.docx)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => exportLast("pptx")}
-                    className="rounded-full px-4 py-2 text-xs font-extrabold border transition border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title="Export as .pptx"
-                  >
-                    PowerPoint (.pptx)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => exportLast("pdf")}
-                    className="rounded-full px-4 py-2 text-xs font-extrabold border transition border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title="Export as PDF (Kami-friendly)"
-                  >
-                    Kami (PDF)
-                  </button>
-                </div>
-              ) : null}
-
               {/* Composer */}
-              <div className="mt-4">
+              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-3">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    placeholder={
+                      role === "student" && action === "check"
+                        ? "Type your answer (Elora will hint first, then unlock the answer on attempt 3)…"
+                        : "Ask Elora anything…"
+                    }
+                    rows={2}
+                    className="flex-1 resize-none rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Attach image"
+                    >
+                      📎
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={sendChat}
+                      className={cn(
+                        "rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700",
+                        loading ? "opacity-60 cursor-not-allowed" : ""
+                      )}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onPickImage(file);
+                    e.target.value = "";
+                  }}
+                />
+
                 {attachErr ? (
-                  <div className="mb-2 text-xs font-extrabold text-amber-700 dark:text-amber-200">
+                  <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
                     {attachErr}
                   </div>
                 ) : null}
 
-                {attachedImage ? (
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-1.5 text-xs font-extrabold text-slate-700 dark:text-slate-200">
-                      📎 {attachedImage.name || "Image attached"}
+                {attachedImage?.dataUrl ? (
+                  <div className="mt-3 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Attached image
+                      </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          setAttachedImage(null);
-                          setAttachErr("");
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                        className="ml-1 rounded-full border border-slate-200/60 dark:border-white/10 px-2 py-0.5 text-[11px] font-extrabold hover:bg-white dark:hover:bg-slate-950/40"
+                        onClick={() => setAttachedImage(null)}
+                        className="rounded-full border border-slate-200/70 dark:border-white/10 px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
                         title="Remove"
-                        aria-label="Remove attachment"
                       >
                         ✕
                       </button>
                     </div>
+                    <img
+                      src={attachedImage.dataUrl}
+                      alt="attachment preview"
+                      className="mt-2 rounded-xl max-h-[220px] object-contain"
+                    />
                   </div>
                 ) : null}
 
-                <div className="flex items-end gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => onPickImage(e.target.files && e.target.files[0])}
-                  />
-
+                {/* Export row */}
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-3 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                    title="Attach image"
-                    aria-label="Attach image"
-                  >
-                    📎
-                  </button>
-
-                  <textarea
-                    value={chatText}
-                    onChange={(e) => setChatText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendChat();
-                      }
-                    }}
-                    rows={2}
-                    placeholder="Ask Elora anything… (Attach a photo if the question is long)"
-                    className="flex-1 resize-none rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={sendChat}
-                    disabled={loading}
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("pdf")}
                     className={cn(
-                      "rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20",
-                      loading ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
                     )}
+                    title={canShowExports ? "Export last answer as PDF" : "Verify and ask a question to unlock exports"}
                   >
-                    Send
+                    Export PDF
                   </button>
-                </div>
-
-                <div className="mt-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                  Enter to send • Shift+Enter for a new line
+                  <button
+                    type="button"
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("docx")}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                    )}
+                    title={canShowExports ? "Export last answer as DOCX" : "Verify and ask a question to unlock exports"}
+                  >
+                    Export DOCX
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canShowExports}
+                    onClick={() => exportLast("pptx")}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                      canShowExports
+                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                    )}
+                    title={canShowExports ? "Export last answer as Slides" : "Verify and ask a question to unlock exports"}
+                  >
+                    Export Slides
+                  </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Rename modal */}
       <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Give this chat a short name so it’s easy to find later.
-        </div>
-
-        <div className="mt-4">
-          <label className="text-sm font-bold text-slate-900 dark:text-white">Chat title</label>
-          <input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            placeholder="e.g., Fractions practice"
-            maxLength={60}
-          />
-          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Max 60 characters.</div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="text-sm text-slate-700 dark:text-slate-200">Give this chat a short name.</div>
+        <input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          className="mt-3 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+          placeholder="e.g., Fractions practice"
+        />
+        <div className="mt-4 flex gap-2 justify-end">
           <button
             type="button"
-            onClick={() => {
-              renameThread(chatUserKey, activeChatId, renameValue);
-              setThreads(listThreads(chatUserKey));
-              setRenameOpen(false);
-            }}
+            onClick={onConfirmRename}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
           >
             Save

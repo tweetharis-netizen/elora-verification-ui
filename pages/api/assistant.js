@@ -11,16 +11,6 @@ export const config = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-/**
- * Memory rules:
- * - We accept `body.messages` from the UI (thread history).
- * - We include a trimmed + sanitized version of that history in the model call
- *   so the assistant "remembers what the user is talking about" within a chat.
- * - We still enforce the Student+Check attempt-gating rules (no answer reveal until attempt 3).
- */
-const MAX_HISTORY_MESSAGES = 16; // small + safe for latency/cost
-const MAX_HISTORY_CHARS_PER_MESSAGE = 900;
-
 function clampStr(v, max = 2400) {
   if (typeof v !== "string") return "";
   const s = v.trim();
@@ -47,6 +37,47 @@ function stripMarkdownToPlainText(text) {
   t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
   t = t.replace(/\n{3,}/g, "\n\n").trim();
   return t;
+}
+
+function normalizeHistoryMessages(input, opts) {
+  const role = String(opts?.role || "student");
+  const action = String(opts?.action || "explain");
+  const attempt = Number(opts?.attempt || 0);
+  const currentUserText = String(opts?.currentUserText || "");
+
+  const arr = Array.isArray(input) ? input : [];
+  if (!arr.length) return [];
+
+  // Keep only the last N turns to control tokens
+  const maxItems = 12;
+  const recent = arr.slice(-maxItems);
+
+  const out = [];
+  for (const m of recent) {
+    const fromRaw = String(m?.from || m?.role || "").toLowerCase();
+    const raw = String(m?.text || m?.content || "").trim();
+    if (!raw) continue;
+
+    const kind = fromRaw === "elora" || fromRaw === "assistant" ? "assistant" : "user";
+
+    // Student Check attempt policy: for attempts 1–2, do NOT include assistant text in history
+    if (role === "student" && action === "check" && attempt < 3 && kind === "assistant") {
+      continue;
+    }
+
+    // Avoid double-including the current user message (we add it as the final user turn)
+    if (kind === "user" && currentUserText && raw === currentUserText) {
+      continue;
+    }
+
+    // Clean and clamp hard
+    const clean = stripMarkdownToPlainText(raw).slice(0, 1600).trim();
+    if (!clean) continue;
+
+    out.push({ role: kind, content: clean });
+  }
+
+  return out;
 }
 
 function normalizeMathToPlainText(text) {
@@ -101,10 +132,7 @@ function looksLikeAnswerLeak(text) {
   if (t.includes("the answer is") || t.includes("final answer") || t.includes("correct answer")) return true;
   if (/\b=\s*-?\d/.test(t)) return true;
 
-  const lines = t
-    .split("\n")
-    .map((x) => x.trim())
-    .filter(Boolean);
+  const lines = t.split("\n").map((x) => x.trim()).filter(Boolean);
   if (lines.some((l) => l.length <= 24 && /^[\d\s().,+\-/*÷×=]+$/.test(l) && /\d/.test(l))) return true;
 
   return false;
@@ -162,162 +190,153 @@ function tryDeterministicCheck(message) {
 
   const ok = nearlyEqual(exprVal, ansVal);
 
-  return { ok, exprVal, ansVal, exprStr, ansStr };
+  return { ok, exprStr: exprStr.replace(/\s+/g, " ").trim(), exprVal, ansVal };
 }
 
 function nearlyEqual(a, b) {
-  const A = Number(a);
-  const B = Number(b);
-  if (!Number.isFinite(A) || !Number.isFinite(B)) return false;
-  const diff = Math.abs(A - B);
-  const scale = Math.max(1, Math.abs(A), Math.abs(B));
+  const x = Number(a);
+  const y = Number(b);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const diff = Math.abs(x - y);
+  const scale = Math.max(1, Math.abs(x), Math.abs(y));
   return diff <= 1e-9 * scale;
 }
 
 function parseNumericValue(s) {
-  const t = String(s || "").trim();
-  if (!t) return null;
+  const raw = String(s || "").trim();
+  if (!raw) return null;
 
-  // Strip trailing punctuation
-  const cleaned = t.replace(/[.,;:!?]+$/g, "").trim();
-
-  // Percent
-  if (/%$/.test(cleaned)) {
-    const n = parseNumericValue(cleaned.replace(/%$/, "").trim());
-    if (n == null) return null;
+  // Handle percent like "20%" => 0.2
+  const pct = raw.match(/^(-?\d+(?:\.\d+)?)\s*%$/);
+  if (pct) {
+    const n = Number(pct[1]);
+    if (!Number.isFinite(n)) return null;
     return n / 100;
   }
 
-  // Mixed number: "1 1/2"
-  const mixed = cleaned.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
-  if (mixed) {
-    const whole = Number(mixed[1]);
-    const num = Number(mixed[2]);
-    const den = Number(mixed[3]);
-    if (!Number.isFinite(whole) || !Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
-    const sign = whole < 0 ? -1 : 1;
-    return whole + sign * (num / den);
-  }
-
-  // Fraction: "5/4"
-  const frac = cleaned.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  // Handle fraction like "5/4"
+  const frac = raw.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/);
   if (frac) {
-    const num = Number(frac[1]);
-    const den = Number(frac[2]);
-    if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
-    return num / den;
+    const n = Number(frac[1]);
+    const d = Number(frac[2]);
+    if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return null;
+    return n / d;
   }
 
-  // Plain number
-  const n = Number(cleaned.replace(/,/g, ""));
-  if (!Number.isFinite(n)) return null;
-  return n;
+  const num = Number(raw.replace(/,/g, ""));
+  if (!Number.isFinite(num)) return null;
+  return num;
 }
 
-/**
- * Safe expression evaluator: + - * / parentheses, decimals, fractions as "a/b", and %.
- * No variables, no functions, no exponents.
- */
-function safeEvalExpression(expr) {
-  const cleaned = String(expr || "")
+function tokenizeExpression(expr) {
+  const s = String(expr || "")
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[–—]/g, "-");
 
-  if (!cleaned) return null;
-
-  // Tokenize
-  const tokens = tokenize(cleaned);
-  if (!tokens) return null;
-
-  // Shunting-yard to RPN
-  const rpn = toRpn(tokens);
-  if (!rpn) return null;
-
-  // Evaluate RPN
-  const val = evalRpn(rpn);
-  if (!Number.isFinite(val)) return null;
-  return val;
-}
-
-function tokenize(s) {
   const tokens = [];
   let i = 0;
 
   const isDigit = (c) => c >= "0" && c <= "9";
+  const isOp = (c) => c === "+" || c === "-" || c === "*" || c === "/";
 
   while (i < s.length) {
     const c = s[i];
 
-    if (c === " ") {
-      i += 1;
+    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+      i++;
       continue;
     }
 
     if (c === "(" || c === ")") {
       tokens.push({ type: "paren", value: c });
-      i += 1;
+      i++;
       continue;
     }
 
-    if (c === "+" || c === "-" || c === "*" || c === "/") {
+    if (isOp(c)) {
       tokens.push({ type: "op", value: c });
-      i += 1;
+      i++;
       continue;
     }
 
-    // number, possibly with decimal, fraction, percent
+    // Number / fraction / percent
     if (isDigit(c) || c === ".") {
       let j = i;
-      while (j < s.length && (isDigit(s[j]) || s[j] === ".")) j += 1;
+      while (j < s.length && (isDigit(s[j]) || s[j] === "." || s[j] === ",")) j++;
+      let numStr = s.slice(i, j).replace(/,/g, "");
 
-      // fraction support: 12/5
+      // Fraction support: "12/5"
       if (j < s.length && s[j] === "/") {
-        j += 1;
-        while (j < s.length && (isDigit(s[j]) || s[j] === ".")) j += 1;
+        let k = j + 1;
+        while (k < s.length && (isDigit(s[k]) || s[k] === ",")) k++;
+        const denStr = s.slice(j + 1, k).replace(/,/g, "");
+        if (!denStr) return null;
+        const num = Number(numStr);
+        const den = Number(denStr);
+        if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null;
+        tokens.push({ type: "num", value: num / den });
+        i = k;
+        continue;
       }
 
-      // percent: 20%
-      if (j < s.length && s[j] === "%") j += 1;
+      let num = Number(numStr);
+      if (!Number.isFinite(num)) return null;
 
-      tokens.push({ type: "num", value: s.slice(i, j) });
+      // Percent support: "20%"
+      if (j < s.length && s[j] === "%") {
+        num = num / 100;
+        j++;
+      }
+
+      tokens.push({ type: "num", value: num });
       i = j;
       continue;
     }
 
+    // Any other char => unsafe / unsupported
     return null;
   }
 
-  return tokens;
-}
+  // Handle unary minus: convert "-x" into "0 - x" where appropriate
+  const fixed = [];
+  for (let idx = 0; idx < tokens.length; idx++) {
+    const t = tokens[idx];
+    if (t.type === "op" && t.value === "-") {
+      const prev = fixed[fixed.length - 1];
+      const isUnary = !prev || (prev.type === "op") || (prev.type === "paren" && prev.value === "(");
+      if (isUnary) {
+        fixed.push({ type: "num", value: 0 });
+        fixed.push({ type: "op", value: "-" });
+        continue;
+      }
+    }
+    fixed.push(t);
+  }
 
-function precedence(op) {
-  if (op === "*" || op === "/") return 2;
-  if (op === "+" || op === "-") return 1;
-  return 0;
+  return fixed;
 }
 
 function toRpn(tokens) {
-  const output = [];
+  const out = [];
   const ops = [];
 
-  for (let k = 0; k < tokens.length; k++) {
-    const t = tokens[k];
+  const prec = (op) => (op === "+" || op === "-" ? 1 : op === "*" || op === "/" ? 2 : 0);
 
+  for (const t of tokens) {
     if (t.type === "num") {
-      output.push(t);
+      out.push(t);
       continue;
     }
 
     if (t.type === "op") {
       while (ops.length) {
         const top = ops[ops.length - 1];
-        if (top.type === "op" && precedence(top.value) >= precedence(t.value)) {
-          output.push(ops.pop());
-        } else {
-          break;
+        if (top.type === "op" && prec(top.value) >= prec(t.value)) {
+          out.push(ops.pop());
+          continue;
         }
+        break;
       }
       ops.push(t);
       continue;
@@ -329,16 +348,11 @@ function toRpn(tokens) {
     }
 
     if (t.type === "paren" && t.value === ")") {
-      let found = false;
-      while (ops.length) {
-        const top = ops.pop();
-        if (top.type === "paren" && top.value === "(") {
-          found = true;
-          break;
-        }
-        output.push(top);
+      while (ops.length && !(ops[ops.length - 1].type === "paren" && ops[ops.length - 1].value === "(")) {
+        out.push(ops.pop());
       }
-      if (!found) return null;
+      if (!ops.length) return null;
+      ops.pop(); // remove "("
       continue;
     }
 
@@ -346,209 +360,154 @@ function toRpn(tokens) {
   }
 
   while (ops.length) {
-    const top = ops.pop();
-    if (top.type === "paren") return null;
-    output.push(top);
+    const t = ops.pop();
+    if (t.type === "paren") return null;
+    out.push(t);
   }
 
-  return output;
-}
-
-function parseNumToken(v) {
-  const raw = String(v || "").trim();
-  if (!raw) return null;
-
-  // percent
-  if (raw.endsWith("%")) {
-    const n = parseNumToken(raw.slice(0, -1));
-    return n == null ? null : n / 100;
-  }
-
-  // fraction
-  const frac = raw.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/);
-  if (frac) {
-    const a = Number(frac[1]);
-    const b = Number(frac[2]);
-    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return null;
-    return a / b;
-  }
-
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
-  return n;
+  return out;
 }
 
 function evalRpn(rpn) {
-  const stack = [];
-
+  const st = [];
   for (const t of rpn) {
     if (t.type === "num") {
-      const n = parseNumToken(t.value);
-      if (n == null) return NaN;
-      stack.push(n);
+      st.push(t.value);
       continue;
     }
-
     if (t.type === "op") {
-      if (stack.length < 2) return NaN;
-      const b = stack.pop();
-      const a = stack.pop();
-      if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
-
-      if (t.value === "+") stack.push(a + b);
-      else if (t.value === "-") stack.push(a - b);
-      else if (t.value === "*") stack.push(a * b);
-      else if (t.value === "/") stack.push(a / b);
-      else return NaN;
-
+      const b = st.pop();
+      const a = st.pop();
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+      if (t.value === "+") st.push(a + b);
+      else if (t.value === "-") st.push(a - b);
+      else if (t.value === "*") st.push(a * b);
+      else if (t.value === "/") {
+        if (b === 0) return null;
+        st.push(a / b);
+      } else return null;
       continue;
     }
-
-    return NaN;
+    return null;
   }
+  if (st.length !== 1) return null;
+  const v = st[0];
+  if (!Number.isFinite(v)) return null;
+  return v;
+}
 
-  if (stack.length !== 1) return NaN;
-  return stack[0];
+function safeEvalExpression(expr) {
+  const tokens = tokenizeExpression(expr);
+  if (!tokens) return null;
+  const rpn = toRpn(tokens);
+  if (!rpn) return null;
+  return evalRpn(rpn);
 }
 
 function formatFinalNumber(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return String(n);
-  // Prefer clean integers when possible
-  if (Number.isInteger(x)) return String(x);
-  // Otherwise reasonable decimals
-  return String(Number(x.toFixed(6))).replace(/\.0+$/, "");
+  if (Math.abs(x - Math.round(x)) < 1e-12) return String(Math.round(x));
+  const s = x.toString();
+  if (s.length <= 12) return s;
+  return x.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage }) {
-  const base =
-    `You are Elora, a premium teaching assistant.\n` +
-    `Style rules:\n` +
-    `- Be calm, professional, and very clear.\n` +
-    `- Use plain language by default.\n` +
-    `- Do NOT output raw LaTeX unless the user explicitly asks.\n` +
-    `- For math, write like a teacher: "5 divided by 4 is 1.25".\n` +
-    `- Keep steps short and readable.\n` +
-    `- Never say "likely", "maybe", or "it seems" when checking correctness; be decisive when you can.\n` +
-    `- If user message is ambiguous, ask ONE clarifying question, not many.\n\n` +
-    `Context:\n` +
-    `- Role: ${role}\n` +
-    `- Country: ${country}\n` +
-    `- Level: ${level}\n` +
-    `- Subject: ${subject}\n` +
-    (topic ? `- Topic: ${topic}\n` : "") +
-    `- Mode: ${action}\n` +
-    (hasImage ? `- The user attached an image. Use it.\n` : "");
+  const who =
+    role === "educator"
+      ? "You are Elora, a warm, professional teaching assistant for educators."
+      : role === "parent"
+      ? "You are Elora, a warm, practical helper for parents supporting learning at home."
+      : "You are Elora, a friendly tutor for students.";
 
-  if (role === "student" && action === "check") {
-    const gate =
-      `\nAttempt policy for "Check my answer":\n` +
-      `- Attempt is ${attempt}.\n` +
-      `- If attempt is 1 or 2: DO NOT reveal the final numeric answer. Give hints and the next step only.\n` +
-      `- If attempt is 3: You may reveal the final answer.\n` +
-      `- Always say whether the student's answer is correct or not.\n`;
-    return base + gate;
-  }
+  const style = [
+    "Default style rules:",
+    "- Use plain language. Keep it calm, clear, and structured.",
+    "- No raw LaTeX by default. Use human-readable math (e.g., '5 divided by 4 is 1.25').",
+    "- If you must show math, use simple inline forms like 5/4 or 1.25.",
+    "- Avoid saying 'likely' or sounding uncertain unless you truly cannot know.",
+    "- If information is missing, ask ONE short clarifying question, otherwise make a reasonable assumption and state it briefly.",
+  ].join("\n");
 
-  if (role === "educator") {
-    return (
-      base +
-      `\nEducator tone:\n` +
-      `- Classroom-ready language.\n` +
-      `- Provide structure (bullet points/headings) but keep it clean.\n`
-    );
-  }
+  const checkPolicy =
+    role === "student" && action === "check"
+      ? [
+          "Student Check Policy:",
+          "- You are checking the student's answer.",
+          "- If attempt is 1 or 2: do NOT reveal the final answer. Give hints and ask them to try again.",
+          "- If attempt is 3: you may reveal the final answer and explain clearly.",
+        ].join("\n")
+      : "";
 
-  if (role === "parent") {
-    return (
-      base +
-      `\nParent tone:\n` +
-      `- Avoid jargon.\n` +
-      `- Give practical ways to help at home.\n`
-    );
-  }
+  const ctx = [
+    `Context:`,
+    `Country syllabus naming: ${country}`,
+    `Level: ${level}`,
+    `Subject: ${subject}`,
+    topic ? `Topic: ${topic}` : null,
+    hasImage ? "The user attached an image. Describe what you see briefly, then answer." : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  return base;
+  const actionGuide =
+    action === "lesson"
+      ? "Output format: objectives, timings, steps, checks for understanding, differentiation."
+      : action === "worksheet"
+      ? "Output format: student questions + optional teacher answers if teacher requested."
+      : action === "assessment"
+      ? "Output format: questions, marks, and a marking scheme."
+      : action === "slides"
+      ? "Output format: slide titles + bullet content + short speaker notes."
+      : action === "study"
+      ? "Output format: a realistic plan with small steps."
+      : action === "coach"
+      ? "Output format: what to say/do at home, and a simple routine."
+      : action === "message"
+      ? "Output format: a draft message with polite tone."
+      : action === "check"
+      ? "Output format: verdict first (Correct/Not quite), then a short explanation/hints."
+      : "Output format: short steps and one example if helpful.";
+
+  return [who, style, checkPolicy, ctx, actionGuide].filter(Boolean).join("\n\n");
 }
 
 function userPrompt({ role, action, topic, message, attempt }) {
-  const t = topic ? `Topic: ${topic}\n` : "";
-  if (role === "student" && action === "check") {
-    return (
-      `Check my answer.\n` +
-      `Attempt: ${attempt}\n` +
-      t +
-      `Student message:\n${message}\n\n` +
-      `Rules:\n` +
-      `- First line: "Correct ✅" OR "Not quite ❌".\n` +
-      `- If attempt 1 or 2: hints only, no final answer.\n` +
-      `- If attempt 3: show the correct answer + short steps.\n`
-    );
-  }
+  const prefix =
+    role === "educator"
+      ? "Teacher request:"
+      : role === "parent"
+      ? "Parent request:"
+      : "Student request:";
 
-  if (action === "lesson") return `${t}Create a lesson plan:\n${message}`;
-  if (action === "worksheet") return `${t}Create a worksheet:\n${message}`;
-  if (action === "assessment") return `${t}Create an assessment:\n${message}`;
-  if (action === "slides") return `${t}Design a slide deck:\n${message}`;
+  const checkNote =
+    role === "student" && action === "check"
+      ? `Attempt: ${attempt || 0}/3. Follow the attempt policy strictly.`
+      : "";
 
-  return `${t}${message}`;
+  const topicLine = topic ? `Topic focus: ${topic}` : "";
+
+  return [prefix, checkNote, topicLine, message].filter(Boolean).join("\n");
 }
 
 async function callOpenRouter({ apiKey, messages }) {
   const resp = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: "openai/gpt-4o-mini",
-      temperature: 0.4,
       messages,
+      temperature: 0.2,
+      max_tokens: 900,
     }),
   });
 
   const data = await resp.json().catch(() => null);
   return { ok: resp.ok, status: resp.status, data };
-}
-
-function sanitizeHistoryText(text) {
-  // Keep it plain + safe, but don't over-strip meaning.
-  const cleaned = stripMarkdownToPlainText(normalizeMathToPlainText(text || ""));
-  return clampStr(cleaned, MAX_HISTORY_CHARS_PER_MESSAGE);
-}
-
-function buildConversationMessages({
-  history,
-  currentMessage,
-  sys,
-  userContent,
-}) {
-  const out = [{ role: "system", content: sys }];
-
-  const raw = Array.isArray(history) ? history : [];
-  let trimmed = raw.slice(-MAX_HISTORY_MESSAGES);
-
-  // Avoid duplicating the user's latest message (UI often includes it already)
-  if (trimmed.length) {
-    const last = trimmed[trimmed.length - 1];
-    if (last && last.from === "user") {
-      const lastText = clampStr(String(last.text || ""), 2400);
-      if (lastText && lastText === String(currentMessage || "")) {
-        trimmed = trimmed.slice(0, -1);
-      }
-    }
-  }
-
-  for (const m of trimmed) {
-    const from = m?.from === "elora" ? "assistant" : "user";
-    const text = sanitizeHistoryText(m?.text || "");
-    if (!text) continue;
-    out.push({ role: from, content: text });
-  }
-
-  out.push({ role: "user", content: userContent });
-  return out;
 }
 
 export default async function handler(req, res) {
@@ -576,8 +535,6 @@ export default async function handler(req, res) {
 
     const imageDataUrl = clampStr(body.imageDataUrl || "", 6_000_000);
     const hasImage = Boolean(imageDataUrl && imageDataUrl.startsWith("data:image/"));
-
-    const history = Array.isArray(body.messages) ? body.messages : [];
 
     if (!message && !hasImage) {
       return res.status(400).json({ error: "Missing message." });
@@ -647,7 +604,13 @@ export default async function handler(req, res) {
     const sys = systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage });
     const userText = userPrompt({ role, action, topic, message, attempt });
 
-    // OpenRouter image content is only supported on a user message.
+    const historyMessages = normalizeHistoryMessages(body?.messages, {
+      role,
+      action,
+      attempt,
+      currentUserText: message,
+    });
+
     const userContent = hasImage
       ? [
           { type: "text", text: userText },
@@ -655,16 +618,13 @@ export default async function handler(req, res) {
         ]
       : userText;
 
-    const convo = buildConversationMessages({
-      history,
-      currentMessage: message,
-      sys,
-      userContent,
-    });
-
     let { ok, data } = await callOpenRouter({
       apiKey,
-      messages: convo,
+      messages: [
+        { role: "system", content: sys },
+        ...historyMessages,
+        { role: "user", content: userContent },
+      ],
     });
 
     if (!ok) {

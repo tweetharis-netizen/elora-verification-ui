@@ -122,6 +122,7 @@ const STARTER_PROMPTS = [
 ];
 
 const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
+const PREFS_OPEN_KEY = "elora_assistant_prefs_open_v1";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -216,12 +217,7 @@ function getCountryLevels(country) {
     ];
   }
 
-  if (
-    c.includes("united kingdom") ||
-    c.includes("uk") ||
-    c.includes("britain") ||
-    c.includes("england")
-  ) {
+  if (c.includes("united kingdom") || c.includes("uk") || c.includes("britain") || c.includes("england")) {
     return [
       "Year 1",
       "Year 2",
@@ -322,6 +318,8 @@ async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = 
 
 export default function AssistantPage() {
   const router = useRouter();
+
+  const [prefsOpen, setPrefsOpen] = useState(true);
 
   const [session, setSession] = useState(() => getSession());
   const verified = Boolean(session?.verified);
@@ -425,6 +423,22 @@ export default function AssistantPage() {
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
+
+  // Preferences panel open/close persistence
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(PREFS_OPEN_KEY);
+      if (stored === "false") setPrefsOpen(false);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PREFS_OPEN_KEY, prefsOpen ? "true" : "false");
+    } catch {}
+  }, [prefsOpen]);
 
   // Preview notice persistence
   useEffect(() => {
@@ -1018,193 +1032,206 @@ export default function AssistantPage() {
 
       <div className="elora-page">
         <div className="elora-container">
-          <div className="grid gap-6 lg:grid-cols-[420px,1fr]">
+          <div className={cn("grid gap-6", prefsOpen ? "lg:grid-cols-[420px,1fr]" : "lg:grid-cols-1")}>
             {/* LEFT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-slate-950 dark:text-white">Preferences</h1>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
-                    verified
-                      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                      : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-                  )}
-                >
-                  <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                  {verified ? "Verified" : "Preview"}
-                </span>
-              </div>
-
-              {/* Role (display only) */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-                  <Link
-                    href="/settings?focus=role"
-                    className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-3 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
-                  >
-                    Change
-                  </Link>
-                </div>
-                <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-3">
-                  <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                    {ROLE_LABEL[role] || "Student"}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    Elora adapts automatically. Change role in Settings.
-                  </div>
-                </div>
-              </div>
-
-              {/* Country/Level */}
-              <div className="mt-5 grid gap-4">
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {COUNTRIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">
-                    {String(country || "").toLowerCase().includes("united states") ? "Grade" : "Level"}
-                  </label>
-                  <select
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {countryLevels.map((lv) => (
-                      <option key={lv} value={lv}>
-                        {lv}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    This affects the syllabus naming (Primary/Secondary vs Grades/Years).
+            {prefsOpen ? (
+              <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-black text-slate-950 dark:text-white">Preferences</h1>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
+                        verified
+                          ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                          : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
+                      )}
+                    >
+                      <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
+                      {verified ? "Verified" : "Preview"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPrefsOpen(false)}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Close preferences"
+                      aria-label="Close preferences"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    {SUBJECTS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                {/* Role (display only) */}
+                <div className="mt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
+                    <Link
+                      href="/settings?focus=role"
+                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-3 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
+                    >
+                      Change
+                    </Link>
+                  </div>
+                  <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-3">
+                    <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+                      {ROLE_LABEL[role] || "Student"}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                      Elora adapts automatically. Change role in Settings.
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
-                  <input
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., Fractions, Photosynthesis, Essay writing…"
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                </div>
+                {/* Country/Level */}
+                <div className="mt-5 grid gap-4">
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</label>
-                  <input
-                    value={constraints}
-                    onChange={(e) => setConstraints(e.target.value)}
-                    placeholder="e.g., Keep it short, use real-life examples…"
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                </div>
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">
+                      {String(country || "").toLowerCase().includes("united states") ? "Grade" : "Level"}
+                    </label>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    >
+                      {countryLevels.map((lv) => (
+                        <option key={lv} value={lv}>
+                          {lv}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                      This affects the syllabus naming (Primary/Secondary vs Grades/Years).
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Response style</label>
-                  <select
-                    value={responseStyle}
-                    onChange={(e) => setResponseStyle(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  >
-                    <option value="standard">Standard (recommended)</option>
-                    <option value="very-simple">Very simple</option>
-                    <option value="detailed">More detailed</option>
-                    <option value="custom">Custom…</option>
-                  </select>
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    >
+                      {SUBJECTS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  {responseStyle === "custom" ? (
-                    <textarea
-                      value={customStyleText}
-                      onChange={(e) => setCustomStyleText(e.target.value)}
-                      placeholder="Tell Elora how to respond (tone, structure, what to avoid)…"
-                      rows={3}
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
+                    <input
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder="e.g., Fractions, Photosynthesis, Essay writing…"
                       className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                     />
-                  ) : null}
-                </div>
-
-                {/* Quick actions */}
-                <div className="mt-1">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
-                  <div className="mt-2 grid gap-2">
-                    {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
-                      const active = action === a.id;
-                      return (
-                        <button
-                          key={a.id}
-                          type="button"
-                          onClick={() => setAction(a.id)}
-                          className={cn(
-                            "rounded-2xl border px-4 py-3 text-left transition",
-                            active
-                              ? "border-indigo-500/40 bg-indigo-600 text-white shadow-lg shadow-indigo-500/15"
-                              : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
-                          )}
-                        >
-                          <div className="text-sm font-extrabold">{a.label}</div>
-                          <div
-                            className={cn(
-                              "mt-1 text-xs font-bold",
-                              active ? "text-white/90" : "text-slate-600 dark:text-slate-400"
-                            )}
-                          >
-                            {a.hint}
-                          </div>
-                        </button>
-                      );
-                    })}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const currentSession = getSession();
-                      clearThread(chatUserKey, activeChatId);
-                      setMessages([]);
-                      setAttempt(0);
-                      await persistSessionPatch({ activeChatId, messages: [] });
-                      await clearServerChatIfVerified(currentSession);
-                      setAttachedImage(null);
-                      setAttachErr("");
-                      setThreads(listThreads(chatUserKey));
-                    }}
-                    className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                  >
-                    Clear current chat
-                  </button>
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</label>
+                    <input
+                      value={constraints}
+                      onChange={(e) => setConstraints(e.target.value)}
+                      placeholder="e.g., Keep it short, use real-life examples…"
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">Response style</label>
+                    <select
+                      value={responseStyle}
+                      onChange={(e) => setResponseStyle(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    >
+                      <option value="standard">Standard (recommended)</option>
+                      <option value="very-simple">Very simple</option>
+                      <option value="detailed">More detailed</option>
+                      <option value="custom">Custom…</option>
+                    </select>
+
+                    {responseStyle === "custom" ? (
+                      <textarea
+                        value={customStyleText}
+                        onChange={(e) => setCustomStyleText(e.target.value)}
+                        placeholder="Tell Elora how to respond (tone, structure, what to avoid)…"
+                        rows={3}
+                        className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      />
+                    ) : null}
+                  </div>
+
+                  {/* Quick actions */}
+                  <div className="mt-1">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
+                    <div className="mt-2 grid gap-2">
+                      {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
+                        const active = action === a.id;
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setAction(a.id)}
+                            className={cn(
+                              "rounded-2xl border px-4 py-3 text-left transition",
+                              active
+                                ? "border-indigo-500/40 bg-indigo-600 text-white shadow-lg shadow-indigo-500/15"
+                                : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
+                            )}
+                          >
+                            <div className="text-sm font-extrabold">{a.label}</div>
+                            <div
+                              className={cn(
+                                "mt-1 text-xs font-bold",
+                                active ? "text-white/90" : "text-slate-600 dark:text-slate-400"
+                              )}
+                            >
+                              {a.hint}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const currentSession = getSession();
+                        clearThread(chatUserKey, activeChatId);
+                        setMessages([]);
+                        setAttempt(0);
+                        await persistSessionPatch({ activeChatId, messages: [] });
+                        await clearServerChatIfVerified(currentSession);
+                        setAttachedImage(null);
+                        setAttachErr("");
+                        setThreads(listThreads(chatUserKey));
+                      }}
+                      className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    >
+                      Clear current chat
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
 
             {/* RIGHT */}
             <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5 flex flex-col min-h-0 lg:h-[calc(100dvh-var(--elora-nav-offset)-64px)]">
@@ -1223,6 +1250,19 @@ export default function AssistantPage() {
                 </div>
               </div>
 
+              {!prefsOpen ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setPrefsOpen(true)}
+                    className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                    title="Open preferences"
+                  >
+                    Open preferences
+                  </button>
+                </div>
+              ) : null}
+
               {/* Chat header bar */}
               <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/75 dark:bg-slate-950/20 px-3 py-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1237,13 +1277,13 @@ export default function AssistantPage() {
                         title="Switch chats"
                       >
                         <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
-                        <span className="max-w-[240px] truncate">{activeMeta?.title || "New chat"}</span>
+                        <span className="max-w-[260px] truncate">{activeMeta?.title || "New chat"}</span>
                         <span className="text-slate-500 dark:text-slate-400">▾</span>
                       </button>
 
                       {chatMenuOpen ? (
                         <div
-                          className="absolute z-50 mt-2 w-[340px] max-w-[90vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
+                          className="absolute z-50 mt-2 w-[360px] max-w-[92vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
                           role="menu"
                         >
                           {pinnedThreads.length ? (
@@ -1389,7 +1429,7 @@ export default function AssistantPage() {
                           Preview chat
                         </div>
                         <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">
-                          Verify to save, pin, rename, and manage chats
+                          Verify to save, pin, rename, and delete chats
                         </div>
                       </div>
                     </div>
@@ -1405,15 +1445,26 @@ export default function AssistantPage() {
                       title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
                       aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
                     >
-                      {activeMeta?.pinned ? "★ Pinned" : "☆ Pin"}
+                      {activeMeta?.pinned ? "★" : "☆"}
                     </button>
 
                     <button
                       type="button"
                       onClick={onOpenRename}
                       className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Rename chat"
                     >
-                      Rename
+                      ✎
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onDeleteChat(activeChatId)}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Delete this chat"
+                      aria-label="Delete this chat"
+                    >
+                      🗑
                     </button>
 
                     <button
@@ -1422,7 +1473,7 @@ export default function AssistantPage() {
                       className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
                       title="Start a new chat"
                     >
-                      New
+                      +
                     </button>
                   </div>
                 ) : (
@@ -1542,13 +1593,13 @@ export default function AssistantPage() {
                       <div key={idx} className={cn("flex", isUser ? "justify-end" : "justify-start")}>
                         <div
                           className={cn(
-                            "max-w-[85%] rounded-2xl border px-4 py-3",
+                            "max-w-[96%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
                             isUser
                               ? "border-indigo-500/30 bg-indigo-600 text-white shadow-lg shadow-indigo-500/10"
                               : "border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100"
                           )}
                         >
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">{display}</div>
+                          <div className="whitespace-pre-wrap">{display}</div>
 
                           {!isUser ? (
                             <div className="mt-3 flex items-center gap-2">
@@ -1571,7 +1622,7 @@ export default function AssistantPage() {
 
                   {loading ? (
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                      <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
                         Thinking…
                       </div>
                     </div>
@@ -1846,4 +1897,3 @@ export default function AssistantPage() {
     </>
   );
 }
-

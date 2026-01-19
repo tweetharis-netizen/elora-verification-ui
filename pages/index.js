@@ -31,26 +31,26 @@ const ROLE_META = {
 function StatusChip({ variant, children }) {
   const styles =
     variant === "good"
-      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+      ? "border-emerald-400/40 bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/40 dark:to-emerald-900/20 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/10"
       : variant === "warn"
-      ? "border-amber-400/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200";
+      ? "border-amber-400/40 bg-gradient-to-r from-amber-50 to-amber-50/50 dark:from-amber-950/40 dark:to-amber-900/20 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-500/10"
+      : "border-slate-300/50 dark:border-slate-700/50 bg-gradient-to-r from-slate-50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-950/30 text-slate-600 dark:text-slate-300";
 
   const dot =
     variant === "good"
-      ? "bg-emerald-400"
+      ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
       : variant === "warn"
-      ? "bg-amber-400"
-      : "bg-slate-300 dark:bg-white/30";
+      ? "bg-amber-500 shadow-sm shadow-amber-500/50"
+      : "bg-slate-400 dark:bg-slate-500";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold",
+        "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm transition-all duration-200",
         styles
       )}
     >
-      <span className={cn("h-2 w-2 rounded-full", dot)} />
+      <span className={cn("h-2 w-2 rounded-full animate-pulse", dot)} />
       {children}
     </span>
   );
@@ -58,16 +58,17 @@ function StatusChip({ variant, children }) {
 
 function HomePreview({ verified, teacher }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-2xl shadow-slate-900/10 dark:shadow-black/30">
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white via-white to-slate-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 backdrop-blur-xl transition-all duration-300 hover:shadow-3xl hover:shadow-indigo-500/10">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -inset-24 bg-gradient-to-br from-indigo-500/20 via-sky-400/10 to-fuchsia-500/15 blur-3xl" />
+        <div className="absolute -inset-32 bg-gradient-to-br from-indigo-500/30 via-purple-500/20 to-pink-500/20 blur-3xl opacity-60 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/5 via-transparent to-transparent dark:from-white/5" />
       </div>
 
-      <div className="relative p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+      <div className="relative p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <div className="text-sm font-black text-slate-950 dark:text-white">Elora Preview</div>
-            <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+            <div className="text-sm font-bold text-slate-950 dark:text-white tracking-tight">Elora Preview</div>
+            <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
               What judges should understand in 10 seconds
             </div>
           </div>
@@ -82,42 +83,42 @@ function HomePreview({ verified, teacher }) {
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Assistant</div>
-            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+        <div className="mt-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/90 to-slate-50/50 dark:from-slate-800/50 dark:to-slate-900/30 p-5 backdrop-blur-sm shadow-lg shadow-slate-900/5 dark:shadow-black/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-wide">Assistant</div>
+            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-2 py-1 rounded-md">
               Plain language • short steps
             </div>
           </div>
 
-          <div className="mt-3 space-y-2">
-            <div className="max-w-[92%] rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-slate-100">
-              “What is 5 divided by 4?”
+          <div className="mt-4 space-y-3">
+            <div className="max-w-[92%] rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-white/90 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm">
+              "What is 5 divided by 4?"
             </div>
-            <div className="ml-auto max-w-[92%] rounded-2xl border border-indigo-500/20 bg-indigo-600 px-3 py-2 text-sm text-white">
-              5 ÷ 4 means split 5 into 4 equal parts. That’s 1.25. (One and a quarter.)
+            <div className="ml-auto max-w-[92%] rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600 to-indigo-700 px-4 py-3 text-sm text-white shadow-lg shadow-indigo-500/25 backdrop-blur-sm">
+              5 ÷ 4 means split 5 into 4 equal parts. That's 1.25. (One and a quarter.)
             </div>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-4">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center">
-              <span aria-hidden="true">✅</span>
+        <div className="mt-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/80 to-slate-50/40 dark:from-slate-800/40 dark:to-slate-900/20 p-5 shadow-md shadow-slate-900/5 dark:shadow-black/10">
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 grid place-items-center shadow-sm">
+              <span aria-hidden="true" className="text-lg">✅</span>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-extrabold text-slate-950 dark:text-white">
+              <div className="text-sm font-bold text-slate-950 dark:text-white tracking-tight">
                 Verify student work (demo)
               </div>
-              <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              <div className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Consistent output: verdict → checks → next step. Built for teacher trust, not flashy AI.
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 text-xs text-slate-600 dark:text-slate-300">
-          Designed for a <span className="font-extrabold">5–7 minute</span> competition demo: clear, stable, and
+        <div className="mt-5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          Designed for a <span className="font-bold text-slate-700 dark:text-slate-300">5–7 minute</span> competition demo: clear, stable, and
           teacher-friendly.
         </div>
       </div>
@@ -138,10 +139,23 @@ export default function HomePage() {
 
   useEffect(() => {
     let mounted = true;
-    refreshVerifiedFromServer().then(() => {
-      if (!mounted) return;
-      setSession(getSession());
-    });
+
+    const syncSessionVerification = async () => {
+      try {
+        await refreshVerifiedFromServer();
+        if (!mounted) return;
+        setSession(getSession());
+      } catch (error) {
+        // Avoid unhandled promise rejections while keeping behavior the same
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.error("Failed to refresh verification status", error);
+        }
+      }
+    };
+
+    syncSessionVerification();
+
     return () => {
       mounted = false;
     };
@@ -169,81 +183,80 @@ export default function HomePage() {
         />
       </Head>
 
-      <div className="elora-page">
+      <div className="elora-page min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20">
         <div className="elora-container">
-          {/* ✅ Cinematic premium wrapper (visual-only; logic unchanged) */}
-          <section className="elora-hero p-6 sm:p-8">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 backdrop-blur-xl px-4 py-2">
-                  <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Genesis demo build</span>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">•</span>
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                    Secure verification + sessions
-                  </span>
-                </div>
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center py-8 lg:py-12">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2.5 rounded-full border border-slate-200/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl px-4 py-2.5 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wide">Genesis demo build</span>
+                <span className="text-xs font-bold text-slate-400 dark:text-slate-500">•</span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Secure verification + sessions</span>
+              </div>
 
-                <h1 className="mt-6 text-[clamp(2.2rem,4.1vw,3.8rem)] font-black tracking-tight text-slate-950 dark:text-white">
+              <div className="space-y-6">
+                <h1 className="text-[clamp(2.5rem,5vw,4.5rem)] font-black tracking-tight text-slate-950 dark:text-white leading-[1.1] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-100 dark:to-white bg-clip-text text-transparent">
                   {meta.headline}
                 </h1>
 
-                <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-700 dark:text-slate-300 max-w-xl">
+                <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium">
                   {meta.subcopy}
                 </p>
-
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {["educator", "student", "parent"].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRoleState(r)}
-                      className={cn(
-                        "rounded-full border px-4 py-2 text-sm font-extrabold transition",
-                        role === r
-                          ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
-                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/20 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                      )}
-                    >
-                      {ROLE_META[r].label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-7 flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={() => (verified ? goAssistant() : goVerify())}
-                    className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
-                  >
-                    {verified ? "Open Assistant" : "Verify email"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => router.push("/demo")}
-                    className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-5 py-3 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
-                  >
-                    Start Genesis Demo
-                  </button>
-                </div>
-
-                <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
-                  <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
-                  {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
-                </div>
-
-                <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 max-w-xl">
-                  Verification unlocks exports and teacher tools. Your progress persists across refreshes.
-                </p>
               </div>
 
-              <div className="relative">
-                <HomePreview verified={verified} teacher={teacher} />
+              <div className="flex flex-wrap gap-3">
+                {["educator", "student", "parent"].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRoleState(r)}
+                    className={cn(
+                      "rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm",
+                      role === r
+                        ? "border-indigo-500/60 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30 scale-105"
+                        : "border-slate-300/60 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md hover:scale-105"
+                    )}
+                  >
+                    {ROLE_META[r].label}
+                  </button>
+                ))}
               </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => (verified ? goAssistant() : goVerify())}
+                  className="group relative rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-105 hover:from-indigo-700 hover:to-indigo-800 overflow-hidden"
+                >
+                  <span className="relative z-10">{verified ? "Open Assistant" : "Verify email"}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-700 to-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/demo")}
+                  className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-700/50 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-lg hover:scale-105"
+                >
+                  Start Genesis Demo
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
+                {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
+              </div>
+
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+                Verification unlocks exports and teacher tools. Your progress persists across refreshes.
+              </p>
             </div>
-          </section>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="relative lg:pl-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 blur-3xl rounded-full" />
+              <HomePreview verified={verified} teacher={teacher} />
+            </div>
+          </div>
+
+          <div className="mt-16 grid gap-6 md:grid-cols-3">
             {[
               {
                 title: "Verify student work",
@@ -263,15 +276,15 @@ export default function HomePage() {
             ].map((c) => (
               <div
                 key={c.title}
-                className="rounded-3xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-5 shadow-xl shadow-slate-900/5 dark:shadow-black/20"
+                className="group relative rounded-3xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/90 to-slate-50/50 dark:from-slate-800/40 dark:to-slate-900/30 p-6 shadow-lg shadow-slate-900/5 dark:shadow-black/20 hover:shadow-xl hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/5 transition-all duration-300 hover:scale-[1.02] hover:border-indigo-300/50 dark:hover:border-indigo-700/50"
               >
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 grid place-items-center">
-                    <span aria-hidden="true">{c.icon}</span>
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 grid place-items-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <span aria-hidden="true" className="text-xl">{c.icon}</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-extrabold text-slate-950 dark:text-white">{c.title}</div>
-                    <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{c.desc}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-950 dark:text-white tracking-tight mb-1.5">{c.title}</div>
+                    <div className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{c.desc}</div>
                   </div>
                 </div>
               </div>

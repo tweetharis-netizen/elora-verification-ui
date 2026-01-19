@@ -112,33 +112,42 @@ export default function Navbar() {
   const accountLabel = verified ? "Verified" : canLogout ? "Account" : "Guest";
 
   return (
-    <header ref={navRef} className={clsx("elora-nav", hidden && "elora-nav--hidden")}>
-      <div className="mx-auto max-w-[1120px] px-4 pt-4">
-        <div className="elora-navbar">
+    <header
+      ref={navRef}
+      className={clsx(
+        "sticky top-0 z-40 transition-all duration-300",
+        "backdrop-blur-xl bg-white/75 dark:bg-slate-950/70 border-b border-slate-200/70 dark:border-slate-800/70",
+        hidden && "-translate-y-full"
+      )}
+    >
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-gradient-to-r from-white/95 via-white/80 to-indigo-50/60 dark:from-slate-900/90 dark:via-slate-900/80 dark:to-indigo-950/40 shadow-lg shadow-slate-900/5 dark:shadow-black/20 px-4 py-3 lg:px-5 lg:py-3.5">
           <Link href="/" className="flex items-center gap-3 no-underline text-[inherit]">
-            <div className="w-9 h-9 rounded-xl grid place-items-center border border-[var(--line)] bg-[color-mix(in_oklab,var(--surface2)_72%,transparent)] font-black">
+            <div className="w-10 h-10 rounded-2xl grid place-items-center border border-slate-200/70 dark:border-slate-800/70 bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-500 text-white font-black shadow-md shadow-indigo-500/30">
               E
             </div>
             <div className="leading-tight">
-              <div className="font-black">Elora</div>
-              <div className="text-xs elora-muted">Education assistant</div>
+              <div className="font-black text-slate-900 dark:text-white tracking-tight">Elora</div>
+              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Education assistant</div>
             </div>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-6" aria-label="Primary">
-            <Link className="elora-navlink" href="/">
-              Home
-            </Link>
-            <Link className="elora-navlink" href="/assistant">
-              Assistant
-            </Link>
-            <Link className="elora-navlink" href="/help">
-              Help
-            </Link>
-            <Link className="elora-navlink" href="/settings">
-              Settings
-            </Link>
+          <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
+            {[
+              { href: "/", label: "Home" },
+              { href: "/assistant", label: "Assistant" },
+              { href: "/help", label: "Help" },
+              { href: "/settings", label: "Settings" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors"
+                href={item.href}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           {/* Right controls */}
@@ -146,44 +155,48 @@ export default function Navbar() {
             {/* Mobile hamburger */}
             <div className="sm:hidden relative" ref={mobileRef}>
               <button
-                className="elora-hamburger"
+                className="flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/70 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm shadow-slate-900/5 dark:shadow-black/20"
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label="Open menu"
               >
-                <span className={dotClass} />
+                <span className={clsx(dotClass, "h-2 w-2 rounded-full")} />
                 Menu
-                <span className="elora-hamburger-icon" aria-hidden="true" />
+                <span className="relative block h-3 w-4">
+                  <span className="absolute inset-x-0 top-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                  <span className="absolute inset-x-0 top-1.5 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                  <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                </span>
               </button>
 
               {mobileOpen && (
-                <div className="elora-mobile-menu" role="menu" aria-label="Mobile navigation">
-                  <Link className="elora-account-item" href="/" onClick={() => setMobileOpen(false)}>
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
                     Home
                   </Link>
-                  <Link className="elora-account-item" href="/assistant" onClick={() => setMobileOpen(false)}>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
                     Assistant
                   </Link>
-                  <Link className="elora-account-item" href="/help" onClick={() => setMobileOpen(false)}>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/help" onClick={() => setMobileOpen(false)}>
                     Help
                   </Link>
-                  <Link className="elora-account-item" href="/settings" onClick={() => setMobileOpen(false)}>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/settings" onClick={() => setMobileOpen(false)}>
                     Settings
                   </Link>
 
-                  <div className="elora-divider" />
+                  <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
 
                   {!verified && (
-                    <Link className="elora-account-item" href="/verify" onClick={() => setMobileOpen(false)}>
+                    <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800" href="/verify" onClick={() => setMobileOpen(false)}>
                       Verify email
                     </Link>
                   )}
 
                   {canLogout && (
                     <>
-                      <div className="elora-divider" />
+                      <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
                       <button
-                        className="elora-account-item danger"
+                        className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                         onClick={async () => {
                           setMobileOpen(false);
                           await logout();
@@ -201,28 +214,33 @@ export default function Navbar() {
 
             {/* Account dropdown (desktop) */}
             <div className="hidden sm:block relative" ref={accountRef}>
-              <button className="elora-account" onClick={() => setAccountOpen((v) => !v)} type="button">
-                <span className={dotClass} />
+              <button
+                className="flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-slate-800/70 bg-white/80 dark:bg-slate-900/80 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm shadow-slate-900/5 dark:shadow-black/20 hover:border-indigo-300/70 dark:hover:border-indigo-700/60 hover:shadow-md transition-all"
+                onClick={() => setAccountOpen((v) => !v)}
+                type="button"
+              >
+                <span className={clsx(dotClass, "h-2 w-2 rounded-full")} />
                 {accountLabel}
+                <span className="text-slate-400 dark:text-slate-500" aria-hidden="true">▾</span>
               </button>
 
               {accountOpen && (
-                <div className="elora-account-menu">
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 shadow-2xl shadow-slate-900/10 dark:shadow-black/30 backdrop-blur-xl p-2 space-y-1">
                   {!verified && (
-                    <Link className="elora-account-item" href="/verify" onClick={() => setAccountOpen(false)}>
+                    <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800" href="/verify" onClick={() => setAccountOpen(false)}>
                       Verify email
                     </Link>
                   )}
 
-                  <Link className="elora-account-item" href="/settings" onClick={() => setAccountOpen(false)}>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/settings" onClick={() => setAccountOpen(false)}>
                     Preferences
                   </Link>
 
                   {canLogout && (
                     <>
-                      <div className="elora-divider" />
+                      <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
                       <button
-                        className="elora-account-item danger"
+                        className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                         onClick={async () => {
                           setAccountOpen(false);
                           await logout();
@@ -240,7 +258,20 @@ export default function Navbar() {
 
             {/* Desktop status chip (compact) */}
             <div className="hidden sm:flex">
-              <span className="elora-chip" data-variant={verified ? "good" : "warn"}>
+              <span
+                className={clsx(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
+                  verified
+                    ? "border-emerald-400/50 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    : "border-amber-400/50 bg-amber-50 text-amber-800 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-200"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "h-2.5 w-2.5 rounded-full",
+                    verified ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-amber-500 shadow-sm shadow-amber-500/50"
+                  )}
+                />
                 {verified ? "Verified" : "Not verified"}
               </span>
             </div>

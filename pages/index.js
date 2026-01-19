@@ -171,72 +171,77 @@ export default function HomePage() {
 
       <div className="elora-page">
         <div className="elora-container">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 backdrop-blur-xl px-4 py-2">
-                <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Genesis demo build</span>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">•</span>
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Secure verification + sessions</span>
-              </div>
+          {/* ✅ Cinematic premium wrapper (visual-only; logic unchanged) */}
+          <section className="elora-hero p-6 sm:p-8">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 backdrop-blur-xl px-4 py-2">
+                  <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Genesis demo build</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">•</span>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Secure verification + sessions
+                  </span>
+                </div>
 
-              <h1 className="mt-6 text-[clamp(2.2rem,4.1vw,3.8rem)] font-black tracking-tight text-slate-950 dark:text-white">
-                {meta.headline}
-              </h1>
+                <h1 className="mt-6 text-[clamp(2.2rem,4.1vw,3.8rem)] font-black tracking-tight text-slate-950 dark:text-white">
+                  {meta.headline}
+                </h1>
 
-              <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-700 dark:text-slate-300 max-w-xl">
-                {meta.subcopy}
-              </p>
+                <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-700 dark:text-slate-300 max-w-xl">
+                  {meta.subcopy}
+                </p>
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                {["educator", "student", "parent"].map((r) => (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {["educator", "student", "parent"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRoleState(r)}
+                      className={cn(
+                        "rounded-full border px-4 py-2 text-sm font-extrabold transition",
+                        role === r
+                          ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
+                          : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/20 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
+                      )}
+                    >
+                      {ROLE_META[r].label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-7 flex flex-col sm:flex-row gap-3">
                   <button
-                    key={r}
                     type="button"
-                    onClick={() => setRoleState(r)}
-                    className={cn(
-                      "rounded-full border px-4 py-2 text-sm font-extrabold transition",
-                      role === r
-                        ? "border-indigo-500/50 bg-indigo-600/10 text-indigo-800 dark:text-indigo-200"
-                        : "border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/20 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                    )}
+                    onClick={() => (verified ? goAssistant() : goVerify())}
+                    className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
                   >
-                    {ROLE_META[r].label}
+                    {verified ? "Open Assistant" : "Verify email"}
                   </button>
-                ))}
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/demo")}
+                    className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-5 py-3 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
+                  >
+                    Start Genesis Demo
+                  </button>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
+                  <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
+                  {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
+                </div>
+
+                <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 max-w-xl">
+                  Verification unlocks exports and teacher tools. Your progress persists across refreshes.
+                </p>
               </div>
 
-              <div className="mt-7 flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => (verified ? goAssistant() : goVerify())}
-                  className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
-                >
-                  {verified ? "Open Assistant" : "Verify email"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => router.push("/demo")}
-                  className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-transparent px-5 py-3 text-sm font-extrabold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-950/25"
-                >
-                  Start Genesis Demo
-                </button>
+              <div className="relative">
+                <HomePreview verified={verified} teacher={teacher} />
               </div>
-
-              <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
-                <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
-                {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
-              </div>
-
-              <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 max-w-xl">
-                Verification unlocks exports and teacher tools. Your progress persists across refreshes.
-              </p>
             </div>
-
-            <div className="relative">
-              <HomePreview verified={verified} teacher={teacher} />
-            </div>
-          </div>
+          </section>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[

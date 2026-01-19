@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Navbar from "../components/Navbar";
 import { getSession, isTeacher, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
 
 function cn(...xs) {
@@ -195,8 +194,6 @@ export default function DemoPage() {
       <Head>
         <title>Get started — Elora</title>
       </Head>
-
-      <Navbar />
 
       <div className="elora-page">
         <div className="elora-container">

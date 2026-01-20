@@ -122,13 +122,30 @@ export default function Navbar() {
     >
       <div className="mx-auto max-w-6xl px-4 pt-4">
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-gradient-to-r from-white/95 via-white/80 to-indigo-50/60 dark:from-slate-900/90 dark:via-slate-900/80 dark:to-indigo-950/40 shadow-lg shadow-slate-900/5 dark:shadow-black/20 px-4 py-3 lg:px-5 lg:py-3.5">
-          <Link href="/" className="flex items-center gap-3 no-underline text-[inherit]">
-            <div className="w-10 h-10 rounded-2xl grid place-items-center border border-slate-200/70 dark:border-slate-800/70 bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-500 text-white font-black shadow-md shadow-indigo-500/30">
-              E
-            </div>
-            <div className="leading-tight">
-              <div className="font-black text-slate-900 dark:text-white tracking-tight">Elora</div>
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Education assistant</div>
+          <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit]">
+            <div className="relative">
+              <div
+                className={clsx(
+                  "absolute -inset-2 rounded-2xl blur-xl opacity-40",
+                  "bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/25 to-sky-400/30",
+                  "dark:from-indigo-400/30 dark:via-fuchsia-400/20 dark:to-sky-300/25",
+                  "group-hover:opacity-60 transition-opacity"
+                )}
+                aria-hidden="true"
+              />
+              <div className="relative flex items-center gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl px-3 py-2 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
+                <div className="w-9 h-9 rounded-2xl grid place-items-center bg-gradient-to-br from-indigo-600 via-indigo-500 to-fuchsia-500 text-white font-black shadow-md shadow-indigo-500/30">
+                  E
+                </div>
+                <div className="leading-tight">
+                  <div className="font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-700 dark:from-white dark:via-indigo-200 dark:to-fuchsia-200">
+                    Elora
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    AI learning assistant
+                  </div>
+                </div>
+              </div>
             </div>
           </Link>
 
@@ -233,7 +250,7 @@ export default function Navbar() {
                   )}
 
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/settings" onClick={() => setAccountOpen(false)}>
-                    Preferences
+                    Settings
                   </Link>
 
                   {canLogout && (

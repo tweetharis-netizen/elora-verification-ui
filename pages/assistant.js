@@ -115,11 +115,106 @@ const REFINEMENT_CHIPS = {
   ],
 };
 
-const STARTER_PROMPTS = [
-  "Explain fractions like I’m 10.",
-  "Check my answer: 10 + 5 = 15",
-  "Give me 1 Primary-level practice question and then check my answer.",
-];
+const STARTER_SUGGESTION_POOLS = {
+  educator: ({ country, level, subject, topic }) => {
+    const safeCountry = country || "your country";
+    const safeLevel = level || "your current level";
+    const safeSubject = subject || "your subject";
+    const safeTopic = topic || "a tricky topic your class is currently on";
+
+    return [
+      `Draft a ${safeLevel} ${safeSubject} lesson on “${safeTopic}” using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
+      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on “${safeTopic}”, with printable prompts.`,
+      `Generate a quick formative check for “${safeTopic}”: 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
+      `Write teacher feedback comments for 3 common student errors on “${safeTopic}” (one sentence each) plus a targeted next step for improvement.`,
+      `Build a rubric for ${safeSubject} work on “${safeTopic}” (4 bands) with concrete descriptors and a sample “Band 3” exemplar answer.`,
+      `Differentiate “${safeTopic}” for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
+      `Make a mini-quiz (8 questions) on “${safeTopic}” aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
+      `Turn “${safeTopic}” into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
+    ];
+  },
+  parent: ({ country, level, subject, topic }) => {
+    const safeCountry = country || "our country";
+    const safeLevel = level || "my child’s level";
+    const safeSubject = subject || "schoolwork";
+    const safeTopic = topic || "what they’re learning this week";
+
+    return [
+      `Explain “${safeTopic}” in plain parent-friendly language, then give me a 2-minute “car ride explanation” I can say to my child at ${safeLevel}.`,
+      `Give me 3 at-home mini-activities to support ${safeSubject} on “${safeTopic}” (10 minutes each, no printing, uses common household items).`,
+      `Write 6 gentle conversation starters about “${safeTopic}” that feel supportive (not like a test) — good for dinner or bedtime chats.`,
+      `Create a simple checklist I can use to help with ${safeSubject} homework on “${safeTopic}” without taking over (what to ask, what not to say).`,
+      `Draft a calm “frustration reset” script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
+      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to “${safeTopic}” with specific steps.`,
+      `Give me 5 praise phrases that reward effort and strategy during “${safeTopic}” practice (and 3 follow-up questions that encourage thinking).`,
+      `Turn “${safeTopic}” into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
+    ];
+  },
+  student: ({ level, subject, topic }) => {
+    const safeLevel = level || "my level";
+    const safeSubject = subject || "my subject";
+    const safeTopic = topic || "a topic I’m stuck on";
+
+    return [
+      `Teach me “${safeTopic}” for ${safeSubject} at ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers).`,
+      `Make me a 20-minute study sprint for “${safeTopic}”: warm-up → 2 focused drills → 1 mixed question → quick recap.`,
+      `Give me 6 practice questions on “${safeTopic}” at ${safeLevel} and mark them one-by-one after I answer each (no spoilers).`,
+      `I’ll paste my working for “${safeTopic}”. First highlight what I did correctly, then show the first wrong step and how to fix it.`,
+      `Help me revise “${safeTopic}” for an exam: 5-bullet summary, 3 “must know” rules, and 3 exam-style questions with a marking guide.`,
+      `Create a 7-day spaced revision plan for “${safeTopic}” with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
+      `Explain my mistake: I’ll paste a wrong answer about “${safeTopic}” — tell me the misconception and give 2 similar questions to practice.`,
+      `Make a “teach-back” script so I can explain “${safeTopic}” to a friend in 60 seconds, then quiz me with 3 short questions.`,
+    ];
+  },
+};
+
+function stableHashToUint32(input) {
+  // Simple non-crypto hash for deterministic UI randomness
+  const s = String(input || "");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle(arr, rnd) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickStarterSuggestions({ seed, role, country, level, subject, topic }) {
+  const key = role === "educator" || role === "teacher" ? "educator" : role === "parent" ? "parent" : "student";
+  const poolFn = STARTER_SUGGESTION_POOLS[key] || STARTER_SUGGESTION_POOLS.student;
+  const pool = poolFn({ country, level, subject, topic }) || [];
+  if (!pool.length) return [];
+
+  const rnd = mulberry32(stableHashToUint32(seed));
+  const shuffled = seededShuffle(pool, rnd);
+
+  const maxCount = Math.min(5, shuffled.length);
+  const minCount = Math.min(3, maxCount);
+  const countRange = maxCount - minCount;
+  const count = minCount + (countRange > 0 ? Math.floor(rnd() * (countRange + 1)) : 0);
+
+  return shuffled.slice(0, count);
+}
 
 const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
 const PREFS_OPEN_KEY = "elora_assistant_prefs_open_v1";
@@ -368,6 +463,41 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
 
   const [attempt, setAttempt] = useState(0);
+  const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
+  const starterSaltRef = useRef(
+    // changes on reload, but stable through the session
+    typeof window !== "undefined" ? `${Date.now()}-${Math.random()}` : "ssr"
+  );
+
+  // Debounce topic so suggestions don't "flicker" while the user is typing.
+  useEffect(() => {
+    const t = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
+    return () => clearTimeout(t);
+  }, [topic]);
+
+  const starterSeed = useMemo(() => {
+    // Stable for small UI changes, but changes when:
+    // - page reloads (salt)
+    // - user switches chat thread (activeChatId)
+    // - user changes key settings (role/country/level/subject)
+    // - topic changes after debounce
+    return [
+      "starter-v2",
+      starterSaltRef.current,
+      chatUserKey,
+      activeChatId,
+      role,
+      country,
+      level,
+      subject,
+      topicForSuggestions,
+    ].join("|");
+  }, [chatUserKey, activeChatId, role, country, level, subject, topicForSuggestions]);
+
+  const starterPrompts = useMemo(
+    () => pickStarterSuggestions({ seed: starterSeed, role, country, level, subject, topic: topicForSuggestions }),
+    [starterSeed, role, country, level, subject, topicForSuggestions]
+  );
 
   const [verifyGateOpen, setVerifyGateOpen] = useState(false);
   const [teacherGateOpen, setTeacherGateOpen] = useState(false);
@@ -1561,15 +1691,15 @@ export default function AssistantPage() {
                 }}
                 className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative"
               >
-                {!messages.length && !loading ? (
+                {!messages.length && !loading && starterPrompts.length ? (
                   <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
                     <div className="text-sm font-extrabold text-slate-900 dark:text-white">
                       Try one of these
                     </div>
                     <div className="mt-2 grid gap-2">
-                      {STARTER_PROMPTS.map((p) => (
+                      {starterPrompts.map((p, idx) => (
                         <button
-                          key={p}
+                          key={`${p}-${idx}`}
                           type="button"
                           onClick={() => setChatText(p)}
                           className="text-left rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"

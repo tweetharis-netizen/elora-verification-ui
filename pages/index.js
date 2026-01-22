@@ -2,7 +2,10 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
-import { cn } from "@/lib/utils";
+
+function cn(...xs) {
+  return xs.filter(Boolean).join(" ");
+}
 
 const ROLE_META = {
   educator: {
@@ -81,13 +84,12 @@ function HomePreview({ verified, teacher }) {
         </div>
 
         <div className="mt-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/90 to-slate-50/50 dark:from-slate-800/50 dark:to-slate-900/30 p-5 backdrop-blur-sm shadow-lg shadow-slate-900/5 dark:shadow-black/20">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-wide">Assistant</div>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-2 py-1 rounded-md">
-                Plain language • short steps
-              </div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-wide">Assistant</div>
+            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-2 py-1 rounded-md">
+              Plain language • short steps
             </div>
-
+          </div>
 
           <div className="mt-4 space-y-3">
             <div className="max-w-[92%] rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-white/90 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm">
@@ -191,53 +193,52 @@ export default function HomePage() {
                 <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Secure verification + sessions</span>
               </div>
 
-                <div className="space-y-6 min-h-[180px] transition-all duration-500 ease-in-out" key={role}>
-                  <h1 className="text-[clamp(2.5rem,5vw,4.5rem)] font-black tracking-tight text-slate-950 dark:text-white leading-[1.1] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-100 dark:to-white bg-clip-text text-transparent animate-in fade-in slide-in-from-left-4 duration-700">
-                    {meta.headline}
-                  </h1>
+              <div className="space-y-6">
+                <h1 className="text-[clamp(2.5rem,5vw,4.5rem)] font-black tracking-tight text-slate-950 dark:text-white leading-[1.1] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-100 dark:to-white bg-clip-text text-transparent">
+                  {meta.headline}
+                </h1>
 
-                  <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium animate-in fade-in slide-in-from-left-6 duration-700 delay-100">
-                    {meta.subcopy}
-                  </p>
-                </div>
+                <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium">
+                  {meta.subcopy}
+                </p>
+              </div>
 
-                <div className="flex flex-wrap gap-3">
-                  {["educator", "student", "parent"].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRoleState(r)}
-                      className={cn(
-                        "rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900",
-                        role === r
-                          ? "border-indigo-500/60 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30 scale-105"
-                          : "border-slate-300/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md hover:scale-105"
-                      )}
-                    >
-                      {ROLE_META[r].label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-wrap gap-3">
+                {["educator", "student", "parent"].map((r) => (
                   <button
+                    key={r}
                     type="button"
-                    onClick={() => (verified ? goAssistant() : goVerify())}
-                    className="group relative rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-105 hover:from-indigo-700 hover:to-indigo-800 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
+                    onClick={() => setRoleState(r)}
+                    className={cn(
+                      "rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm",
+                      role === r
+                        ? "border-indigo-500/60 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30 scale-105"
+                        : "border-slate-300/60 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md hover:scale-105"
+                    )}
                   >
-                    <span className="relative z-10">{verified ? "Open Assistant" : "Verify email"}</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-700 to-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    {ROLE_META[r].label}
                   </button>
+                ))}
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => router.push("/demo")}
-                    className="rounded-2xl border-2 border-slate-300/80 dark:border-slate-700/50 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-lg hover:scale-105 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
-                  >
-                    Start Genesis Demo
-                  </button>
-                </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => (verified ? goAssistant() : goVerify())}
+                  className="group relative rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-105 hover:from-indigo-700 hover:to-indigo-800 overflow-hidden"
+                >
+                  <span className="relative z-10">{verified ? "Open Assistant" : "Verify email"}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-700 to-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => router.push("/demo")}
+                  className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-700/50 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-lg hover:scale-105"
+                >
+                  Start Genesis Demo
+                </button>
+              </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>

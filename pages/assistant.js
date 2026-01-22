@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Modal from "../components/Modal";
-import { cn } from "@/lib/utils";
 import {
   activateTeacher,
   getSession,
@@ -219,6 +218,10 @@ function pickStarterSuggestions({ seed, role, country, level, subject, topic }) 
 
 const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
 const PREFS_OPEN_KEY = "elora_assistant_prefs_open_v1";
+
+function cn(...xs) {
+  return xs.filter(Boolean).join(" ");
+}
 
 function stripInternalTags(text) {
   return String(text || "")
@@ -1413,12 +1416,11 @@ export default function AssistantPage() {
                           className="absolute z-50 mt-2 w-[360px] max-w-[92vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
                           role="menu"
                         >
-                            {pinnedThreads.length ? (
-                              <div className="px-3 pt-3 pb-2">
-                                <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                  Pinned
-                                </div>
-
+                          {pinnedThreads.length ? (
+                            <div className="px-3 pt-3 pb-2">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Pinned
+                              </div>
                               <div className="mt-2 grid gap-1">
                                 {pinnedThreads.map((t) => (
                                   <div
@@ -1546,75 +1548,74 @@ export default function AssistantPage() {
                           </div>
                         </div>
                       ) : null}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-900 dark:text-white font-black">
-                          P
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                            Preview chat
-                          </div>
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate">
-                            Verify to save, pin, rename, and delete chats
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {canManageChats ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={onTogglePin}
-                        className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                        aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                      >
-                        {activeMeta?.pinned ? "★" : "☆"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={onOpenRename}
-                        className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        title="Rename chat"
-                      >
-                        ✎
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onDeleteChat(activeChatId)}
-                        className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        title="Delete this chat"
-                        aria-label="Delete this chat"
-                      >
-                        🗑
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={onNewChat}
-                        className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        title="Start a new chat"
-                      >
-                        +
-                      </button>
                     </div>
                   ) : (
-                    <Link
-                      href="/verify"
-                      className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      title="Verify to unlock saved chats"
-                    >
-                      Verify
-                    </Link>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-900 dark:text-white font-black">
+                        P
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                          Preview chat
+                        </div>
+                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">
+                          Verify to save, pin, rename, and delete chats
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
+                {canManageChats ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onTogglePin}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                      aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
+                    >
+                      {activeMeta?.pinned ? "★" : "☆"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onOpenRename}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Rename chat"
+                    >
+                      ✎
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onDeleteChat(activeChatId)}
+                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                      title="Delete this chat"
+                      aria-label="Delete this chat"
+                    >
+                      🗑
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                      title="Start a new chat"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/verify"
+                    className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+                    title="Verify to unlock saved chats"
+                  >
+                    Verify
+                  </Link>
+                )}
+              </div>
 
               {/* Refinement chips */}
               {hasEloraAnswer ? (
@@ -1713,8 +1714,7 @@ export default function AssistantPage() {
                   </div>
                 ) : null}
 
-                  <div className="mt-3 space-y-2">
-
+                <div className="mt-3 space-y-3">
                   {messages.map((m, idx) => {
                     const isUser = m.from === "user";
                     const display = cleanAssistantText(m.text);
@@ -1733,17 +1733,16 @@ export default function AssistantPage() {
 
                           {!isUser ? (
                             <div className="mt-3 flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => copyToClipboard(display, idx)}
-                                    className={cn(
-                                      "rounded-full border px-3 py-1 text-xs font-extrabold transition",
-                                      "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                                    )}
-                                  >
-                                    {copiedIdx === idx ? "Copied" : "Copy"}
-                                  </button>
-
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(display, idx)}
+                                className={cn(
+                                  "rounded-full border px-3 py-1 text-[11px] font-extrabold transition",
+                                  "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                                )}
+                              >
+                                {copiedIdx === idx ? "Copied" : "Copy"}
+                              </button>
                             </div>
                           ) : null}
                         </div>
@@ -1751,15 +1750,13 @@ export default function AssistantPage() {
                     );
                   })}
 
-                    {loading ? (
-                      <div className="flex justify-start">
-                        <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200 animate-pulse flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-indigo-500 animate-bounce" />
-                          Thinking…
-                        </div>
+                  {loading ? (
+                    <div className="flex justify-start">
+                      <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
+                        Thinking…
                       </div>
-                    ) : null}
-
+                    </div>
+                  ) : null}
                 </div>
 
                 {showJump ? (
@@ -1909,10 +1906,9 @@ export default function AssistantPage() {
                   </button>
                 </div>
 
-                  <div className="mt-3 text-xs font-bold text-slate-600 dark:text-slate-400">
-                    Enter to send • Shift+Enter for a new line
-                  </div>
-
+                <div className="mt-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  Enter to send • Shift+Enter for a new line
+                </div>
               </div>
             </div>
           </div>

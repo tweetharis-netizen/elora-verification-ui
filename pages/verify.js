@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import { motion } from "framer-motion";
 
 function mapError(code) {
   switch (code) {
@@ -98,34 +99,59 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4">
-      <div className="elora-card p-6 sm:p-8">
-        <h1 className="font-black text-[clamp(22px,3vw,30px)]">Verify your email</h1>
-        <p className="mt-2 elora-muted">
-          Verification unlocks full teacher workflows (exports, assessments, and more). It persists across refreshes.
-        </p>
+    <div className="mx-auto max-w-3xl px-4 flex items-center justify-center min-h-[80vh]">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="elora-card p-6 sm:p-8 w-full relative overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none" />
 
-        <div className="mt-6 grid gap-3">
-          <input
-            className="elora-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            inputMode="email"
-            autoComplete="email"
-          />
+        <div className="relative z-10">
+          <h1 className="font-black text-[clamp(22px,3vw,30px)]">Verify your email</h1>
+          <p className="mt-2 elora-muted">
+            Verification unlocks full teacher workflows (exports, assessments, and more). It persists across refreshes.
+          </p>
 
-          <button type="button" className="elora-btn" onClick={send} disabled={sending || cooldown > 0}>
-            {sending ? "Sending…" : cooldown > 0 ? `Wait ${cooldown}s` : "Send verification email"}
-          </button>
+          <div className="mt-6 grid gap-3">
+            <input
+              className="elora-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              inputMode="email"
+              autoComplete="email"
+            />
 
-          {status ? <div className="elora-toast">{status}</div> : null}
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              type="button"
+              className="elora-btn relative overflow-hidden"
+              onClick={send}
+              disabled={sending || cooldown > 0}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] hover:translate-x-[100%] transition-transform duration-1000" />
+              {sending ? "Sending…" : cooldown > 0 ? `Wait ${cooldown}s` : "Send verification email"}
+            </motion.button>
 
-          <div className="elora-muted text-sm">
-            Tip: If you don’t see it, check spam/junk. The link expires in under an hour.
+            {status ? (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="elora-toast"
+              >
+                {status}
+              </motion.div>
+            ) : null}
+
+            <div className="elora-muted text-sm">
+              Tip: If you don’t see it, check spam/junk. The link expires in under an hour.
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -42,9 +42,23 @@ export default function VerifyPage() {
   // We now confirm via /api/verification/confirm so cookies are set on the UI domain.
   useEffect(() => {
     if (!router.isReady) return;
+
+    // 1. If we have a redirect param (sending flow), save it
+    if (router.query.redirect) {
+      localStorage.setItem("elora_redirect", String(router.query.redirect));
+    }
+
     if (!token) return;
-    window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}`;
-  }, [router.isReady, token]);
+
+    // 2. If confirming, check for saved redirect
+    const savedRedirect = localStorage.getItem("elora_redirect");
+    const redirectParam = savedRedirect ? `&redirect=${encodeURIComponent(savedRedirect)}` : "";
+
+    // Clear it after use so it doesn't stick forever
+    localStorage.removeItem("elora_redirect");
+
+    window.location.href = `/api/verification/confirm?token=${encodeURIComponent(token)}${redirectParam}`;
+  }, [router.isReady, token, router.query.redirect]);
 
   useEffect(() => {
     const msg = mapError(errorCode);

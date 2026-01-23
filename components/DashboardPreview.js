@@ -1,0 +1,200 @@
+import Link from "next/link";
+import { motion } from "framer-motion";
+
+// Module card component for dashboard preview
+function ModuleCard({ icon, title, subtitle, stats, color, delay }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay, duration: 0.5, ease: "easeOut" }}
+            className="relative group"
+        >
+            <div
+                className={`
+          relative overflow-hidden rounded-2xl p-4
+          bg-gradient-to-br from-white/10 to-white/5
+          border border-white/10
+          backdrop-blur-sm
+          transition-all duration-300
+          hover:border-white/20 hover:bg-white/15
+          hover:shadow-lg hover:shadow-${color}/20
+        `}
+            >
+                {/* Glow effect */}
+                <div
+                    className={`absolute -inset-1 bg-gradient-to-r from-${color}/20 to-transparent blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                />
+
+                {/* Content */}
+                <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-3">
+                        <div
+                            className={`w-10 h-10 rounded-xl bg-gradient-to-br from-${color} to-${color}/70 flex items-center justify-center text-white text-lg shadow-lg shadow-${color}/30`}
+                        >
+                            {icon}
+                        </div>
+                        <div className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Live
+                        </div>
+                    </div>
+
+                    <h4 className="text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
+                        {title}
+                    </h4>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                        {subtitle}
+                    </p>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-4">
+                        {stats.map((stat, i) => (
+                            <div key={i} className="text-center">
+                                <div className={`text-lg font-bold text-${color} font-[var(--font-outfit)]`}>
+                                    {stat.value}
+                                </div>
+                                <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                                    {stat.label}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+}
+
+export default function DashboardPreview() {
+    const modules = [
+        {
+            icon: "📊",
+            title: "Student Progress",
+            subtitle: "Track learning milestones and achievements in real-time",
+            stats: [
+                { value: "94%", label: "Avg Score" },
+                { value: "12", label: "Completed" },
+            ],
+            color: "indigo-500",
+            delay: 0.3,
+        },
+        {
+            icon: "👨‍👩‍👧",
+            title: "Parent Insights",
+            subtitle: "At-a-glance overview of your child's educational journey",
+            stats: [
+                { value: "A+", label: "Grade" },
+                { value: "↑15%", label: "Growth" },
+            ],
+            color: "cyan-500",
+            delay: 0.5,
+        },
+        {
+            icon: "⚡",
+            title: "Teacher Automations",
+            subtitle: "AI-powered grading and personalized feedback tools",
+            stats: [
+                { value: "2.5h", label: "Saved" },
+                { value: "48", label: "Tasks" },
+            ],
+            color: "purple-500",
+            delay: 0.7,
+        },
+    ];
+
+    return (
+        <div className="elora-perspective">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, rotateX: 10 }}
+                animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+                transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+                className="elora-3d-float"
+            >
+                {/* Monitor frame - clickable */}
+                <Link href="/dashboard" className="block group/monitor cursor-pointer">
+                    <div className="elora-monitor max-w-lg mx-auto transition-transform duration-300 group-hover/monitor:scale-[1.02]">
+                        {/* Camera indicator is handled by CSS ::before */}
+
+                        {/* Screen */}
+                        <div className="elora-monitor-screen p-4 min-h-[320px] relative">
+                            {/* Screen header */}
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-indigo-500/30">
+                                        E
+                                    </div>
+                                    <div>
+                                        <div className="text-white text-sm font-bold font-[var(--font-outfit)]">
+                                            Elora Dashboard
+                                        </div>
+                                        <div className="text-slate-500 text-[10px]">
+                                            AI Learning Assistant
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Window controls */}
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                                </div>
+                            </div>
+
+                            {/* Module cards grid */}
+                            <div className="grid gap-3">
+                                {modules.map((module, index) => (
+                                    <ModuleCard key={index} {...module} />
+                                ))}
+                            </div>
+
+                            {/* Ambient glow effects */}
+                            <div className="absolute inset-0 pointer-events-none">
+                                <div className="absolute top-0 left-1/4 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl" />
+                                <div className="absolute bottom-0 right-1/4 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl" />
+                            </div>
+
+                            {/* Hover overlay with CTA */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/90 via-indigo-600/50 to-transparent opacity-0 group-hover/monitor:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8 rounded-xl">
+                                <span className="px-6 py-3 bg-white text-indigo-600 font-bold text-sm rounded-xl shadow-xl">
+                                    Open Full Dashboard →
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* Monitor stand */}
+                <div className="elora-monitor-stand" />
+
+                {/* Floating particles effect */}
+                <motion.div
+                    className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/30 to-transparent blur-2xl"
+                    animate={{
+                        y: [-10, 10, -10],
+                        opacity: [0.3, 0.6, 0.3],
+                    }}
+                    transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                />
+                <motion.div
+                    className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500/20 to-transparent blur-2xl"
+                    animate={{
+                        y: [10, -10, 10],
+                        opacity: [0.2, 0.5, 0.2],
+                    }}
+                    transition={{
+                        duration: 5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 1,
+                    }}
+                />
+            </motion.div>
+        </div>
+    );
+}

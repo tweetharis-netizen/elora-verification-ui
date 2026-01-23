@@ -2,6 +2,7 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
+import { motion } from "framer-motion";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -10,19 +11,19 @@ function cn(...xs) {
 const ROLE_META = {
   educator: {
     label: "Teacher",
-    headline: "Elora helps teachers verify student work in seconds.",
+    headline: "Verify student work in seconds.",
     subcopy:
-      "A calm teaching assistant that explains concepts in human language and generates classroom-ready materials — without prompt wrestling.",
+      "A calm teaching assistant that explains concepts in human language and generates classroom-ready materials.",
   },
   student: {
     label: "Student",
-    headline: "Elora helps you learn with clarity, not confusion.",
+    headline: "Learn with clarity, not confusion.",
     subcopy:
       "Step-by-step guidance that adapts to your level, helps you fix mistakes, and builds confidence.",
   },
   parent: {
     label: "Parent",
-    headline: "Elora helps you support learning at home.",
+    headline: "Support learning at home.",
     subcopy:
       "Simple explanations and practical next steps — so you can help without stress or overwhelm.",
   },
@@ -33,20 +34,20 @@ function StatusChip({ variant, children }) {
     variant === "good"
       ? "border-emerald-400/40 bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/40 dark:to-emerald-900/20 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/10"
       : variant === "warn"
-      ? "border-amber-400/40 bg-gradient-to-r from-amber-50 to-amber-50/50 dark:from-amber-950/40 dark:to-amber-900/20 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-500/10"
-      : "border-slate-300/50 dark:border-slate-700/50 bg-gradient-to-r from-slate-50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-950/30 text-slate-600 dark:text-slate-300";
+        ? "border-amber-400/40 bg-gradient-to-r from-amber-50 to-amber-50/50 dark:from-amber-950/40 dark:to-amber-900/20 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-500/10"
+        : "border-slate-300/50 dark:border-slate-700/50 bg-gradient-to-r from-slate-50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-950/30 text-slate-600 dark:text-slate-300";
 
   const dot =
     variant === "good"
       ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
       : variant === "warn"
-      ? "bg-amber-500 shadow-sm shadow-amber-500/50"
-      : "bg-slate-400 dark:bg-slate-500";
+        ? "bg-amber-500 shadow-sm shadow-amber-500/50"
+        : "bg-slate-400 dark:bg-slate-500";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm transition-all duration-200",
+        "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm",
         styles
       )}
     >
@@ -58,7 +59,12 @@ function StatusChip({ variant, children }) {
 
 function HomePreview({ verified, teacher }) {
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white via-white to-slate-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 backdrop-blur-xl transition-all duration-300 hover:shadow-3xl hover:shadow-indigo-500/10">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+      className="group relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white via-white to-slate-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 backdrop-blur-xl hover:shadow-3xl hover:shadow-indigo-500/10 transition-shadow duration-500"
+    >
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -inset-32 bg-gradient-to-br from-indigo-500/30 via-purple-500/20 to-pink-500/20 blur-3xl opacity-60 animate-pulse" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/5 via-transparent to-transparent dark:from-white/5" />
@@ -92,16 +98,29 @@ function HomePreview({ verified, teacher }) {
           </div>
 
           <div className="mt-4 space-y-3">
-            <div className="max-w-[92%] rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-white/90 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="max-w-[92%] rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-white/90 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm"
+            >
               "What is 5 divided by 4?"
-            </div>
-            <div className="ml-auto max-w-[92%] rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600 to-indigo-700 px-4 py-3 text-sm text-white shadow-lg shadow-indigo-500/25 backdrop-blur-sm">
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 10, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ delay: 1.2, type: "spring" }}
+              className="ml-auto max-w-[92%] rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600 to-indigo-700 px-4 py-3 text-sm text-white shadow-lg shadow-indigo-500/25 backdrop-blur-sm"
+            >
               5 ÷ 4 means split 5 into 4 equal parts. That's 1.25. (One and a quarter.)
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/80 to-slate-50/40 dark:from-slate-800/40 dark:to-slate-900/20 p-5 shadow-md shadow-slate-900/5 dark:shadow-black/10">
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="mt-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/80 to-slate-50/40 dark:from-slate-800/40 dark:to-slate-900/20 p-5 shadow-md shadow-slate-900/5 dark:shadow-black/10"
+        >
           <div className="flex items-start gap-4">
             <div className="h-12 w-12 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 grid place-items-center shadow-sm">
               <span aria-hidden="true" className="text-lg">✅</span>
@@ -115,14 +134,13 @@ function HomePreview({ verified, teacher }) {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="mt-5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          Designed for a <span className="font-bold text-slate-700 dark:text-slate-300">5–7 minute</span> competition demo: clear, stable, and
-          teacher-friendly.
+          Designed for a <span className="font-bold text-slate-700 dark:text-slate-300">5–7 minute</span> competition demo.
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -135,6 +153,8 @@ export default function HomePage() {
   const verified = Boolean(session?.verified);
   const teacher = Boolean(session?.teacher);
 
+  const [shake, setShake] = useState(false);
+
   const meta = useMemo(() => ROLE_META[role] || ROLE_META.educator, [role]);
 
   useEffect(() => {
@@ -146,9 +166,7 @@ export default function HomePage() {
         if (!mounted) return;
         setSession(getSession());
       } catch (error) {
-        // Avoid unhandled promise rejections while keeping behavior the same
         if (process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
           console.error("Failed to refresh verification status", error);
         }
       }
@@ -160,6 +178,15 @@ export default function HomePage() {
       mounted = false;
     };
   }, []);
+
+  const selectRole = (r) => {
+    if (r === "educator" && !verified) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
+    setRoleState(r);
+  };
 
   const goVerify = () => {
     setRole(role);
@@ -183,10 +210,35 @@ export default function HomePage() {
         />
       </Head>
 
-      <div className="elora-page min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20">
-        <div className="elora-container">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center py-8 lg:py-12">
-            <div className="space-y-8">
+      <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+        {/* Cinematic background gradients */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full bg-indigo-500/10 blur-[120px]"
+          />
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            className="absolute top-[40%] right-[0%] w-[60vw] h-[60vw] rounded-full bg-purple-500/10 blur-[100px]"
+          />
+        </div>
+
+        <div className="elora-container relative z-10">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center py-8 lg:py-16 min-h-[90vh]">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="space-y-10"
+            >
               <div className="inline-flex items-center gap-2.5 rounded-full border border-slate-200/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl px-4 py-2.5 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wide">Genesis demo build</span>
                 <span className="text-xs font-bold text-slate-400 dark:text-slate-500">•</span>
@@ -194,101 +246,106 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-6">
-                <h1 className="text-[clamp(2.5rem,5vw,4.5rem)] font-black tracking-tight text-slate-950 dark:text-white leading-[1.1] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-100 dark:to-white bg-clip-text text-transparent">
-                  {meta.headline}
-                </h1>
+                <motion.h1
+                  key={meta.headline}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-[clamp(2.5rem,5vw,5rem)] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.05]"
+                >
+                  <span className="bg-gradient-to-br from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                    {meta.headline}
+                  </span>
+                </motion.h1>
 
-                <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium">
+                <motion.p
+                  key={meta.subcopy}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="text-lg md:text-xl leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium"
+                >
                   {meta.subcopy}
-                </p>
+                </motion.p>
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {["educator", "student", "parent"].map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRoleState(r)}
-                    className={cn(
-                      "rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm",
-                      role === r
-                        ? "border-indigo-500/60 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30 scale-105"
-                        : "border-slate-300/60 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md hover:scale-105"
-                    )}
-                  >
-                    {ROLE_META[r].label}
-                  </button>
-                ))}
+                {["educator", "student", "parent"].map((r) => {
+                  const isBlocked = r === "educator" && !verified;
+                  return (
+                    <motion.button
+                      key={r}
+                      layout
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      animate={isBlocked && shake ? { x: [-5, 5, -5, 5, 0] } : {}}
+                      transition={isBlocked && shake ? { duration: 0.4 } : {}}
+                      type="button"
+                      onClick={() => selectRole(r)}
+                      className={cn(
+                        "rounded-full border px-6 py-3 text-sm font-bold transition-colors duration-200 shadow-sm relative overflow-hidden",
+                        role === r
+                          ? "border-indigo-500/60 bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                          : "border-slate-300/60 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600"
+                      )}
+                    >
+                      {/* Tooltip for blocked educator role */}
+                      {isBlocked && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 text-white text-[10px] font-bold opacity-0 hover:opacity-100 transition-opacity">
+                          Verify Email First
+                        </div>
+                      )}
+                      {ROLE_META[r].label}
+                    </motion.button>
+                  );
+                })}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
+              <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   type="button"
                   onClick={() => (verified ? goAssistant() : goVerify())}
-                  className="group relative rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-105 hover:from-indigo-700 hover:to-indigo-800 overflow-hidden"
+                  className="relative rounded-2xl bg-slate-900 dark:bg-white px-8 py-4 text-sm font-bold text-white dark:text-slate-900 shadow-xl shadow-indigo-500/10 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-200 overflow-hidden group"
                 >
                   <span className="relative z-10">{verified ? "Open Assistant" : "Verify email"}</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-700 to-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </button>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                </motion.button>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   type="button"
                   onClick={() => router.push("/demo")}
-                  className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-700/50 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-lg hover:scale-105"
+                  className="rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-transparent px-8 py-4 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200"
                 >
                   Start Genesis Demo
-                </button>
+                </motion.button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusChip variant={verified ? "good" : "warn"}>{verified ? "Verified" : "Not verified"}</StatusChip>
-                {teacher ? <StatusChip variant="good">Teacher mode active</StatusChip> : null}
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", verified ? "bg-emerald-500 shadow-[0_0_10px_2px_rgba(16,185,129,0.3)]" : "bg-amber-500")} />
+                  {verified ? "Verified Session" : "Unverified"}
+                </div>
+                {teacher && (
+                  <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_2px_rgba(99,102,241,0.3)]" />
+                    Teacher Mode Active
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
 
-              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-                Verification unlocks exports and teacher tools. Your progress persists across refreshes.
-              </p>
-            </div>
-
-            <div className="relative lg:pl-8">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 blur-3xl rounded-full" />
+            <div className="relative lg:pl-8 perspective-1000">
               <HomePreview verified={verified} teacher={teacher} />
             </div>
-          </div>
-
-          <div className="mt-16 grid gap-6 md:grid-cols-3">
-            {[
-              {
-                title: "Verify student work",
-                desc: "Fast, consistent verification states across the app — no confusion after refresh.",
-                icon: "✅",
-              },
-              {
-                title: "Explain in human language",
-                desc: "Short steps, simple words, and readable math by default (no raw LaTeX).",
-                icon: "🧠",
-              },
-              {
-                title: "Teacher tools (invite-gated)",
-                desc: "Lesson plans, worksheets, assessments, slides — locked behind teacher role.",
-                icon: "👩‍🏫",
-              },
-            ].map((c) => (
-              <div
-                key={c.title}
-                className="group relative rounded-3xl border border-slate-200/80 dark:border-slate-700/50 bg-gradient-to-br from-white/90 to-slate-50/50 dark:from-slate-800/40 dark:to-slate-900/30 p-6 shadow-lg shadow-slate-900/5 dark:shadow-black/20 hover:shadow-xl hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/5 transition-all duration-300 hover:scale-[1.02] hover:border-indigo-300/50 dark:hover:border-indigo-700/50"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 grid place-items-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <span aria-hidden="true" className="text-xl">{c.icon}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-bold text-slate-950 dark:text-white tracking-tight mb-1.5">{c.title}</div>
-                    <div className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{c.desc}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

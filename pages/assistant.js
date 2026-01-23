@@ -1783,8 +1783,8 @@ export default function AssistantPage() {
                         ? "Type your answer (Elora will hint first, then unlock the answer on attempt 3)…"
                         : "Ask Elora anything…"
                     }
-                    rows={4}
-                    className="flex-1 resize-y min-h-[100px] rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    rows={6}
+                    className="flex-1 resize-y min-h-[150px] rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();

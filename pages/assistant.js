@@ -1364,7 +1364,7 @@ export default function AssistantPage() {
             ) : null}
 
             {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-4 sm:p-5 flex flex-col min-h-[500px] lg:h-[calc(100dvh-48px)]">
+            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-2 sm:p-3 flex flex-col min-h-[600px] lg:h-[calc(100dvh-16px)]">
               {/* Title + meta */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>

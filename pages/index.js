@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
 import { motion } from "framer-motion";
+import DashboardPreview from "../components/DashboardPreview";
+import PersonaFeatures from "../components/PersonaFeatures";
+import EloraStats from "../components/EloraStats";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -302,25 +305,28 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                {/* Enhanced Primary CTA with glow effect */}
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="button"
-                  onClick={() => (verified ? goAssistant() : goVerify())}
-                  className="relative rounded-2xl bg-slate-900 dark:bg-white px-8 py-4 text-sm font-bold text-white dark:text-slate-900 shadow-xl shadow-indigo-500/10 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-200 overflow-hidden group"
+                  onClick={() => router.push("/demo")}
+                  className="elora-cta-primary text-base"
                 >
-                  <span className="relative z-10">{verified ? "Open Assistant" : "Verify email"}</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                  <span className="relative z-10 flex items-center gap-2">
+                    <span>🚀</span>
+                    Start Your Demo
+                  </span>
                 </motion.button>
 
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="button"
-                  onClick={() => router.push("/demo")}
-                  className="rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-transparent px-8 py-4 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200"
+                  onClick={() => (verified ? goAssistant() : goVerify())}
+                  className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-600/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 shadow-lg shadow-slate-900/5"
                 >
-                  Start Genesis Demo
+                  {verified ? "Open Assistant" : "Verify Email →"}
                 </motion.button>
               </div>
 
@@ -343,10 +349,17 @@ export default function HomePage() {
               </motion.div>
             </motion.div>
 
-            <div className="relative lg:pl-8 perspective-1000">
-              <HomePreview verified={verified} teacher={teacher} />
+            {/* Dashboard Preview with 3D glassmorphism */}
+            <div className="relative lg:pl-8">
+              <DashboardPreview />
             </div>
           </div>
+
+          {/* Elora Platform Stats */}
+          <EloraStats />
+
+          {/* Persona-specific Features Section */}
+          <PersonaFeatures />
         </div>
       </div>
     </>

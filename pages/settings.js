@@ -95,6 +95,10 @@ export default function SettingsPage() {
 
   function onRole(nextRole) {
     const id = String(nextRole || "student");
+    if (id === "educator" && !verified) {
+      setMsg("Please verify your email first to access Educator tools.");
+      return;
+    }
     setRoleState(id);
     setRole(id);
     setMsg("");
@@ -215,7 +219,9 @@ export default function SettingsPage() {
                       </div>
                       <div className="elora-muted text-sm mt-2">{c.desc}</div>
                       {c.id === "educator" && !verified ? (
-                        <div className="mt-2 text-sm font-extrabold">Educator requires email verification.</div>
+                        <div className="mt-2 text-sm font-extrabold text-amber-600 dark:text-amber-500">
+                          Verification required for this role.
+                        </div>
                       ) : null}
                     </button>
                   );
@@ -322,7 +328,7 @@ export default function SettingsPage() {
                           setMsg("");
                           setBusy(true);
                           try {
-                            await fetch("/api/logout", { method: "POST" }).catch(() => {});
+                            await fetch("/api/logout", { method: "POST" }).catch(() => { });
                           } finally {
                             setRole("student");
                             setTeacherCode("");

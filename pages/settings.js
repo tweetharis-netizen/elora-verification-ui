@@ -56,11 +56,11 @@ export default function SettingsPage() {
   useEffect(() => {
     const s = getSession();
 
-    // Generate Student Sharing Code if missing
-    if (s.role === 'student' && !s.studentCode) {
+    // Generate Student Sharing Code if missing (ONLY for verified)
+    if (s.verified && s.role === 'student' && !s.studentCode) {
       const code = "ELORA-" + Math.random().toString(36).substring(2, 6).toUpperCase();
       s.studentCode = code;
-      setRole(s.role); // saveSession via setRole helper or similar
+      saveSession(s);
     }
 
     setThemeState(s.theme || "system");
@@ -251,15 +251,24 @@ export default function SettingsPage() {
                   <div>
                     <div className="text-sm font-extrabold">Your Sharing Code</div>
                     <p className="text-xs text-slate-500 mt-1">Share this with your parents so they can see your progress.</p>
-                    <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
-                      <code className="text-lg font-black text-indigo-500">{studentCode}</code>
-                      <button
-                        className="text-xs font-bold text-slate-500 underline"
-                        onClick={() => navigator.clipboard.writeText(studentCode)}
-                      >
-                        Copy
-                      </button>
-                    </div>
+
+                    {verified ? (
+                      <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
+                        <code className="text-lg font-black text-indigo-500">{studentCode}</code>
+                        <button
+                          className="text-xs font-bold text-slate-500 underline"
+                          onClick={() => navigator.clipboard.writeText(studentCode)}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 p-4 border border-dashed border-amber-300 dark:border-amber-700/50 rounded-xl bg-amber-50/30 dark:bg-amber-950/20">
+                        <div className="text-xs font-bold text-amber-700 dark:text-amber-300">Verification Required</div>
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400/80 mt-1">Verify your email to generate a sharing code and link with parents.</p>
+                        <Link href="/verify" className="inline-block mt-3 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:underline">Verify Now →</Link>
+                      </div>
+                    )}
                   </div>
                 )}
 

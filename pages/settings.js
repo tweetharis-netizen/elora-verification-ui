@@ -7,6 +7,8 @@ import {
   getSession,
   hasSession,
   refreshVerifiedFromServer,
+  logout,
+  saveSession,
   setFontScale,
   setRole,
   setTeacherCode,
@@ -41,6 +43,7 @@ export default function SettingsPage() {
   const [teacher, setTeacherState] = useState(false);
 
   const [role, setRoleState] = useState("student");
+  const [studentCode, setStudentCode] = useState("");
 
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,8 +79,6 @@ export default function SettingsPage() {
       setRoleState(String(next.role || "student"));
     });
   }, []);
-
-  const [studentCode, setStudentCode] = useState("");
 
   useEffect(() => {
     if (focus !== "role") return;
@@ -280,7 +281,7 @@ export default function SettingsPage() {
                       <input
                         className="elora-input"
                         placeholder="e.g. 7th Grade Science"
-                        defaultValue={session?.classroom?.name || "My Classroom"}
+                        defaultValue={getSession()?.classroom?.name || "My Classroom"}
                         onBlur={(e) => {
                           const s = getSession();
                           if (!s.classroom) s.classroom = { name: "" };
@@ -408,7 +409,7 @@ export default function SettingsPage() {
                           setMsg("");
                           setBusy(true);
                           try {
-                            await fetch("/api/logout", { method: "POST" }).catch(() => { });
+                            await logout(); // Use the logout helper
                           } finally {
                             setRole("student");
                             setTeacherCode("");

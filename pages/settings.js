@@ -273,8 +273,37 @@ export default function SettingsPage() {
                 )}
 
                 {(role !== 'student' && role !== 'parent') && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl text-center text-xs font-bold text-slate-500">
-                    Groups are coming soon for Educators.
+                  <div>
+                    <div className="text-sm font-extrabold">Classroom Identity</div>
+                    <p className="text-xs text-slate-500 mt-1">Customize how your classroom appears on the Dashboard.</p>
+                    <div className="mt-4 space-y-3">
+                      <input
+                        className="elora-input"
+                        placeholder="e.g. 7th Grade Science"
+                        defaultValue={session?.classroom?.name || "My Classroom"}
+                        onBlur={(e) => {
+                          const s = getSession();
+                          if (!s.classroom) s.classroom = { name: "" };
+                          s.classroom.name = e.target.value;
+                          saveSession(s);
+                        }}
+                      />
+                      <div className="pt-2">
+                        <button
+                          onClick={() => {
+                            if (confirm("Are you sure? This will remove all students from your roster.")) {
+                              const s = getSession();
+                              s.linkedStudents = [];
+                              saveSession(s);
+                              window.location.reload();
+                            }
+                          }}
+                          className="text-xs font-bold text-red-500 hover:underline"
+                        >
+                          Reset Class Roster
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

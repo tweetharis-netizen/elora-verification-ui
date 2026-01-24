@@ -52,12 +52,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const s = getSession();
+
+    // Generate Student Sharing Code if missing
+    if (s.role === 'student' && !s.studentCode) {
+      const code = "ELORA-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+      s.studentCode = code;
+      setRole(s.role); // saveSession via setRole helper or similar
+    }
+
     setThemeState(s.theme || "system");
     setScaleState(typeof s.fontScale === "number" ? s.fontScale : 1);
     setVerifiedState(Boolean(s.verified));
     setTeacherState(Boolean(s.teacher));
     setInviteCode(s.teacherCode || "");
     setRoleState(String(s.role || "student"));
+    setStudentCode(s.studentCode || "");
 
     refreshVerifiedFromServer().then(() => {
       const next = getSession();
@@ -67,6 +76,8 @@ export default function SettingsPage() {
       setRoleState(String(next.role || "student"));
     });
   }, []);
+
+  const [studentCode, setStudentCode] = useState("");
 
   useEffect(() => {
     if (focus !== "role") return;
@@ -226,6 +237,46 @@ export default function SettingsPage() {
                     </button>
                   );
                 })}
+              </div>
+            </section>
+
+            {/* Sharing & Groups */}
+            <section className="elora-card p-5 md:p-6">
+              <h2 className="text-lg font-extrabold">Sharing & Groups</h2>
+              <p className="elora-muted mt-1 text-sm">Link accounts to track progress together.</p>
+
+              <div className="mt-6 space-y-6">
+                {role === 'student' && (
+                  <div>
+                    <div className="text-sm font-extrabold">Your Sharing Code</div>
+                    <p className="text-xs text-slate-500 mt-1">Share this with your parents so they can see your progress.</p>
+                    <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
+                      <code className="text-lg font-black text-indigo-500">{studentCode}</code>
+                      <button
+                        className="text-xs font-bold text-slate-500 underline"
+                        onClick={() => navigator.clipboard.writeText(studentCode)}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {role === 'parent' && (
+                  <div>
+                    <div className="text-sm font-extrabold">Linked Student</div>
+                    <p className="text-xs text-slate-500 mt-1">Link your child's account using their sharing code in the Dashboard.</p>
+                    <div className="mt-3 p-4 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-center">
+                      <div className="text-xs font-bold text-slate-400">Head to Dashboard to link a code</div>
+                    </div>
+                  </div>
+                )}
+
+                {(role !== 'student' && role !== 'parent') && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl text-center text-xs font-bold text-slate-500">
+                    Groups are coming soon for Educators.
+                  </div>
+                )}
               </div>
             </section>
 

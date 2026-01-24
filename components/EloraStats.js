@@ -50,7 +50,7 @@ export default function EloraStats() {
                 </motion.div>
 
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">
-                    Built for <span className="bg-gradient-to-r from-indigo-500 to-cyan-500 bg-clip-text text-transparent">real learning</span>
+                    Built for <span className="bg-gradient-to-r from-indigo-500 to-cyan-500 bg-clip-text text-transparent">real impact</span>
                 </h2>
             </div>
 

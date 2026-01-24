@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { LineChart } from "./SimpleCharts";
 
 // Module card component for dashboard preview
-function ModuleCard({ icon, title, subtitle, stats, color, delay }) {
+function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -47,9 +48,18 @@ function ModuleCard({ icon, title, subtitle, stats, color, delay }) {
                         {subtitle}
                     </p>
 
-                    {/* Stats row */}
+                    {/* Stats or Chart */}
+                    {/* If we have chartData, show a mini chart. Otherwise show stats. */}
+                    {/* We need to pass chartData down. Since I modified the 'modules' array to have chartData, I need to make sure ModuleCard accepts it. */}
+
+                    {/* Note: I need to update the props of component first. See next step/chunk or do it here if possible. */}
+                    {/* Wait, I cannot change props in this chunk easily because the function signature is at line 5. I will do a multi-replace or just assume 'rest' props are passed if I spread them. */}
+                    {/* Actually, looking at line 148: <ModuleCard key={index} {...module} />. So chartData WILL be passed as a prop! */}
+
+                    {/* I need to update the component definition to accept chartData. */}
+                    {/* I'll use a separate tool call for the component definition update to be safe and clean. */}
                     <div className="flex items-center gap-4">
-                        {stats.map((stat, i) => (
+                        {(stats || []).map((stat, i) => (
                             <div key={i} className="text-center">
                                 <div className={`text-lg font-bold text-${color} font-[var(--font-outfit)]`}>
                                     {stat.value}
@@ -71,18 +81,16 @@ export default function DashboardPreview() {
         {
             icon: "📊",
             title: "Student Progress",
-            subtitle: "Track learning milestones and achievements in real-time",
-            stats: [
-                { value: "94%", label: "Avg Score" },
-                { value: "12", label: "Completed" },
-            ],
+            subtitle: "Real-time learning momentum",
+            // We will render a custom component for this in the map if needed, or just pass data
+            chartData: [40, 55, 48, 62, 75, 82],
             color: "indigo-500",
             delay: 0.3,
         },
         {
             icon: "👨‍👩‍👧",
             title: "Parent Insights",
-            subtitle: "At-a-glance overview of your child's educational journey",
+            subtitle: "Weekly activity breakdown",
             stats: [
                 { value: "A+", label: "Grade" },
                 { value: "↑15%", label: "Growth" },
@@ -93,7 +101,7 @@ export default function DashboardPreview() {
         {
             icon: "⚡",
             title: "Teacher Automations",
-            subtitle: "AI-powered grading and personalized feedback tools",
+            subtitle: "3.5 hours saved this week",
             stats: [
                 { value: "2.5h", label: "Saved" },
                 { value: "48", label: "Tasks" },

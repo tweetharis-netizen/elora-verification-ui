@@ -476,7 +476,7 @@ export default function DashboardPage() {
                             )}
 
                             {activeTab === 'teacher' && (
-                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} />
+                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} session={session} />
                             )}
                         </motion.div>
                     </AnimatePresence>

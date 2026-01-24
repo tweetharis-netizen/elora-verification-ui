@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer } from "../../lib/session";
 import { motion, AnimatePresence } from "framer-motion";
-import { LineChart, BarChart } from "../../components/SimpleCharts";
+import { LineChart, BarChart } from "@/components/SimpleCharts";
 
 // ----------------------------------------------------------------------
 // DATA: Realistic "Story-Based" Data (No random numbers)
@@ -199,7 +199,7 @@ function ParentModule({ data }) {
                         {data.recentActivity.map((activity, i) => (
                             <div key={i} className="flex gap-4">
                                 <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${activity.type === 'positive' ? 'bg-emerald-500' :
-                                        activity.type === 'alert' ? 'bg-amber-500' : 'bg-indigo-500'
+                                    activity.type === 'alert' ? 'bg-amber-500' : 'bg-indigo-500'
                                     }`} />
                                 <div>
                                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{activity.action}</p>

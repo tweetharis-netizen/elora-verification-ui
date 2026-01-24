@@ -747,10 +747,9 @@ export default function AssistantPage() {
     setThreads(listThreads(userKey));
     setActiveChatIdState(nextActive);
 
-    const nextMsgs = getThreadMessages(userKey, nextActive);
-    setMessages(nextMsgs);
-
-    persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
+    if (verified) {
+      persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
+    }
     return nextActive;
   }
 
@@ -836,9 +835,13 @@ export default function AssistantPage() {
   }
 
   function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
+    setMessages(nextMessages);
+
+    // NO-MEMORY RULE for unverified users: Do not persist to storage or server.
+    if (!verified) return;
+
     upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
     setThreads(listThreads(chatUserKey));
-    setMessages(nextMessages);
 
     // Track usage on every message sent (only if Elora or User)
     const isActuallyNew = nextMessages.length > messages.length;

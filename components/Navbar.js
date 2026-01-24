@@ -109,19 +109,18 @@ export default function Navbar() {
       ? "elora-dot elora-dot-warn"
       : "elora-dot";
 
-  const accountLabel = verified ? "Verified" : canLogout ? "Account" : "Guest";
+  const accountLabel = verified ? "Dashboard" : canLogout ? "Account" : "Menu";
 
   return (
     <header
       ref={navRef}
       className={clsx(
-        "sticky top-0 z-40 transition-all duration-300",
-        "backdrop-blur-xl bg-white/75 dark:bg-slate-950/70 border-b border-slate-200/70 dark:border-slate-800/70",
-        hidden && "-translate-y-full"
+        "sticky top-0 z-40 transition-all duration-500 pointer-events-none",
+        hidden && "-translate-y-full opacity-0"
       )}
     >
-      <div className="mx-auto max-w-6xl px-4 pt-4">
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-gradient-to-r from-white/95 via-white/80 to-indigo-50/60 dark:from-slate-900/90 dark:via-slate-900/80 dark:to-indigo-950/40 shadow-lg shadow-slate-900/5 dark:shadow-black/20 px-4 py-3 lg:px-5 lg:py-3.5">
+      <div className="mx-auto max-w-6xl px-4 pt-4 pointer-events-auto">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] px-4 py-2.5 lg:px-5 lg:py-3 transition-all duration-300 hover:border-indigo-500/30 dark:hover:border-indigo-400/30">
           <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit]">
             <div className="relative">
               <div
@@ -153,7 +152,7 @@ export default function Navbar() {
           <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
             {[
               { href: "/", label: "Home" },
-              { href: "/assistant", label: "Assistant" },
+              { href: "/dashboard", label: "Dashboard" },
               { href: "/help", label: "Help" },
               { href: "/settings", label: "Settings" },
             ].map((item) => (
@@ -191,8 +190,8 @@ export default function Navbar() {
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
                     Home
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
-                    Assistant
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/dashboard" onClick={() => setMobileOpen(false)}>
+                    Dashboard
                   </Link>
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/help" onClick={() => setMobileOpen(false)}>
                     Help
@@ -273,25 +272,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Desktop status chip (compact) */}
-            <div className="hidden sm:flex">
-              <span
-                className={clsx(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
-                  verified
-                    ? "border-emerald-400/50 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-200"
-                    : "border-amber-400/50 bg-amber-50 text-amber-800 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-200"
-                )}
-              >
-                <span
-                  className={clsx(
-                    "h-2.5 w-2.5 rounded-full",
-                    verified ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-amber-500 shadow-sm shadow-amber-500/50"
-                  )}
-                />
-                {verified ? "Verified" : "Not verified"}
-              </span>
-            </div>
+            <div className="hidden sm:flex" />
           </div>
         </div>
       </div>

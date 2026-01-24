@@ -785,6 +785,18 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, country, level, subject, topic, action]);
 
+  // Session Heartbeat for activeMinutes tracking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const s = getSession();
+      s.usage.activeMinutes += 1;
+      s.usage.lastActive = new Date().toISOString();
+      saveSession(s);
+    }, 60000); // Every 1 minute
+
+    return () => clearInterval(timer);
+  }, []);
+
   function setActiveThreadAndLoad(nextId) {
     const id = setActiveThreadId(chatUserKey, nextId);
     setActiveChatIdState(id);
@@ -803,6 +815,28 @@ export default function AssistantPage() {
     upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
     setThreads(listThreads(chatUserKey));
     setMessages(nextMessages);
+
+    // Track usage on every message sent (only if Elora or User)
+    const isActuallyNew = nextMessages.length > messages.length;
+    if (isActuallyNew) {
+      const s = getSession();
+      s.usage.messagesSent += 1;
+
+      // Update subjects explored
+      if (subject && !s.usage.subjects.includes(subject)) {
+        s.usage.subjects.push(subject);
+      }
+
+      // Update last active
+      s.usage.lastActive = new Date().toISOString();
+
+      // Update streak (simple logic: if lastActive was yesterday, increment; if today, keep; if older, reset)
+      // For now, let's keep it simple: just mark today as active.
+      s.usage.streak = Math.max(s.usage.streak, 1);
+
+      saveSession(s);
+    }
+
     persistSessionPatch({ activeChatId, messages: nextMessages });
 
     if (alsoSyncServer) {

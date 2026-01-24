@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { getSession, isTeacher, refreshVerifiedFromServer, setGuest, setRole } from "../lib/session";
+import { getSession, isTeacher, refreshVerifiedFromServer, setGuest, setRole } from "@/lib/session";
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -12,15 +12,15 @@ function Chip({ variant, children }) {
     variant === "good"
       ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
       : variant === "warn"
-      ? "border-amber-400/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200";
+        ? "border-amber-400/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+        : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200";
 
   const dot =
     variant === "good"
       ? "bg-emerald-400"
       : variant === "warn"
-      ? "bg-amber-400"
-      : "bg-slate-300 dark:bg-white/30";
+        ? "bg-amber-400"
+        : "bg-slate-300 dark:bg-white/30";
 
   return (
     <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold", styles)}>
@@ -75,22 +75,22 @@ function RoleCard({ title, desc, icon, tone, primaryLabel, secondaryLabel, onPri
     tone === "indigo"
       ? "border-indigo-500/25"
       : tone === "sky"
-      ? "border-sky-500/25"
-      : "border-emerald-500/25";
+        ? "border-sky-500/25"
+        : "border-emerald-500/25";
 
   const toneGlow =
     tone === "indigo"
       ? "from-indigo-500/15 via-sky-400/8 to-fuchsia-500/10"
       : tone === "sky"
-      ? "from-sky-500/15 via-indigo-400/8 to-fuchsia-500/10"
-      : "from-emerald-500/12 via-sky-400/8 to-indigo-500/10";
+        ? "from-sky-500/15 via-indigo-400/8 to-fuchsia-500/10"
+        : "from-emerald-500/12 via-sky-400/8 to-indigo-500/10";
 
   const primaryBtn =
     tone === "indigo"
       ? "bg-indigo-600 hover:bg-indigo-700"
       : tone === "sky"
-      ? "bg-sky-600 hover:bg-sky-700"
-      : "bg-emerald-600 hover:bg-emerald-700";
+        ? "bg-sky-600 hover:bg-sky-700"
+        : "bg-emerald-600 hover:bg-emerald-700";
 
   return (
     <div className={cn("relative overflow-hidden rounded-3xl border bg-white/70 dark:bg-slate-950/20 p-5 shadow-xl shadow-slate-900/5 dark:shadow-black/20", toneRing, "border-slate-200/60 dark:border-white/10")}>
@@ -158,7 +158,7 @@ export default function DemoPage() {
   function setPostVerifyRedirect(path) {
     try {
       window.localStorage.setItem("elora_post_verify_redirect_v1", String(path || "/assistant"));
-    } catch {}
+    } catch { }
   }
 
   async function chooseRole(role) {
@@ -232,7 +232,7 @@ export default function DemoPage() {
               primaryLabel="Continue"
               secondaryLabel=""
               onPrimary={() => chooseRole("student")}
-              onSecondary={() => {}}
+              onSecondary={() => { }}
             />
 
             <RoleCard
@@ -243,7 +243,7 @@ export default function DemoPage() {
               primaryLabel="Continue"
               secondaryLabel=""
               onPrimary={() => chooseRole("parent")}
-              onSecondary={() => {}}
+              onSecondary={() => { }}
             />
           </div>
 

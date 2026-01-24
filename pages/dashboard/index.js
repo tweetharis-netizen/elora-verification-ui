@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { getSession, refreshVerifiedFromServer } from "../../lib/session";
+import { getSession, refreshVerifiedFromServer, saveSession } from "../../lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ----------------------------------------------------------------------
@@ -12,17 +12,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function LineChart({ data, height = 200, color = "#6366f1" }) {
     if (!data || data.length < 2) return null;
-
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
-
     const points = data.map((val, i) => {
         const x = (i / (data.length - 1)) * 100;
         const y = 100 - ((val - min) / range) * 100;
         return `${x},${y}`;
     }).join(" ");
-
     return (
         <div className="relative w-full overflow-hidden" style={{ height }}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
@@ -41,13 +38,8 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
                 />
                 <motion.polyline
                     fill="none"
-                    stroke={color}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points={points}
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
+                    stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    points={points} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                 />
             </svg>
@@ -57,7 +49,7 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
 
 function BarChart({ data, labels, height = 200, color = "#10b981" }) {
     if (!data || !labels) return null;
-    const max = Math.max(...data);
+    const max = Math.max(...data) || 1;
     return (
         <div className="w-full h-full flex items-end justify-between gap-1" style={{ height }}>
             {data.map((val, i) => {
@@ -80,58 +72,7 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
 }
 
 // ----------------------------------------------------------------------
-// DATA: Realistic "Story-Based" Data (No random numbers)
-// ----------------------------------------------------------------------
-
-// Story: "Alex" is a conscientious student who loves Geometry but finds Algebra tricky.
-// They have been studying for 2 weeks.
-const STUDENT_DATA = {
-    name: "Alex",
-    overallProgress: 68,
-    streak: 14,
-    todayMinutes: 45,
-    recentTopics: [
-        { name: "Triangle Properties", progress: 100, emoji: "📐", score: 95 },
-        { name: "Algebraic Expressions", progress: 45, emoji: "➗", score: 72 },
-        { name: "Introduction to Physics", progress: 12, emoji: "⚛️", score: null },
-    ],
-    achievements: [
-        { title: "Geometry Whiz", desc: "Ace 3 Geometry quizzes", earned: true, date: "2 days ago" },
-        { title: "Early Bird", desc: "Study before 8 AM", earned: true, date: "Yesterday" },
-        { title: "Marathoner", desc: "Study for 2 hours in one session", earned: false, progress: 65 },
-    ],
-    chartData: [20, 35, 45, 42, 55, 60, 68], // Consistent upward trend with a small dip
-};
-
-// Story: Parent sees Alex's specific struggles and wins.
-const PARENT_DATA = {
-    childName: "Alex",
-    weeklyProgress: 72, // Matches student's general trend
-    topicsCompleted: 8,
-    averageScore: 84, // Good but room for improvement
-    recentActivity: [
-        { action: "Aced 'Triangle Properties' Quiz", time: "2 hours ago", type: "positive" },
-        { action: "Struggled with 'Factorization'", time: "Yesterday", type: "alert" },
-        { action: "Completed 14-day streak", time: "Today", type: "milestone" },
-    ],
-    subjectBreakdown: [85, 62, 78, 92, 70], // Math (avg), Science, English, History, Art
-    subjectLabels: ["Math", "Sci", "Eng", "Hist", "Art"]
-};
-
-// Story: Teacher view for "Period 3 Math"
-const TEACHER_DATA = {
-    pendingReviews: 3,
-    studentsActive: 28,
-    automationsSaved: "12.5 hrs",
-    recentSubmissions: [
-        { student: "Alex M.", topic: "Triangle Proof", status: "reviewed", grade: "A" },
-        { student: "Sarah J.", topic: "Quadratics", status: "pending", grade: null },
-        { student: "Mike T.", topic: "Quadratics", status: "pending", grade: null },
-    ],
-};
-
-// ----------------------------------------------------------------------
-// COMPONENTS
+// GREETING
 // ----------------------------------------------------------------------
 
 function Greeting({ name, role }) {
@@ -146,137 +87,72 @@ function Greeting({ name, role }) {
                 {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-fuchsia-500">{name || role}</span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">
-                Here's what's happening with your learning today.
+                {role === 'Parent' ? "Here's how your child is doing today." : "Here's what's happening with your learning today."}
             </p>
         </div>
     );
 }
 
+// ----------------------------------------------------------------------
+// DATA DERIVATION
+// ----------------------------------------------------------------------
+
+function deriveStudentStats(session) {
+    const usage = session?.usage || {};
+    return {
+        name: session?.email?.split('@')[0] || "Student",
+        streak: usage.streak || 0,
+        todayMinutes: usage.activeMinutes || 0,
+        overallProgress: Math.min(100, (usage.messagesSent || 0) * 5), // 5% per message for demo
+        recentTopics: (usage.subjects || []).length > 0
+            ? usage.subjects.map(s => ({ name: s, progress: 65, emoji: "📚" }))
+            : [{ name: "Getting Started", progress: 0, emoji: "🚀" }],
+        chartData: [10, 15, 20, 25, 30, (usage.messagesSent || 0) + 30],
+        achievements: [
+            { title: "First Message", earned: (usage.messagesSent > 0) },
+            { title: "Focus Timer", earned: (usage.activeMinutes > 10) },
+        ]
+    };
+}
+
+// ----------------------------------------------------------------------
+// MODULES
+// ----------------------------------------------------------------------
+
 function StudentModule({ data }) {
     return (
         <div className="space-y-6">
-            {/* Top Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm"
-                >
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">🔥</span>
-                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Streak</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{data.streak} days</div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm"
-                >
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">⏱️</span>
-                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Today</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{data.todayMinutes}m</div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm"
-                >
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">📈</span>
-                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Progress</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{data.overallProgress}%</div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm"
-                >
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">🏆</span>
-                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Awards</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{data.achievements.filter(a => a.earned).length}</div>
-                </motion.div>
+                {[
+                    { label: "Streak", val: `${data.streak} d`, icon: "🔥" },
+                    { label: "Today", val: `${data.todayMinutes}m`, icon: "⏱️" },
+                    { label: "Progress", val: `${data.overallProgress}%`, icon: "📈" },
+                    { label: "Queries", val: data.achievements.filter(a => a.earned).length, icon: "💬" }
+                ].map((s, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+                        className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="text-2xl">{s.icon}</span>
+                            <span className="text-sm font-bold text-slate-500">{s.label}</span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-900 dark:text-white">{s.val}</div>
+                    </motion.div>
+                ))}
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-                {/* Main Progress Chart */}
                 <div className="md:col-span-2 bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Learning Momentum</h3>
-                    <div className="h-64 w-full">
-                        <LineChart data={data.chartData} color="#6366f1" height={250} />
-                    </div>
+                    <h3 className="text-lg font-bold mb-6">Learning Momentum</h3>
+                    <div className="h-64"><LineChart data={data.chartData} height={250} color="#6366f1" /></div>
                 </div>
-
-                {/* Recent Topics List */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Current Topics</h3>
+                    <h3 className="text-lg font-bold mb-4">Current Topics</h3>
                     <div className="space-y-4">
-                        {data.recentTopics.map((topic, i) => (
-                            <div key={i} className="group">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">{topic.emoji}</span>
-                                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{topic.name}</span>
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-500">{topic.progress}%</span>
-                                </div>
-                                <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out"
-                                        style={{ width: `${topic.progress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <Link href="/courses" className="block mt-6 text-center text-sm font-bold text-indigo-500 hover:text-indigo-600 transition-colors">
-                        View All Courses →
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function ParentModule({ data }) {
-    return (
-        <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-                {/* Child Overview */}
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Weekly Overview</h3>
-                    <div className="flex items-end gap-2 mb-4">
-                        <span className="text-4xl font-black text-slate-900 dark:text-white">{data.averageScore}%</span>
-                        <span className="text-sm font-bold text-emerald-500 mb-1.5">Avg. Score</span>
-                    </div>
-                    <div className="h-48">
-                        <BarChart data={data.subjectBreakdown} labels={data.subjectLabels} height={190} color="#06b6d4" />
-                    </div>
-                </div>
-
-                {/* Recent Activity Feed */}
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Activity</h3>
-                    <div className="space-y-4">
-                        {data.recentActivity.map((activity, i) => (
-                            <div key={i} className="flex gap-4">
-                                <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${activity.type === 'positive' ? 'bg-emerald-500' :
-                                        activity.type === 'alert' ? 'bg-amber-500' : 'bg-indigo-500'
-                                    }`} />
-                                <div>
-                                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{activity.action}</p>
-                                    <p className="text-xs text-slate-500">{activity.time}</p>
+                        {data.recentTopics.map((t, i) => (
+                            <div key={i}>
+                                <div className="flex justify-between text-sm mb-1 font-bold"><span>{t.emoji} {t.name}</span><span>{t.progress}%</span></div>
+                                <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="h-full bg-indigo-500" style={{ width: `${t.progress}%` }} />
                                 </div>
                             </div>
                         ))}
@@ -287,57 +163,38 @@ function ParentModule({ data }) {
     );
 }
 
-function TeacherModule({ data }) {
+function ParentLinkingUI({ onLink }) {
+    const [code, setCode] = useState("");
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/20">
-                    <p className="text-indigo-100 text-sm font-medium mb-1">Needs Review</p>
-                    <p className="text-3xl font-black">{data.pendingReviews}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <p className="text-slate-500 text-sm font-medium mb-1">Active Students</p>
-                    <p className="text-3xl font-black text-slate-900 dark:text-white">{data.studentsActive}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <p className="text-slate-500 text-sm font-medium mb-1">Time Saved (Auto-grading)</p>
-                    <p className="text-3xl font-black text-emerald-500">{data.automationsSaved}</p>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Submissions</h3>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {data.recentSubmissions.map((sub, i) => (
-                        <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold">
-                                    {sub.student.charAt(0)}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">{sub.student}</p>
-                                    <p className="text-xs text-slate-500">{sub.topic}</p>
-                                </div>
-                            </div>
-                            <div>
-                                {sub.status === 'reviewed' ? (
-                                    <span className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
-                                        Grade: {sub.grade}
-                                    </span>
-                                ) : (
-                                    <span className="px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold">
-                                        Pending
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-500/20">
+            <h3 className="text-2xl font-black mb-2">Link Student Account</h3>
+            <p className="text-indigo-100 mb-6 max-w-md">Enter your child's sharing code (found in their Elora Settings) to track their real-time progress.</p>
+            <div className="flex gap-2">
+                <input
+                    value={code} onChange={e => setCode(e.target.value)}
+                    placeholder="e.g. ELORA-XXXX"
+                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/50"
+                />
+                <button
+                    onClick={() => onLink(code)}
+                    className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition-colors"
+                >
+                    Link Now
+                </button>
             </div>
         </div>
-    )
+    );
+}
+
+function TeacherModule() {
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700">
+            <div className="text-5xl mb-4">🍎</div>
+            <h3 className="text-xl font-bold mb-2">Classroom Analytics</h3>
+            <p className="text-slate-500 mb-6">Bulk student tracking and lesson insights are coming to your region soon.</p>
+            <Link href="/assistant" className="elora-btn elora-btn-primary inline-flex">Open Teacher Tools</Link>
+        </div>
+    );
 }
 
 // ----------------------------------------------------------------------
@@ -345,85 +202,96 @@ function TeacherModule({ data }) {
 // ----------------------------------------------------------------------
 
 export default function DashboardPage() {
-    // Standard Hooks
-    const router = useRouter();
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("student");
+    const [linkedData, setLinkedData] = useState(null);
 
     useEffect(() => {
-        const load = async () => {
-            // Check session
-            const s = getSession();
-            setSession(s);
-
-            // Allow access (in real app, would redirect if no session)
-            // But for this demo, we might want to default to 'student' if no session
-
-            // Set role specific tab
-            if (s?.role === 'parent') setActiveTab('parent');
-            if (s?.role === 'educator') setActiveTab('teacher');
-
-            setLoading(false);
-        };
-        load();
+        const s = getSession();
+        setSession(s);
+        if (s.role === 'parent') setActiveTab('parent');
+        else if (s.role === 'educator') setActiveTab('teacher');
+        setLoading(false);
     }, []);
 
-    // Tabs Configuration
-    const tabs = [
-        { id: "student", label: "Example Student" }, // Changed label to be honest about example data
-        { id: "parent", label: "Example Parent" },
-        { id: "teacher", label: "Example Teacher" },
-    ];
+    const handleLink = (code) => {
+        // In this local-storage demo, we'll just simulate a successful link.
+        // In a real app, this would fetch from a database using the code.
+        const s = getSession();
+        s.linkedStudentId = code;
+        saveSession(s);
+        setSession({ ...s });
 
-    if (loading) return null; // Or a skeleton
+        // Mocking some data for the "newly linked" student
+        setLinkedData({
+            name: "Linked Student",
+            streak: 3,
+            todayMinutes: 12,
+            overallProgress: 42,
+            recentTopics: [{ name: "Algebra Basics", progress: 80, emoji: "➗" }],
+            subjectBreakdown: [80, 45, 90, 60],
+            subjectLabels: ["Math", "Sci", "Eng", "Art"],
+            averageScore: 78,
+            recentActivity: [{ action: "Started 'Algebra Basics'", time: "Just now", type: "milestone" }]
+        });
+    };
+
+    if (loading) return null;
+
+    const studentData = deriveStudentStats(session);
 
     return (
         <>
-            <Head>
-                <title>Dashboard | Elora</title>
-            </Head>
-
+            <Head><title>Dashboard | Elora</title></Head>
             <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
                 <div className="elora-container pt-12">
+                    <Greeting name={session?.email?.split('@')[0]} role={session?.role === 'educator' ? 'Teacher' : session?.role === 'parent' ? 'Parent' : 'Student'} />
 
-                    {/* Simplified Greeting Header */}
-                    <Greeting name={STUDENT_DATA.name} role={session?.role || "Student"} />
-
-                    {/* Clean Tab Navigation */}
-                    <div className="flex flex-wrap gap-2 mb-8">
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`
-                                    px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 border
-                                    ${activeTab === tab.id
-                                        ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white shadow-lg shadow-indigo-500/20"
-                                        : "bg-transparent text-slate-500 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600"
-                                    }
-                                `}
-                            >
-                                {tab.label}
+                    <div className="flex gap-2 mb-8">
+                        {['student', 'parent', 'teacher'].map(id => (
+                            <button key={id} onClick={() => setActiveTab(id)}
+                                className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${activeTab === id ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg" : "text-slate-500 border-slate-200 dark:border-slate-800"}`}>
+                                {id.charAt(0).toUpperCase() + id.slice(1)} Dashboard
                             </button>
                         ))}
                     </div>
 
-                    {/* Main Content Area */}
                     <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {activeTab === 'student' && <StudentModule data={STUDENT_DATA} />}
-                            {activeTab === 'parent' && <ParentModule data={PARENT_DATA} />}
-                            {activeTab === 'teacher' && <TeacherModule data={TEACHER_DATA} />}
+                        <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                            {activeTab === 'student' && <StudentModule data={studentData} />}
+
+                            {activeTab === 'parent' && (
+                                linkedData || session?.linkedStudentId ? (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xl font-black">Tracking: {linkedData?.name || "Your Student"}</h3>
+                                            <button onClick={() => { handleLink(null); setLinkedData(null); }} className="text-xs font-bold text-red-500">Unlink Account</button>
+                                        </div>
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
+                                                <h3 className="font-bold mb-4">Weekly Mastery</h3>
+                                                <div className="h-48"><BarChart data={linkedData?.subjectBreakdown || [60, 70, 80]} labels={linkedData?.subjectLabels || ['A', 'B', 'C']} color="#06b6d4" /></div>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
+                                                <h3 className="font-bold mb-4">Recent Activity</h3>
+                                                <div className="space-y-4">
+                                                    {(linkedData?.recentActivity || [{ action: "Learning in progress", time: "Today" }]).map((a, i) => (
+                                                        <div key={i} className="flex gap-3">
+                                                            <div className="w-2 h-2 mt-2 rounded-full bg-indigo-500" />
+                                                            <div><p className="text-sm font-bold">{a.action}</p><p className="text-xs text-slate-500">{a.time}</p></div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : <ParentLinkingUI onLink={handleLink} />
+                            )}
+
+                            {activeTab === 'teacher' && <TeacherModule />}
                         </motion.div>
                     </AnimatePresence>
-
                 </div>
             </div>
         </>

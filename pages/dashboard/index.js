@@ -44,12 +44,13 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
 }
 
 function BarChart({ data, labels, height = 200, color = "#10b981" }) {
-    if (!data || !labels) return null;
-    const max = Math.max(...data) || 1;
+    if (!data || !labels || !Array.isArray(data)) return null;
+    const max = data.length > 0 ? Math.max(...data) : 1;
+    const safeMax = max <= 0 ? 1 : max;
     return (
         <div className="w-full h-full flex items-end justify-between gap-2" style={{ height }}>
             {data.map((val, i) => {
-                const h = (val / max) * 100;
+                const h = (Number(val) || 0) / safeMax * 100;
                 return (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                         <motion.div
@@ -66,38 +67,47 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
 }
 
 // ----------------------------------------------------------------------
-// DATA DERIVATION HELPERS
+// DATA DERIVATION HELPERS: ROBUST
 // ----------------------------------------------------------------------
 
 function deriveStudentStats(session) {
     const usage = session?.usage || {};
+    const safeSubjects = Array.isArray(usage.subjects) ? usage.subjects : [];
+    const messagesSent = Number(usage.messagesSent) || 0;
+    const activeMinutes = Number(usage.activeMinutes) || 0;
+    const streak = Number(usage.streak) || 0;
+
     return {
         name: session?.email?.split('@')[0] || "Student",
-        streak: usage.streak || 0,
-        todayMinutes: usage.activeMinutes || 0,
-        overallProgress: Math.min(100, (usage.messagesSent || 0) * 5),
-        recentTopics: (usage.subjects || []).length > 0
-            ? usage.subjects.map(s => ({ name: s, progress: 65, emoji: "📚" }))
+        streak,
+        todayMinutes: activeMinutes,
+        overallProgress: Math.min(100, messagesSent * 5),
+        recentTopics: safeSubjects.length > 0
+            ? safeSubjects.map(s => ({ name: String(s), progress: 65, emoji: "📚" }))
             : [{ name: "Getting Started", progress: 0, emoji: "🚀" }],
-        chartData: [10, 15, 20, 25, 30, (usage.messagesSent || 0) + 30],
+        chartData: [10, 15, 20, 25, 30, messagesSent + 30],
         achievements: [
-            { title: "First Message", earned: (usage.messagesSent > 0) },
-            { title: "Focus Timer", earned: (usage.activeMinutes > 10) },
+            { title: "First Message", earned: (messagesSent > 0) },
+            { title: "Focus Timer", earned: (activeMinutes > 10) },
         ]
     };
 }
 
 function computeClassMetrics(linkedStudents = []) {
-    if (!linkedStudents.length) return { avgEngagement: 0, topSubject: "N/A", totalHours: 0, subjectHeatmap: [0], labels: ['-'] };
+    const safeStudents = Array.isArray(linkedStudents) ? linkedStudents : [];
+    if (safeStudents.length === 0) return { avgEngagement: 0, topSubject: "N/A", totalHours: "0.0", subjectHeatmap: [0], labels: ['-'] };
 
     let totalMessages = 0;
     let totalMinutes = 0;
     const subjectCounts = {};
 
-    linkedStudents.forEach(s => {
-        totalMessages += (s.stats?.messagesSent || 0);
-        totalMinutes += (s.stats?.activeMinutes || 0);
-        (s.stats?.subjects || []).forEach(sub => {
+    safeStudents.forEach(s => {
+        if (!s) return;
+        totalMessages += (Number(s.stats?.messagesSent) || 0);
+        totalMinutes += (Number(s.stats?.activeMinutes) || 0);
+        const stSubjects = Array.isArray(s.stats?.subjects) ? s.stats.subjects : [];
+        stSubjects.forEach(sub => {
+            if (!sub) return;
             subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
         });
     });
@@ -106,11 +116,11 @@ function computeClassMetrics(linkedStudents = []) {
     const top = entries.sort((a, b) => b[1] - a[1])[0];
 
     return {
-        avgEngagement: Math.round(totalMessages / linkedStudents.length),
-        topSubject: top ? top[0] : "Mixed",
+        avgEngagement: Math.round(totalMessages / safeStudents.length),
+        topSubject: top ? top[0] : "General",
         totalHours: (totalMinutes / 60).toFixed(1),
-        subjectHeatmap: entries.length > 0 ? entries.map(e => e[1]) : [2, 5, 3, 1],
-        labels: entries.length > 0 ? entries.map(e => e[0]) : ["Math", "Sci", "Eng", "Art"]
+        subjectHeatmap: entries.length > 0 ? entries.map(e => Number(e[1])) : [2, 5, 3, 1],
+        labels: entries.length > 0 ? entries.map(e => String(e[0])) : ["Math", "Sci", "Eng", "Art"]
     };
 }
 

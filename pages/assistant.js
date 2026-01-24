@@ -9,7 +9,7 @@ import {
   isTeacher,
   refreshVerifiedFromServer,
   setGuest as storeGuest,
-} from "../lib/session";
+} from "@/lib/session";
 import {
   clearThread,
   createThread,

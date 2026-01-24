@@ -2,12 +2,34 @@ import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { getSession, refreshVerifiedFromServer, saveSession } from "../../lib/session";
+import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ----------------------------------------------------------------------
 // COMPONENTS: UI UTILITIES
 // ----------------------------------------------------------------------
+
+function Greeting({ name, role }) {
+    const [greeting, setGreeting] = useState("Hello");
+
+    useEffect(() => {
+        const hour = new Date().getHours();
+        if (hour < 12) setGreeting("Good morning");
+        else if (hour < 18) setGreeting("Good afternoon");
+        else setGreeting("Good evening");
+    }, []);
+
+    return (
+        <div className="mb-8">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">
+                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-fuchsia-500">{name || role || 'User'}</span>
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
+                {role === 'Parent' ? "Here's how your child is doing today." : "Here's what's happening with your learning today."}
+            </p>
+        </div>
+    );
+}
 
 function LineChart({ data, height = 200, color = "#6366f1" }) {
     if (!data || data.length < 2) return null;

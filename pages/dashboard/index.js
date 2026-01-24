@@ -264,7 +264,8 @@ function StudentModule({ data }) {
     );
 }
 
-function TeacherModule({ students, metrics, onAddStudent }) {
+function TeacherModule({ students, metrics, onAddStudent, session: activeSession }) {
+    if (!activeSession) return null; // Safety check
     const [code, setCode] = useState("");
     const [nameInput, setNameInput] = useState("");
 
@@ -342,7 +343,7 @@ function TeacherModule({ students, metrics, onAddStudent }) {
                                 placeholder="ELORA-XXXX"
                                 className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
                             />
-                            <LockedFeatureOverlay isVerified={session?.verified}>
+                            <LockedFeatureOverlay isVerified={activeSession?.verified}>
                                 <button
                                     onClick={handleAdd}
                                     className="w-full bg-indigo-500 text-white font-black py-3 rounded-xl hover:bg-indigo-600 transition-colors"

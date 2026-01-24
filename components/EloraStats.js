@@ -49,9 +49,10 @@ export default function EloraStats() {
                     </span>
                 </motion.div>
 
-                <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">
-                    Built for <span className="bg-gradient-to-r from-indigo-500 to-cyan-500 bg-clip-text text-transparent">real impact</span>
+                <h2 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">
+                    The <span className="bg-gradient-to-r from-indigo-500 to-cyan-500 bg-clip-text text-transparent">Elora Ecosystem</span>
                 </h2>
+                <p className="mt-4 text-slate-500 font-medium">Core pillars of our learning philosophy</p>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto px-4">

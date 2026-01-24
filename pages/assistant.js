@@ -789,7 +789,8 @@ export default function AssistantPage() {
   useEffect(() => {
     const timer = setInterval(() => {
       const s = getSession();
-      s.usage.activeMinutes += 1;
+      if (!s.usage) s.usage = { activeMinutes: 0 };
+      s.usage.activeMinutes = (Number(s.usage.activeMinutes) || 0) + 1;
       s.usage.lastActive = new Date().toISOString();
       saveSession(s);
     }, 60000); // Every 1 minute
@@ -820,24 +821,25 @@ export default function AssistantPage() {
     const isActuallyNew = nextMessages.length > messages.length;
     if (isActuallyNew) {
       const s = getSession();
-      s.usage.messagesSent += 1;
+      if (!s.usage) s.usage = { messagesSent: 0, subjects: [], streak: 0 };
+      s.usage.messagesSent = (Number(s.usage.messagesSent) || 0) + 1;
 
       // Update subjects explored
+      if (subject && !Array.isArray(s.usage.subjects)) s.usage.subjects = [];
       if (subject && !s.usage.subjects.includes(subject)) {
         s.usage.subjects.push(subject);
       }
 
       // Update session log (limited to last 50 for storage size)
-      if (!s.usage.sessionLog) s.usage.sessionLog = [];
+      if (!Array.isArray(s.usage.sessionLog)) s.usage.sessionLog = [];
       const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
       s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
 
       // Update last active
       s.usage.lastActive = new Date().toISOString();
 
-      // Update streak (simple logic: if lastActive was yesterday, increment; if today, keep; if older, reset)
-      // For now, let's keep it simple: just mark today as active.
-      s.usage.streak = Math.max(s.usage.streak, 1);
+      // Update streak
+      s.usage.streak = Math.max(Number(s.usage.streak) || 0, 1);
 
       saveSession(s);
     }

@@ -684,11 +684,15 @@ export default function AssistantPage() {
 
   async function persistSessionPatch(patch) {
     try {
+      // Note: Endpoint /api/session/set expects a token, not a patch.
+      // Persisting UI state via localStorage (getSession/saveSession) instead.
+      /*
       await fetch("/api/session/set", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
+      */
     } catch {
       // ignore
     }

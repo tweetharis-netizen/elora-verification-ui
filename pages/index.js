@@ -291,7 +291,7 @@ export default function HomePage() {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   type="button"
-                  onClick={() => router.push("/dashboard")}
+                  onClick={verified ? () => router.push("/dashboard") : goVerify}
                   className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-600/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 shadow-lg shadow-slate-900/5"
                 >
                   {verified ? "Open Dashboard" : "Verify Email →"}

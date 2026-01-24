@@ -93,7 +93,29 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
 // ----------------------------------------------------------------------
 
 function deriveStudentStats(session) {
+    const isVerified = Boolean(session?.verified);
     const usage = session?.usage || {};
+
+    // DEMO DATA for unverified users
+    if (!isVerified) {
+        return {
+            name: "Future Scholar",
+            streak: 0,
+            todayMinutes: 0,
+            overallProgress: 12,
+            recentTopics: [
+                { name: "Algebra Foundations", progress: 45, emoji: "🔢" },
+                { name: "Cell Biology", progress: 20, emoji: "🧬" }
+            ],
+            chartData: [5, 12, 8, 20, 15, 25],
+            achievements: [
+                { title: "First Message", earned: false },
+                { title: "Focus Timer", earned: false }
+            ],
+            isPreview: true
+        };
+    }
+
     const safeSubjects = Array.isArray(usage.subjects) ? usage.subjects : [];
     const messagesSent = Number(usage.messagesSent) || 0;
     const activeMinutes = Number(usage.activeMinutes) || 0;
@@ -111,11 +133,24 @@ function deriveStudentStats(session) {
         achievements: [
             { title: "First Message", earned: (messagesSent > 0) },
             { title: "Focus Timer", earned: (activeMinutes > 10) },
-        ]
+        ],
+        isPreview: false
     };
 }
 
-function computeClassMetrics(linkedStudents = []) {
+function computeClassMetrics(linkedStudents = [], isVerified = true) {
+    // DEMO DATA for unverified users
+    if (!isVerified) {
+        return {
+            avgEngagement: 42,
+            topSubject: "Advanced Calculus",
+            totalHours: "124.5",
+            subjectHeatmap: [12, 45, 28, 15, 32],
+            labels: ["Math", "Physics", "Chem", "Bio", "Eng"],
+            isPreview: true
+        };
+    }
+
     const safeStudents = Array.isArray(linkedStudents) ? linkedStudents : [];
     if (safeStudents.length === 0) return { avgEngagement: 0, topSubject: "N/A", totalHours: "0.0", subjectHeatmap: [0], labels: ['-'] };
 
@@ -142,8 +177,43 @@ function computeClassMetrics(linkedStudents = []) {
         topSubject: top ? top[0] : "General",
         totalHours: (totalMinutes / 60).toFixed(1),
         subjectHeatmap: entries.length > 0 ? entries.map(e => Number(e[1])) : [2, 5, 3, 1],
-        labels: entries.length > 0 ? entries.map(e => String(e[0])) : ["Math", "Sci", "Eng", "Art"]
+        labels: entries.length > 0 ? entries.map(e => String(e[0])) : ["Math", "Sci", "Eng", "Art"],
+        isPreview: false
     };
+}
+
+function LockedFeatureOverlay({ children, isVerified }) {
+    if (isVerified) return children;
+
+    return (
+        <div className="relative group cursor-not-allowed">
+            <div className="blur-[1px] opacity-70 pointer-events-none transition-all group-hover:blur-[2px]">
+                {children}
+            </div>
+            <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="bg-slate-900/90 dark:bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-2xl border border-white/10 dark:border-slate-200">
+                    <Link href="/verify" className="flex items-center gap-2 no-underline">
+                        <span className="text-xs font-black text-white dark:text-slate-900 whitespace-nowrap">Verify to Unlock →</span>
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PreviewBanner() {
+    return (
+        <div className="mb-8 p-3 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-indigo-500/10 border border-indigo-500/20 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-indigo-500 grid place-items-center text-white text-xs">✨</div>
+                <div>
+                    <div className="text-xs font-black text-indigo-900 dark:text-indigo-100">Dashboard Preview Mode</div>
+                    <div className="text-[10px] text-indigo-700/70 dark:text-indigo-300/60 font-medium">Verify your email to see your real learning statistics.</div>
+                </div>
+            </div>
+            <Link href="/verify" className="elora-btn py-1.5 px-4 text-[10px] bg-indigo-600 text-white border-none">Verify Now</Link>
+        </div>
+    );
 }
 
 // ----------------------------------------------------------------------
@@ -272,12 +342,14 @@ function TeacherModule({ students, metrics, onAddStudent }) {
                                 placeholder="ELORA-XXXX"
                                 className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
                             />
-                            <button
-                                onClick={handleAdd}
-                                className="w-full bg-indigo-500 text-white font-black py-3 rounded-xl hover:bg-indigo-600 transition-colors"
-                            >
-                                Add to Roster +
-                            </button>
+                            <LockedFeatureOverlay isVerified={session?.verified}>
+                                <button
+                                    onClick={handleAdd}
+                                    className="w-full bg-indigo-500 text-white font-black py-3 rounded-xl hover:bg-indigo-600 transition-colors"
+                                >
+                                    Add to Roster +
+                                </button>
+                            </LockedFeatureOverlay>
                         </div>
                     </div>
 
@@ -343,13 +415,14 @@ export default function DashboardPage() {
     if (loading || !session) return null;
 
     const studentData = deriveStudentStats(session);
-    const classMetrics = computeClassMetrics(session.linkedStudents);
+    const classMetrics = computeClassMetrics(session.linkedStudents, session.verified);
 
     return (
         <>
             <Head><title>Dashboard | Elora</title></Head>
             <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
                 <div className="elora-container pt-12">
+                    {!session.verified && <PreviewBanner />}
                     <Greeting
                         name={session?.email?.split('@')[0]}
                         role={activeTab === 'teacher' ? 'Classroom Admin' : activeTab === 'parent' ? 'Parent' : 'Student'}
@@ -394,7 +467,9 @@ export default function DashboardPage() {
                                         <p className="mb-8 opacity-80 max-w-lg">Enter your child's ELORA code to see their live progress charts and subject mastery reports.</p>
                                         <div className="flex gap-3 max-w-md">
                                             <input placeholder="ELORA-XXXX" className="flex-1 bg-white/10 border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-white/50" />
-                                            <button onClick={() => handleLinkParent("DEMO")} className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl">Link Child</button>
+                                            <LockedFeatureOverlay isVerified={session?.verified}>
+                                                <button onClick={() => handleLinkParent("DEMO")} className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl">Link Child</button>
+                                            </LockedFeatureOverlay>
                                         </div>
                                     </div>
                                 )

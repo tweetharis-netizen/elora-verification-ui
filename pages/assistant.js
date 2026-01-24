@@ -199,6 +199,25 @@ function seededShuffle(arr, rnd) {
   return a;
 }
 
+function LockedFeatureOverlay({ children, isVerified }) {
+  if (isVerified) return children;
+
+  return (
+    <div className="relative group cursor-not-allowed inline-flex">
+      <div className="blur-[1px] opacity-70 pointer-events-none transition-all group-hover:blur-[2px]">
+        {children}
+      </div>
+      <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="bg-slate-900/90 dark:bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-2xl border border-white/10 dark:border-slate-200 scale-90">
+          <Link href="/verify" className="text-[10px] font-black text-white dark:text-slate-900 whitespace-nowrap leading-none no-underline">
+            Verify to Unlock →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function pickStarterSuggestions({ seed, role, country, level, subject, topic }) {
   const key = role === "educator" || role === "teacher" ? "educator" : role === "parent" ? "parent" : "student";
   const poolFn = STARTER_SUGGESTION_POOLS[key] || STARTER_SUGGESTION_POOLS.student;
@@ -1652,13 +1671,13 @@ export default function AssistantPage() {
                     </button>
                   </div>
                 ) : (
-                  <Link
-                    href="/verify"
+                  <button
+                    onClick={() => setVerifyGateOpen(true)}
                     className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
                     title="Verify to unlock saved chats"
                   >
                     Verify
-                  </Link>
+                  </button>
                 )}
               </div>
 
@@ -1907,48 +1926,50 @@ export default function AssistantPage() {
 
                 {/* Export row */}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={!canShowExports}
-                    onClick={() => exportLast("pdf")}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                      canShowExports
-                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                    )}
-                    title={canShowExports ? "Export last answer as PDF" : "Verify and ask a question to unlock exports"}
-                  >
-                    Export PDF
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canShowExports}
-                    onClick={() => exportLast("docx")}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                      canShowExports
-                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                    )}
-                    title={canShowExports ? "Export last answer as DOCX" : "Verify and ask a question to unlock exports"}
-                  >
-                    Export DOCX
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canShowExports}
-                    onClick={() => exportLast("pptx")}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                      canShowExports
-                        ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                    )}
-                    title={canShowExports ? "Export last answer as Slides" : "Verify and ask a question to unlock exports"}
-                  >
-                    Export Slides
-                  </button>
+                  <LockedFeatureOverlay isVerified={verified}>
+                    <button
+                      type="button"
+                      disabled={!canShowExports}
+                      onClick={() => exportLast("pdf")}
+                      className={cn(
+                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                        canShowExports
+                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                      )}
+                      title={canShowExports ? "Export last answer as PDF" : "Verify and ask a question to unlock exports"}
+                    >
+                      Export PDF
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canShowExports}
+                      onClick={() => exportLast("docx")}
+                      className={cn(
+                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                        canShowExports
+                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                      )}
+                      title={canShowExports ? "Export last answer as DOCX" : "Verify and ask a question to unlock exports"}
+                    >
+                      Export DOCX
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canShowExports}
+                      onClick={() => exportLast("pptx")}
+                      className={cn(
+                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
+                        canShowExports
+                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
+                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                      )}
+                      title={canShowExports ? "Export last answer as Slides" : "Verify and ask a question to unlock exports"}
+                    >
+                      Export Slides
+                    </button>
+                  </LockedFeatureOverlay>
                 </div>
 
                 <div className="mt-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">

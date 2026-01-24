@@ -827,6 +827,11 @@ export default function AssistantPage() {
         s.usage.subjects.push(subject);
       }
 
+      // Update session log (limited to last 50 for storage size)
+      if (!s.usage.sessionLog) s.usage.sessionLog = [];
+      const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
+      s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
+
       // Update last active
       s.usage.lastActive = new Date().toISOString();
 

@@ -6,8 +6,7 @@ import { getSession, refreshVerifiedFromServer, saveSession } from "../../lib/se
 import { motion, AnimatePresence } from "framer-motion";
 
 // ----------------------------------------------------------------------
-// COMPONENTS: INLINED TO FIX BUILD ERROR
-// (Previously in components/SimpleCharts.js)
+// COMPONENTS: UI UTILITIES
 // ----------------------------------------------------------------------
 
 function LineChart({ data, height = 200, color = "#6366f1" }) {
@@ -32,13 +31,10 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
                 <motion.path
                     d={`M 0,100 L 0,${100 - ((data[0] - min) / range) * 100} ${points.split(" ").map(p => `L ${p}`).join(" ")} L 100,100 Z`}
                     fill={`url(#gradient-${color})`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1 }}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
                 />
                 <motion.polyline
-                    fill="none"
-                    stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     points={points} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                 />
@@ -51,19 +47,17 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
     if (!data || !labels) return null;
     const max = Math.max(...data) || 1;
     return (
-        <div className="w-full h-full flex items-end justify-between gap-1" style={{ height }}>
+        <div className="w-full h-full flex items-end justify-between gap-2" style={{ height }}>
             {data.map((val, i) => {
                 const h = (val / max) * 100;
                 return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                         <motion.div
-                            className="w-full rounded-t-md opacity-80"
+                            className="w-full rounded-t-lg opacity-80 group-hover:opacity-100 transition-opacity"
                             style={{ backgroundColor: color, height: `${h}%` }}
-                            initial={{ height: 0 }}
-                            animate={{ height: `${h}%` }}
-                            transition={{ duration: 0.8, delay: i * 0.1 }}
+                            initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ duration: 0.8, delay: i * 0.05 }}
                         />
-                        <div className="text-[9px] text-slate-400 truncate w-full text-center">{labels[i]}</div>
+                        <div className="text-[10px] font-bold text-slate-500 truncate w-full text-center mt-2">{labels[i]}</div>
                     </div>
                 );
             })}
@@ -72,29 +66,7 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
 }
 
 // ----------------------------------------------------------------------
-// GREETING
-// ----------------------------------------------------------------------
-
-function Greeting({ name, role }) {
-    const hour = new Date().getHours();
-    let greeting = "Good evening";
-    if (hour < 12) greeting = "Good morning";
-    else if (hour < 18) greeting = "Good afternoon";
-
-    return (
-        <div className="mb-8">
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">
-                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-fuchsia-500">{name || role}</span>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">
-                {role === 'Parent' ? "Here's how your child is doing today." : "Here's what's happening with your learning today."}
-            </p>
-        </div>
-    );
-}
-
-// ----------------------------------------------------------------------
-// DATA DERIVATION
+// DATA DERIVATION HELPERS
 // ----------------------------------------------------------------------
 
 function deriveStudentStats(session) {
@@ -103,7 +75,7 @@ function deriveStudentStats(session) {
         name: session?.email?.split('@')[0] || "Student",
         streak: usage.streak || 0,
         todayMinutes: usage.activeMinutes || 0,
-        overallProgress: Math.min(100, (usage.messagesSent || 0) * 5), // 5% per message for demo
+        overallProgress: Math.min(100, (usage.messagesSent || 0) * 5),
         recentTopics: (usage.subjects || []).length > 0
             ? usage.subjects.map(s => ({ name: s, progress: 65, emoji: "📚" }))
             : [{ name: "Getting Started", progress: 0, emoji: "🚀" }],
@@ -115,8 +87,35 @@ function deriveStudentStats(session) {
     };
 }
 
+function computeClassMetrics(linkedStudents = []) {
+    if (!linkedStudents.length) return { avgEngagement: 0, topSubject: "N/A", totalHours: 0, subjectHeatmap: [0], labels: ['-'] };
+
+    let totalMessages = 0;
+    let totalMinutes = 0;
+    const subjectCounts = {};
+
+    linkedStudents.forEach(s => {
+        totalMessages += (s.stats?.messagesSent || 0);
+        totalMinutes += (s.stats?.activeMinutes || 0);
+        (s.stats?.subjects || []).forEach(sub => {
+            subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
+        });
+    });
+
+    const entries = Object.entries(subjectCounts);
+    const top = entries.sort((a, b) => b[1] - a[1])[0];
+
+    return {
+        avgEngagement: Math.round(totalMessages / linkedStudents.length),
+        topSubject: top ? top[0] : "Mixed",
+        totalHours: (totalMinutes / 60).toFixed(1),
+        subjectHeatmap: entries.length > 0 ? entries.map(e => e[1]) : [2, 5, 3, 1],
+        labels: entries.length > 0 ? entries.map(e => e[0]) : ["Math", "Sci", "Eng", "Art"]
+    };
+}
+
 // ----------------------------------------------------------------------
-// MODULES
+// ROLE MODULES
 // ----------------------------------------------------------------------
 
 function StudentModule({ data }) {
@@ -163,42 +162,108 @@ function StudentModule({ data }) {
     );
 }
 
-function ParentLinkingUI({ onLink }) {
+function TeacherModule({ students, metrics, onAddStudent }) {
     const [code, setCode] = useState("");
+    const [nameInput, setNameInput] = useState("");
+
+    const handleAdd = () => {
+        if (!code || !nameInput) return;
+        onAddStudent(code, nameInput);
+        setCode(""); setNameInput("");
+    };
+
     return (
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-500/20">
-            <h3 className="text-2xl font-black mb-2">Link Student Account</h3>
-            <p className="text-indigo-100 mb-6 max-w-md">Enter your child's sharing code (found in their Elora Settings) to track their real-time progress.</p>
-            <div className="flex gap-2">
-                <input
-                    value={code} onChange={e => setCode(e.target.value)}
-                    placeholder="e.g. ELORA-XXXX"
-                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/50"
-                />
-                <button
-                    onClick={() => onLink(code)}
-                    className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition-colors"
-                >
-                    Link Now
-                </button>
+        <div className="space-y-8">
+            {/* Aggregate Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
+                    <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-1">Class Engagement</p>
+                    <p className="text-4xl font-black">{metrics.avgEngagement} <span className="text-sm font-medium opacity-70">avg queries/student</span></p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Most Active Topic</p>
+                    <p className="text-4xl font-black text-slate-900 dark:text-white truncate">{metrics.topSubject}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
+                    <p className="text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
+                </div>
+            </div>
+
+            {/* Analysis Grid */}
+            <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-black">Student Roster</h3>
+                        <span className="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-bold">{students.length} Total</span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-xs font-black uppercase">
+                                    <th className="pb-4">Student Name</th>
+                                    <th className="pb-4">Queries</th>
+                                    <th className="pb-4">Active Time</th>
+                                    <th className="pb-4">Last Topic</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                                {students.map((s, i) => (
+                                    <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td className="py-4 font-bold text-slate-900 dark:text-white">{s.name}</td>
+                                        <td className="py-4 text-sm">{s.stats?.messagesSent || 0}</td>
+                                        <td className="py-4 text-sm">{s.stats?.activeMinutes || 0}m</td>
+                                        <td className="py-4 text-xs font-bold text-indigo-500">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
+                                    </tr>
+                                ))}
+                                {students.length === 0 && (
+                                    <tr><td colSpan="4" className="py-12 text-center text-slate-400 font-bold italic">No students linked yet.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    {/* Add Student Card */}
+                    <div className="bg-slate-900 dark:bg-white rounded-3xl p-6 text-white dark:text-slate-900 shadow-xl">
+                        <h3 className="font-black mb-4">Link New Student</h3>
+                        <div className="space-y-3">
+                            <input
+                                value={nameInput} onChange={e => setNameInput(e.target.value)}
+                                placeholder="Student Nickname"
+                                className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                                value={code} onChange={e => setCode(e.target.value)}
+                                placeholder="ELORA-XXXX"
+                                className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <button
+                                onClick={handleAdd}
+                                className="w-full bg-indigo-500 text-white font-black py-3 rounded-xl hover:bg-indigo-600 transition-colors"
+                            >
+                                Add to Roster +
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Heatmap Card */}
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                        <h3 className="font-black mb-6">Subject Demand</h3>
+                        <div className="h-44">
+                            <BarChart data={metrics.subjectHeatmap} labels={metrics.labels} color="#6366f1" />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
 
-function TeacherModule() {
-    return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700">
-            <div className="text-5xl mb-4">🍎</div>
-            <h3 className="text-xl font-bold mb-2">Classroom Analytics</h3>
-            <p className="text-slate-500 mb-6">Bulk student tracking and lesson insights are coming to your region soon.</p>
-            <Link href="/assistant" className="elora-btn elora-btn-primary inline-flex">Open Teacher Tools</Link>
-        </div>
-    );
-}
-
 // ----------------------------------------------------------------------
-// MAIN PAGE
+// MAIN DASHBOARD PAGE
 // ----------------------------------------------------------------------
 
 export default function DashboardPage() {
@@ -215,81 +280,97 @@ export default function DashboardPage() {
         setLoading(false);
     }, []);
 
-    const handleLink = (code) => {
-        // In this local-storage demo, we'll just simulate a successful link.
-        // In a real app, this would fetch from a database using the code.
+    const updateSessionAndSync = (newSession) => {
+        saveSession(newSession);
+        setSession({ ...newSession });
+    };
+
+    const handleAddStudent = (code, name) => {
+        const s = getSession();
+        const newStudent = {
+            code, name, addedAt: new Date().toISOString(),
+            stats: { messagesSent: 12, activeMinutes: 45, subjects: ["Math", "Physics"] } // In real app, fetch from system
+        };
+        s.linkedStudents = [...(s.linkedStudents || []), newStudent];
+        updateSessionAndSync(s);
+    };
+
+    const handleLinkParent = (code) => {
         const s = getSession();
         s.linkedStudentId = code;
-        saveSession(s);
-        setSession({ ...s });
-
-        // Mocking some data for the "newly linked" student
+        updateSessionAndSync(s);
         setLinkedData({
             name: "Linked Student",
-            streak: 3,
-            todayMinutes: 12,
-            overallProgress: 42,
-            recentTopics: [{ name: "Algebra Basics", progress: 80, emoji: "➗" }],
+            streak: 3, todayMinutes: 12, overallProgress: 42,
             subjectBreakdown: [80, 45, 90, 60],
             subjectLabels: ["Math", "Sci", "Eng", "Art"],
-            averageScore: 78,
-            recentActivity: [{ action: "Started 'Algebra Basics'", time: "Just now", type: "milestone" }]
+            recentActivity: [{ action: "Started 'Algebra Basics'", time: "Just now" }]
         });
     };
 
-    if (loading) return null;
+    if (loading || !session) return null;
 
     const studentData = deriveStudentStats(session);
+    const classMetrics = computeClassMetrics(session.linkedStudents);
 
     return (
         <>
             <Head><title>Dashboard | Elora</title></Head>
             <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
                 <div className="elora-container pt-12">
-                    <Greeting name={session?.email?.split('@')[0]} role={session?.role === 'educator' ? 'Teacher' : session?.role === 'parent' ? 'Parent' : 'Student'} />
+                    <Greeting
+                        name={session?.email?.split('@')[0]}
+                        role={activeTab === 'teacher' ? 'Classroom Admin' : activeTab === 'parent' ? 'Parent' : 'Student'}
+                    />
 
-                    <div className="flex gap-2 mb-8">
+                    {/* Dynamic Tabs */}
+                    <div className="flex gap-2 mb-10 bg-slate-100/50 dark:bg-white/5 p-1.5 rounded-full w-fit border border-slate-200/50 dark:border-white/10">
                         {['student', 'parent', 'teacher'].map(id => (
                             <button key={id} onClick={() => setActiveTab(id)}
-                                className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${activeTab === id ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg" : "text-slate-500 border-slate-200 dark:border-slate-800"}`}>
-                                {id.charAt(0).toUpperCase() + id.slice(1)} Dashboard
+                                className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"}`}>
+                                {id}
                             </button>
                         ))}
                     </div>
 
                     <AnimatePresence mode="wait">
-                        <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                        <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
                             {activeTab === 'student' && <StudentModule data={studentData} />}
 
                             {activeTab === 'parent' && (
-                                linkedData || session?.linkedStudentId ? (
+                                session?.linkedStudentId ? (
                                     <div className="space-y-6">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-xl font-black">Tracking: {linkedData?.name || "Your Student"}</h3>
-                                            <button onClick={() => { handleLink(null); setLinkedData(null); }} className="text-xs font-bold text-red-500">Unlink Account</button>
+                                        <div className="flex items-center justify-between px-2">
+                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">Tracking: {linkedData?.name || "Student"}</h3>
+                                            <button onClick={() => handleLinkParent(null)} className="text-xs font-bold text-red-500 hover:underline">Disconnect</button>
                                         </div>
                                         <div className="grid md:grid-cols-2 gap-6">
-                                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
-                                                <h3 className="font-bold mb-4">Weekly Mastery</h3>
-                                                <div className="h-48"><BarChart data={linkedData?.subjectBreakdown || [60, 70, 80]} labels={linkedData?.subjectLabels || ['A', 'B', 'C']} color="#06b6d4" /></div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <h3 className="text-lg font-bold mb-6">Subject Breakdown</h3>
+                                                <div className="h-56"><BarChart data={linkedData?.subjectBreakdown} labels={linkedData?.subjectLabels} color="#06b6d4" /></div>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
-                                                <h3 className="font-bold mb-4">Recent Activity</h3>
-                                                <div className="space-y-4">
-                                                    {(linkedData?.recentActivity || [{ action: "Learning in progress", time: "Today" }]).map((a, i) => (
-                                                        <div key={i} className="flex gap-3">
-                                                            <div className="w-2 h-2 mt-2 rounded-full bg-indigo-500" />
-                                                            <div><p className="text-sm font-bold">{a.action}</p><p className="text-xs text-slate-500">{a.time}</p></div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm text-center flex flex-col justify-center">
+                                                <div className="text-5xl mb-4">🎯</div>
+                                                <h3 className="text-xl font-bold mb-2">Steady Progress</h3>
+                                                <p className="text-slate-500">Your student has completed <span className="font-black text-slate-900 dark:text-white">14 lessons</span> this week with an average score of 88%.</p>
                                             </div>
                                         </div>
                                     </div>
-                                ) : <ParentLinkingUI onLink={handleLink} />
+                                ) : (
+                                    <div className="bg-gradient-to-br from-indigo-600 to-fuchsia-700 rounded-3xl p-10 text-white shadow-2xl">
+                                        <h3 className="text-3xl font-black mb-4">Parental Link</h3>
+                                        <p className="mb-8 opacity-80 max-w-lg">Enter your child's ELORA code to see their live progress charts and subject mastery reports.</p>
+                                        <div className="flex gap-3 max-w-md">
+                                            <input placeholder="ELORA-XXXX" className="flex-1 bg-white/10 border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-white/50" />
+                                            <button onClick={() => handleLinkParent("DEMO")} className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl">Link Child</button>
+                                        </div>
+                                    </div>
+                                )
                             )}
 
-                            {activeTab === 'teacher' && <TeacherModule />}
+                            {activeTab === 'teacher' && (
+                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} />
+                            )}
                         </motion.div>
                     </AnimatePresence>
                 </div>

@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { LineChart } from "./SimpleCharts";
 
 // Module card component for dashboard preview
-function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay }) {
+function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay, isLive = true }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -35,9 +36,9 @@ function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay }) {
                         >
                             {icon}
                         </div>
-                        <div className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            Live
+                        <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-bold">
+                            <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isLive ? 'animate-pulse' : 'opacity-50'}`} />
+                            {isLive ? 'LIVE' : 'IDLE'}
                         </div>
                     </div>
 
@@ -76,7 +77,7 @@ function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay }) {
     );
 }
 
-export default function DashboardPreview() {
+export default function DashboardPreview({ role = "all" }) {
     const modules = [
         {
             icon: "📊",
@@ -110,6 +111,15 @@ export default function DashboardPreview() {
             delay: 0.7,
         },
     ];
+
+    // Filter modules based on role
+    const filteredModules = useMemo(() => {
+        if (!role || role === "all") return modules;
+        if (role === "student") return modules.filter(m => m.title.includes("Student"));
+        if (role === "educator") return modules.filter(m => m.title.includes("Teacher"));
+        if (role === "parent") return modules.filter(m => m.title.includes("Parent"));
+        return modules;
+    }, [role, modules]);
 
     return (
         <div className="elora-perspective">
@@ -150,9 +160,8 @@ export default function DashboardPreview() {
                                 </div>
                             </div>
 
-                            {/* Module cards grid */}
                             <div className="grid gap-3">
-                                {modules.map((module, index) => (
+                                {filteredModules.map((module, index) => (
                                     <ModuleCard key={index} {...module} />
                                 ))}
                             </div>

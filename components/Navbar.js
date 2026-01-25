@@ -133,14 +133,14 @@ export default function Navbar() {
                 aria-hidden="true"
               />
               <div className="relative flex items-center gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl px-3 py-2 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
-                <div className="w-9 h-9 rounded-2xl grid place-items-center bg-gradient-to-br from-indigo-600 via-indigo-500 to-fuchsia-500 text-white font-black shadow-md shadow-indigo-500/30">
+                <div className="w-9 h-9 rounded-2xl grid place-items-center bg-gradient-to-br from-indigo-600 via-indigo-500 to-fuchsia-500 text-white font-bold shadow-md shadow-indigo-500/30">
                   E
                 </div>
                 <div className="leading-tight">
-                  <div className="font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-700 dark:from-white dark:via-indigo-200 dark:to-fuchsia-200">
+                  <div className="font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-700 dark:from-white dark:via-indigo-200 dark:to-fuchsia-200 font-[var(--font-brand)]">
                     Elora
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">
                     AI learning assistant
                   </div>
                 </div>

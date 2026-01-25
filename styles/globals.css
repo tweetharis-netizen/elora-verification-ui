@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+/* Fonts handled via Next.js Google Fonts in _app.js */
 
 @tailwind base;
 @tailwind components;
@@ -6,8 +6,9 @@
 
 /* ---------- Elora Premium Typography ---------- */
 :root {
-  --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-outfit: 'Outfit', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-inter: var(--elora-font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-outfit: var(--elora-font-outfit), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-fraunces: var(--elora-font-serif), serif;
 }
 
 /* ---------- Enhanced Color Palette ---------- */
@@ -35,13 +36,13 @@
 
 /* ---------- Glassmorphism Utilities ---------- */
 .elora-glass {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 8px 32px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .elora-glass-dark {
@@ -152,8 +153,10 @@
 .elora-gradient-text {
   background-clip: text;
   -webkit-background-clip: text;
-  color: transparent;
+  color: white;
+  /* Fallback for browsers that don't support text-fill-color */
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.1));
 }
 
 /* ---------- Monitor/Dashboard Frame ---------- */

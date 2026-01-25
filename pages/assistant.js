@@ -298,91 +298,50 @@ function getCountryLevels(country) {
 
   if (c.includes("singapore")) {
     return [
-      "Primary 1",
-      "Primary 2",
-      "Primary 3",
-      "Primary 4",
-      "Primary 5",
-      "Primary 6",
-      "Secondary 1",
-      "Secondary 2",
-      "Secondary 3",
-      "Secondary 4",
-      "Secondary 5",
-      "JC 1",
-      "JC 2",
+      "Primary School",
+      "Secondary School",
+      "Junior College / Pre-U",
+      "Polytechnic / ITE",
+      "University",
     ];
   }
 
   if (c.includes("united states") || c === "us" || c.includes("usa")) {
     return [
-      "Grade 1",
-      "Grade 2",
-      "Grade 3",
-      "Grade 4",
-      "Grade 5",
-      "Grade 6",
-      "Grade 7",
-      "Grade 8",
-      "Grade 9",
-      "Grade 10",
-      "Grade 11",
-      "Grade 12",
+      "Elementary School",
+      "Middle School",
+      "High School",
+      "College / University",
     ];
   }
 
   if (c.includes("united kingdom") || c.includes("uk") || c.includes("britain") || c.includes("england")) {
     return [
-      "Year 1",
-      "Year 2",
-      "Year 3",
-      "Year 4",
-      "Year 5",
-      "Year 6",
-      "Year 7",
-      "Year 8",
-      "Year 9",
-      "Year 10",
-      "Year 11",
-      "Year 12",
-      "Year 13",
+      "Primary School",
+      "Secondary School",
+      "Sixth Form / College",
+      "University",
     ];
   }
 
   if (c.includes("australia")) {
     return [
-      "Year 1",
-      "Year 2",
-      "Year 3",
-      "Year 4",
-      "Year 5",
-      "Year 6",
-      "Year 7",
-      "Year 8",
-      "Year 9",
-      "Year 10",
-      "Year 11",
-      "Year 12",
+      "Primary School",
+      "Secondary School",
+      "University / TAFE",
     ];
   }
 
   if (c.includes("malaysia")) {
     return [
-      "Standard 1",
-      "Standard 2",
-      "Standard 3",
-      "Standard 4",
-      "Standard 5",
-      "Standard 6",
-      "Form 1",
-      "Form 2",
-      "Form 3",
-      "Form 4",
-      "Form 5",
+      "Primary School (Standard 1-6)",
+      "Secondary School (Form 1-5)",
+      "Pre-University / STPM",
+      "University",
     ];
   }
 
-  return ["Primary", "Secondary", "Pre-U", "University", "Adult learning"];
+  return ["Primary School", "Secondary School", "Tertiary / Higher Ed", "Adult Learning"];
 }
 
 async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = {}) {
@@ -1227,159 +1186,101 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
-      <div className="elora-page">
-        <div className="elora-container">
-          <div className={cn("grid gap-6", prefsOpen ? "lg:grid-cols-[420px,1fr]" : "lg:grid-cols-1")}>
-            {/* LEFT */}
-            {prefsOpen ? (
-              <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-5">
+      <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20">
+        <div className="elora-container pt-8 pb-12">
+          <div className={cn("grid gap-6", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
+
+            {/* LEFT - Preferences Panel */}
+            {prefsOpen && (
+              <div className="rounded-[2.5rem] border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/30 shadow-2xl shadow-indigo-500/5 dark:shadow-black/40 p-6 flex flex-col gap-6 h-fit sticky top-[calc(var(--elora-nav-offset)+1rem)]">
                 <div className="flex items-center justify-between">
-                  <h1 className="text-2xl font-black text-slate-950 dark:text-white">Preferences</h1>
+                  <h1 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="text-indigo-500">⚙️</span> Settings
+                  </h1>
                   <div className="flex items-center gap-2">
                     <span
                       className={cn(
-                        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border",
+                        "inline-flex items-center gap-2 rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-widest border",
                         verified
                           ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
                           : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
                       )}
                     >
-                      <span className={cn("h-2 w-2 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                      {verified ? "Verified" : "Preview"}
+                      <span className={cn("h-1.5 w-1.5 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
+                      {verified ? "Verified" : "Guest"}
                     </span>
                     <button
                       type="button"
                       onClick={() => setPrefsOpen(false)}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      title="Close preferences"
-                      aria-label="Close preferences"
+                      className="h-8 w-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
+                      title="Close settings"
                     >
                       ✕
                     </button>
                   </div>
                 </div>
 
-                {/* Role (display only) */}
-                <div className="mt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">Role</div>
-                    <Link
-                      href="/settings?focus=role"
-                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-3 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
-                    >
-                      Change
-                    </Link>
-                  </div>
-                  <div className="mt-2 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/60 dark:bg-slate-950/15 px-4 py-3">
-                    <div className="text-sm font-extrabold text-slate-950 dark:text-white">
-                      {ROLE_LABEL[role] || "Student"}
+                <div className="space-y-6">
+                  {/* Context Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Context</div>
+                      <Link href="/settings?focus=role" className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:underline">Change Role</Link>
                     </div>
-                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                      Elora adapts automatically. Change role in Settings.
-                    </div>
-                  </div>
-                </div>
 
-                {/* Country/Level */}
-                <div className="mt-5 grid gap-4">
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">Country</label>
-                    <select
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      {COUNTRIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-2xl bg-slate-100/50 dark:bg-white/5 border border-slate-200/50 dark:border-white/5">
+                        <div className="text-[10px] font-bold text-slate-400 mb-1">Role</div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white capitalize">{role}</div>
+                      </div>
+                      <div className="p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+                        <select
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          className="w-full h-full bg-transparent border-none px-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-0 outline-none cursor-pointer"
+                        >
+                          {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">
-                      {String(country || "").toLowerCase().includes("united states") ? "Grade" : "Level"}
-                    </label>
+                  {/* Level Section */}
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Education Level</div>
                     <select
                       value={level}
                       onChange={(e) => setLevel(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 px-4 text-sm font-bold text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer shadow-sm"
                     >
-                      {countryLevels.map((lv) => (
-                        <option key={lv} value={lv}>
-                          {lv}
-                        </option>
-                      ))}
+                      {countryLevels.map((lv) => <option key={lv} value={lv}>{lv}</option>)}
                     </select>
-                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                      This affects the syllabus naming (Primary/Secondary vs Grades/Years).
+                  </div>
+
+                  {/* Subject & Topic */}
+                  <div className="space-y-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Learning Area</div>
+                    <div className="grid gap-3">
+                      <select
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer"
+                      >
+                        {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <input
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="Current topic (e.g. Fractions)"
+                        className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none placeholder:text-slate-400"
+                      />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">Subject</label>
-                    <select
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      {SUBJECTS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">Topic (optional)</label>
-                    <input
-                      value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
-                      placeholder="e.g., Fractions, Photosynthesis, Essay writing…"
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">Extra constraints (optional)</label>
-                    <input
-                      value={constraints}
-                      onChange={(e) => setConstraints(e.target.value)}
-                      placeholder="e.g., Keep it short, use real-life examples…"
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-slate-900 dark:text-white">Response style</label>
-                    <select
-                      value={responseStyle}
-                      onChange={(e) => setResponseStyle(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      <option value="standard">Standard (recommended)</option>
-                      <option value="very-simple">Very simple</option>
-                      <option value="detailed">More detailed</option>
-                      <option value="custom">Custom…</option>
-                    </select>
-
-                    {responseStyle === "custom" ? (
-                      <textarea
-                        value={customStyleText}
-                        onChange={(e) => setCustomStyleText(e.target.value)}
-                        placeholder="Tell Elora how to respond (tone, structure, what to avoid)…"
-                        rows={3}
-                        className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                      />
-                    ) : null}
-                  </div>
-
-                  {/* Quick actions */}
-                  <div className="mt-1">
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">Quick actions</div>
-                    <div className="mt-2 grid gap-2">
+                  {/* Quick Actions */}
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Action Plan</div>
+                    <div className="grid grid-cols-1 gap-2">
                       {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
                         const active = action === a.id;
                         return (
@@ -1388,595 +1289,280 @@ export default function AssistantPage() {
                             type="button"
                             onClick={() => setAction(a.id)}
                             className={cn(
-                              "rounded-2xl border px-4 py-3 text-left transition",
+                              "relative group rounded-2xl border p-4 text-left transition-all duration-300",
                               active
-                                ? "border-indigo-500/40 bg-indigo-600 text-white shadow-lg shadow-indigo-500/15"
-                                : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-950/35"
+                                ? "border-indigo-500/60 bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 scale-[1.02] z-10"
+                                : "border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-white/10"
                             )}
                           >
-                            <div className="text-sm font-extrabold">{a.label}</div>
-                            <div
-                              className={cn(
-                                "mt-1 text-xs font-bold",
-                                active ? "text-white/90" : "text-slate-600 dark:text-slate-400"
-                              )}
-                            >
+                            <div className="text-sm font-black mb-1">{a.label}</div>
+                            <div className={cn("text-[10px] font-medium leading-tight", active ? "text-indigo-100/80" : "text-slate-500")}>
                               {a.hint}
                             </div>
+                            {active && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-white/40">✨</div>}
                           </button>
                         );
                       })}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const currentSession = getSession();
-                        clearThread(chatUserKey, activeChatId);
-                        setMessages([]);
-                        setAttempt(0);
-                        await persistSessionPatch({ activeChatId, messages: [] });
-                        await clearServerChatIfVerified(currentSession);
-                        setAttachedImage(null);
-                        setAttachErr("");
-                        setThreads(listThreads(chatUserKey));
-                      }}
-                      className="mt-4 rounded-full border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    >
-                      Clear current chat
-                    </button>
                   </div>
-                </div>
-              </div>
-            ) : null}
 
-            {/* RIGHT */}
-            <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 shadow-xl shadow-slate-900/5 dark:shadow-black/20 p-2 sm:p-3 flex flex-col min-h-[600px] lg:h-[calc(100dvh-16px)]">
-              {/* Title + meta */}
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">Elora Assistant</h2>
-                  <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                    {ROLE_LABEL[role] || "Student"} • {country} • {level}
-                    {role === "student" && action === "check" ? (
-                      <span className="ml-2 text-xs font-bold text-slate-600 dark:text-slate-400">
-                        Attempts: {Math.min(3, attempt)}/3
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              {!prefsOpen ? (
-                <div className="mt-3">
                   <button
                     type="button"
-                    onClick={() => setPrefsOpen(true)}
-                    className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    title="Open preferences"
+                    onClick={async () => {
+                      const currentSession = getSession();
+                      clearThread(chatUserKey, activeChatId);
+                      setMessages([]);
+                      setAttempt(0);
+                      await persistSessionPatch({ activeChatId, messages: [] });
+                      await clearServerChatIfVerified(currentSession);
+                      setThreads(listThreads(chatUserKey));
+                    }}
+                    className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors border border-dashed border-slate-300 dark:border-white/10 hover:border-red-500/50"
                   >
-                    Open preferences
+                    Reset Current Conversation
                   </button>
                 </div>
-              ) : null}
+              </div>
+            )}
 
-              {/* Chat header bar */}
-              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/75 dark:bg-slate-950/20 px-3 py-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+            {/* RIGHT - Chat Area */}
+            <div className="rounded-[3rem] border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-4 flex flex-col min-h-[600px] lg:h-[calc(100dvh-16px)]">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between gap-4 px-4 py-2 mb-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-950 dark:text-white flex items-center gap-2">
+                    Assistant
+                    {teacher && <span className="bg-indigo-500 text-white text-[8px] px-1.5 py-0.5 rounded font-black tracking-widest uppercase">PRO</span>}
+                  </h2>
+                  <div className="mt-0.5 text-xs font-bold text-indigo-500/80 uppercase tracking-wide">
+                    {country} • {level}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!prefsOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setPrefsOpen(true)}
+                      className="h-10 px-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
+                    >
+                      Settings
+                    </button>
+                  )}
+                  {role === "student" && action === "check" && (
+                    <div className="h-10 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
+                        Check: {Math.min(3, attempt)}/3
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Thread Area */}
+              <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 flex-1 flex flex-col min-h-0 relative">
+
+                {/* Chat History Header */}
+                <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
                   {canManageChats ? (
-                    <div className="relative" ref={chatMenuRef}>
+                    <div className="relative shrink min-w-0" ref={chatMenuRef}>
                       <button
                         type="button"
                         onClick={() => setChatMenuOpen((v) => !v)}
-                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-slate-900 dark:text-white hover:bg-white/70 dark:hover:bg-slate-950/40 border border-transparent"
-                        aria-haspopup="menu"
-                        aria-expanded={chatMenuOpen ? "true" : "false"}
-                        title="Switch chats"
+                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black text-slate-800 dark:text-white hover:bg-white dark:hover:bg-white/5 transition-colors border border-transparent min-w-0"
                       >
-                        <span className="text-base">{activeMeta?.pinned ? "★" : "☆"}</span>
-                        <span className="max-w-[260px] truncate">{activeMeta?.title || "New chat"}</span>
-                        <span className="text-slate-500 dark:text-slate-400">▾</span>
+                        <span className="text-amber-500 shrink-0">{activeMeta?.pinned ? "★" : "☆"}</span>
+                        <span className="truncate">{activeMeta?.title || "New chat"}</span>
+                        <span className="text-slate-400 shrink-0 text-[10px]">▼</span>
                       </button>
 
-                      {chatMenuOpen ? (
-                        <div
-                          className="absolute z-50 mt-2 w-[360px] max-w-[92vw] rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-xl overflow-hidden"
-                          role="menu"
-                        >
-                          {pinnedThreads.length ? (
-                            <div className="px-3 pt-3 pb-2">
-                              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                Pinned
+                      {chatMenuOpen && (
+                        <div className="absolute z-50 mt-2 w-[320px] max-w-[calc(100vw-4rem)] rounded-3xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-2xl overflow-hidden backdrop-blur-xl animate-reveal">
+                          <div className="p-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Conversations</span>
+                            <button onClick={onNewChat} className="text-[10px] font-black text-indigo-500 hover:text-indigo-600">+ NEW</button>
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
+                            {threads.map(t => (
+                              <div key={t.id} className={cn("group flex items-center rounded-2xl p-1", t.id === activeChatId ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
+                                <button onClick={() => setActiveThreadAndLoad(t.id)} className="flex-1 text-left px-3 py-2 text-xs font-bold truncate">
+                                  {t.title || "New chat"}
+                                </button>
+                                <button onClick={() => onDeleteChat(t.id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500">✕</button>
                               </div>
-                              <div className="mt-2 grid gap-1">
-                                {pinnedThreads.map((t) => (
-                                  <div
-                                    key={t.id}
-                                    className={cn(
-                                      "rounded-xl border transition",
-                                      t.id === activeChatId
-                                        ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                        : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                                    )}
-                                  >
-                                    <div className="flex items-center">
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveThreadAndLoad(t.id)}
-                                        className={cn(
-                                          "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                          t.id === activeChatId
-                                            ? "text-white"
-                                            : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                        )}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-base">★</span>
-                                          <span className="truncate">{t.title || "New chat"}</span>
-                                        </div>
-                                      </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Preview Mode
+                    </div>
+                  )}
 
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          onDeleteChat(t.id);
-                                        }}
-                                        className={cn(
-                                          "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                          t.id === activeChatId
-                                            ? "border-white/20 text-white/90 hover:bg-white/10"
-                                            : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                        )}
-                                        title="Delete chat"
-                                        aria-label="Delete chat"
-                                      >
-                                        🗑
-                                      </button>
-                                    </div>
-                                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={onTogglePin} className="p-2 text-slate-400 hover:text-amber-500 transition-colors">★</button>
+                    <button onClick={onOpenRename} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors">✎</button>
+                    <button onClick={onNewChat} title="New Chat" className="w-8 h-8 rounded-full bg-indigo-500 text-white grid place-items-center shadow-lg shadow-indigo-500/20 hover:scale-110 transition-transform">+</button>
+                  </div>
+                </div>
+
+                {/* Messages Container */}
+                <div
+                  ref={listRef}
+                  className="flex-1 overflow-y-auto px-4 space-y-6 scroll-smooth pb-8"
+                  onScroll={() => {
+                    const el = listRef.current;
+                    if (!el) return;
+                    const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 40;
+                    setStickToBottom(atBottom);
+                    setShowJump(!atBottom);
+                  }}
+                >
+                  {messages.length === 0 && !loading && (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                      <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-500 text-3xl grid place-items-center mb-6 animate-float">👋</div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Hello! I'm Elora.</h3>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-xs">
+                        I'm your personalized {role} assistant. How can I help you today?
+                      </p>
+                      <div className="mt-8 grid grid-cols-1 gap-2 w-full max-w-sm">
+                        {starterPrompts.map((p, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setChatText(p)}
+                            className="text-left p-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-indigo-500/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all text-xs font-bold"
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {messages.map((m, idx) => {
+                    const isUser = m.from === "user";
+                    const display = cleanAssistantText(m.text);
+                    return (
+                      <div key={idx} className={cn("flex w-full group animate-reveal", isUser ? "justify-end pl-12" : "justify-start pr-12")}>
+                        <div className={cn(
+                          "relative rounded-3xl p-4 sm:p-5 text-sm leading-[1.6] shadow-sm",
+                          isUser
+                            ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/10"
+                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-slate-200/20"
+                        )}>
+                          <div className="font-bold flex items-center gap-2 mb-2">
+                            <div className={cn("w-2 h-2 rounded-full", isUser ? "bg-indigo-300" : "bg-indigo-500")} />
+                            <span className="text-[10px] uppercase tracking-widest opacity-60">
+                              {isUser ? "You" : "Elora"}
+                            </span>
+                          </div>
+                          <div className="whitespace-pre-wrap font-medium">{display}</div>
+
+                          {!isUser && (
+                            <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/5 pt-3">
+                              <button
+                                onClick={() => copyToClipboard(display, idx)}
+                                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-500 hover:text-indigo-500 transition-colors"
+                              >
+                                {copiedIdx === idx ? "✓ Copied" : "Copy"}
+                              </button>
+                              <div className="flex-1" />
+                              <div className="flex gap-1">
+                                {refinementChips.slice(0, 3).map(chip => (
+                                  <button
+                                    key={chip.id}
+                                    onClick={() => applyRefinement(chip.id)}
+                                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all text-slate-400 hover:text-indigo-500"
+                                  >
+                                    {chip.label}
+                                  </button>
                                 ))}
                               </div>
                             </div>
-                          ) : null}
-
-                          <div className="px-3 pt-3 pb-3">
-                            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Recent
-                            </div>
-                            <div className="mt-2 grid gap-1">
-                              {recentThreads.map((t) => (
-                                <div
-                                  key={t.id}
-                                  className={cn(
-                                    "rounded-xl border transition",
-                                    t.id === activeChatId
-                                      ? "border-indigo-500/40 bg-indigo-600 text-white"
-                                      : "border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20"
-                                  )}
-                                >
-                                  <div className="flex items-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveThreadAndLoad(t.id)}
-                                      className={cn(
-                                        "flex-1 text-left rounded-xl px-3 py-2 text-sm font-bold",
-                                        t.id === activeChatId
-                                          ? "text-white"
-                                          : "text-slate-900 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-950/35"
-                                      )}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-base">{t.pinned ? "★" : "☆"}</span>
-                                        <span className="truncate">{t.title || "New chat"}</span>
-                                      </div>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        onDeleteChat(t.id);
-                                      }}
-                                      className={cn(
-                                        "mr-2 rounded-lg px-2 py-2 text-xs font-extrabold border",
-                                        t.id === activeChatId
-                                          ? "border-white/20 text-white/90 hover:bg-white/10"
-                                          : "border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-950/40"
-                                      )}
-                                      title="Delete chat"
-                                      aria-label="Delete chat"
-                                    >
-                                      🗑
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="border-t border-slate-200/70 dark:border-white/10 px-3 py-3 flex gap-2">
-                            <button
-                              type="button"
-                              onClick={onNewChat}
-                              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                            >
-                              New chat
-                            </button>
-                            <button
-                              type="button"
-                              onClick={onOpenRename}
-                              className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                            >
-                              Rename
-                            </button>
-                          </div>
+                          )}
                         </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/60 dark:bg-slate-950/25 text-slate-900 dark:text-white font-black">
-                        P
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                          Preview chat
-                        </div>
-                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">
-                          Verify to save, pin, rename, and delete chats
+                      </div>
+                    );
+                  })}
+
+                  {loading && (
+                    <div className="flex justify-start pr-12 animate-reveal">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 rounded-3xl rounded-tl-none p-5 shadow-sm">
+                        <div className="flex gap-1.5">
+                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce" />
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {canManageChats ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={onTogglePin}
-                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      title={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                      aria-label={activeMeta?.pinned ? "Unpin chat" : "Pin chat"}
-                    >
-                      {activeMeta?.pinned ? "★" : "☆"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={onOpenRename}
-                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      title="Rename chat"
-                    >
-                      ✎
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onDeleteChat(activeChatId)}
-                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      title="Delete this chat"
-                      aria-label="Delete this chat"
-                    >
-                      🗑
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={onNewChat}
-                      className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                      title="Start a new chat"
-                    >
-                      +
+                {showJump && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                    <button onClick={jumpToLatest} className="bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-transform flex items-center gap-2">
+                      <span>New Message Below</span>
+                      <span className="text-lg">↓</span>
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setVerifyGateOpen(true)}
-                    className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-                    title="Verify to unlock saved chats"
-                  >
-                    Verify
-                  </button>
                 )}
               </div>
 
-              {/* Refinement chips */}
-              {hasEloraAnswer ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {refinementChips.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => applyRefinement(c.id)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs font-extrabold transition",
-                        "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40",
-                        loading ? "opacity-50 cursor-not-allowed" : ""
-                      )}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {/* Preview notice */}
-              {!verified && !dismissPreviewNotice ? (
-                <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-extrabold text-slate-900 dark:text-white">
-                        Preview mode
-                      </div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        Verify to unlock exports + educator tools. You can still use the Assistant now.
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={dismissPreview}
-                      className="rounded-full border border-slate-200/60 dark:border-white/10 bg-transparent px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-950/40"
-                      aria-label="Dismiss"
-                      title="Dismiss"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/verify")}
-                      className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700"
-                    >
-                      Verify email
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/settings")}
-                      className="rounded-full border border-slate-200/70 dark:border-white/10 px-4 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                    >
-                      Settings
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Messages */}
-              <div
-                ref={listRef}
-                onScroll={() => {
-                  const el = listRef.current;
-                  if (!el) return;
-                  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-                  setStickToBottom(atBottom);
-                  setShowJump(!atBottom);
-                }}
-                className="mt-4 flex-1 min-h-0 overflow-auto pr-1 relative"
-              >
-                {!messages.length && !loading && starterPrompts.length ? (
-                  <div className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/15 p-4">
-                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      Try one of these
-                    </div>
-                    <div className="mt-2 grid gap-2">
-                      {starterPrompts.map((p, idx) => (
-                        <button
-                          key={`${p}-${idx}`}
-                          type="button"
-                          onClick={() => setChatText(p)}
-                          className="text-left rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 px-3 py-2 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/35"
-                        >
-                          {p}
+              {/* Composer */}
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2 px-1">
+                  {canShowExports && (
+                    <div className="flex gap-1">
+                      {["pdf", "docx", "pptx"].map(fmt => (
+                        <button key={fmt} onClick={() => exportLast(fmt)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors uppercase">
+                          {fmt}
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-                      Tip: attach a photo if the question is long.
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-3 space-y-3">
-                  {messages.map((m, idx) => {
-                    const isUser = m.from === "user";
-                    const display = cleanAssistantText(m.text);
-
-                    return (
-                      <div key={idx} className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-                        <div
-                          className={cn(
-                            "max-w-[96%] rounded-2xl px-4 py-3 text-sm leading-relaxed border",
-                            isUser
-                              ? "border-indigo-500/30 bg-indigo-600 text-white shadow-lg shadow-indigo-500/10"
-                              : "border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-900 dark:text-slate-100"
-                          )}
-                        >
-                          <div className="whitespace-pre-wrap">{display}</div>
-
-                          {!isUser ? (
-                            <div className="mt-3 flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(display, idx)}
-                                className={cn(
-                                  "rounded-full border px-3 py-1 text-[11px] font-extrabold transition",
-                                  "border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                                )}
-                              >
-                                {copiedIdx === idx ? "Copied" : "Copy"}
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {loading ? (
-                    <div className="flex justify-start">
-                      <div className="mr-auto max-w-[96%] rounded-2xl px-4 py-3 text-sm border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 text-slate-700 dark:text-slate-200">
-                        Thinking…
-                      </div>
-                    </div>
-                  ) : null}
+                  )}
+                  <div className="flex-1" />
+                  {attachErr && <span className="text-[10px] font-bold text-red-500">{attachErr}</span>}
                 </div>
 
-                {showJump ? (
-                  <div className="sticky bottom-3 mt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={jumpToLatest}
-                      className="rounded-full border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-slate-950/70 px-4 py-2 text-xs font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/90 shadow-lg"
-                    >
-                      Jump to latest
-                    </button>
+                {attachedImage && (
+                  <div className="relative w-24 h-24 rounded-2xl border border-indigo-500/30 overflow-hidden group ml-2 mb-2">
+                    <img src={attachedImage.dataUrl} className="w-full h-full object-cover" alt="attachment" />
+                    <button onClick={() => setAttachedImage(null)} className="absolute inset-0 bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                   </div>
-                ) : null}
-              </div>
+                )}
 
-              {/* Composer */}
-              <div className="mt-4 rounded-2xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 p-3">
-                <div className="flex items-end gap-2">
-                  <textarea
-                    value={chatText}
-                    onChange={(e) => setChatText(e.target.value)}
-                    placeholder={
-                      role === "student" && action === "check"
-                        ? "Type your answer (Elora will hint first, then unlock the answer on attempt 3)…"
-                        : "Ask Elora anything…"
-                    }
-                    rows={1}
-                    className="flex-1 resize-none min-h-[44px] max-h-[200px] rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/90 dark:bg-slate-950/30 px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendChat();
-                      }
-                    }}
-                  />
-
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-xl border border-slate-200/70 dark:border-white/10 px-3 py-2 text-sm font-extrabold text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                      title="Attach image"
-                      aria-label="Attach image"
-                    >
-                      📎
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={sendChat}
-                      className={cn(
-                        "rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700",
-                        loading ? "opacity-60 cursor-not-allowed" : ""
-                      )}
-                    >
-                      Send
-                    </button>
-                  </div>
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onPickImage(file);
-                    e.target.value = "";
-                  }}
-                />
-
-                {attachErr ? (
-                  <div className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-200">
-                    {attachErr}
-                  </div>
-                ) : null}
-
-                {attachedImage?.dataUrl ? (
-                  <div className="mt-3 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/20 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Attached image
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAttachedImage(null)}
-                        className="rounded-full border border-slate-200/70 dark:border-white/10 px-2.5 py-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                        title="Remove"
-                        aria-label="Remove attachment"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <img
-                      src={attachedImage.dataUrl}
-                      alt="attachment preview"
-                      className="mt-2 rounded-xl max-h-[220px] object-contain"
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-[2rem] opacity-20 blur group-focus-within:opacity-40 transition-opacity" />
+                  <div className="relative bg-white dark:bg-slate-900 rounded-[1.85rem] border border-slate-200 dark:border-white/5 p-2 flex items-end gap-2 shadow-sm">
+                    <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-indigo-500 transition-colors" title="Attach file">📎</button>
+                    <textarea
+                      value={chatText}
+                      onChange={(e) => setChatText(e.target.value)}
+                      placeholder={role === "student" && action === "check" ? "Type your answer..." : "Ask Elora anything..."}
+                      rows={1}
+                      className="flex-1 bg-transparent border-none px-2 py-3 text-sm font-medium focus:ring-0 outline-none resize-none min-h-[48px] max-h-[160px] scrollbar-hide dark:text-white"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendChat();
+                        }
+                      }}
                     />
+                    <button
+                      disabled={loading || (!chatText.trim() && !attachedImage)}
+                      onClick={sendChat}
+                      className="h-10 w-10 flex items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale transition-all"
+                    >
+                      <span className="text-xl">➔</span>
+                    </button>
                   </div>
-                ) : null}
-
-                {/* Export row */}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <LockedFeatureOverlay isVerified={verified}>
-                    <button
-                      type="button"
-                      disabled={!canShowExports}
-                      onClick={() => exportLast("pdf")}
-                      className={cn(
-                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                        canShowExports
-                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                      )}
-                      title={canShowExports ? "Export last answer as PDF" : "Verify and ask a question to unlock exports"}
-                    >
-                      Export PDF
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canShowExports}
-                      onClick={() => exportLast("docx")}
-                      className={cn(
-                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                        canShowExports
-                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                      )}
-                      title={canShowExports ? "Export last answer as DOCX" : "Verify and ask a question to unlock exports"}
-                    >
-                      Export DOCX
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canShowExports}
-                      onClick={() => exportLast("pptx")}
-                      className={cn(
-                        "rounded-full px-4 py-2 text-xs font-extrabold border transition",
-                        canShowExports
-                          ? "border-slate-200/70 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-                          : "border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                      )}
-                      title={canShowExports ? "Export last answer as Slides" : "Verify and ask a question to unlock exports"}
-                    >
-                      Export Slides
-                    </button>
-                  </LockedFeatureOverlay>
                 </div>
-
-                <div className="mt-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                  Enter to send • Shift+Enter for a new line
+                <div className="px-4 text-[10px] font-medium text-slate-400 flex justify-between">
+                  <span>Elora GENESIS v1.2</span>
+                  <span>Protip: Ask for hints first</span>
                 </div>
               </div>
             </div>
@@ -1984,112 +1570,76 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Rename modal */}
-      <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Give this chat a short name so it’s easy to find later.
-        </div>
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) onPickImage(file);
+        e.target.value = "";
+      }} />
 
-        <div className="mt-4">
-          <label className="text-sm font-bold text-slate-900 dark:text-white">Chat title</label>
+      {/* Modals */}
+      <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
+        <div className="space-y-4 p-2">
+          <p className="text-sm font-medium text-slate-500">Give this conversation a clear name.</p>
           <input
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            placeholder="e.g., Fractions practice"
-            maxLength={60}
+            className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50"
+            placeholder="e.g., Algebra Review"
+            autoFocus
           />
-          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Max 60 characters.</div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              renameThread(chatUserKey, activeChatId, renameValue);
-              setThreads(listThreads(chatUserKey));
-              setRenameOpen(false);
-            }}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => setRenameOpen(false)}
-            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-          >
-            Cancel
-          </button>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => {
+                renameThread(chatUserKey, activeChatId, renameValue);
+                setThreads(listThreads(chatUserKey));
+                setRenameOpen(false);
+              }}
+              className="flex-1 h-12 rounded-2xl bg-indigo-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95"
+            >
+              Save Changes
+            </button>
+            <button onClick={() => setRenameOpen(false)} className="h-12 px-6 rounded-2xl border border-slate-200 dark:border-white/10 font-bold text-sm">Cancel</button>
+          </div>
         </div>
       </Modal>
 
-      {/* Verification gate */}
-      <Modal open={verifyGateOpen} title="Verify to unlock Elora" onClose={() => setVerifyGateOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Educator mode and exports are locked behind verification. You can still preview Student/Parent modes.
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => router.push("/verify")}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
-          >
-            Verify email
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              storeGuest(true);
-              const s = getSession();
-              setSession(s);
-              setVerifyGateOpen(false);
-            }}
-            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-          >
-            Continue preview
-          </button>
+      <Modal open={verifyGateOpen} title="Unlock Elora Assistant" onClose={() => setVerifyGateOpen(false)}>
+        <div className="space-y-6 text-center py-4">
+          <div className="w-20 h-20 bg-indigo-500/10 rounded-[2rem] grid place-items-center mx-auto text-4xl mb-2">💎</div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black">Full Access Required</h3>
+            <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">Verified Educator accounts gain access to lesson planning, worksheet generation, and unlimited thread exports.</p>
+          </div>
+          <div className="flex flex-col gap-2 pt-4">
+            <button onClick={() => router.push("/verify")} className="h-12 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Verify My Email</button>
+            <button onClick={() => { storeGuest(true); setSession(getSession()); setVerifyGateOpen(false); }} className="h-10 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Continue as Guest</button>
+          </div>
         </div>
       </Modal>
 
-      {/* Teacher gate */}
-      <Modal open={teacherGateOpen} title="Unlock Teacher Tools" onClose={() => setTeacherGateOpen(false)}>
-        <div className="text-sm text-slate-700 dark:text-slate-200">
-          Lesson plans, worksheets, assessments, and slides are locked behind a Teacher Invite Code.
-        </div>
-
-        <div className="mt-4">
-          <label className="text-sm font-bold text-slate-900 dark:text-white">Teacher Invite Code</label>
-          <input
-            value={teacherGateCode}
-            onChange={(e) => setTeacherGateCode(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/25 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-            placeholder="e.g., GENESIS2026"
-          />
-          {teacherGateStatus ? (
-            <div className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-              {teacherGateStatus}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
+      <Modal open={teacherGateOpen} title="Teacher Verification" onClose={() => setTeacherGateOpen(false)}>
+        <div className="space-y-6 p-2">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+            <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Advanced educator tools are currently in a closed pilot.</p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Invite Code</label>
+            <input
+              value={teacherGateCode}
+              onChange={(e) => setTeacherGateCode(e.target.value)}
+              className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-black outline-none focus:ring-2 focus:ring-indigo-500/50"
+              placeholder="PRO-XXXX-XXXX"
+            />
+            {teacherGateStatus && <p className="text-[10px] font-bold text-indigo-500 ml-1">{teacherGateStatus}</p>}
+          </div>
           <button
-            type="button"
             onClick={async () => {
               const ok = await validateAndActivateInvite(teacherGateCode);
               if (ok) setTeacherGateOpen(false);
             }}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-indigo-700"
+            className="w-full h-12 rounded-2xl bg-indigo-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
           >
-            Unlock teacher tools
-          </button>
-          <button
-            type="button"
-            onClick={() => setTeacherGateOpen(false)}
-            className="rounded-xl border border-slate-200/70 dark:border-white/10 px-4 py-2 text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-950/40"
-          >
-            Not now
+            Enable Pro Tools
           </button>
         </div>
       </Modal>

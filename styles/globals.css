@@ -149,6 +149,13 @@
   transform: translateY(0) scale(0.98);
 }
 
+.elora-gradient-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
 /* ---------- Monitor/Dashboard Frame ---------- */
 .elora-monitor {
   position: relative;

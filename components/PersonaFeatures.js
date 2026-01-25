@@ -180,15 +180,15 @@ export default function PersonaFeatures({ initialRole = "student" }) {
             </div>
 
             {/* Persona toggle tabs */}
-            <div className="flex justify-center mb-10">
-                <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex justify-center mb-10 px-4">
+                <div className="inline-flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 max-w-full overflow-x-auto scrollbar-hide">
                     {Object.entries(PERSONA_DATA).map(([key, data]) => (
                         <button
                             key={key}
                             onClick={() => setActivePersona(key)}
                             className={`
-                relative px-5 py-2.5 rounded-xl text-sm font-semibold
-                transition-all duration-300
+                relative px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold
+                transition-all duration-300 whitespace-nowrap
                 ${activePersona === key
                                     ? "text-white shadow-lg"
                                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -229,7 +229,7 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                     </div>
 
                     {/* Cards grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto px-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 max-w-4xl mx-auto px-4">
                         {persona.features.map((feature, index) => (
                             <FeatureCard
                                 key={feature.title}

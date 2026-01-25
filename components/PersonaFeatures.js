@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PERSONA_DATA = {
@@ -154,8 +154,13 @@ function FeatureCard({ icon, title, desc, color, index }) {
     );
 }
 
-export default function PersonaFeatures() {
-    const [activePersona, setActivePersona] = useState("student");
+export default function PersonaFeatures({ initialRole = "student" }) {
+    const [activePersona, setActivePersona] = useState(initialRole);
+
+    useEffect(() => {
+        setActivePersona(initialRole);
+    }, [initialRole]);
+
     const persona = PERSONA_DATA[activePersona];
     const colors = colorMap[persona.color];
 

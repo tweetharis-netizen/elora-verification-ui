@@ -224,7 +224,7 @@ export default function HomePage() {
                   transition={{ duration: 0.5 }}
                   className="text-[clamp(2rem,6vw,4.5rem)] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.1] md:leading-[1.05]"
                 >
-                  <span className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 elora-gradient-text">
                     {meta.headline}
                   </span>
                 </motion.h1>

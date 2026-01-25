@@ -45,7 +45,7 @@ function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay, isL
                     <h4 className="text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
                         {title}
                     </h4>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                    <p className="text-slate-300 text-xs leading-relaxed mb-3">
                         {subtitle}
                     </p>
 
@@ -146,7 +146,7 @@ export default function DashboardPreview({ role = "all" }) {
                                         <div className="text-white text-sm font-bold font-[var(--font-outfit)]">
                                             Elora Dashboard
                                         </div>
-                                        <div className="text-slate-500 text-[10px]">
+                                        <div className="text-slate-400 text-[10px]">
                                             AI Learning Assistant
                                         </div>
                                     </div>

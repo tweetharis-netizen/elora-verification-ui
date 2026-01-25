@@ -1189,13 +1189,39 @@ export default function AssistantPage() {
         <title>Elora Assistant</title>
       </Head>
 
-      <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20">
-        <div className="elora-container pt-8 pb-12">
-          <div className={cn("grid gap-6", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
+      <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
+        <div className="elora-container pt-4 lg:pt-8 pb-32 lg:pb-12">
+          {/* Mobile Header - Compact */}
+          <div className="lg:hidden flex items-center justify-between px-6 py-4 mb-4 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-3xl mx-4 sticky top-4 z-40">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 grid place-items-center text-white font-black text-xs shrink-0">E</div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-black text-slate-950 dark:text-white truncate uppercase tracking-widest">{activeMeta?.title || "Assistant"}</h1>
+                <div className="text-[9px] font-bold text-indigo-500 uppercase">{contextMode === 'auto' ? 'Smart Auto' : `${country} • ${level}`}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setPrefsOpen(!prefsOpen)}
+              className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none"
+            >
+              <span className="text-lg">⚙️</span>
+            </button>
+          </div>
 
-            {/* LEFT - Preferences Panel */}
-            {prefsOpen && (
-              <div className="rounded-[2.5rem] border border-slate-200/60 dark:border-white/10 bg-white/70 dark:bg-slate-950/30 shadow-2xl shadow-indigo-500/5 dark:shadow-black/40 p-6 flex flex-col gap-6 h-fit sticky top-[calc(var(--elora-nav-offset)+1rem)]">
+          <div className={cn("grid gap-8", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
+
+            {/* LEFT - Preferences Panel (Dynamic Drawer on Mobile) */}
+            <div className={cn(
+              "z-[60] fixed lg:sticky top-0 lg:top-[calc(var(--elora-nav-offset)+1rem)] left-0 w-full lg:w-auto h-full lg:h-fit transition-all duration-500 lg:duration-300",
+              prefsOpen ? "translate-x-0 opacity-100" : "-translate-x-full lg:hidden opacity-0"
+            )}>
+              {/* Overlay for mobile tap-to-close */}
+              <div
+                className="lg:hidden absolute inset-0 bg-slate-950/40 backdrop-blur-sm -z-10"
+                onClick={() => setPrefsOpen(false)}
+              />
+
+              <div className="w-[85%] sm:w-[400px] lg:w-full h-full lg:h-fit bg-white dark:bg-slate-900 lg:bg-white/70 lg:dark:bg-slate-950/30 border-r lg:border border-slate-200/60 dark:border-white/10 lg:rounded-[2.5rem] shadow-2xl p-6 lg:p-8 flex flex-col gap-6 overflow-y-auto">
                 <div className="flex items-center justify-between">
                   <h1 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="text-indigo-500">⚙️</span> Settings
@@ -1393,39 +1419,28 @@ export default function AssistantPage() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* RIGHT - Chat Area */}
-            <div className="rounded-[3rem] border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-4 flex flex-col min-h-[600px] lg:h-[calc(100dvh-16px)]">
-              {/* Toolbar */}
-              <div className="flex items-center justify-between gap-4 px-4 py-2 mb-4">
+            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[75dvh] lg:h-[calc(100dvh-32px)]">
+              {/* Desktop Toolbar */}
+              <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
                   <h2 className="text-xl font-black text-slate-950 dark:text-white flex items-center gap-2">
-                    Assistant
-                    {teacher && <span className="bg-indigo-500 text-white text-[8px] px-1.5 py-0.5 rounded font-black tracking-widest uppercase">PRO</span>}
+                    Elora
+                    <span className="bg-indigo-600 text-white text-[9px] px-2 py-1 rounded-lg font-black tracking-widest uppercase">Assistant</span>
                   </h2>
-                  <div className="mt-0.5 text-xs font-bold text-indigo-500/80 uppercase tracking-wide">
-                    {country} • {level}
-                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {!prefsOpen && (
                     <button
                       type="button"
                       onClick={() => setPrefsOpen(true)}
-                      className="h-10 px-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
+                      className="h-11 px-5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
                     >
                       Settings
                     </button>
-                  )}
-                  {role === "student" && action === "check" && (
-                    <div className="h-10 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
-                        Check: {Math.min(3, attempt)}/3
-                      </span>
-                    </div>
                   )}
                 </div>
               </div>
@@ -1516,16 +1531,16 @@ export default function AssistantPage() {
                     const isUser = m.from === "user";
                     const display = cleanAssistantText(m.text);
                     return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal", isUser ? "justify-end pl-12" : "justify-start pr-12")}>
+                      <div key={idx} className={cn("flex w-full group animate-reveal", isUser ? "justify-end pl-12 sm:pl-32" : "justify-start pr-12 sm:pr-32")}>
                         <div className={cn(
-                          "relative rounded-3xl p-4 sm:p-5 text-sm leading-[1.6] shadow-sm",
+                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/10"
-                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-slate-200/20"
+                            ? "bg-indigo-600 text-white rounded-[2rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right"
+                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[2rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left"
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
-                            <div className={cn("w-2 h-2 rounded-full", isUser ? "bg-indigo-300" : "bg-indigo-500")} />
-                            <span className="text-[10px] uppercase tracking-widest opacity-60">
+                            <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
@@ -1581,47 +1596,44 @@ export default function AssistantPage() {
                 )}
               </div>
 
-              {/* Composer */}
-              <div className="mt-4 flex flex-col gap-3">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="flex gap-1">
-                    {["pdf", "docx", "pptx"].map(fmt => (
-                      <button
-                        key={fmt}
-                        onClick={() => exportLast(fmt)}
-                        className={cn(
-                          "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-all uppercase border",
-                          messages.some(m => m.from === 'elora')
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
-                            : "bg-slate-100 dark:bg-white/5 text-slate-400 border-transparent cursor-not-allowed opacity-50"
-                        )}
-                        title={messages.some(m => m.from === 'elora') ? `Export as ${fmt}` : "Ask a question first"}
-                      >
-                        {fmt}
-                      </button>
-                    ))}
+              {/* Composer - Floating Island */}
+              <div className="mt-auto p-4 lg:p-6 sticky bottom-0 z-30 pointer-events-none">
+                <div className="max-w-3xl mx-auto w-full pointer-events-auto">
+                  {/* Tiny toolbar above input */}
+                  <div className="flex items-center gap-2 px-4 py-2 mb-2 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-1 shrink-0">
+                      {["pdf", "docx", "pptx"].map(fmt => (
+                        <button
+                          key={fmt}
+                          onClick={() => exportLast(fmt)}
+                          className={cn(
+                            "text-[8px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-xl border transition-all",
+                            messages.some(m => m.from === 'elora')
+                              ? "bg-emerald-500/5 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
+                              : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-transparent opacity-50 backdrop-blur-md"
+                          )}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 shrink-0" />
+                    {searchMode && <span className="bg-emerald-500/10 text-emerald-600 text-[8px] font-black uppercase tracking-widest px-2 py-1.5 rounded-xl border border-emerald-500/20 shrink-0 animation-pulse">🌐 Web Active</span>}
+                    <div className="flex-1" />
+                    {attachErr && <span className="text-[8px] font-black text-red-500 shrink-0">{attachErr}</span>}
                   </div>
-                  <div className="flex-1" />
-                  {attachErr && <span className="text-[10px] font-bold text-red-500">{attachErr}</span>}
-                </div>
 
-                {attachedImage && (
-                  <div className="relative w-24 h-24 rounded-2xl border border-indigo-500/30 overflow-hidden group ml-2 mb-2">
-                    <img src={attachedImage.dataUrl} className="w-full h-full object-cover" alt="attachment" />
-                    <button onClick={() => setAttachedImage(null)} className="absolute inset-0 bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                  </div>
-                )}
+                  <div className="relative group p-1.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] flex items-end gap-2 ring-1 ring-indigo-500/5 focus-within:ring-indigo-500/20 transition-all">
+                    <button onClick={() => fileInputRef.current?.click()} className="p-4 text-slate-400 hover:text-indigo-600 transition-colors" title="Attach file">
+                      <span className="text-xl">📎</span>
+                    </button>
 
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-[2rem] opacity-20 blur group-focus-within:opacity-40 transition-opacity" />
-                  <div className="relative bg-white dark:bg-slate-900 rounded-[1.85rem] border border-slate-200 dark:border-white/5 p-2 flex items-end gap-2 shadow-sm">
-                    <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-indigo-500 transition-colors" title="Attach file">📎</button>
                     <textarea
                       value={chatText}
                       onChange={(e) => setChatText(e.target.value)}
-                      placeholder={role === "student" && action === "check" ? "Type your answer..." : "Ask Elora anything..."}
+                      placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || safeSubject}...`}
                       rows={1}
-                      className="flex-1 bg-transparent border-none px-2 py-3 text-sm font-medium focus:ring-0 outline-none resize-none min-h-[48px] max-h-[160px] scrollbar-hide dark:text-white"
+                      className="flex-1 bg-transparent border-none px-1 py-4 text-sm font-bold focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-400/80"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -1629,18 +1641,21 @@ export default function AssistantPage() {
                         }
                       }}
                     />
+
                     <button
                       disabled={loading || (!chatText.trim() && !attachedImage)}
                       onClick={sendChat}
-                      className="h-10 w-10 flex items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale transition-all"
+                      className="h-12 w-12 flex items-center justify-center rounded-[1.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 disabled:opacity-30 transition-all"
                     >
                       <span className="text-xl">➔</span>
                     </button>
                   </div>
-                </div>
-                <div className="px-4 text-[10px] font-medium text-slate-400 flex justify-between">
-                  <span>Elora GENESIS v1.2</span>
-                  <span>Protip: Ask for hints first</span>
+
+                  <div className="mt-3 flex items-center justify-center gap-6 px-4">
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400/60">Elora Genesis v1.4</div>
+                    <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500/60">Shaik Haris Era</div>
+                  </div>
                 </div>
               </div>
             </div>

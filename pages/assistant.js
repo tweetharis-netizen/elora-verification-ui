@@ -922,10 +922,11 @@ export default function AssistantPage() {
 
       setAttachedImage(null);
       setAttachErr("");
-    } catch {
+    } catch (err) {
+      console.error("AI Assistant Error:", err);
       const next = [
         ...messages,
-        { from: "elora", text: "Something went wrong. Try again.", ts: Date.now() },
+        { from: "elora", text: `⚠️ System Error: ${err.message || "Connection failed"}. This usually happens if the backend server is busy. Please try again in 5 seconds.`, ts: Date.now() },
       ];
       persistActiveMessages(next, { alsoSyncServer: true });
     } finally {
@@ -1436,9 +1437,9 @@ export default function AssistantPage() {
               {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
-                  <h2 className="text-xl font-black text-slate-950 dark:text-white flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-950 dark:text-white flex items-center gap-2">
                     Elora
-                    <span className="bg-indigo-600 text-white text-[9px] px-2 py-1 rounded-lg font-black tracking-widest uppercase">Assistant</span>
+                    <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold tracking-widest uppercase">Assistant</span>
                   </h2>
                 </div>
 
@@ -1482,7 +1483,14 @@ export default function AssistantPage() {
                             {threads.map(t => (
                               <div key={t.id} className={cn("group flex items-center rounded-2xl p-1", t.id === activeChatId ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
                                 <button onClick={() => setActiveThreadAndLoad(t.id)} className="flex-1 text-left px-3 py-2 text-xs font-bold truncate">
-                                  {t.title || "New chat"}
+                                  <div className="min-w-0">
+                                    <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate">
+                                      {t.title || "New Chat"}
+                                    </div>
+                                    <div className="text-[9px] font-medium text-slate-500">
+                                      {t.messages?.length || 0} messages
+                                    </div>
+                                  </div>
                                 </button>
                                 <button onClick={() => onDeleteChat(t.id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500">✕</button>
                               </div>
@@ -1550,7 +1558,7 @@ export default function AssistantPage() {
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
                             <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4f46e5] dark:text-indigo-400">
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
@@ -1643,7 +1651,7 @@ export default function AssistantPage() {
                       onChange={(e) => setChatText(e.target.value)}
                       placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || subject}...`}
                       rows={1}
-                      className="flex-1 bg-transparent border-none px-1 py-4 text-sm font-bold focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-400/80"
+                      className="flex-1 bg-transparent border-none px-1 py-4 text-[16px] font-medium focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-500"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();

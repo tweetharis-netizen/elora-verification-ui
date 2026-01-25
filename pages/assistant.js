@@ -1631,7 +1631,7 @@ export default function AssistantPage() {
                     <textarea
                       value={chatText}
                       onChange={(e) => setChatText(e.target.value)}
-                      placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || safeSubject}...`}
+                      placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || subject}...`}
                       rows={1}
                       className="flex-1 bg-transparent border-none px-1 py-4 text-sm font-bold focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-400/80"
                       onKeyDown={(e) => {

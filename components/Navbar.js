@@ -152,6 +152,7 @@ export default function Navbar() {
           <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
             {[
               { href: "/", label: "Home" },
+              { href: "/story", label: "Story" },
               { href: "/assistant", label: "Assistant" },
               { href: "/dashboard", label: "Dashboard" },
               { href: "/help", label: "Help" },
@@ -190,6 +191,9 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
                     Home
+                  </Link>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/story" onClick={() => setMobileOpen(false)}>
+                    Story
                   </Link>
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
                     Assistant

@@ -2,7 +2,7 @@ import "@/styles/globals.css";
 import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import { hydrateUI } from "@/lib/session";
-import { Inter, Fraunces } from "next/font/google";
+import { Inter, Fraunces, Outfit } from "next/font/google";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,6 +14,12 @@ const fraunces = Fraunces({
   subsets: ["latin"],
   display: "swap",
   variable: "--elora-font-serif",
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--elora-font-outfit",
 });
 
 /**
@@ -113,7 +119,7 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   return (
-    <div className={`${inter.variable} ${fraunces.variable} elora-shell`}>
+    <div className={`${inter.variable} ${fraunces.variable} ${outfit.variable} elora-shell`}>
       <Navbar />
       <main className="elora-main">
         <Component {...pageProps} />

@@ -319,7 +319,7 @@ export default function HomePage() {
 
             {/* Dashboard Preview with 3D glassmorphism */}
             <div className="relative lg:pl-8">
-              <DashboardPreview />
+              <DashboardPreview role={role} />
             </div>
           </div>
 
@@ -327,7 +327,7 @@ export default function HomePage() {
           <EloraStats />
 
           {/* Persona-specific Features Section */}
-          <PersonaFeatures />
+          <PersonaFeatures initialRole={role} />
         </div>
       </div>
     </>

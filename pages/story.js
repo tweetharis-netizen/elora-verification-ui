@@ -61,12 +61,12 @@ export default function StoryPage() {
                         variants={stagger}
                         className="max-w-4xl mx-auto text-center mb-24"
                     >
-                        <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-500/20 bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-widest mb-8">
+                        <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-500/20 bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-widest mb-8">
                             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                             The Elora Mission
                         </motion.div>
 
-                        <motion.h1 variants={fadeUp} className="text-[clamp(2rem,6vw,4rem)] md:text-[clamp(2.5rem,6vw,5rem)] font-black tracking-tighter leading-[1.1] md:leading-[1.05] text-slate-950 dark:text-white mb-8">
+                        <motion.h1 variants={fadeUp} className="text-[clamp(2rem,6vw,4rem)] md:text-[clamp(2.5rem,6vw,5rem)] font-bold tracking-tighter leading-[1.1] md:leading-[1.05] text-slate-950 dark:text-white mb-8">
                             Humanizing Intelligence, <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500">One Conversation</span> at a Time.
                         </motion.h1>
@@ -110,7 +110,7 @@ export default function StoryPage() {
                                 className="group p-8 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl hover:border-indigo-500/30 transition-all duration-300"
                             >
                                 <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">{value.icon}</div>
-                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-3 font-[var(--font-outfit)]">{value.title}</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 font-[var(--font-outfit)]">{value.title}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">
                                     {value.desc}
                                 </p>
@@ -136,14 +136,14 @@ export default function StoryPage() {
                                     <div className="absolute inset-0 flex items-center justify-center text-[10rem] opacity-20 pointer-events-none">✨</div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
                                     <div className="absolute bottom-8 left-8 right-8">
-                                        <div className="text-white font-black text-2xl tracking-tight">Shaik Haris</div>
-                                        <div className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Founder of Elora</div>
+                                        <div className="text-white font-bold text-2xl tracking-tight">Shaik Haris</div>
+                                        <div className="text-slate-300 text-[10px] font-bold uppercase tracking-[0.2em]">Founder of Elora</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-8 lg:order-1">
-                                <h2 className="text-4xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">A Message from Haris</h2>
+                                <h2 className="text-4xl font-bold text-slate-900 dark:text-white font-[var(--font-outfit)]">A Message from Haris</h2>
                                 <div className="space-y-6 text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                                     <p className="border-l-4 border-indigo-500 pl-6 italic bg-indigo-500/5 py-4 rounded-r-2xl">
                                         "I started Elora because I saw how students were getting lost in a sea of generic AI answers. Most tools are built to give you the answer, but they don't teach you how to think."
@@ -157,10 +157,10 @@ export default function StoryPage() {
                                 </div>
 
                                 <div className="flex items-center gap-4 pt-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 grid place-items-center text-white font-black text-xl shadow-xl shadow-indigo-500/20">SH</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 grid place-items-center text-white font-bold text-xl shadow-xl shadow-indigo-500/20">SH</div>
                                     <div>
-                                        <div className="font-black text-slate-900 dark:text-white leading-none mb-1">Shaik Haris</div>
-                                        <div className="text-[10px] text-indigo-500 font-black tracking-widest uppercase">Redefining Education</div>
+                                        <div className="font-bold text-slate-900 dark:text-white leading-none mb-1">Shaik Haris</div>
+                                        <div className="text-[10px] text-indigo-500 font-bold tracking-widest uppercase">Redefining Education</div>
                                     </div>
                                 </div>
                             </div>
@@ -176,7 +176,7 @@ export default function StoryPage() {
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 opacity-50" />
                         <div className="relative z-10">
-                            <h2 className="text-3xl md:text-5xl font-black mb-6">Ready to start your journey?</h2>
+                            <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to start your journey?</h2>
                             <p className="text-lg opacity-80 mb-10 max-w-xl mx-auto font-medium">
                                 Join thousands of teachers, parents, and students who are discovering a calmer, smarter way to learn.
                             </p>
@@ -184,7 +184,7 @@ export default function StoryPage() {
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="px-8 py-4 bg-indigo-600 text-white dark:bg-slate-900 dark:text-white rounded-2xl font-black shadow-xl shadow-indigo-500/20"
+                                    className="px-8 py-4 bg-indigo-600 text-white dark:bg-slate-900 dark:text-white rounded-2xl font-bold shadow-xl shadow-indigo-500/20"
                                 >
                                     🚀 Get Started for Free
                                 </motion.button>

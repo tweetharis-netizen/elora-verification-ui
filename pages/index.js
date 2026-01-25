@@ -222,9 +222,9 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="text-[clamp(2.5rem,7vw,4.5rem)] font-bold tracking-tighter text-white leading-[1.1] md:leading-[1.05]"
+                  className="text-[clamp(2.5rem,7vw,4.5rem)] font-bold tracking-tighter text-white leading-[1.1] md:leading-[1.05] font-[var(--font-brand)]"
                 >
-                  <span className="bg-gradient-to-br from-white via-white to-slate-300 text-white elora-gradient-text drop-shadow-sm">
+                  <span className="bg-gradient-to-br from-white via-white to-slate-200 text-white elora-gradient-text drop-shadow-md">
                     {meta.headline}
                   </span>
                 </motion.h1>
@@ -234,7 +234,7 @@ export default function HomePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="text-lg md:text-xl leading-relaxed text-slate-300 dark:text-slate-300 max-w-xl font-medium"
+                  className="text-lg md:text-xl leading-relaxed text-white dark:text-slate-100 max-w-xl font-medium drop-shadow-md"
                 >
                   {meta.subcopy}
                 </motion.p>

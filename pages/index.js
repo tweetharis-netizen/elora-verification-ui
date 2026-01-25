@@ -76,8 +76,8 @@ function HomePreview({ verified, teacher }) {
       <div className="relative p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <div className="text-sm font-bold text-slate-950 dark:text-white tracking-tight">Elora Dashboard</div>
-            <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <div className="text-sm font-bold text-white dark:text-white tracking-tight">Elora Dashboard</div>
+            <div className="mt-1.5 text-xs text-slate-300 dark:text-slate-400 font-medium">
               Real-time insights for your learning journey
             </div>
           </div>
@@ -102,13 +102,13 @@ function HomePreview({ verified, teacher }) {
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900 dark:text-white">View Full Dashboard</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Track progress, teacher tools, and more</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Track progress, teacher tools, and more</div>
             </div>
           </div>
         </motion.div>
 
-        <div className="mt-5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <span className="font-bold text-slate-700 dark:text-slate-300">New:</span> Visualize your data with interactive charts.
+        <div className="mt-5 text-xs text-slate-300 dark:text-slate-400 font-medium">
+          <span className="font-bold text-white dark:text-slate-300">New:</span> Visualize your data with interactive charts.
         </div>
       </div>
     </motion.div>
@@ -222,9 +222,9 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="text-[clamp(2rem,6vw,4.5rem)] font-black tracking-tighter text-white leading-[1.1] md:leading-[1.05]"
+                  className="text-[clamp(2.5rem,7vw,4.5rem)] font-black tracking-tighter text-white leading-[1.1] md:leading-[1.05]"
                 >
-                  <span className="bg-gradient-to-br from-white via-slate-200 to-slate-400 dark:from-white dark:via-slate-200 dark:to-slate-400 elora-gradient-text">
+                  <span className="bg-gradient-to-br from-white via-white to-slate-300 text-white elora-gradient-text drop-shadow-sm">
                     {meta.headline}
                   </span>
                 </motion.h1>
@@ -279,9 +279,9 @@ export default function HomePage() {
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={() => router.push("/dashboard")}
-                  className="elora-cta-primary text-base"
+                  className="elora-cta-primary text-base shadow-[0_0_30px_-5px_rgba(99,102,241,0.5)] border border-white/20"
                 >
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="relative z-10 flex items-center gap-2 text-white">
                     <span>🚀</span>
                     Go to Dashboard
                   </span>

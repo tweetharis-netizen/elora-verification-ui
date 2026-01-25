@@ -142,10 +142,10 @@ function FeatureCard({ icon, title, desc, color, index }) {
                     {icon}
                 </div>
                 <div className="flex-1">
-                    <h4 className="text-slate-900 dark:text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
+                    <h4 className="text-white dark:text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
                         {title}
                     </h4>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                    <p className="text-slate-300 dark:text-slate-400 text-xs leading-relaxed">
                         {desc}
                     </p>
                 </div>
@@ -170,18 +170,18 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                 <motion.h2
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)] mb-3"
+                    className="text-2xl md:text-4xl font-black text-white dark:text-white font-[var(--font-outfit)] mb-3"
                 >
                     <span className={colors.text}>Personalized</span> Experience
                 </motion.h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
+                <p className="text-slate-300 dark:text-slate-400 text-sm max-w-md mx-auto">
                     Discover features tailored to your unique role in the learning journey
                 </p>
             </div>
 
             {/* Persona toggle tabs */}
             <div className="flex justify-center mb-10 px-4">
-                <div className="inline-flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 max-w-full overflow-x-auto scrollbar-hide">
+                <div className="inline-flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 p-1.5 rounded-2xl bg-white/5 dark:bg-slate-800/50 border border-white/10 dark:border-slate-700 max-w-full overflow-x-auto scrollbar-hide">
                     {Object.entries(PERSONA_DATA).map(([key, data]) => (
                         <button
                             key={key}
@@ -191,7 +191,7 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                 transition-all duration-300 whitespace-nowrap
                 ${activePersona === key
                                     ? "text-white shadow-lg"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                                    : "text-slate-300 dark:text-slate-400 hover:text-white dark:hover:text-white"
                                 }
               `}
                         >
@@ -223,7 +223,7 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                     {/* Headline */}
                     <div className="text-center mb-8">
                         <span className="text-4xl mb-2 block">{persona.icon}</span>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white font-[var(--font-outfit)]">
+                        <h3 className="text-xl font-bold text-white dark:text-white font-[var(--font-outfit)]">
                             {persona.headline}
                         </h3>
                     </div>

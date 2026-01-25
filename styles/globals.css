@@ -124,6 +124,8 @@
   overflow: hidden;
   animation: elora-cta-glow 3s ease-in-out infinite;
   transition: transform 0.2s ease, filter 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .elora-cta-primary::before {
@@ -217,17 +219,19 @@ body {
 
 @media (max-width: 768px) {
   .elora-3d-float {
-    transform: none;
+    transform: rotateX(1deg) rotateY(-1deg) scale(0.95);
   }
 
   .elora-cta-primary {
-    padding: 0.875rem 1.5rem;
-    font-size: 0.9rem;
+    padding: 0.85rem 1.75rem;
+    font-size: 0.95rem;
   }
 
   .elora-monitor {
-    transform: scale(0.9);
+    transform: scale(0.85);
     transform-origin: center top;
+    margin-bottom: -40px;
+    /* Offset the scale footprint */
   }
 }
 
@@ -239,13 +243,31 @@ body {
   .elora-monitor {
     border-radius: 12px;
     padding: 8px;
-    transform: scale(0.85);
+    transform: scale(0.75);
+    margin-bottom: -80px;
   }
 
   /* Ensure containers don't overflow */
   .elora-container {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .elora-page {
     padding-left: 12px;
     padding-right: 12px;
+  }
+}
+
+/* Fix for very small screens */
+@media (max-width: 360px) {
+  .elora-monitor {
+    transform: scale(0.65);
+    margin-bottom: -120px;
+  }
+
+  :root {
+    --elora-font-scale: 0.9;
   }
 }
 
@@ -312,6 +334,9 @@ body {
     radial-gradient(900px 600px at 86% 18%, rgba(89, 194, 255, 0.18), transparent 55%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* App shell */

@@ -939,6 +939,9 @@ export default function AssistantPage() {
     const trimmed = String(chatText || "").trim();
     if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
+    setLoading(true); // Pre-emptive lock
+    setAttachErr("");
+
     const inferred = inferActionFromMessage(trimmed);
     if (inferred === "check" && action !== "check") {
       setAction("check");
@@ -947,10 +950,19 @@ export default function AssistantPage() {
     }
 
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
-    const nextMessages = [...messages, userMsg];
 
-    persistActiveMessages(nextMessages, { alsoSyncServer: true });
-    await callElora({ messageOverride: trimmed, baseMessages: nextMessages });
+    // Use functional update to ensure we have the absolute latest messages
+    setMessages(prev => {
+      const next = [...prev, userMsg];
+      persistActiveMessages(next, { alsoSyncServer: true });
+
+      // Delay the actual call slightly to ensure state has settled
+      setTimeout(() => {
+        callElora({ messageOverride: trimmed, baseMessages: next });
+      }, 0);
+
+      return next;
+    });
   }
 
   async function exportLast(type) {
@@ -1404,7 +1416,7 @@ export default function AssistantPage() {
                   <div className="p-5 rounded-[2rem] bg-slate-900 border border-white/5 shadow-2xl overflow-hidden relative group">
                     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">📈</div>
                     <div className="relative z-10">
-                      <div className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Live Insights</div>
+                      <div className="text-[9px] font-bold text-indigo-300 uppercase tracking-widest mb-1 font-[var(--font-brand)]">Live Insights</div>
                       <h4 className="text-xs font-bold text-white mb-4">Topic Mastery</h4>
                       <div className="space-y-3">
                         <div>
@@ -1437,7 +1449,7 @@ export default function AssistantPage() {
               {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-[var(--font-brand)]">
                     Elora
                     <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold tracking-widest uppercase">Assistant</span>
                   </h2>
@@ -1527,8 +1539,8 @@ export default function AssistantPage() {
                   {messages.length === 0 && !loading && (
                     <div className="h-full flex flex-col items-center justify-center text-center p-8">
                       <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-500 text-3xl grid place-items-center mb-6 animate-float">👋</div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Hello! I'm Elora.</h3>
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-xs">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 font-[var(--font-brand)]">Hello! I'm Elora.</h3>
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 max-w-xs">
                         I'm your personalized {role} assistant. How can I help you today?
                       </p>
                       <div className="mt-8 grid grid-cols-1 gap-2 w-full max-w-sm">

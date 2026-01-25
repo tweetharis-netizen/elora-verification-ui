@@ -222,9 +222,9 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="text-[clamp(2rem,6vw,4.5rem)] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.1] md:leading-[1.05]"
+                  className="text-[clamp(2rem,6vw,4.5rem)] font-black tracking-tighter text-white leading-[1.1] md:leading-[1.05]"
                 >
-                  <span className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 elora-gradient-text">
+                  <span className="bg-gradient-to-br from-white via-slate-200 to-slate-400 dark:from-white dark:via-slate-200 dark:to-slate-400 elora-gradient-text">
                     {meta.headline}
                   </span>
                 </motion.h1>
@@ -234,7 +234,7 @@ export default function HomePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="text-lg md:text-xl leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl font-medium"
+                  className="text-lg md:text-xl leading-relaxed text-slate-300 dark:text-slate-300 max-w-xl font-medium"
                 >
                   {meta.subcopy}
                 </motion.p>

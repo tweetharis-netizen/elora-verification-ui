@@ -173,7 +173,7 @@ export default function Navbar() {
             {/* Mobile hamburger */}
             <div className="sm:hidden relative" ref={mobileRef}>
               <button
-                className="flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/70 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm shadow-slate-900/5 dark:shadow-black/20"
+                className="flex items-center gap-2 rounded-xl border border-white/20 dark:border-slate-800/70 bg-white/10 dark:bg-slate-900/70 px-3 py-2 text-sm font-semibold text-white dark:text-slate-200 shadow-sm backdrop-blur-md"
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label="Open menu"

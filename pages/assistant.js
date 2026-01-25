@@ -413,6 +413,7 @@ export default function AssistantPage() {
   const [action, setAction] = useState(() => session?.action || "explain");
   const [contextMode, setContextMode] = useState("manual"); // 'manual' or 'auto'
   const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
+  const [customStyleText, setCustomStyleText] = useState("");
   const [searchMode, setSearchMode] = useState(false);
 
   // Threaded chat state
@@ -1531,12 +1532,12 @@ export default function AssistantPage() {
                     const isUser = m.from === "user";
                     const display = cleanAssistantText(m.text);
                     return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal", isUser ? "justify-end pl-12 sm:pl-32" : "justify-start pr-12 sm:pr-32")}>
+                      <div key={idx} className={cn("flex w-full group animate-reveal mb-2", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300",
+                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[85%] sm:max-w-[75%]",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[2rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right"
-                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[2rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left"
+                            ? "bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right ml-4"
+                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[1.5rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left mr-4"
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
                             <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
@@ -1544,7 +1545,7 @@ export default function AssistantPage() {
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
-                          <div className="whitespace-pre-wrap font-medium">{display}</div>
+                          <div className="whitespace-pre-wrap font-medium break-words">{display}</div>
 
                           {!isUser && (
                             <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/5 pt-3">

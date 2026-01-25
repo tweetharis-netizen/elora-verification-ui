@@ -136,31 +136,31 @@ export default function StoryPage() {
                                     <div className="absolute inset-0 flex items-center justify-center text-[10rem] opacity-20 pointer-events-none">✨</div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
                                     <div className="absolute bottom-8 left-8 right-8">
-                                        <div className="text-white font-black text-2xl">The Visionary</div>
-                                        <div className="text-slate-300 text-sm font-bold uppercase tracking-widest">Founder of Elora</div>
+                                        <div className="text-white font-black text-2xl tracking-tight">Shaik Haris</div>
+                                        <div className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Founder of Elora</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-8 lg:order-1">
-                                <h2 className="text-4xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">A Note From the Founder</h2>
-                                <div className="space-y-6 text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed italic">
-                                    <p>
+                                <h2 className="text-4xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">A Message from Haris</h2>
+                                <div className="space-y-6 text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                                    <p className="border-l-4 border-indigo-500 pl-6 italic bg-indigo-500/5 py-4 rounded-r-2xl">
                                         "I started Elora because I saw how students were getting lost in a sea of generic AI answers. Most tools are built to give you the answer, but they don't teach you how to think."
                                     </p>
                                     <p>
-                                        "We believe AI should be a partner in curiosity, not a shortcut for laziness. Elora is designed to be the patient, calm mentor that every learner deserves, regardless of their background or access to resources."
+                                        We believe AI should be a partner in curiosity, not a shortcut for laziness. Elora is designed to be the patient, calm mentor that every learner deserves, regardless of their background or access to resources.
                                     </p>
-                                    <p>
-                                        "This is just the beginning. Thank you for being part of the Elora journey."
+                                    <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-fuchsia-500">
+                                        This is just the beginning. Thank you for being part of the journey.
                                     </p>
                                 </div>
 
                                 <div className="flex items-center gap-4 pt-4">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-fuchsia-600 grid place-items-center text-white font-black text-xl">E</div>
-                                    <div className="font-bold text-slate-900 dark:text-white">
-                                        Team Elora
-                                        <span className="block text-xs text-slate-500 font-medium tracking-widest uppercase">Redefining Education</span>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 grid place-items-center text-white font-black text-xl shadow-xl shadow-indigo-500/20">SH</div>
+                                    <div>
+                                        <div className="font-black text-slate-900 dark:text-white leading-none mb-1">Shaik Haris</div>
+                                        <div className="text-[10px] text-indigo-500 font-black tracking-widest uppercase">Redefining Education</div>
                                     </div>
                                 </div>
                             </div>

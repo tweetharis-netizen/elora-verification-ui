@@ -38,23 +38,24 @@ const ROLE_LABEL = {
 const ROLE_QUICK_ACTIONS = {
   educator: [
     { id: "explain", label: "Explain a concept", hint: "Classroom-ready explanation + one example" },
-    { id: "custom", label: "Custom request", hint: "Ask anything as a teacher (tone, structure, etc.)" },
     { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
+    { id: "assignment", label: "New Assignment", hint: "AI-generated student tasks ✨" },
     { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions" },
     { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
     { id: "slides", label: "Design slides", hint: "Deck outline + teacher notes" },
   ],
   student: [
     { id: "explain", label: "Explain it", hint: "Simple steps, beginner friendly" },
+    { id: "quiz", label: "Generate Quiz", hint: "Test my knowledge right now ✨" },
+    { id: "flashcards", label: "Make Flashcards", hint: "AI-powered study set ✨" },
     { id: "check", label: "Check my answer", hint: "Hints first. Answer unlocks on attempt 3." },
     { id: "study", label: "Study plan", hint: "Small steps, realistic plan" },
-    { id: "custom", label: "Custom", hint: "Ask anything" },
   ],
   parent: [
     { id: "explain", label: "Explain to me", hint: "Plain language, no jargon" },
-    { id: "coach", label: "How to help", hint: "What to say and do at home" },
+    { id: "tutor", label: "Tutor Mode", hint: "Help me coach my child ✨" },
+    { id: "curriculum", label: "Topic Roadmap", hint: "See the journey ahead ✨" },
     { id: "message", label: "Write a message", hint: "To teacher or school" },
-    { id: "custom", label: "Custom", hint: "Ask anything" },
   ],
 };
 
@@ -409,10 +410,10 @@ export default function AssistantPage() {
   const [subject, setSubject] = useState(() => session?.subject || "General");
   const [topic, setTopic] = useState(() => session?.topic || "");
   const [constraints, setConstraints] = useState("");
-  const [responseStyle, setResponseStyle] = useState("standard");
-  const [customStyleText, setCustomStyleText] = useState("");
-
   const [action, setAction] = useState(() => session?.action || "explain");
+  const [contextMode, setContextMode] = useState("manual"); // 'manual' or 'auto'
+  const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
+  const [searchMode, setSearchMode] = useState(false);
 
   // Threaded chat state
   const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
@@ -869,7 +870,9 @@ export default function AssistantPage() {
         subject,
         topic,
         constraints,
+        contextMode,
         responseStyle,
+        searchMode,
         customStyleText,
         attempt: attemptNext,
         message: userText,
@@ -1197,85 +1200,123 @@ export default function AssistantPage() {
                   <h1 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="text-indigo-500">⚙️</span> Settings
                   </h1>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-widest border",
-                        verified
-                          ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                          : "border-amber-400/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-                      )}
-                    >
-                      <span className={cn("h-1.5 w-1.5 rounded-full", verified ? "bg-emerald-400" : "bg-amber-400")} />
-                      {verified ? "Verified" : "Guest"}
-                    </span>
+                  <button
+                    type="button"
+                    onClick={() => setPrefsOpen(false)}
+                    className="h-8 w-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
+                    title="Close settings"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Smart Setup Toggle */}
+                <div className="p-1 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                  <div className="flex p-1 gap-1">
                     <button
-                      type="button"
-                      onClick={() => setPrefsOpen(false)}
-                      className="h-8 w-8 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
-                      title="Close settings"
+                      onClick={() => setContextMode("auto")}
+                      className={cn("flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", contextMode === "auto" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-600")}
                     >
-                      ✕
+                      ✨ Smart Auto
+                    </button>
+                    <button
+                      onClick={() => setContextMode("manual")}
+                      className={cn("flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", contextMode === "manual" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-600")}
+                    >
+                      🛠 Manual
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  {/* Context Section */}
+                  {/* Mode & Response Section */}
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Context</div>
-                      <Link href="/settings?focus=role" className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:underline">Change Role</Link>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-2xl bg-slate-100/50 dark:bg-white/5 border border-slate-200/50 dark:border-white/5">
-                        <div className="text-[10px] font-bold text-slate-400 mb-1">Role</div>
-                        <div className="text-xs font-black text-slate-900 dark:text-white capitalize">{role}</div>
-                      </div>
-                      <div className="p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
-                        <select
-                          value={country}
-                          onChange={(e) => setCountry(e.target.value)}
-                          className="w-full h-full bg-transparent border-none px-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-0 outline-none cursor-pointer"
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Response Goal</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {["Fast", "Deep", "Auto"].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setResponseStyle(m.toLowerCase())}
+                          className={cn(
+                            "py-2 px-1 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                            responseStyle === m.toLowerCase()
+                              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-md scale-[1.05] z-10"
+                              : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 hover:border-indigo-500/30"
+                          )}
                         >
-                          {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {contextMode === "manual" && (
+                    <div className="space-y-6 animate-reveal">
+                      {/* Context Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Context</div>
+                          <Link href="/settings?focus=role" className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:underline">Change Role</Link>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-2xl bg-slate-100/50 dark:bg-white/5 border border-slate-200/50 dark:border-white/5">
+                            <div className="text-[10px] font-bold text-slate-400 mb-1">Role</div>
+                            <div className="text-xs font-black text-slate-900 dark:text-white capitalize">{role}</div>
+                          </div>
+                          <div className="p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+                            <select
+                              value={country}
+                              onChange={(e) => setCountry(e.target.value)}
+                              className="w-full h-full bg-transparent border-none px-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-0 outline-none cursor-pointer"
+                            >
+                              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Level Section */}
+                      <div className="space-y-3">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Education Level</div>
+                        <select
+                          value={level}
+                          onChange={(e) => setLevel(e.target.value)}
+                          className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 px-4 text-sm font-bold text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer shadow-sm"
+                        >
+                          {countryLevels.map((lv) => <option key={lv} value={lv}>{lv}</option>)}
                         </select>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Level Section */}
-                  <div className="space-y-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Education Level</div>
-                    <select
-                      value={level}
-                      onChange={(e) => setLevel(e.target.value)}
-                      className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 px-4 text-sm font-bold text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer shadow-sm"
-                    >
-                      {countryLevels.map((lv) => <option key={lv} value={lv}>{lv}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Subject & Topic */}
-                  <div className="space-y-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Learning Area</div>
-                    <div className="grid gap-3">
-                      <select
-                        value={subject}
-                        onChange={(e) => setSubject(e.target.value)}
-                        className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer"
-                      >
-                        {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <input
-                        value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
-                        placeholder="Current topic (e.g. Fractions)"
-                        className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none placeholder:text-slate-400"
-                      />
+                      {/* Subject & Topic */}
+                      <div className="space-y-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Learning Area</div>
+                        <div className="grid gap-3">
+                          <select
+                            value={subject}
+                            onChange={(e) => setSubject(e.target.value)}
+                            className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer"
+                          >
+                            {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <input
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
+                            placeholder="Current topic (e.g. Fractions)"
+                            className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none placeholder:text-slate-400"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {contextMode === "auto" && (
+                    <div className="p-8 text-center bg-indigo-500/5 rounded-[2rem] border border-dashed border-indigo-500/20 animate-reveal">
+                      <div className="text-2xl mb-2">⚡️</div>
+                      <div className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Smart Engine Active</div>
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Elora will automatically adapt to your query context.</p>
+                    </div>
+                  )}
 
                   {/* Quick Actions */}
                   <div className="space-y-3">
@@ -1321,6 +1362,35 @@ export default function AssistantPage() {
                   >
                     Reset Current Conversation
                   </button>
+
+                  {/* Mastery Tracker Mockup */}
+                  <div className="p-5 rounded-[2rem] bg-slate-900 border border-white/5 shadow-2xl overflow-hidden relative group">
+                    <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">📈</div>
+                    <div className="relative z-10">
+                      <div className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Live Insights</div>
+                      <h4 className="text-xs font-bold text-white mb-4">Topic Mastery</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase mb-1">
+                            <span>Accuracy</span>
+                            <span className="text-emerald-400">82%</span>
+                          </div>
+                          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-400 w-[82%]" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase mb-1">
+                            <span>Speed</span>
+                            <span className="text-amber-400">65%</span>
+                          </div>
+                          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-400 w-[65%]" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1514,15 +1584,23 @@ export default function AssistantPage() {
               {/* Composer */}
               <div className="mt-4 flex flex-col gap-3">
                 <div className="flex items-center gap-2 px-1">
-                  {canShowExports && (
-                    <div className="flex gap-1">
-                      {["pdf", "docx", "pptx"].map(fmt => (
-                        <button key={fmt} onClick={() => exportLast(fmt)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors uppercase">
-                          {fmt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex gap-1">
+                    {["pdf", "docx", "pptx"].map(fmt => (
+                      <button
+                        key={fmt}
+                        onClick={() => exportLast(fmt)}
+                        className={cn(
+                          "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-all uppercase border",
+                          messages.some(m => m.from === 'elora')
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
+                            : "bg-slate-100 dark:bg-white/5 text-slate-400 border-transparent cursor-not-allowed opacity-50"
+                        )}
+                        title={messages.some(m => m.from === 'elora') ? `Export as ${fmt}` : "Ask a question first"}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
                   <div className="flex-1" />
                   {attachErr && <span className="text-[10px] font-bold text-red-500">{attachErr}</span>}
                 </div>

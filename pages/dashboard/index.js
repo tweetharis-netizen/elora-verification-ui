@@ -429,9 +429,13 @@ export default function DashboardPage() {
                         role={activeTab === 'teacher' ? 'Classroom Admin' : activeTab === 'parent' ? 'Parent' : 'Student'}
                     />
 
-                    {/* Dynamic Tabs */}
+                    {/* Dynamic Tabs - Only show the verified role tab */}
                     <div className="flex gap-2 mb-10 bg-slate-100/50 dark:bg-white/5 p-1.5 rounded-full w-fit border border-slate-200/50 dark:border-white/10">
-                        {['student', 'parent', 'teacher'].map(id => (
+                        {['student', 'parent', 'teacher'].filter(id => {
+                            const userRole = session?.role?.toLowerCase();
+                            if (id === 'teacher' && userRole === 'educator') return true;
+                            return id === userRole;
+                        }).map(id => (
                             <button key={id} onClick={() => setActiveTab(id)}
                                 className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"}`}>
                                 {id}

@@ -894,16 +894,24 @@ export default function AssistantPage() {
       const base = Array.isArray(baseMessages) ? baseMessages : messages;
 
       if (!r.ok) {
-        const err = data?.error || "Request failed.";
+        const err = data?.error || data?.message || "Request failed.";
         if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
 
-        const next = [...base, { from: "elora", text: String(err), ts: Date.now() }];
+        const next = [...base, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
         return;
       }
 
-      const out = cleanAssistantText(data?.reply || data?.text || data?.answer || "");
+      const outRaw = data?.reply || data?.text || data?.answer || "";
+      if (!outRaw) {
+        // Fallback if the engine returns empty but OK
+        const next = [...base, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: true });
+        setLoading(false);
+        return;
+      }
+      const out = cleanAssistantText(outRaw);
       const next = [...base, { from: "elora", text: out, ts: Date.now() }];
 
       persistActiveMessages(next, { alsoSyncServer: true });
@@ -1188,6 +1196,7 @@ export default function AssistantPage() {
     <>
       <Head>
         <title>Elora Assistant</title>
+        <meta name="theme-color" content="#070b16" />
       </Head>
 
       <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
@@ -1532,20 +1541,20 @@ export default function AssistantPage() {
                     const isUser = m.from === "user";
                     const display = cleanAssistantText(m.text);
                     return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal mb-2", isUser ? "justify-end" : "justify-start")}>
+                      <div key={idx} className={cn("flex w-full group animate-reveal mb-2 px-2 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[85%] sm:max-w-[75%]",
+                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[90%] sm:max-w-[75%]",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right ml-4"
-                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[1.5rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left mr-4"
+                            ? "bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right"
+                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[1.5rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left"
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
                             <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                            <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
-                          <div className="whitespace-pre-wrap font-medium break-words">{display}</div>
+                          <div className="whitespace-pre-wrap font-medium break-words leading-[1.6]">{display}</div>
 
                           {!isUser && (
                             <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/5 pt-3">
@@ -1652,10 +1661,10 @@ export default function AssistantPage() {
                     </button>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-center gap-6 px-4">
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400/60">Elora Genesis v1.4</div>
-                    <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500/60">Shaik Haris Era</div>
+                  <div className="mt-3 flex items-center justify-center gap-4 px-4 opacity-50">
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Elora Genesis v1.4</div>
+                    <div className="h-1 w-1 rounded-full bg-slate-400" />
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Shaik Haris Era</div>
                   </div>
                 </div>
               </div>

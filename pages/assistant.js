@@ -8,6 +8,7 @@ import {
   getSession,
   isTeacher,
   refreshVerifiedFromServer,
+  saveSession,
   setGuest as storeGuest,
 } from "@/lib/session";
 import {

@@ -222,9 +222,9 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="text-[clamp(2.5rem,5vw,5rem)] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.05]"
+                  className="text-[clamp(2rem,6vw,4.5rem)] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.1] md:leading-[1.05]"
                 >
-                  <span className="bg-gradient-to-br from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
                     {meta.headline}
                   </span>
                 </motion.h1>
@@ -240,7 +240,7 @@ export default function HomePage() {
                 </motion.p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 {["educator", "student", "parent"].map((r) => {
                   const isBlocked = r === "educator" && !verified;
                   return (
@@ -254,7 +254,7 @@ export default function HomePage() {
                       type="button"
                       onClick={() => selectRole(r)}
                       className={cn(
-                        "rounded-full border px-6 py-3 text-sm font-bold transition-colors duration-200 shadow-sm relative overflow-hidden",
+                        "rounded-full border px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-colors duration-200 shadow-sm relative overflow-hidden",
                         role === r
                           ? "border-indigo-500/60 bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
                           : "border-slate-300/60 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600"
@@ -318,7 +318,7 @@ export default function HomePage() {
             </motion.div>
 
             {/* Dashboard Preview with 3D glassmorphism */}
-            <div className="relative lg:pl-8">
+            <div className="relative lg:pl-8 mt-12 lg:mt-0">
               <DashboardPreview role={role} />
             </div>
           </div>

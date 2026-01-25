@@ -66,7 +66,7 @@ export default function StoryPage() {
                             The Elora Mission
                         </motion.div>
 
-                        <motion.h1 variants={fadeUp} className="text-[clamp(2.5rem,6vw,5rem)] font-black tracking-tighter leading-[1.05] text-slate-950 dark:text-white mb-8">
+                        <motion.h1 variants={fadeUp} className="text-[clamp(2rem,6vw,4rem)] md:text-[clamp(2.5rem,6vw,5rem)] font-black tracking-tighter leading-[1.1] md:leading-[1.05] text-slate-950 dark:text-white mb-8">
                             Humanizing Intelligence, <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500">One Conversation</span> at a Time.
                         </motion.h1>
@@ -123,13 +123,13 @@ export default function StoryPage() {
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent blur-3xl opacity-50 -z-10" />
 
                         <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
                             viewport={{ once: true }}
                             transition={{ duration: 1 }}
-                            className="grid lg:grid-cols-2 gap-16 items-center"
+                            className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center"
                         >
-                            <div className="relative aspect-square max-w-md ml-auto lg:order-2">
+                            <div className="relative aspect-square max-w-sm sm:max-w-md mx-auto lg:ml-auto lg:order-2">
                                 <div className="absolute inset-0 rounded-[4rem] bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-sky-400 rotate-6 blur-2xl opacity-20" />
                                 <div className="relative h-full w-full rounded-[3rem] border border-white/20 bg-slate-200 dark:bg-slate-800 overflow-hidden shadow-2xl">
                                     {/* Placeholder for Founder Image - Using a stylized representation */}

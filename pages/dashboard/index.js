@@ -331,7 +331,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
                     <button
                         onClick={() => setSelectedClass(null)}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all mb-2 ${selectedClass === null ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all mb-2 ${selectedClass === null ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
                     >
                         📊 Overview
                     </button>
@@ -342,10 +342,10 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <button
                                 key={c.id}
                                 onClick={() => setSelectedClass(c.id)}
-                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClass === c.id ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 shadow-sm" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClass === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 shadow-sm" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
                             >
                                 <span>{c.name}</span>
-                                <span className="text-[10px] bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500">{c.studentCount || 0}</span>
+                                <span className="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500">{c.studentCount || 0}</span>
                             </button>
                         ))}
                     </div>
@@ -354,7 +354,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         {!isCreating ? (
                             <button
                                 onClick={() => setIsCreating(true)}
-                                className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-all"
+                                className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition-all"
                             >
                                 + Create Class
                             </button>
@@ -363,13 +363,13 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 <input
                                     autoFocus
                                     placeholder="Class Name (e.g. 10B)"
-                                    className="w-full text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                                     value={newClassName}
                                     onChange={e => setNewClassName(e.target.value)}
                                 />
                                 <div className="flex gap-2">
-                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-500 text-white text-[10px] font-bold py-1.5 rounded-lg">Add</button>
-                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-500 text-[10px] font-bold py-1.5 rounded-lg">Cancel</button>
+                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-bold py-1.5 rounded-lg">Add</button>
+                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold py-1.5 rounded-lg">Cancel</button>
                                 </div>
                             </div>
                         )}
@@ -377,7 +377,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 </div>
 
                 {/* Quick Tools */}
-                <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-3xl p-5 text-white shadow-lg">
+                <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 text-white shadow-lg">
                     <h4 className="font-bold text-sm mb-2">⚡ Teacher Tools</h4>
                     <div className="space-y-2">
                         <Link href="/assistant?action=lesson_plan&topic=New Lesson" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
@@ -416,7 +416,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 <div className="flex items-center justify-between mb-8">
                                     <h3 className="text-xl font-black text-slate-900 dark:text-white">All Students</h3>
                                     <LockedFeatureOverlay isVerified={activeSession?.verified}>
-                                        <button className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-2 rounded-xl">
+                                        <button className="text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-2 rounded-xl transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-500/20">
                                             + Link Student
                                         </button>
                                     </LockedFeatureOverlay>
@@ -434,15 +434,15 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         </thead>
                                         <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                             {students.map((s, i) => (
-                                                <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                                     <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                                                    <td className="py-4 text-sm">{s.stats?.messagesSent || 0}</td>
-                                                    <td className="py-4 text-sm">{s.stats?.activeMinutes || 0}m</td>
-                                                    <td className="py-4 text-xs font-bold text-indigo-500">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
+                                                    <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.messagesSent || 0}</td>
+                                                    <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.activeMinutes || 0}m</td>
+                                                    <td className="py-4 text-xs font-bold text-indigo-600 dark:text-indigo-400">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
                                                 </tr>
                                             ))}
                                             {students.length === 0 && (
-                                                <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900 rounded-b-2xl">No students linked yet.</td></tr>
+                                                <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No students linked yet.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -492,21 +492,29 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     <div className="animate-reveal">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Class Detail</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Class Detail</div>
                                 <h2 className="text-3xl font-black text-slate-900 dark:text-white">{classes.find(c => c.id === selectedClass)?.name}</h2>
                             </div>
                             <div className="flex gap-2">
-                                <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300">Settings</button>
-                                <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20">Create Assignment</button>
+                                <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Settings</button>
+                                <Link
+                                    href={`/assistant?action=lesson_plan&topic=New Assignment for ${classes.find(c => c.id === selectedClass)?.name || "Class"}`}
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
+                                >
+                                    Create Assignment
+                                </Link>
                             </div>
                         </div>
 
-                        <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
-                            <div className="text-4xl mb-4">👋</div>
+                        <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+                            <div className="text-5xl mb-6">👋</div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Classroom Empty</h3>
-                            <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">Start by inviting students using your Magic Code or creating your first assignment.</p>
-                            <div className="inline-flex gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-                                <span className="font-mono text-lg font-bold text-indigo-500 tracking-wider">ELORA-{Math.floor(Math.random() * 9000) + 1000}</span>
+                            <p className="text-slate-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+                                Ready to teach? Invite students using your Magic Code below, or create your first AI-generated assignment to get things moving.
+                            </p>
+                            <div className="inline-flex items-center gap-4 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Magic Code</div>
+                                <span className="font-mono text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-wider">ELORA-{Math.floor(Math.random() * 9000) + 1000}</span>
                             </div>
                         </div>
                     </div>

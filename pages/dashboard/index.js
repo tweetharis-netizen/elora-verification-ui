@@ -348,12 +348,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-3xl p-5 text-white shadow-lg">
                     <h4 className="font-bold text-sm mb-2">⚡ Teacher Tools</h4>
                     <div className="space-y-2">
-                        <button className="w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                        <Link href="/assistant?action=lesson_plan&topic=New Lesson" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
                             📝 Plan a Lesson
-                        </button>
-                        <button className="w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                        </Link>
+                        <Link href="/assistant?action=find_videos&topic=Educational Resources" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
                             🔍 Find Videos
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>

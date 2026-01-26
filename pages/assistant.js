@@ -44,6 +44,7 @@ const ROLE_QUICK_ACTIONS = {
     { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions" },
     { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
     { id: "slides", label: "Design slides", hint: "Deck outline + teacher notes" },
+    { id: "resources", label: "Find Resources", hint: "Videos, PDFs, articles for class" },
   ],
   student: [
     { id: "explain", label: "Explain it", hint: "Simple steps, beginner friendly" },
@@ -416,6 +417,28 @@ export default function AssistantPage() {
   const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
   const [customStyleText, setCustomStyleText] = useState("");
   const [searchMode, setSearchMode] = useState(false);
+
+  // Auto-configure from URL query (e.g. from Dashboard)
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { action: qAction, topic: qTopic } = router.query;
+
+    if (qAction && typeof qAction === 'string') {
+      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === qAction) ||
+        ROLE_QUICK_ACTIONS.student.find(x => x.id === qAction);
+      if (known) {
+        setAction(qAction);
+        // If it's an educator specific action, ensure role is educator? 
+        // We assume session role is correct generally, but for shared links maybe force it?
+        // For now, just set action.
+      }
+    }
+
+    if (qTopic && typeof qTopic === 'string') {
+      setTopic(qTopic);
+      setTopicForSuggestions(qTopic);
+    }
+  }, [router.isReady, router.query]);
 
   // Threaded chat state
   const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));

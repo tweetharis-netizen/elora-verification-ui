@@ -222,7 +222,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="text-[clamp(2.5rem,7vw,4.5rem)] font-bold tracking-tighter text-white leading-[1.1] md:leading-[1.05] font-[var(--font-brand)] drop-shadow-2xl"
+                  className="text-[clamp(2.5rem,7vw,4.5rem)] font-bold tracking-tighter text-slate-950 dark:text-white leading-[1.1] md:leading-[1.05] font-[var(--font-brand)] drop-shadow-xl"
                 >
                   {meta.headline}
                 </motion.h1>

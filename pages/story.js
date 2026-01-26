@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -23,6 +24,7 @@ export default function StoryPage() {
     const [verified, setVerified] = useState(false);
 
     useEffect(() => {
+        console.log("Story Page Mounted");
         setMounted(true);
         const s = getSession();
         setVerified(Boolean(s?.verified));

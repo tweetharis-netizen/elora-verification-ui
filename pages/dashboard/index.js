@@ -264,104 +264,196 @@ function StudentModule({ data }) {
     );
 }
 
-function TeacherModule({ students, metrics, onAddStudent, session: activeSession }) {
-    if (!activeSession) return null; // Safety check
-    const [code, setCode] = useState("");
-    const [nameInput, setNameInput] = useState("");
+function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession }) {
+    if (!activeSession) return null;
+    const [selectedClass, setSelectedClass] = useState(null); // null = Overview
+    const [isCreating, setIsCreating] = useState(false);
+    const [newClassName, setNewClassName] = useState("");
+    const [newClassSubject, setNewClassSubject] = useState("");
 
-    const handleAdd = () => {
-        if (!code || !nameInput) return;
-        onAddStudent(code, nameInput);
-        setCode(""); setNameInput("");
+    // Ensure classes exist
+    const classes = activeSession?.classroom?.classes || [];
+
+    const handleCreateClass = () => {
+        if (!newClassName) return;
+        const newClass = {
+            id: `cls_${Date.now()}`,
+            name: newClassName,
+            subject: newClassSubject || "General",
+            studentCount: 0,
+            color: "indigo"
+        };
+        const nextSession = { ...activeSession };
+        if (!nextSession.classroom) nextSession.classroom = {};
+        if (!Array.isArray(nextSession.classroom.classes)) nextSession.classroom.classes = [];
+        nextSession.classroom.classes.push(newClass);
+        onUpdateSession(nextSession);
+        setIsCreating(false);
+        setNewClassName("");
     };
 
     return (
-        <div className="space-y-8">
-            {/* Aggregate Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
-                    <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-1">Class Engagement</p>
-                    <p className="text-4xl font-black">{metrics.avgEngagement} <span className="text-sm font-medium opacity-70">avg queries/student</span></p>
+        <div className="flex flex-col lg:flex-row gap-8">
+            {/* Sidebar: Class List */}
+            <div className="w-full lg:w-64 flex-shrink-0 space-y-4">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <button
+                        onClick={() => setSelectedClass(null)}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all mb-2 ${selectedClass === null ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                    >
+                        📊 Overview
+                    </button>
+
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 mb-2 mt-4">My Classes</div>
+                    <div className="space-y-1">
+                        {classes.map(c => (
+                            <button
+                                key={c.id}
+                                onClick={() => setSelectedClass(c.id)}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClass === c.id ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 shadow-sm" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                            >
+                                <span>{c.name}</span>
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500">{c.studentCount || 0}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                        {!isCreating ? (
+                            <button
+                                onClick={() => setIsCreating(true)}
+                                className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-all"
+                            >
+                                + Create Class
+                            </button>
+                        ) : (
+                            <div className="space-y-2 animate-reveal">
+                                <input
+                                    autoFocus
+                                    placeholder="Class Name (e.g. 10B)"
+                                    className="w-full text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={newClassName}
+                                    onChange={e => setNewClassName(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-500 text-white text-[10px] font-bold py-1.5 rounded-lg">Add</button>
+                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-500 text-[10px] font-bold py-1.5 rounded-lg">Cancel</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Most Active Topic</p>
-                    <p className="text-4xl font-black text-slate-900 dark:text-white truncate">{metrics.topSubject}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
-                    <p className="text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
+
+                {/* Quick Tools */}
+                <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-3xl p-5 text-white shadow-lg">
+                    <h4 className="font-bold text-sm mb-2">⚡ Teacher Tools</h4>
+                    <div className="space-y-2">
+                        <button className="w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                            📝 Plan a Lesson
+                        </button>
+                        <button className="w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                            🔍 Find Videos
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Analysis Grid */}
-            <div className="grid lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-xl font-black">Student Roster</h3>
-                        <span className="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-bold">{students.length} Total</span>
-                    </div>
+            {/* Main Content Area */}
+            <div className="flex-1 space-y-8">
+                {/* Aggregate Metrics (Overview) */}
+                {!selectedClass && (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
+                                <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-1">Total Enrollment</p>
+                                <p className="text-4xl font-black">{students.length} <span className="text-sm font-medium opacity-70">students</span></p>
+                            </div>
+                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Most Active Class</p>
+                                <p className="text-4xl font-black text-slate-900 dark:text-white truncate">{classes[0]?.name || "N/A"}</p>
+                            </div>
+                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
+                                <p className="text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
+                            </div>
+                        </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-xs font-black uppercase">
-                                    <th className="pb-4">Student Name</th>
-                                    <th className="pb-4">Queries</th>
-                                    <th className="pb-4">Active Time</th>
-                                    <th className="pb-4">Last Topic</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                                {students.map((s, i) => (
-                                    <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                                        <td className="py-4 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                                        <td className="py-4 text-sm">{s.stats?.messagesSent || 0}</td>
-                                        <td className="py-4 text-sm">{s.stats?.activeMinutes || 0}m</td>
-                                        <td className="py-4 text-xs font-bold text-indigo-500">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
-                                    </tr>
-                                ))}
-                                {students.length === 0 && (
-                                    <tr><td colSpan="4" className="py-12 text-center text-slate-400 font-bold italic">No students linked yet.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                        {/* Analysis Grid */}
+                        <div className="grid lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center justify-between mb-8">
+                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">All Students</h3>
+                                    <LockedFeatureOverlay isVerified={activeSession?.verified}>
+                                        <button className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-2 rounded-xl">
+                                            + Link Student
+                                        </button>
+                                    </LockedFeatureOverlay>
+                                </div>
 
-                <div className="space-y-6">
-                    {/* Add Student Card */}
-                    <div className="bg-slate-900 dark:bg-white rounded-3xl p-6 text-white dark:text-slate-900 shadow-xl">
-                        <h3 className="font-black mb-4">Link New Student</h3>
-                        <div className="space-y-3">
-                            <input
-                                value={nameInput} onChange={e => setNameInput(e.target.value)}
-                                placeholder="Student Nickname"
-                                className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <input
-                                value={code} onChange={e => setCode(e.target.value)}
-                                placeholder="ELORA-XXXX"
-                                className="w-full bg-white/10 dark:bg-slate-100 border-none rounded-xl px-4 py-3 text-sm placeholder:text-white/40 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <LockedFeatureOverlay isVerified={activeSession?.verified}>
-                                <button
-                                    onClick={handleAdd}
-                                    className="w-full bg-indigo-500 text-white font-black py-3 rounded-xl hover:bg-indigo-600 transition-colors"
-                                >
-                                    Add to Roster +
-                                </button>
-                            </LockedFeatureOverlay>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-xs font-black uppercase">
+                                                <th className="pb-4 pl-2">Student</th>
+                                                <th className="pb-4">Queries</th>
+                                                <th className="pb-4">Time</th>
+                                                <th className="pb-4">Last Topic</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                                            {students.map((s, i) => (
+                                                <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                                    <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{s.name}</td>
+                                                    <td className="py-4 text-sm">{s.stats?.messagesSent || 0}</td>
+                                                    <td className="py-4 text-sm">{s.stats?.activeMinutes || 0}m</td>
+                                                    <td className="py-4 text-xs font-bold text-indigo-500">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
+                                                </tr>
+                                            ))}
+                                            {students.length === 0 && (
+                                                <tr><td colSpan="4" className="py-12 text-center text-slate-400 font-bold italic">No students linked yet.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Heatmap Card */}
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                    <h3 className="font-black mb-6 text-slate-900 dark:text-white">Subject Demand</h3>
+                                    <div className="h-44">
+                                        <BarChart data={metrics.subjectHeatmap} labels={metrics.labels} color="#6366f1" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Class Detail View */}
+                {selectedClass && (
+                    <div className="animate-reveal">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Class Detail</div>
+                                <h2 className="text-3xl font-black text-slate-900 dark:text-white">{classes.find(c => c.id === selectedClass)?.name}</h2>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300">Settings</button>
+                                <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20">Create Assignment</button>
+                            </div>
+                        </div>
+
+                        <div className="p-8 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-center">
+                            <div className="text-4xl mb-4">👋</div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Classroom Empty</h3>
+                            <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">Start by inviting students using your Magic Code or creating your first assignment.</p>
+                            <div className="inline-flex gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                                <span className="font-mono text-lg font-bold text-indigo-500 tracking-wider">ELORA-{Math.floor(Math.random() * 9000) + 1000}</span>
+                            </div>
                         </div>
                     </div>
-
-                    {/* Heatmap Card */}
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                        <h3 className="font-black mb-6">Subject Demand</h3>
-                        <div className="h-44">
-                            <BarChart data={metrics.subjectHeatmap} labels={metrics.labels} color="#6366f1" />
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );
@@ -481,7 +573,7 @@ export default function DashboardPage() {
                             )}
 
                             {activeTab === 'teacher' && (
-                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} session={session} />
+                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} session={session} onUpdateSession={updateSessionAndSync} />
                             )}
                         </motion.div>
                     </AnimatePresence>

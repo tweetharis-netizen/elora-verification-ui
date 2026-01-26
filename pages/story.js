@@ -1,6 +1,7 @@
-import Head from "next/head";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { getSession } from "@/lib/session";
 
 const fadeUp = {
     initial: { opacity: 0, y: 20 },
@@ -17,10 +18,14 @@ const stagger = {
 };
 
 export default function StoryPage() {
+    const router = useRouter();
     const [mounted, setMounted] = useState(false);
+    const [verified, setVerified] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+        const s = getSession();
+        setVerified(Boolean(s?.verified));
     }, []);
 
     if (!mounted) return null;
@@ -168,29 +173,32 @@ export default function StoryPage() {
                     </div>
 
                     {/* CTA Section */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        className="mt-32 p-12 rounded-[3.5rem] bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-center relative overflow-hidden shadow-2xl"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 opacity-50" />
-                        <div className="relative z-10">
-                            <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to start your journey?</h2>
-                            <p className="text-lg opacity-80 mb-10 max-w-xl mx-auto font-medium">
-                                Join thousands of teachers, parents, and students who are discovering a calmer, smarter way to learn.
-                            </p>
-                            <div className="flex flex-wrap justify-center gap-4">
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="px-8 py-4 bg-indigo-600 text-white dark:bg-slate-900 dark:text-white rounded-2xl font-bold shadow-xl shadow-indigo-500/20"
-                                >
-                                    🚀 Get Started for Free
-                                </motion.button>
+                    {!verified && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            className="mt-32 p-12 rounded-[3.5rem] bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-center relative overflow-hidden shadow-2xl"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 opacity-50" />
+                            <div className="relative z-10">
+                                <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to start your journey?</h2>
+                                <p className="text-lg opacity-80 mb-10 max-w-xl mx-auto font-medium">
+                                    Join thousands of teachers, parents, and students who are discovering a calmer, smarter way to learn.
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => router.push("/assistant")}
+                                        className="px-8 py-4 bg-indigo-600 text-white dark:bg-slate-900 dark:text-white rounded-2xl font-bold shadow-xl shadow-indigo-500/20"
+                                    >
+                                        🚀 Try Elora Now
+                                    </motion.button>
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    )}
                 </div>
             </div>
         </>

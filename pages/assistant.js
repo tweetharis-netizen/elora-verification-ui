@@ -1629,7 +1629,7 @@ export default function AssistantPage() {
 
               {/* Composer - Floating Island */}
               <div className="mt-auto p-4 lg:p-6 sticky bottom-0 z-30 pointer-events-none">
-                <div className="max-w-3xl mx-auto w-full pointer-events-auto">
+                <div className="max-w-5xl mx-auto w-full pointer-events-auto">
                   {/* Tiny toolbar above input */}
                   <div className="flex items-center gap-2 px-4 py-2 mb-2 overflow-x-auto scrollbar-hide">
                     <div className="flex gap-1 shrink-0">

@@ -418,8 +418,8 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
     role === "educator"
       ? "You are Elora, a warm, professional teaching assistant for educators."
       : role === "parent"
-      ? "You are Elora, a warm, practical helper for parents supporting learning at home."
-      : "You are Elora, a friendly tutor for students.";
+        ? "You are Elora, a warm, practical helper for parents supporting learning at home."
+        : "You are Elora, a friendly tutor for students.";
 
   const style = [
     "Default style rules:",
@@ -433,11 +433,11 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
   const checkPolicy =
     role === "student" && action === "check"
       ? [
-          "Student Check Policy:",
-          "- You are checking the student's answer.",
-          "- If attempt is 1 or 2: do NOT reveal the final answer. Give hints and ask them to try again.",
-          "- If attempt is 3: you may reveal the final answer and explain clearly.",
-        ].join("\n")
+        "Student Check Policy:",
+        "- You are checking the student's answer.",
+        "- If attempt is 1 or 2: do NOT reveal the final answer. Give hints and ask them to try again.",
+        "- If attempt is 3: you may reveal the final answer and explain clearly.",
+      ].join("\n")
       : "";
 
   const ctx = [
@@ -455,20 +455,20 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
     action === "lesson"
       ? "Output format: objectives, timings, steps, checks for understanding, differentiation."
       : action === "worksheet"
-      ? "Output format: student questions + optional teacher answers if teacher requested."
-      : action === "assessment"
-      ? "Output format: questions, marks, and a marking scheme."
-      : action === "slides"
-      ? "Output format: slide titles + bullet content + short speaker notes."
-      : action === "study"
-      ? "Output format: a realistic plan with small steps."
-      : action === "coach"
-      ? "Output format: what to say/do at home, and a simple routine."
-      : action === "message"
-      ? "Output format: a draft message with polite tone."
-      : action === "check"
-      ? "Output format: verdict first (Correct/Not quite), then a short explanation/hints."
-      : "Output format: short steps and one example if helpful.";
+        ? "Output format: student questions + optional teacher answers if teacher requested."
+        : action === "assessment"
+          ? "Output format: questions, marks, and a marking scheme."
+          : action === "slides"
+            ? "Output format: slide titles + bullet content + short speaker notes."
+            : action === "study"
+              ? "Output format: a realistic plan with small steps."
+              : action === "coach"
+                ? "Output format: what to say/do at home, and a simple routine."
+                : action === "message"
+                  ? "Output format: a draft message with polite tone."
+                  : action === "check"
+                    ? "Output format: verdict first (Correct/Not quite), then a short explanation/hints."
+                    : "Output format: short steps and one example if helpful.";
 
   return [who, style, checkPolicy, ctx, actionGuide].filter(Boolean).join("\n\n");
 }
@@ -478,8 +478,8 @@ function userPrompt({ role, action, topic, message, attempt }) {
     role === "educator"
       ? "Teacher request:"
       : role === "parent"
-      ? "Parent request:"
-      : "Student request:";
+        ? "Parent request:"
+        : "Student request:";
 
   const checkNote =
     role === "student" && action === "check"
@@ -613,9 +613,9 @@ export default async function handler(req, res) {
 
     const userContent = hasImage
       ? [
-          { type: "text", text: userText },
-          { type: "image_url", image_url: { url: imageDataUrl } },
-        ]
+        { type: "text", text: userText },
+        { type: "image_url", image_url: { url: imageDataUrl } },
+      ]
       : userText;
 
     let { ok, data } = await callOpenRouter({
@@ -633,7 +633,13 @@ export default async function handler(req, res) {
     }
 
     let replyRaw = data?.choices?.[0]?.message?.content || "";
-    let reply = stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
+
+    // Only strip markdown if it's a standard text explanation.
+    // We WANT markdown for quizzes, worksheets, lessons etc.
+    const isStructured = isTeacherOnlyAction(action) || action === "quiz" || action === "assessment";
+    let reply = isStructured
+      ? normalizeMathToPlainText(replyRaw)
+      : stripMarkdownToPlainText(normalizeMathToPlainText(replyRaw));
 
     // Attempt gating for Student+Check (model path only)
     if (role === "student" && action === "check" && attempt > 0 && attempt < 3) {

@@ -90,31 +90,34 @@ const PERSONA_DATA = {
 
 const colorMap = {
     indigo: {
-        bg: "bg-indigo-50 dark:bg-indigo-500/10",
-        border: "border-indigo-100 dark:border-indigo-500/30",
+        bg: "bg-white/40 dark:bg-indigo-500/10",
+        border: "border-white/60 dark:border-indigo-500/30",
         text: "text-indigo-600 dark:text-indigo-400",
         glow: "shadow-indigo-500/10 dark:shadow-indigo-500/20",
         button: "bg-indigo-600 hover:bg-indigo-700",
         iconBg: "bg-indigo-100 dark:bg-indigo-900/40",
-        iconText: "text-indigo-600 dark:text-indigo-400"
+        iconText: "text-indigo-600 dark:text-indigo-400",
+        gradient: "from-indigo-500/5 to-transparent"
     },
     cyan: {
-        bg: "bg-cyan-50 dark:bg-cyan-500/10",
-        border: "border-cyan-100 dark:border-cyan-500/30",
+        bg: "bg-white/40 dark:bg-cyan-500/10",
+        border: "border-white/60 dark:border-cyan-500/30",
         text: "text-cyan-600 dark:text-cyan-400",
         glow: "shadow-cyan-500/10 dark:shadow-cyan-500/20",
         button: "bg-cyan-600 hover:bg-cyan-700",
         iconBg: "bg-cyan-100 dark:bg-cyan-900/40",
-        iconText: "text-cyan-600 dark:text-cyan-400"
+        iconText: "text-cyan-600 dark:text-cyan-400",
+        gradient: "from-cyan-500/5 to-transparent"
     },
     purple: {
-        bg: "bg-purple-50 dark:bg-purple-500/10",
-        border: "border-purple-100 dark:border-purple-500/30",
+        bg: "bg-white/40 dark:bg-purple-500/10",
+        border: "border-white/60 dark:border-purple-500/30",
         text: "text-purple-600 dark:text-purple-400",
         glow: "shadow-purple-500/10 dark:shadow-purple-500/20",
         button: "bg-purple-600 hover:bg-purple-700",
         iconBg: "bg-purple-100 dark:bg-purple-900/40",
-        iconText: "text-purple-600 dark:text-purple-400"
+        iconText: "text-purple-600 dark:text-purple-400",
+        gradient: "from-purple-500/5 to-transparent"
     },
 };
 
@@ -127,21 +130,24 @@ function FeatureCard({ icon, title, desc, color, index }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4 }}
             className={`
-        group relative p-6 rounded-[2rem]
+        group relative p-6 rounded-[2.5rem]
         ${colors.bg}
         border ${colors.border}
-        transition-all duration-300
-        hover:scale-[1.02] hover:shadow-2xl ${colors.glow}
+        backdrop-blur-xl
+        transition-all duration-500
+        hover:scale-[1.03] hover:shadow-2xl ${colors.glow}
+        overflow-hidden
       `}
         >
-            <div className="flex items-start gap-5">
+            <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
+            <div className="relative z-10 flex items-start gap-5">
                 <div
                     className={`
             w-14 h-14 rounded-2xl
             ${colors.iconBg}
             flex items-center justify-center
             text-3xl
-            group-hover:scale-110 transition-transform duration-300
+            group-hover:rotate-12 transition-transform duration-300
           `}
                 >
                     {icon}
@@ -186,17 +192,17 @@ export default function PersonaFeatures({ initialRole = "student" }) {
 
             {/* Persona toggle tabs */}
             <div className="flex justify-center mb-10 px-4">
-                <div className="inline-flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 p-1.5 rounded-2xl bg-white/5 dark:bg-slate-800/50 border border-white/10 dark:border-slate-700 max-w-full overflow-x-auto scrollbar-hide">
+                <div className="inline-flex flex-wrap sm:flex-nowrap items-center justify-center gap-1.5 p-1.5 rounded-2xl bg-white/40 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700 backdrop-blur-md max-w-full overflow-x-auto scrollbar-hide">
                     {Object.entries(PERSONA_DATA).map(([key, data]) => (
                         <button
                             key={key}
                             onClick={() => setActivePersona(key)}
                             className={`
-                relative px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold
+                relative px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold
                 transition-all duration-300 whitespace-nowrap
                 ${activePersona === key
-                                    ? "text-white shadow-lg"
-                                    : "text-slate-300 dark:text-slate-400 hover:text-white dark:hover:text-white"
+                                    ? "text-white shadow-xl"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white"
                                 }
               `}
                         >

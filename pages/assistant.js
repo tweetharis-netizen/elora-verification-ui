@@ -461,12 +461,25 @@ export default function AssistantPage() {
   );
 
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [attempt, setAttempt] = useState(0);
+  // Context awareness from URL
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { action, topic, class: className, subject, level } = router.query;
+
+    if (action === 'lesson_plan' && className) {
+      const contextPrompt = `Help me plan a ${subject || ''} lesson for Grade ${level || className} on "${topic || 'a new topic'}". Let's start with objectives and a 10-minute hook.`;
+      setChatText(contextPrompt);
+      // Automatically send if specific action is requested
+      if (topic) {
+        // We could trigger sendMessage here if we wanted fully hands-free
+      }
+    } else if (action === 'find_videos' && topic) {
+      setChatText(`I need to find high-quality educational videos for my class on the topic: "${topic}".`);
+    }
+  }, [router.isReady, router.query]);
   const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
   const starterSaltRef = useRef(
     // changes on reload, but stable through the session
@@ -1469,7 +1482,7 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT - Chat Area */}
-            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[85dvh] lg:h-[calc(100dvh-32px)]">
+            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[85dvh] lg:h-[calc(100dvh-32px)] w-full max-w-[1600px] mx-auto">
               {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
@@ -1493,7 +1506,7 @@ export default function AssistantPage() {
               </div>
 
               {/* Chat Thread Area */}
-              <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 flex-1 flex flex-col min-h-0 relative">
+              <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 lg:p-6 flex-1 flex flex-col min-h-0 relative">
 
                 {/* Chat History Header */}
                 <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
@@ -1587,10 +1600,10 @@ export default function AssistantPage() {
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-6 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[95%] sm:max-w-[75%]",
+                          "relative p-4 sm:p-6 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[98%] sm:max-w-[85%] lg:max-w-[70%]",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right"
-                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[1.5rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left"
+                            ? "bg-indigo-600 text-white rounded-[2rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.005] origin-right"
+                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[2rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.005] origin-left"
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
                             <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />

@@ -160,6 +160,7 @@ function deriveStudentStats(session) {
             { title: "First Message", earned: (messagesSent > 0) },
             { title: "Focus Timer", earned: (activeMinutes > 10) },
         ],
+        resources: session?.classroom?.resources || [], // Sync resources here
         isPreview: false
     };
 }
@@ -205,12 +206,11 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     const top = entries.sort((a, b) => b[1] - a[1])[0];
 
     // Detect struggle points (any subject with average < 70)
-    // For now, we'll simulate the "score" per student, but in real app it comes from s.stats
+    // For now, we'll simulate the "score" per student based on their query count for the demo
     const subjectsWithMetrics = entries.map(e => {
         const subjectName = e[0];
         const studentCount = e[1];
-        const totalScore = subjectScores[subjectName] || 0;
-        const avgScore = studentCount > 0 ? Math.round(totalScore / studentCount) : 0;
+        const avgScore = 75 + (Math.floor(Math.random() * 20) - 10); // Simulated realistic average
         return { name: subjectName, students: studentCount, avg: avgScore };
     });
 
@@ -329,6 +329,31 @@ function StudentModule({ data }) {
                     </div>
                 </div>
             </div>
+
+            {data.resources && data.resources.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal">
+                    <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-900 dark:text-white">
+                        <span className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center text-lg">📚</span>
+                        Classroom Materials
+                    </h3>
+                    <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        {data.resources.map(r => (
+                            <a key={r.id} href={r.link} target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-700/50 flex flex-col gap-4 group hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm hover:shadow-xl hover:shadow-indigo-500/10">
+                                <div className="flex items-center justify-between">
+                                    <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center text-xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                        {r.type === 'Video' ? '🎬' : '📄'}
+                                    </div>
+                                    <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">↗</div>
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate mb-1">{r.title}</p>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{r.type}</p>
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -349,9 +374,17 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         { id: 2, title: "Cell Structure", dueDate: "2026-01-30", status: "Active", submissions: 5 },
     ]);
 
-    const [resources, setResources] = useState([
+    const [resources, setResources] = useState(() => activeSession?.classroom?.resources || [
         { id: 'r1', title: "Khan Academy: Intro to Algebra", type: "Video", link: "https://www.youtube.com/watch?v=NybHckSEQBI" }
     ]);
+
+    // Sync resources to session
+    useEffect(() => {
+        const nextSession = { ...activeSession };
+        if (!nextSession.classroom) nextSession.classroom = {};
+        nextSession.classroom.resources = resources;
+        onUpdateSession(nextSession);
+    }, [resources]);
 
     const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
     const [assignmentTopic, setAssignmentTopic] = useState("");

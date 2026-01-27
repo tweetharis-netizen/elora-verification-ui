@@ -1469,7 +1469,7 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT - Chat Area */}
-            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[75dvh] lg:h-[calc(100dvh-32px)]">
+            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[85dvh] lg:h-[calc(100dvh-32px)]">
               {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
@@ -1585,9 +1585,9 @@ export default function AssistantPage() {
                     const isUser = m.from === "user";
                     const display = cleanAssistantText(m.text);
                     return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal mb-2 px-2 sm:px-4", isUser ? "justify-end" : "justify-start")}>
+                      <div key={idx} className={cn("flex w-full group animate-reveal mb-6 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[90%] sm:max-w-[75%]",
+                          "relative p-4 sm:p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[95%] sm:max-w-[75%]",
                           isUser
                             ? "bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.01] origin-right"
                             : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[1.5rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.01] origin-left"

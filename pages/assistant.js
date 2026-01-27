@@ -266,6 +266,7 @@ function cleanAssistantText(text) {
   t = t.replace(/^\s*>\s?/gm, "");
   t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
   t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
+  t = t.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "");
   t = t.replace(/\n{3,}/g, "\n\n").trim();
   return t;
 }
@@ -400,6 +401,10 @@ const InteractiveQuiz = ({ data, onComplete }) => {
 
   if (!data?.questions) return null;
 
+  const totalQuestions = data.questions.length;
+  const answeredCount = Object.keys(answers).length;
+  const progressPercent = (answeredCount / totalQuestions) * 100;
+
   const handleFinish = () => {
     let s = 0;
     data.questions.forEach(q => {
@@ -407,18 +412,33 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     });
     setScore(s);
     setSubmitted(true);
-    if (onComplete) onComplete(s, data.questions.length);
+    if (onComplete) onComplete(s, totalQuestions);
   };
 
   return (
-    <div className="mt-6 space-y-6 animate-reveal">
-      <div className="p-6 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20">
-        <h4 className="text-lg font-black text-indigo-600 dark:text-indigo-400 mb-4">{data.title || "AI Knowledge Check"}</h4>
-        <div className="space-y-4">
+    <div className="mt-8 mb-4 space-y-6 animate-reveal">
+      <div className="p-8 rounded-[3rem] bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 shadow-2xl overflow-hidden relative">
+        <div className="absolute top-0 left-0 h-1.5 bg-indigo-500/20 w-full">
+          <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        </div>
+
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h4 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{data.title || "AI Knowledge Check"}</h4>
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Question {answeredCount} of {totalQuestions}</p>
+          </div>
+          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20">🎯</div>
+        </div>
+
+        <div className="space-y-10">
           {data.questions.map((q, idx) => (
-            <div key={q.id} className="space-y-3">
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{idx + 1}. {q.question}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div key={q.id} className="space-y-4 group">
+              <div className="flex gap-4">
+                <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-500/20">{idx + 1}</span>
+                <p className="text-[15px] font-bold text-slate-700 dark:text-slate-100 leading-relaxed pt-1">{q.question}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-12">
                 {q.options?.map(opt => {
                   const isSelected = answers[q.id] === opt;
                   const isCorrect = submitted && opt === q.answer;
@@ -430,13 +450,19 @@ const InteractiveQuiz = ({ data, onComplete }) => {
                       disabled={submitted}
                       onClick={() => setAnswers({ ...answers, [q.id]: opt })}
                       className={cn(
-                        "p-3 rounded-xl border text-xs font-bold transition-all text-left",
-                        isSelected ? "border-indigo-500 bg-indigo-500 text-white shadow-lg" : "border-slate-200 dark:border-white/10 hover:border-indigo-300",
-                        isCorrect && "bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20",
-                        isWrong && "bg-rose-500 border-rose-500 text-white shadow-rose-500/20"
+                        "group/opt p-4 rounded-2xl border-2 text-xs font-black transition-all text-left relative overflow-hidden",
+                        isSelected
+                          ? "border-indigo-500 bg-indigo-500 text-white shadow-xl scale-[1.02]"
+                          : "border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-indigo-300 hover:bg-indigo-50/50",
+                        isCorrect && "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20",
+                        isWrong && "border-rose-500 bg-rose-500 text-white shadow-lg shadow-rose-500/20"
                       )}
                     >
-                      {opt}
+                      <div className="relative z-10 flex items-center justify-between">
+                        <span>{opt}</span>
+                        {isCorrect && <span className="text-xl">✓</span>}
+                        {isWrong && <span className="text-xl">✕</span>}
+                      </div>
                     </button>
                   );
                 })}
@@ -448,19 +474,24 @@ const InteractiveQuiz = ({ data, onComplete }) => {
         {!submitted ? (
           <button
             onClick={handleFinish}
-            disabled={Object.keys(answers).length < data.questions.length}
-            className="mt-6 w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
+            disabled={answeredCount < totalQuestions}
+            className="mt-10 w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
           >
-            Submit Quiz
+            Grade My Progress →
           </button>
         ) : (
-          <div className="mt-6 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-white/10 text-center animate-reveal">
-            <div className="text-3xl mb-2">{score === data.questions.length ? "🏆" : "💪"}</div>
-            <div className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-              Score: {score} / {data.questions.length}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
+            <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+              Session Result: {score} / {totalQuestions}
             </div>
-            <p className="text-[10px] font-bold text-slate-500 mt-1">Excellent effort! These results are being synced to your dashboard.</p>
-          </div>
+            <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
+              <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
+            </div>
+            <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
+              Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
+            </p>
+          </motion.div>
         )}
       </div>
     </div>
@@ -1732,10 +1763,13 @@ export default function AssistantPage() {
                     let quizData = null;
                     let display = m.text || "";
                     if (!isUser) {
-                      const match = display.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/);
+                      const match = display.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/i);
                       if (match) {
                         try {
-                          quizData = JSON.parse(match[1]);
+                          let rawJson = match[1].trim();
+                          // Strip markdown wrappers if AI includes them
+                          rawJson = rawJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+                          quizData = JSON.parse(rawJson);
                           display = display.replace(match[0], "").trim();
                         } catch (e) {
                           console.error("Quiz parse error", e);

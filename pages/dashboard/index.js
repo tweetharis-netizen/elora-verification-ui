@@ -298,7 +298,7 @@ function PreviewBanner() {
 // ROLE MODULES
 // ----------------------------------------------------------------------
 
-function StudentModule({ data, onStartQuiz }) {
+function StudentModule({ data, onStartQuiz, session }) {
     if (!data) return null;
     return (
         <div className="space-y-6">
@@ -316,10 +316,12 @@ function StudentModule({ data, onStartQuiz }) {
                             <span className="animate-pulse">●</span> AI Strategy Insight
                         </div>
                         <h3 className="text-3xl md:text-4xl font-black text-white mb-2 leading-tight">
-                            You're mastering <span className="text-cyan-300">Fractions</span> 15% faster today.
+                            You're mastering <span className="text-cyan-300">{session?.classroom?.submissions?.[0]?.quizTitle || "Math Essentials"}</span> {session?.classroom?.submissions?.[0]?.score > 0 ? "with confidence." : "faster today."}
                         </h3>
                         <p className="text-indigo-100 text-sm font-medium opacity-90 max-w-md">
-                            Elora noticed you're excelling at denominators. Want to try a "Boss Level" challenge to unlock the Algebra badge?
+                            {session?.classroom?.submissions?.[0]
+                                ? `Elora noticed you excelled at ${session.classroom.submissions[0].details.find(d => d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'recent topics'}. Ready for the next tier?`
+                                : "Elora is analyzing your latest sessions to build your personalized mastery path. Complete a quiz to see your strategy here."}
                         </p>
                     </div>
                     <button className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all group-hover:shadow-indigo-500/50">
@@ -661,7 +663,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         <span>⚙️</span> AI Classroom Rules
                     </h4>
                     <textarea
-                        value={session?.classroom?.teacherRules || ""}
+                        value={activeSession?.classroom?.teacherRules || ""}
                         onChange={(e) => {
                             const s = getSession();
                             if (!s.classroom) s.classroom = {};
@@ -1400,7 +1402,10 @@ export default function DashboardPage() {
     const [linkedData, setLinkedData] = useState(null);
     const [activeQuiz, setActiveQuiz] = useState(null);
 
+    const [hasMounted, setHasMounted] = useState(false);
+
     useEffect(() => {
+        setHasMounted(true);
         const sync = () => {
             const s = getSession();
             setSession({ ...s });
@@ -1444,7 +1449,11 @@ export default function DashboardPage() {
         });
     };
 
-    if (loading || !session) return null;
+    if (!hasMounted || loading || !session) return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
 
     const studentData = deriveStudentStats(session);
     const classMetrics = computeClassMetrics(session.linkedStudents, session.verified);
@@ -1476,7 +1485,7 @@ export default function DashboardPage() {
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} />}
+                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} session={session} />}
 
                             {activeTab === 'parent' && (
                                 session?.linkedStudentId ? (

@@ -8,7 +8,47 @@ import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib
 
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
-const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
+const SUBJECTS_MAP = {
+    "Singapore": {
+        "Primary": ["English", "Mathematics", "Science", "Chinese", "Malay", "Tamil"],
+        "Secondary": ["English", "Elementary Math", "Additional Math", "Physics", "Chemistry", "Biology", "Combined Science", "Geography", "History", "Literature", "Social Studies"],
+        "Junior College": ["General Paper", "H1 Math", "H2 Math", "H2 Physics", "H2 Chemistry", "H2 Biology", "H2 Economics", "H1 Economics", "History", "Geography", "Literature"]
+    },
+    "United Kingdom": {
+        "Key Stage 1-2": ["English", "Maths", "Science", "History", "Geography", "Art", "Computing"],
+        "GCSE": ["English Language", "English Literature", "Maths", "Biology", "Chemistry", "Physics", "Combined Science", "History", "Geography", "Computer Science"],
+        "A-Level": ["Maths", "Further Maths", "Physics", "Chemistry", "Biology", "English Literature", "History", "Geography", "Psychology", "Sociology", "Economics"]
+    },
+    "United States": {
+        "Elementary": ["English Language Arts", "Mathematics", "Science", "Social Studies"],
+        "Middle School": ["English", "Pre-Algebra", "Algebra 1", "Earth Science", "Life Science", "Physical Science", "World History", "US History"],
+        "High School": ["English I-IV", "Algebra 1", "Geometry", "Algebra 2", "Pre-Calculus", "Calculus", "Biology", "Chemistry", "Physics", "US History", "World History", "Government", "Economics"]
+    },
+    "Other": ["General", "Math", "Science", "English", "History", "Geography", "Computing", "Physics", "Chemistry", "Biology", "Economics"]
+};
+
+function getCountrySubjects(country, level) {
+    if (!country || !SUBJECTS_MAP[country]) return SUBJECTS_MAP["Other"];
+
+    // Simple heuristic to match level string to category
+    const map = SUBJECTS_MAP[country];
+    if (country === "Singapore") {
+        if (level.includes("Primary")) return map["Primary"];
+        if (level.includes("Secondary")) return map["Secondary"];
+        if (level.includes("Junior")) return map["Junior College"];
+    } else if (country === "United Kingdom") {
+        if (level.includes("Year 1") || level.includes("Year 2") || level.includes("Year 3") || level.includes("Year 4") || level.includes("Year 5") || level.includes("Year 6")) return map["Key Stage 1-2"];
+        if (level.includes("Year 12") || level.includes("Year 13")) return map["A-Level"];
+        return map["GCSE"]; // Years 7-11 roughly
+    } else if (country === "United States") {
+        if (level.includes("Grade 1") || level.includes("Grade 2") || level.includes("Grade 3") || level.includes("Grade 4") || level.includes("Grade 5")) return map["Elementary"];
+        if (level.includes("Grade 6") || level.includes("Grade 7") || level.includes("Grade 8")) return map["Middle School"];
+        return map["High School"];
+    }
+
+    // Default fallbacks if keys don't match exactly or for other countries
+    return Object.values(map).flat();
+}
 const LEVELS_MAP = {
     "Singapore": ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Junior College 1", "Junior College 2"],
     "United States": ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"],
@@ -724,15 +764,43 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     // Ensure classes exist
     const classes = activeSession?.classroom?.classes || [];
 
-    const handleDeleteClass = (classId) => {
-        if (!window.confirm("Are you sure you want to delete this class? All linked student data for this class view will be removed.")) return;
+    const handleDeleteClass = (id) => {
+        const cls = classes.find(c => c.id === id);
+        if (!cls) return; // Should not happen
+
+        const confirmName = window.prompt(`To confirm deletion, type "${cls.name}":`);
+        if (confirmName !== cls.name) {
+            alert("Class name did not match. Deletion cancelled.");
+            return;
+        }
 
         const nextSession = { ...activeSession };
         if (nextSession.classroom?.classes) {
-            nextSession.classroom.classes = nextSession.classroom.classes.filter(c => c.id !== classId);
+            nextSession.classroom.classes = nextSession.classroom.classes.filter(c => c.id !== id);
             onUpdateSession(nextSession);
-            if (selectedClassId === classId) setSelectedClassId(null);
+            if (selectedClassId === id) setSelectedClassId(null);
         }
+    };
+
+    const handleOpenSettings = (cls) => {
+        setEditingClass(cls);
+        // Pre-fill state
+        setNewClassName(cls.name);
+        setNewClassSubject(cls.subject);
+        setNewClassLevel(cls.level);
+        setNewClassCountry(cls.country);
+        setNewClassVision(cls.vision || "");
+        setIsCreating(true); // Reuse the modal
+        setIsEditingClass(true); // Indicate we are editing
+    };
+
+    const handleOpenAssignment = (cls) => {
+        // Direct Assignment Creation from Detail View
+        setAssignmentTopic(`${cls.subject} ${cls.level} Assignment`); // Smart pre-fill
+        setIsCreatingAssignment(true);
+        // We need a way to track *which* class this assignment is for if opened directly
+        // Ideally we'd store a 'targetClassId' state, but for now let's rely on the user seeing the pre-filled topic
+        // effectively guiding them. Or better, update handleCreateAssignment to use selectedClassId if available.
     };
 
     const handleCreateClass = () => {
@@ -866,12 +934,13 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </select>
                                 <div className="grid grid-cols-2 gap-2">
                                     <select
-                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
                                         value={newClassSubject}
                                         onChange={e => setNewClassSubject(e.target.value)}
+                                        disabled={!newClassCountry}
                                     >
-                                        <option value="">Select Subject</option>
-                                        {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                        <option value="">{newClassCountry && newClassLevel ? "Select Subject" : "Pick Country & Level First"}</option>
+                                        {getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                     <select
                                         className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
@@ -1406,6 +1475,18 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     />
                                 </div>
 
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assign To</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                    >
+                                        <option value="ALL">All Students {selectedClassId ? `(${classes.find(c => c.id === selectedClassId)?.studentCount || 0})` : ''}</option>
+                                        {(students || []).map((s, i) => (
+                                            <option key={i} value={s.id || s.name}>{s.name || `Student ${i + 1}`}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
                                     <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">PRO TIP</p>
                                     <p className="text-[11px] text-slate-500 leading-relaxed italic">"Elora works best when you specify the target grade level or a specific difficulty tier."</p>
@@ -1442,8 +1523,18 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </h2>
                             </div>
                             <div className="flex gap-2">
-                                <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Settings</button>
-                                <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors">Create Assignment</button>
+                                <button
+                                    onClick={() => handleOpenSettings(classes.find(c => c.id === selectedClassId))}
+                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    Settings
+                                </button>
+                                <button
+                                    onClick={() => handleOpenAssignment(classes.find(c => c.id === selectedClassId))}
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
+                                >
+                                    Create Assignment
+                                </button>
                             </div>
                         </div>
 

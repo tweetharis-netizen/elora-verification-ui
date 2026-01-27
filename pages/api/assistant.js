@@ -413,7 +413,7 @@ function formatFinalNumber(n) {
   return x.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-function systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage, teacherRules }) {
+function systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage, teacherRules, sentiment }) {
   const who =
     role === "educator"
       ? [
@@ -422,7 +422,12 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
       ].join("\n")
       : role === "parent"
         ? "You are Elora, a warm, practical helper for parents supporting learning at home."
-        : "You are Elora, a friendly tutor for students.";
+        : [
+          "You are Elora, a multi-modal tutor for students.",
+          sentiment === "supportive"
+            ? "CRITICAL: Student seems frustrated or stuck. Shift to a GENTLE, COACHING tone. Use encouraging phrases, break things down more than usual, and offer a short 'brain break' if they want."
+            : "Keep a steady, professional, and encouraging tutor persona."
+        ].join("\n");
 
   const style = [
     "Default style rules:",
@@ -609,7 +614,7 @@ export default async function handler(req, res) {
       // If we couldn't deterministically check, fall through to model (but still attempt-gated).
     }
 
-    const prompt = systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage: !!imageDataUrl, teacherRules: body.teacherRules });
+    const prompt = systemPrompt({ role, country, level, subject, topic, action, attempt, hasImage: !!imageDataUrl, teacherRules: body.teacherRules, sentiment: body.sentiment });
     const userText = userPrompt({ role, action, topic, message, attempt });
 
     const historyMessages = normalizeHistoryMessages(body?.messages, {

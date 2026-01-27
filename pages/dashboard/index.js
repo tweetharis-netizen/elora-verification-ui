@@ -648,6 +648,8 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [newClassLevel, setNewClassLevel] = useState("");
     const [newClassCountry, setNewClassCountry] = useState("");
     const [newClassVision, setNewClassVision] = useState("");
+    const [nameInput, setNameInput] = useState("");
+    const [code, setCode] = useState("");
 
     // UI States for Wizard/Modals
     const [editingClass, setEditingClass] = useState(null);

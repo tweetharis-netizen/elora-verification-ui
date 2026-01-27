@@ -1399,10 +1399,10 @@ export default function DashboardPage() {
                                     <button onClick={() => setActiveQuiz(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
                                 </div>
                                 <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
-                                    {activeQuiz.questions.map((q, i) => (
+                                    {(activeQuiz.questions || []).map((q, i) => (
                                         <div key={i} className="space-y-4">
                                             <p className="font-bold text-slate-900 dark:text-white flex gap-3">
-                                                <span className="text-indigo-600">Q{i + 1}</span> {q}
+                                                <span className="text-indigo-600">Q{i + 1}</span> {typeof q === 'string' ? q : (q.text || q.question)}
                                             </p>
                                             <textarea
                                                 placeholder="Type your answer here..."

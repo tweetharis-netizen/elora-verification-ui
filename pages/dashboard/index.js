@@ -186,7 +186,15 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     }
 
     const safeStudents = Array.isArray(linkedStudents) ? linkedStudents : [];
-    if (safeStudents.length === 0) return { avgEngagement: 0, topSubject: "N/A", totalHours: "0.0", subjectHeatmap: [0], labels: ['-'] };
+    if (safeStudents.length === 0) return {
+        avgEngagement: 0,
+        topSubject: "N/A",
+        totalHours: "0.0",
+        heatmapData: [],
+        recommendedVideos: [],
+        vibe: "Focused",
+        sentimentInsight: "Waiting for student activity."
+    };
 
     let totalMessages = 0;
     let totalMinutes = 0;
@@ -294,20 +302,52 @@ function StudentModule({ data, onStartQuiz }) {
     if (!data) return null;
     return (
         <div className="space-y-6">
+            {/* AI Magic Insights Banner */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative overflow-hidden rounded-[2.5rem] p-8 mb-8 group cursor-pointer"
+            >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-cyan-600" />
+                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="text-center md:text-left">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-[10px] font-black uppercase tracking-widest mb-4">
+                            <span className="animate-pulse">●</span> AI Strategy Insight
+                        </div>
+                        <h3 className="text-3xl md:text-4xl font-black text-white mb-2 leading-tight">
+                            You're mastering <span className="text-cyan-300">Fractions</span> 15% faster today.
+                        </h3>
+                        <p className="text-indigo-100 text-sm font-medium opacity-90 max-w-md">
+                            Elora noticed you're excelling at denominators. Want to try a "Boss Level" challenge to unlock the Algebra badge?
+                        </p>
+                    </div>
+                    <button className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all group-hover:shadow-indigo-500/50">
+                        Level Up Now →
+                    </button>
+                </div>
+            </motion.div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Streak", val: `${data.streak} d`, icon: "🔥" },
-                    { label: "Today", val: `${data.todayMinutes}m`, icon: "⏱️" },
-                    { label: "Progress", val: `${data.overallProgress}%`, icon: "📈" },
-                    { label: "Queries", val: data.achievements.filter(a => a.earned).length, icon: "💬" }
+                    { label: "Streak", val: `${data.streak} d`, icon: "🔥", color: "from-orange-500 to-rose-500" },
+                    { label: "Today", val: `${data.todayMinutes}m`, icon: "⏱️", color: "from-indigo-500 to-violet-500" },
+                    { label: "Progress", val: `${data.overallProgress}%`, icon: "📈", color: "from-emerald-500 to-cyan-500" },
+                    { label: "Queries", val: data.achievements.filter(a => a.earned).length, icon: "💬", color: "from-amber-500 to-orange-500" }
                 ].map((s, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                        className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="text-2xl">{s.icon}</span>
-                            <span className="text-sm font-bold text-slate-500">{s.label}</span>
+                    <motion.div key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        whileHover={{ y: -5, scale: 1.02 }}
+                        className="elora-glass dark:elora-glass-dark p-6 rounded-[2rem] border border-white/10 shadow-xl overflow-hidden group relative"
+                    >
+                        <div className={`absolute -top-12 -right-12 w-24 h-24 bg-gradient-to-br ${s.color} opacity-10 group-hover:opacity-20 blur-2xl transition-opacity`} />
+                        <div className="flex items-center gap-4 mb-3">
+                            <span className="text-3xl filter drop-shadow-md">{s.icon}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{s.label}</span>
                         </div>
-                        <div className="text-2xl font-black text-slate-900 dark:text-white">{s.val}</div>
+                        <div className="text-3xl font-black text-slate-900 dark:text-white font-[var(--font-outfit)]">{s.val}</div>
                     </motion.div>
                 ))}
             </div>

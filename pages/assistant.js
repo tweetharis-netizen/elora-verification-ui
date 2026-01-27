@@ -407,11 +407,37 @@ const InteractiveQuiz = ({ data, onComplete }) => {
 
   const handleFinish = () => {
     let s = 0;
+    const submissionDetails = data.questions.map(q => ({
+      question: q.question,
+      studentAnswer: answers[q.id],
+      correctAnswer: q.answer,
+      isCorrect: answers[q.id] === q.answer
+    }));
+
     data.questions.forEach(q => {
       if (answers[q.id] === q.answer) s++;
     });
+
     setScore(s);
     setSubmitted(true);
+
+    // Sync to Session (Global Classroom)
+    const currentSession = getSession();
+    const submission = {
+      id: `sub_${Date.now()}`,
+      studentName: currentSession.email?.split('@')[0] || "Guest Student",
+      quizTitle: data.title || "Quick Knowledge Check",
+      score: s,
+      total: totalQuestions,
+      details: submissionDetails,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!currentSession.classroom) currentSession.classroom = {};
+    if (!currentSession.classroom.submissions) currentSession.classroom.submissions = [];
+    currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
+    saveSession(currentSession);
+
     if (onComplete) onComplete(s, totalQuestions);
   };
 
@@ -482,6 +508,10 @@ const InteractiveQuiz = ({ data, onComplete }) => {
         ) : (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
             <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
+            </div>
             <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
               Session Result: {score} / {totalQuestions}
             </div>
@@ -1052,6 +1082,7 @@ export default function AssistantPage() {
       const attemptNext =
         role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
 
+      const currentSession = getSession();
       const payload = {
         role,
         action,
@@ -1067,9 +1098,7 @@ export default function AssistantPage() {
         attempt: attemptNext,
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
-        imageDataUrl: attachedImage?.dataUrl || "",
-        imageMime: attachedImage?.mime || "",
-        imageName: attachedImage?.name || "",
+        teacherRules: currentSession.classroom?.teacherRules || ""
       };
 
       const r = await fetch("/api/assistant", {

@@ -161,6 +161,7 @@ function deriveStudentStats(session) {
             { title: "Focus Timer", earned: (activeMinutes > 10) },
         ],
         resources: session?.classroom?.resources || [], // Sync resources here
+        quizzes: session?.classroom?.quizzes || [], // Sync quizzes here
         isPreview: false
     };
 }
@@ -289,7 +290,8 @@ function PreviewBanner() {
 // ROLE MODULES
 // ----------------------------------------------------------------------
 
-function StudentModule({ data }) {
+function StudentModule({ data, onStartQuiz }) {
+    if (!data) return null;
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -330,6 +332,34 @@ function StudentModule({ data }) {
                 </div>
             </div>
 
+            {data.quizzes && data.quizzes.length > 0 && (
+                <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-500/20 animate-reveal">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-2xl font-black">AI Quiz Center</h3>
+                            <p className="text-indigo-100 text-xs font-medium opacity-80 mt-1">Elora has generated these challenges for you.</p>
+                        </div>
+                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">🎯</div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {data.quizzes.map(q => (
+                            <div key={q.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 flex flex-col justify-between hover:bg-white/20 transition-all cursor-pointer group">
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">{q.title}</h4>
+                                    <p className="text-xs text-indigo-100 mb-6">{q.questions.length} Questions • Open response</p>
+                                </div>
+                                <button
+                                    onClick={() => onStartQuiz(q)}
+                                    className="w-full py-3 bg-white text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:scale-105 transition-all"
+                                >
+                                    Start Quiz →
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {data.resources && data.resources.length > 0 && (
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal">
                     <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-900 dark:text-white">
@@ -338,18 +368,24 @@ function StudentModule({ data }) {
                     </h3>
                     <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
                         {data.resources.map(r => (
-                            <a key={r.id} href={r.link} target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-700/50 flex flex-col gap-4 group hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm hover:shadow-xl hover:shadow-indigo-500/10">
+                            <div key={r.id} className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-700/50 flex flex-col gap-4 group hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
                                 <div className="flex items-center justify-between">
                                     <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center text-xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                         {r.type === 'Video' ? '🎬' : '📄'}
                                     </div>
-                                    <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">↗</div>
+                                    <a href={r.link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">↗ View</a>
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-sm font-bold text-slate-900 dark:text-white truncate mb-1">{r.title}</p>
-                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{r.type}</p>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">{r.type}</p>
+                                    {r.notes && (
+                                        <div className="bg-indigo-50 dark:bg-indigo-500/10 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-500/20">
+                                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter mb-1">Teacher's Note</p>
+                                            <p className="text-[11px] text-slate-600 dark:text-slate-300 italic leading-relaxed">"{r.notes}"</p>
+                                        </div>
+                                    )}
                                 </div>
-                            </a>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -389,18 +425,52 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
     const [assignmentTopic, setAssignmentTopic] = useState("");
 
+    const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
+    const [quizTopic, setQuizTopic] = useState("");
+    const [quizzes, setQuizzes] = useState(() => activeSession?.classroom?.quizzes || []);
+
     const [isSearchingVideos, setIsSearchingVideos] = useState(false);
     const [videoSearchQuery, setVideoSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
+    const [noteInput, setNoteInput] = useState("");
 
     const [isPickingContext, setIsPickingContext] = useState(false);
-    const [contextAction, setContextAction] = useState(null); // 'lesson' or 'assignment'
+    const [contextAction, setContextAction] = useState(null); // 'lesson', 'assignment', 'quiz'
+
+    // Sync quizzes to session
+    useEffect(() => {
+        const nextSession = { ...activeSession };
+        if (!nextSession.classroom) nextSession.classroom = {};
+        nextSession.classroom.quizzes = quizzes;
+        onUpdateSession(nextSession);
+    }, [quizzes]);
 
     const handleAdd = () => {
         if (!nameInput || !code) return;
         onAddStudent(code, nameInput);
         setNameInput("");
         setCode("");
+    };
+
+    const handleDeleteResource = (id) => {
+        setResources(resources.filter(r => r.id !== id));
+    };
+
+    const handleCreateQuiz = () => {
+        if (!quizTopic) return;
+        const newQuiz = {
+            id: `q_${Date.now()}`,
+            title: quizTopic,
+            questions: [
+                { id: 1, text: `Explain the fundamental concept of ${quizTopic}.`, type: "open" },
+                { id: 2, text: `What is the most significant challenge in ${quizTopic}?`, type: "open" }
+            ],
+            assignedAt: new Date().toISOString(),
+            submissions: []
+        };
+        setQuizzes([newQuiz, ...quizzes]);
+        setIsCreatingQuiz(false);
+        setQuizTopic("");
     };
 
     // Ensure classes exist
@@ -524,6 +594,16 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             📝 Plan a Lesson
                         </button>
                         <button
+                            onClick={() => {
+                                setContextAction('quiz');
+                                if (classes.length > 1) setIsPickingContext(true);
+                                else setIsCreatingQuiz(true);
+                            }}
+                            className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                        >
+                            🎯 AI Quiz Genius
+                        </button>
+                        <button
                             onClick={() => setIsSearchingVideos(true)}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
                         >
@@ -535,7 +615,50 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
             {/* Main Content Area */}
             <div className="flex-1 space-y-8">
-                {/* Content based on Tab */}
+                {/* Insights Summary with Quiz Stats */}
+                {selectedTab === "insights" && quizzes.length > 0 && (
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal">
+                        <h3 className="text-xl font-black mb-6 flex items-center gap-3">
+                            <span className="w-10 h-10 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl flex items-center justify-center text-lg">💡</span>
+                            Quiz Analytics
+                        </h3>
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {quizzes.map(q => (
+                                <div key={q.id} className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{q.title}</p>
+                                    <p className="text-2xl font-black text-slate-900 dark:text-white">0 <span className="text-xs font-medium opacity-50">subs</span></p>
+                                    <p className="text-[10px] font-bold text-emerald-500 mt-2">No submissions yet.</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-12 bg-slate-50 dark:bg-slate-900/40 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Real-time Activity Feed</h4>
+                            <div className="space-y-4">
+                                {students.slice(0, 3).map((s, i) => (
+                                    <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center font-bold text-indigo-600">
+                                                {s.name[0]}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900 dark:text-white">{s.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-medium">{i === 0 ? 'Just started' : '20m ago'} • {quizzes[0]?.title || 'General Quiz'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Active Now</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {students.length === 0 && (
+                                    <p className="text-xs text-slate-400 font-bold text-center py-8">No recent student activity.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}                {/* Content based on Tab */}
                 {selectedTab === "overview" && !selectedClassId && (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -555,58 +678,43 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
                         {/* Analysis Grid */}
                         <div className="grid lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Activity</h3>
-                                </div>
-
-                                <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide mb-12">
-                                    <table className="w-full text-left min-w-[500px]">
-                                        <thead>
-                                            <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-[10px] sm:text-xs font-black uppercase">
-                                                <th className="pb-4 pl-2">Student</th>
-                                                <th className="pb-4">Queries</th>
-                                                <th className="pb-4">Time</th>
-                                                <th className="pb-4">Last Topic</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                                            {students.map((s, i) => (
-                                                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                    <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                                                    <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.messagesSent || 0}</td>
-                                                    <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.activeMinutes || 0}m</td>
-                                                    <td className="py-4 text-xs font-bold text-indigo-600 dark:text-indigo-400">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
-                                                </tr>
-                                            ))}
-                                            {students.length === 0 && (
-                                                <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No student activity recorded yet.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Resources</h3>
-                                        <span className="text-[10px] font-black bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 px-3 py-1 rounded-lg uppercase tracking-widest">Active Curation</span>
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Subject Mastery</h3>
                                     </div>
-                                    <div className="grid sm:grid-cols-2 gap-4">
-                                        {resources.map(r => (
-                                            <a key={r.id} href={r.link} target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-indigo-500 transition-all">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-lg shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                                        {r.type === 'Video' ? '🎬' : '📄'}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{r.title}</p>
-                                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">{r.type}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">↗</div>
-                                            </a>
-                                        ))}
-                                        {resources.length === 0 && <p className="text-xs text-slate-400 italic py-4">No resources shared yet.</p>}
+                                    <div className="h-64 sm:h-80"><ClassHeatmap data={metrics.heatmapData} height={300} /></div>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Activity</h3>
+                                    </div>
+
+                                    <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
+                                        <table className="w-full text-left min-w-[500px]">
+                                            <thead>
+                                                <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-[10px] sm:text-xs font-black uppercase">
+                                                    <th className="pb-4 pl-2">Student</th>
+                                                    <th className="pb-4">Queries</th>
+                                                    <th className="pb-4">Time</th>
+                                                    <th className="pb-4">Last Topic</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                                                {students.map((s, i) => (
+                                                    <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                        <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{s.name}</td>
+                                                        <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.messagesSent || 0}</td>
+                                                        <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.activeMinutes || 0}m</td>
+                                                        <td className="py-4 text-xs font-bold text-indigo-600 dark:text-indigo-400">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
+                                                    </tr>
+                                                ))}
+                                                {students.length === 0 && (
+                                                    <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No student activity recorded yet.</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -626,7 +734,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         />
                                         <button
-                                            onClick={handleAdd}
+                                            onClick={() => onAddStudent(code, nameInput)}
                                             className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50"
                                             disabled={!activeSession?.verified}
                                         >
@@ -634,10 +742,38 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         </button>
                                     </div>
                                 </div>
-                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                    <h3 className="font-black mb-6 text-slate-900 dark:text-white">Class Mastery</h3>
-                                    <div className="h-44">
-                                        <ClassHeatmap data={metrics.heatmapData} />
+
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                    <h3 className="text-xl font-black mb-6 flex items-center gap-3">
+                                        <span className="w-10 h-10 bg-slate-100 dark:bg-slate-700/50 rounded-xl flex items-center justify-center text-lg">📂</span>
+                                        Managed Materials
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {resources.length === 0 ? (
+                                            <p className="text-xs text-slate-400 font-bold text-center py-8">No materials posted yet.</p>
+                                        ) : (
+                                            resources.map(r => (
+                                                <div key={r.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 group">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="text-[11px] font-black text-slate-900 dark:text-white truncate">{r.title}</p>
+                                                            <p className="text-[9px] text-indigo-500 font-bold mt-1 uppercase tracking-widest">{r.type} {r.metadata?.views ? `• ${r.metadata.views} views` : ''}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDeleteResource(r.id)}
+                                                            className="text-[10px] text-red-400 hover:text-red-500 font-black uppercase tracking-tighter transition-colors"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                    {r.notes && (
+                                                        <div className="mt-3 p-2 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-xl text-[10px] text-slate-500 dark:text-slate-400 italic">
+                                                            "{r.notes}"
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -943,25 +1079,42 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 flex flex-col gap-4 group hover:bg-white dark:hover:bg-slate-800 transition-all">
                                                 <div className="aspect-video rounded-2xl overflow-hidden relative">
                                                     <img src={vid.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm text-[8px] font-black text-white rounded uppercase">{vid.channel}</div>
+                                                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm text-[8px] font-black text-white rounded uppercase border border-white/10">{vid.channel}</div>
+                                                    <div className="absolute bottom-2 left-2 flex gap-1">
+                                                        <div className="px-2 py-0.5 bg-indigo-600/80 backdrop-blur-md text-[8px] font-black text-white rounded">👁 {vid.views}</div>
+                                                        <div className="px-2 py-0.5 bg-fuchsia-600/80 backdrop-blur-md text-[8px] font-black text-white rounded">👍 {vid.likes}</div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 flex flex-col justify-between">
-                                                    <h5 className="font-bold text-xs text-slate-900 dark:text-white mb-4 line-clamp-2">{vid.title}</h5>
+                                                <div className="flex-1 flex flex-col gap-3">
+                                                    <h5 className="font-bold text-[11px] text-slate-900 dark:text-white line-clamp-2 leading-tight">{vid.title}</h5>
+
+                                                    <div className="relative">
+                                                        <textarea
+                                                            placeholder="Add a teacher's note (optional)..."
+                                                            value={noteInput}
+                                                            onChange={(e) => setNoteInput(e.target.value)}
+                                                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 text-[10px] focus:border-indigo-500 outline-none resize-none h-16 transition-all"
+                                                        />
+                                                    </div>
+
                                                     <button
                                                         onClick={() => {
                                                             const newRes = {
-                                                                id: Date.now(),
+                                                                id: `r_${Date.now()}`,
                                                                 title: vid.title,
                                                                 link: vid.url,
-                                                                type: "Video"
+                                                                type: "Video",
+                                                                notes: noteInput,
+                                                                metadata: { views: vid.views, likes: vid.likes }
                                                             };
                                                             setResources([newRes, ...resources]);
                                                             setIsSearchingVideos(false);
                                                             setVideoSearchQuery("");
+                                                            setNoteInput("");
                                                         }}
                                                         className="w-full py-2.5 bg-indigo-600 text-white border border-indigo-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
                                                     >
-                                                        Post to Class +
+                                                        Post with Note +
                                                     </button>
                                                 </div>
                                             </div>
@@ -977,14 +1130,60 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         </motion.div>
                     </div>
                 )}
+
+                {/* AI Quiz Modal */}
+                {isCreatingQuiz && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreatingQuiz(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 p-8 text-white">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🎯</div>
+                                    <h3 className="text-2xl font-black">AI Quiz Genius</h3>
+                                </div>
+                                <p className="text-indigo-100 text-xs font-medium opacity-80">Elora will generate interactive questions based on your topic.</p>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Quiz Topic / Focus</label>
+                                    <textarea
+                                        autoFocus
+                                        value={quizTopic}
+                                        onChange={e => setQuizTopic(e.target.value)}
+                                        placeholder="e.g. Fundamental principles of Cell Theory for 9th Grade..."
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50 h-32 resize-none"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setIsCreatingQuiz(false)}
+                                        className="flex-1 px-4 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateQuiz}
+                                        disabled={!quizTopic}
+                                        className="flex-[2] bg-indigo-600 text-white px-4 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                                    >
+                                        Generate & Ship →
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
                 {/* Context Picker Modal */}
                 {isPickingContext && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsPickingContext(false)} />
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                             <div className="p-8 border-b border-slate-100 dark:border-slate-800">
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Choose Class</h3>
-                                <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Which context should Elora use?</p>
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Choose Context</h3>
+                                <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Select target class for this {contextAction}</p>
                             </div>
                             <div className="p-4 space-y-2">
                                 {classes.map((cls, i) => (
@@ -994,17 +1193,20 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             if (contextAction === 'lesson') {
                                                 const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
                                                 router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject || 'General'}&level=${cls.level || '10'}`);
-                                            } else {
+                                            } else if (contextAction === 'assignment') {
                                                 setIsCreatingAssignment(true);
+                                                setIsPickingContext(false);
+                                            } else if (contextAction === 'quiz') {
+                                                setIsCreatingQuiz(true);
                                                 setIsPickingContext(false);
                                             }
                                         }}
-                                        className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-left transition-all group"
+                                        className="w-full text-left p-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="font-black text-sm">{cls.name}</p>
-                                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-tighter">{cls.subject || 'General'}</p>
+                                                <p className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600">{cls.name}</p>
+                                                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">{cls.subject} • {cls.studentCount} students</p>
                                             </div>
                                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all">→</div>
                                         </div>
@@ -1031,6 +1233,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("student");
     const [linkedData, setLinkedData] = useState(null);
+    const [activeQuiz, setActiveQuiz] = useState(null);
 
     useEffect(() => {
         const s = getSession();
@@ -1100,7 +1303,7 @@ export default function DashboardPage() {
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {activeTab === 'student' && <StudentModule data={studentData} />}
+                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} />}
 
                             {activeTab === 'parent' && (
                                 session?.linkedStudentId ? (
@@ -1141,6 +1344,48 @@ export default function DashboardPage() {
                         </motion.div>
                     </AnimatePresence>
                 </div>
+
+                <AnimatePresence>
+                    {activeQuiz && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setActiveQuiz(null)} />
+                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white">{activeQuiz.title}</h3>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Elora AI Evaluation</p>
+                                    </div>
+                                    <button onClick={() => setActiveQuiz(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+                                </div>
+                                <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
+                                    {activeQuiz.questions.map((q, i) => (
+                                        <div key={i} className="space-y-4">
+                                            <p className="font-bold text-slate-900 dark:text-white flex gap-3">
+                                                <span className="text-indigo-600">Q{i + 1}</span> {q}
+                                            </p>
+                                            <textarea
+                                                placeholder="Type your answer here..."
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all h-24 resize-none"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+                                    <button onClick={() => setActiveQuiz(null)} className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Save for Later</button>
+                                    <button
+                                        onClick={() => {
+                                            alert("Quiz submitted! Elora is grading your responses...");
+                                            setActiveQuiz(null);
+                                        }}
+                                        className="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors uppercase tracking-widest"
+                                    >
+                                        Submit to Teacher →
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         </>
     );

@@ -456,8 +456,12 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
       ? "Output format: objectives, timings, steps, checks for understanding, differentiation."
       : action === "worksheet"
         ? "Output format: student questions + optional teacher answers if teacher requested."
-        : action === "assessment"
-          ? "Output format: questions, marks, and a marking scheme."
+        : (action === "assessment" || action === "quiz")
+          ? [
+            "Output format: Give a friendly intro, then provide the quiz inside a <quiz_data> JSON block.",
+            "JSON Structure: { \"title\": \"Quiz Title\", \"questions\": [ { \"id\": 1, \"question\": \"text\", \"type\": \"mcq\", \"options\": [\"A\", \"B\", \"C\", \"D\"], \"answer\": \"Correct Option\" } ] }",
+            "Include a marking scheme or explanation below the block."
+          ].join("\n")
           : action === "slides"
             ? "Output format: slide titles + bullet content + short speaker notes."
             : action === "study"

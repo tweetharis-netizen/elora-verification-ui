@@ -594,6 +594,8 @@ export default function AssistantPage() {
   const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
   const [customStyleText, setCustomStyleText] = useState("");
   const [searchMode, setSearchMode] = useState(false);
+  const [vision, setVision] = useState("");
+  const [classCode, setClassCode] = useState("");
 
   const [showResourceDrawer, setShowResourceDrawer] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
@@ -608,11 +610,26 @@ export default function AssistantPage() {
         ROLE_QUICK_ACTIONS.student.find(x => x.id === qAction);
       if (known) {
         setAction(qAction);
-        // If it's an educator specific action, ensure role is educator? 
-        // We assume session role is correct generally, but for shared links maybe force it?
-        // For now, just set action.
       }
     }
+
+    // Always check for overrides from URL or Joined Class
+    if (router.query.topic) setTopic(router.query.topic);
+    if (router.query.level) setLevel(router.query.level);
+    if (router.query.subject) setSubject(router.query.subject);
+    if (router.query.country) setCountry(router.query.country);
+    if (router.query.vision) setVision(router.query.vision);
+    if (router.query.classCode) setClassCode(router.query.classCode);
+
+    // If URL didn't specify, fall back to Joined Class context
+    if (session?.joinedClass) {
+      if (!router.query.level) setLevel(session.joinedClass.level);
+      if (!router.query.country) setCountry(session.joinedClass.country);
+      if (!router.query.subject) setSubject(session.joinedClass.subject);
+      if (!router.query.vision) setVision(session.joinedClass.vision || "");
+      if (!router.query.classCode) setClassCode(session.joinedClass.code || "");
+    }
+
 
     if (qTopic && typeof qTopic === 'string') {
       setTopic(qTopic);
@@ -1102,6 +1119,8 @@ export default function AssistantPage() {
         attempt: attemptNext,
         sentiment, // NEW
         timeSpent, // NEW
+        vision, // PHASE 4
+        classCode, // PHASE 4
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         teacherRules: currentSession.classroom?.teacherRules || ""

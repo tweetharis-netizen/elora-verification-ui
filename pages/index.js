@@ -210,10 +210,10 @@ export default function HomePage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="space-y-10"
             >
-              <div className="inline-flex items-center gap-2.5 rounded-full border border-slate-200/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl px-4 py-2.5 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wide">Genesis demo build</span>
+              <div className="inline-flex items-center gap-2.5 rounded-full border border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl px-4 py-2.5 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Genesis demo build</span>
                 <span className="text-xs font-bold text-slate-400 dark:text-slate-500">•</span>
-                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Secure verification + sessions</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Secure verification + sessions</span>
               </div>
 
               <div className="space-y-6">
@@ -232,7 +232,7 @@ export default function HomePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="text-lg md:text-xl leading-relaxed text-white dark:text-slate-100 max-w-xl font-medium drop-shadow-md"
+                  className="text-lg md:text-xl leading-relaxed text-slate-800 dark:text-slate-100 max-w-xl font-medium drop-shadow-sm"
                 >
                   {meta.subcopy}
                 </motion.p>
@@ -252,10 +252,10 @@ export default function HomePage() {
                       type="button"
                       onClick={() => selectRole(r)}
                       className={cn(
-                        "rounded-full border px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-colors duration-200 shadow-sm relative overflow-hidden",
+                        "rounded-full border px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-300 shadow-sm relative overflow-hidden backdrop-blur-xl",
                         role === r
-                          ? "border-indigo-500/60 bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                          : "border-slate-300/60 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600"
+                          ? "border-indigo-500/60 bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.05] z-10"
+                          : "border-white/40 dark:border-slate-700/50 bg-white/20 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800 hover:border-white/60 dark:hover:border-slate-600 hover:shadow-lg"
                       )}
                     >
                       {/* Tooltip for blocked educator role */}
@@ -286,13 +286,18 @@ export default function HomePage() {
                 </motion.button>
 
                 <motion.button
-                  whileHover={{ scale: 1.03 }}
+                  whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={verified ? () => router.push("/dashboard") : goVerify}
-                  className="rounded-2xl border-2 border-slate-300/60 dark:border-slate-600/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm px-6 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 shadow-lg shadow-slate-900/5"
+                  className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-slate-800/50 backdrop-blur-xl px-7 py-4 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800 hover:border-white/80 dark:hover:border-indigo-500/50 transition-all duration-500 shadow-2xl shadow-slate-900/5"
                 >
-                  {verified ? "Open Dashboard" : "Verify Email →"}
+                  {verified ? (
+                    <span className="flex items-center gap-2">
+                      <span>Open Dashboard</span>
+                      <span className="opacity-50 text-xs">→</span>
+                    </span>
+                  ) : "Verify Email →"}
                 </motion.button>
               </div>
 

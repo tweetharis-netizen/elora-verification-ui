@@ -341,10 +341,10 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     };
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* Sidebar: Class List */}
             <div className="w-full lg:w-64 flex-shrink-0 space-y-4">
-                <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-4 sm:p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
                     <div className="space-y-1">
                         {[
                             { id: "overview", label: "📊 Overview" },
@@ -426,18 +426,18 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 {/* Content based on Tab */}
                 {selectedTab === "overview" && !selectedClassId && (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
-                                <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-1">Total Enrollment</p>
-                                <p className="text-4xl font-black">{students.length} <span className="text-sm font-medium opacity-70">students</span></p>
+                                <p className="text-indigo-100 text-[10px] font-black uppercase tracking-widest mb-1">Total Enrollment</p>
+                                <p className="text-3xl sm:text-4xl font-black">{students.length} <span className="text-xs sm:text-sm font-medium opacity-70">students</span></p>
                             </div>
                             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Most Active Class</p>
-                                <p className="text-4xl font-black text-slate-900 dark:text-white truncate">{classes[0]?.name || "N/A"}</p>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Most Active Class</p>
+                                <p className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white truncate">{classes[0]?.name || "N/A"}</p>
                             </div>
                             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
-                                <p className="text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
+                                <p className="text-3xl sm:text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
                             </div>
                         </div>
 
@@ -448,10 +448,10 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     <h3 className="text-xl font-black text-slate-900 dark:text-white">Recent Activity</h3>
                                 </div>
 
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
+                                <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
+                                    <table className="w-full text-left min-w-[500px]">
                                         <thead>
-                                            <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-xs font-black uppercase">
+                                            <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-[10px] sm:text-xs font-black uppercase">
                                                 <th className="pb-4 pl-2">Student</th>
                                                 <th className="pb-4">Queries</th>
                                                 <th className="pb-4">Time</th>

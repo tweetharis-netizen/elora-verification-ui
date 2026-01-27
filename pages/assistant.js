@@ -461,8 +461,10 @@ export default function AssistantPage() {
   );
 
   const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // Context awareness from URL
   useEffect(() => {

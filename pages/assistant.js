@@ -26,6 +26,7 @@ import {
   togglePinThread,
   upsertThreadMessages,
 } from "../lib/chatThreads";
+import { getRecommendations } from "../lib/videoLibrary";
 
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
@@ -392,6 +393,121 @@ async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = 
   return { dataUrl: outUrl, mime: outMime, name: file.name || "image.jpg" };
 }
 
+const InteractiveQuiz = ({ data, onComplete }) => {
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+
+  if (!data?.questions) return null;
+
+  const handleFinish = () => {
+    let s = 0;
+    data.questions.forEach(q => {
+      if (answers[q.id] === q.answer) s++;
+    });
+    setScore(s);
+    setSubmitted(true);
+    if (onComplete) onComplete(s, data.questions.length);
+  };
+
+  return (
+    <div className="mt-6 space-y-6 animate-reveal">
+      <div className="p-6 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20">
+        <h4 className="text-lg font-black text-indigo-600 dark:text-indigo-400 mb-4">{data.title || "AI Knowledge Check"}</h4>
+        <div className="space-y-4">
+          {data.questions.map((q, idx) => (
+            <div key={q.id} className="space-y-3">
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{idx + 1}. {q.question}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {q.options?.map(opt => {
+                  const isSelected = answers[q.id] === opt;
+                  const isCorrect = submitted && opt === q.answer;
+                  const isWrong = submitted && isSelected && opt !== q.answer;
+
+                  return (
+                    <button
+                      key={opt}
+                      disabled={submitted}
+                      onClick={() => setAnswers({ ...answers, [q.id]: opt })}
+                      className={cn(
+                        "p-3 rounded-xl border text-xs font-bold transition-all text-left",
+                        isSelected ? "border-indigo-500 bg-indigo-500 text-white shadow-lg" : "border-slate-200 dark:border-white/10 hover:border-indigo-300",
+                        isCorrect && "bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20",
+                        isWrong && "bg-rose-500 border-rose-500 text-white shadow-rose-500/20"
+                      )}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!submitted ? (
+          <button
+            onClick={handleFinish}
+            disabled={Object.keys(answers).length < data.questions.length}
+            className="mt-6 w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            Submit Quiz
+          </button>
+        ) : (
+          <div className="mt-6 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-white/10 text-center animate-reveal">
+            <div className="text-3xl mb-2">{score === data.questions.length ? "🏆" : "💪"}</div>
+            <div className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+              Score: {score} / {data.questions.length}
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 mt-1">Excellent effort! These results are being synced to your dashboard.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
+  const [recs, setRecs] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      setRecs(getRecommendations(subject, topic));
+    }
+  }, [open, topic, subject]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-y-0 right-0 w-full sm:w-80 bg-white dark:bg-slate-950 shadow-2xl z-[100] border-l border-slate-200 dark:border-white/10 flex flex-col animate-reveal-right">
+      <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Resource Lab</h3>
+          <p className="text-[10px] text-indigo-500 font-bold">AI Recommended for you</p>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {recs.length === 0 && <p className="text-center text-xs text-slate-500 py-10">No specific resources found for this topic yet.</p>}
+        {recs.map(v => (
+          <a key={v.id} href={v.url} target="_blank" rel="noreferrer" className="block group">
+            <div className="relative aspect-video rounded-xl overflow-hidden mb-2">
+              <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[8px] font-bold text-white rounded">FREE</div>
+            </div>
+            <h4 className="text-[11px] font-black leading-tight text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">{v.title}</h4>
+            <div className="text-[9px] font-medium text-slate-500 mt-1">{v.channel} • {v.views} views</div>
+          </a>
+        ))}
+      </div>
+      <div className="p-6 bg-indigo-500/5 mt-auto">
+        <p className="text-[10px] leading-tight text-slate-500 italic">"Study these to master {topic || 'your current topic'} faster." — Elora</p>
+      </div>
+    </div>
+  );
+};
+
 export default function AssistantPage() {
   const router = useRouter();
 
@@ -417,6 +533,9 @@ export default function AssistantPage() {
   const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
   const [customStyleText, setCustomStyleText] = useState("");
   const [searchMode, setSearchMode] = useState(false);
+
+  const [showResourceDrawer, setShowResourceDrawer] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
 
   // Auto-configure from URL query (e.g. from Dashboard)
   useEffect(() => {
@@ -1262,12 +1381,21 @@ export default function AssistantPage() {
                 <div className="text-[9px] font-bold text-indigo-500 uppercase">{contextMode === 'auto' ? 'Smart Auto' : `${country} • ${level}`}</div>
               </div>
             </div>
-            <button
-              onClick={() => setPrefsOpen(!prefsOpen)}
-              className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none"
-            >
-              <span className="text-lg">⚙️</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowResourceDrawer(true)}
+                className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none shadow-lg shadow-indigo-500/20"
+              >
+                <span className="text-sm">🧪</span>
+                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Resource Lab</span>
+              </button>
+              <button
+                onClick={() => setPrefsOpen(!prefsOpen)}
+                className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none"
+              >
+                <span className="text-lg">⚙️</span>
+              </button>
+            </div>
           </div>
 
           <div className={cn("grid gap-8", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
@@ -1598,7 +1726,24 @@ export default function AssistantPage() {
 
                   {messages.map((m, idx) => {
                     const isUser = m.from === "user";
-                    const display = cleanAssistantText(m.text);
+                    const isSystem = m.from === "system";
+
+                    // Parse for interactive quiz data
+                    let quizData = null;
+                    let display = m.text || "";
+                    if (!isUser) {
+                      const match = display.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/);
+                      if (match) {
+                        try {
+                          quizData = JSON.parse(match[1]);
+                          display = display.replace(match[0], "").trim();
+                        } catch (e) {
+                          console.error("Quiz parse error", e);
+                        }
+                      }
+                    }
+
+                    display = cleanAssistantText(display);
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-6 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
@@ -1619,7 +1764,7 @@ export default function AssistantPage() {
                             "whitespace-pre-wrap font-medium break-words leading-[1.7] text-[15px]",
                             !isUser && "elora-markdown-view"
                           )}>
-                            {display.split('\n').map((line, i) => {
+                            {display ? (display || "").split('\n').map((line, i) => {
                               // Basic markdown-like handling for bolding and lists
                               let content = line;
 
@@ -1635,7 +1780,17 @@ export default function AssistantPage() {
                               }
 
                               return <p key={i} className={line.trim() ? "mb-2" : "h-2"}>{line}</p>;
-                            })}
+                            }) : null}
+
+                            {quizData && (
+                              <InteractiveQuiz
+                                data={quizData}
+                                onComplete={(score, total) => {
+                                  // In a real app, this would hit an API to update stats
+                                  console.log(`Quiz complete: ${score}/${total}`);
+                                }}
+                              />
+                            )}
                           </div>
 
                           {!isUser && (
@@ -1828,6 +1983,12 @@ export default function AssistantPage() {
           </button>
         </div>
       </Modal>
+      <AIResourceDrawer
+        open={showResourceDrawer}
+        onClose={() => setShowResourceDrawer(false)}
+        topic={topic}
+        subject={subject}
+      />
     </>
   );
 }

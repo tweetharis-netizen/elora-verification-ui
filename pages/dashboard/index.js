@@ -468,6 +468,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
     const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
     const [quizTopic, setQuizTopic] = useState("");
+    const [selectedSubmission, setSelectedSubmission] = useState(null);
     const [quizzes, setQuizzes] = useState(() => activeSession?.classroom?.quizzes || []);
 
     const [isSearchingVideos, setIsSearchingVideos] = useState(false);
@@ -558,6 +559,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         {[
                             { id: "overview", label: "📊 Overview" },
                             { id: "assignments", label: "📝 Assignments" },
+                            { id: "submissions", label: "🎯 Submissions" },
                             { id: "insights", label: "💡 AI Insights" }
                         ].map(tab => (
                             <button
@@ -651,6 +653,25 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             🔍 Find Videos
                         </button>
                     </div>
+                </div>
+
+                {/* AI Configuration */}
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <h4 className="font-bold text-[10px] uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
+                        <span>⚙️</span> AI Classroom Rules
+                    </h4>
+                    <textarea
+                        value={session?.classroom?.teacherRules || ""}
+                        onChange={(e) => {
+                            const s = getSession();
+                            if (!s.classroom) s.classroom = {};
+                            s.classroom.teacherRules = e.target.value;
+                            saveSession(s);
+                        }}
+                        placeholder="e.g. Only ask about fractions, keep it simple..."
+                        className="w-full h-20 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-[10px] font-medium text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
+                    />
+                    <p className="text-[9px] text-slate-400 mt-2 italic px-1">Rules are applied to all student AI sessions in this class.</p>
                 </div>
             </div>
 
@@ -847,6 +868,109 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {selectedTab === "submissions" && (
+                    <div className="space-y-6 animate-reveal">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">Student Submissions</h3>
+                            <div className="text-[10px] bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 px-3 py-1 rounded-full font-black uppercase tracking-widest">
+                                {activeSession?.classroom?.submissions?.length || 0} Total
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4">
+                            {(activeSession?.classroom?.submissions || []).map(sub => (
+                                <div
+                                    key={sub.id}
+                                    onClick={() => setSelectedSubmission(sub)}
+                                    className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-700 flex items-center justify-between hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-xl font-bold text-indigo-600 border border-indigo-500/20">
+                                            {sub.studentName[0]}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600">{sub.studentName}</h4>
+                                            <p className="text-xs text-slate-500">{sub.quizTitle} • {new Date(sub.timestamp).toLocaleTimeString()}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Score</p>
+                                            <p className={cn("text-xl font-black", sub.score === sub.total ? "text-emerald-500" : "text-indigo-600")}>
+                                                {sub.score} / {sub.total}
+                                            </p>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all">→</div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(!activeSession?.classroom?.submissions || activeSession?.classroom?.submissions.length === 0) && (
+                                <div className="p-20 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem]">
+                                    <div className="text-4xl mb-4 grayscale opacity-20">📥</div>
+                                    <p className="text-xs font-bold text-slate-400">Waiting for live submissions...</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Submission Detail Modal */}
+                        <AnimatePresence>
+                            {selectedSubmission && (
+                                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setSelectedSubmission(null)} />
+                                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[85vh]">
+                                        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-indigo-500/20">
+                                                    {selectedSubmission.studentName[0]}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{selectedSubmission.studentName}</h3>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-2">{selectedSubmission.quizTitle}</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setSelectedSubmission(null)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+                                            {selectedSubmission.details.map((d, i) => (
+                                                <div key={i} className="space-y-3">
+                                                    <div className="flex items-start gap-4">
+                                                        <span className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-1", d.isCorrect ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
+                                                            {d.isCorrect ? "✓" : "✕"}
+                                                        </span>
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{d.question}</p>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="text-[10px]">
+                                                                    <span className="text-slate-400 uppercase font-black tracking-tighter mr-2">Student:</span>
+                                                                    <span className={cn("font-bold", d.isCorrect ? "text-emerald-500" : "text-rose-500")}>{d.studentAnswer}</span>
+                                                                </div>
+                                                                {!d.isCorrect && (
+                                                                    <div className="text-[10px]">
+                                                                        <span className="text-slate-400 uppercase font-black tracking-tighter mr-2">Correct:</span>
+                                                                        <span className="text-indigo-500 font-bold">{d.correctAnswer}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 rounded-b-[3rem]">
+                                            <div className="bg-indigo-500/5 p-6 rounded-2xl border border-indigo-500/10">
+                                                <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Elora's Pedagogical Analysis</h5>
+                                                <p className="text-xs text-slate-600 dark:text-slate-400 italic leading-relaxed">
+                                                    "The student demonstrated {selectedSubmission.score / selectedSubmission.total > 0.8 ? 'strong conceptual mastery' : 'some hesitation'} in {selectedSubmission.quizTitle}. Recommendation: Focus on {selectedSubmission.details.find(d => !d.isCorrect)?.question.split(' ').slice(0, 3).join(' ') || 'advanced application'} next."
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                </div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 )}
 
@@ -1277,11 +1401,19 @@ export default function DashboardPage() {
     const [activeQuiz, setActiveQuiz] = useState(null);
 
     useEffect(() => {
+        const sync = () => {
+            const s = getSession();
+            setSession({ ...s });
+        };
+
         const s = getSession();
         setSession(s);
         if (s.role === 'parent') setActiveTab('parent');
         else if (s.role === 'educator') setActiveTab('teacher');
         setLoading(false);
+
+        window.addEventListener("elora:session", sync);
+        return () => window.removeEventListener("elora:session", sync);
     }, []);
 
     const updateSessionAndSync = (newSession) => {
@@ -1358,10 +1490,18 @@ export default function DashboardPage() {
                                                 <h3 className="text-lg font-bold mb-6">Subject Breakdown</h3>
                                                 <div className="h-56"><BarChart data={linkedData?.subjectBreakdown} labels={linkedData?.subjectLabels} color="#06b6d4" /></div>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-center flex flex-col justify-center">
-                                                <div className="text-5xl mb-4">🎯</div>
-                                                <h3 className="text-xl font-bold mb-2">Steady Progress</h3>
-                                                <p className="text-slate-500">Your student has completed <span className="font-black text-slate-900 dark:text-white">14 lessons</span> this week with an average score of 88%.</p>
+                                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                                                <div className="absolute top-0 right-0 p-4 opacity-5 text-6xl group-hover:scale-110 transition-transform">🧠</div>
+                                                <h3 className="text-lg font-black mb-4 flex items-center gap-2"><span>🌈</span> AI Parenting Pulse</h3>
+                                                {session?.classroom?.submissions?.length > 0 ? (
+                                                    <p className="text-sm text-slate-500 leading-relaxed">
+                                                        Your student recently tackled <span className="font-black text-slate-900 dark:text-white">"{session.classroom.submissions[0].quizTitle}"</span>.
+                                                        Elora noticed they are <span className="text-indigo-500 font-bold">accelerating in subject mastery</span>.
+                                                        Next goal: Reviewing {session.classroom.submissions[0].details.find(d => !d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'advanced concepts'}.
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-slate-500 text-sm leading-relaxed">Your student hasn't completed any tracked quizzes yet. As they work with Elora, you'll see deep insights here.</p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1415,6 +1555,27 @@ export default function DashboardPage() {
                                     <button onClick={() => setActiveQuiz(null)} className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Save for Later</button>
                                     <button
                                         onClick={() => {
+                                            const currentSession = getSession();
+                                            const submission = {
+                                                id: `sub_${Date.now()}`,
+                                                studentName: currentSession.email?.split('@')[0] || "Guest Student",
+                                                quizTitle: activeQuiz.title,
+                                                score: Math.floor(activeQuiz.questions.length * 0.8), // Mocking a score for open response for now
+                                                total: activeQuiz.questions.length,
+                                                details: activeQuiz.questions.map(q => ({
+                                                    question: typeof q === 'string' ? q : (q.text || q.question),
+                                                    studentAnswer: "User provided response...",
+                                                    isCorrect: true // Open response is marked as seen
+                                                })),
+                                                timestamp: new Date().toISOString(),
+                                                isOpenResponse: true
+                                            };
+
+                                            if (!currentSession.classroom) currentSession.classroom = {};
+                                            if (!currentSession.classroom.submissions) currentSession.classroom.submissions = [];
+                                            currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
+
+                                            saveSession(currentSession);
                                             alert("Quiz submitted! Elora is grading your responses...");
                                             setActiveQuiz(null);
                                         }}

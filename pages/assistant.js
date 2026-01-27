@@ -1602,18 +1602,41 @@ export default function AssistantPage() {
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-6 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-4 sm:p-6 text-[15px] leading-relaxed shadow-sm transition-all duration-300 max-w-[98%] sm:max-w-[85%] lg:max-w-[70%]",
+                          "relative p-5 sm:p-7 shadow-2xl transition-all duration-500 max-w-[98%] sm:max-w-[85%] lg:max-w-[70%]",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[2rem] rounded-tr-none shadow-indigo-500/20 hover:scale-[1.005] origin-right"
-                            : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[2rem] rounded-tl-none shadow-slate-200/10 hover:scale-[1.005] origin-left"
+                            ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border border-white/10"
+                            : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left"
                         )}>
                           <div className="font-bold flex items-center gap-2 mb-2">
                             <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4f46e5] dark:text-indigo-400">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
-                          <div className="whitespace-pre-wrap font-medium break-words leading-[1.6]">{display}</div>
+
+                          {/* Improved rendering for structured content (quizzes, lessons) */}
+                          <div className={cn(
+                            "whitespace-pre-wrap font-medium break-words leading-[1.7] text-[15px]",
+                            !isUser && "elora-markdown-view"
+                          )}>
+                            {display.split('\n').map((line, i) => {
+                              // Basic markdown-like handling for bolding and lists
+                              let content = line;
+
+                              // Check for bold **text**
+                              if (content.includes('**')) {
+                                const parts = content.split('**');
+                                return <p key={i} className="mb-1">{parts.map((p, j) => j % 2 === 1 ? <b key={j} className="text-indigo-600 dark:text-indigo-400 font-black">{p}</b> : p)}</p>;
+                              }
+
+                              // Check for list items
+                              if (content.trim().startsWith('- ') || content.trim().startsWith('* ') || /^\d+\./.test(content.trim())) {
+                                return <div key={i} className="pl-4 mb-2 relative"><span className="absolute left-0 text-indigo-500">•</span> {content.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '')}</div>;
+                              }
+
+                              return <p key={i} className={line.trim() ? "mb-2" : "h-2"}>{line}</p>;
+                            })}
+                          </div>
 
                           {!isUser && (
                             <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/5 pt-3">

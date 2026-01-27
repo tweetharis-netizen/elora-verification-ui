@@ -647,8 +647,16 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [newClassSubject, setNewClassSubject] = useState("");
     const [newClassLevel, setNewClassLevel] = useState("");
     const [newClassCountry, setNewClassCountry] = useState("");
-    const [nameInput, setNameInput] = useState("");
-    const [code, setCode] = useState("");
+    const [newClassVision, setNewClassVision] = useState("");
+
+    // UI States for Wizard/Modals
+    const [editingClass, setEditingClass] = useState(null);
+    const [isEditingClass, setIsEditingClass] = useState(false); // Distinction between creating new and editing existing
+    const [classWizardStep, setClassWizardStep] = useState(1); // 1: Basics, 2: Localization, 3: Vision
+
+    // Assignment Wizard States
+    const [assignmentWizardStep, setAssignmentWizardStep] = useState(1); // 1: Topic/Title, 2: Content/AI, 3: Review
+    const [assignmentFile, setAssignmentFile] = useState(null);
 
     // Mock Assignments
     const [assignments, setAssignments] = useState([
@@ -724,22 +732,6 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setQuizTopic("");
     };
 
-    const [editingClass, setEditingClass] = useState(null);
-    const [isEditingClass, setIsEditingClass] = useState(false);
-
-    const handleUpdateClassSettings = () => {
-        if (!editingClass) return;
-        const nextSession = { ...activeSession };
-        if (nextSession.classroom?.classes) {
-            const idx = nextSession.classroom.classes.findIndex(c => c.id === editingClass.id);
-            if (idx !== -1) {
-                nextSession.classroom.classes[idx] = editingClass;
-                onUpdateSession(nextSession);
-                setIsEditingClass(false);
-                setEditingClass(null);
-            }
-        }
-    };
 
     const handleVoiceComm = () => {
         setIsVoiceActive(true);
@@ -792,6 +784,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setNewClassVision(cls.vision || "");
         setIsCreating(true); // Reuse the modal
         setIsEditingClass(true); // Indicate we are editing
+        setClassWizardStep(1); // Reset wizard
     };
 
     const handleOpenAssignment = (cls) => {
@@ -805,41 +798,71 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
     const handleCreateClass = () => {
         if (!newClassName) return;
-        const newClass = {
-            id: `cls_${Date.now()}`,
-            joinCode: generateJoinCode(),
-            name: newClassName,
-            subject: newClassSubject || "General",
-            level: newClassLevel || "Primary 1",
-            country: newClassCountry || "Singapore",
-            vision: "",
-            studentCount: 0,
-            color: "indigo"
-        };
+
         const nextSession = { ...activeSession };
-        if (!nextSession.classroom) nextSession.classroom = {};
-        if (!Array.isArray(nextSession.classroom.classes)) nextSession.classroom.classes = [];
-        nextSession.classroom.classes.push(newClass);
+        if (!nextSession.classroom) nextSession.classroom = { classes: [] };
+        if (!nextSession.classroom.classes) nextSession.classroom.classes = [];
+
+        if (isEditingClass && editingClass) {
+            // Update existing class
+            nextSession.classroom.classes = nextSession.classroom.classes.map(c =>
+                c.id === editingClass.id ? {
+                    ...c,
+                    name: newClassName,
+                    subject: newClassSubject || "General",
+                    level: newClassLevel || "Primary 1",
+                    country: newClassCountry || "Singapore",
+                    vision: newClassVision || ""
+                } : c
+            );
+        } else {
+            // Create new class
+            const newClass = {
+                id: `cls_${Date.now()}`,
+                joinCode: generateJoinCode(),
+                name: newClassName,
+                subject: newClassSubject || "General",
+                level: newClassLevel || "Primary 1",
+                country: newClassCountry || "Singapore",
+                vision: newClassVision || "",
+                studentCount: 0,
+                color: "indigo"
+            };
+            nextSession.classroom.classes.push(newClass);
+        }
+
         onUpdateSession(nextSession);
+
+        // Reset state
         setIsCreating(false);
+        setIsEditingClass(false);
+        setEditingClass(null);
         setNewClassName("");
         setNewClassSubject("");
         setNewClassLevel("");
         setNewClassCountry("");
+        setNewClassVision("");
+        setClassWizardStep(1);
     };
 
     const handleCreateAssignment = () => {
         if (!assignmentTopic) return;
+
         const newAsgn = {
-            id: Date.now(),
+            id: assignments.length + 1,
             title: assignmentTopic,
-            dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+            dueDate: "2026-02-10", // Mock date
             status: "Active",
-            submissions: 0
+            submissions: 0,
+            type: assignmentFile ? "Manual Upload" : "AI Generated", // metadata
+            attachment: assignmentFile || "generated_module.pdf"
         };
+
         setAssignments([newAsgn, ...assignments]);
         setIsCreatingAssignment(false);
         setAssignmentTopic("");
+        setAssignmentFile(null);
+        setAssignmentWizardStep(1); // Reset wizard
     };
 
     return (
@@ -1455,57 +1478,237 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreatingAssignment(false)} />
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✨</div>
-                                    <h3 className="text-2xl font-black">AI Assignment Genius</h3>
+                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">📝</div>
+                                        <h3 className="text-2xl font-black">Assignment Wizard</h3>
+                                    </div>
+                                    <p className="text-indigo-100 text-xs font-medium opacity-80">Step {assignmentWizardStep}: {assignmentWizardStep === 1 ? 'Details' : assignmentWizardStep === 2 ? 'Content' : 'Review'}</p>
                                 </div>
-                                <p className="text-indigo-100 text-xs font-medium opacity-80">Describe a topic, and Elora will generate a full curriculum module for your students.</p>
+                                <div className="flex gap-1">
+                                    {[1, 2, 3].map(step => (
+                                        <div key={step} className={`w-2 h-2 rounded-full transition-all ${assignmentWizardStep >= step ? 'bg-white' : 'bg-white/30'}`} />
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="p-8 space-y-6">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Topic</label>
-                                    <input
-                                        autoFocus
-                                        value={assignmentTopic}
-                                        onChange={e => setAssignmentTopic(e.target.value)}
-                                        placeholder="e.g. Solving Quadratic Equations using the Formula"
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
-                                    />
-                                </div>
+                                {assignmentWizardStep === 1 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Title / Topic</label>
+                                            <input
+                                                autoFocus
+                                                value={assignmentTopic}
+                                                onChange={e => setAssignmentTopic(e.target.value)}
+                                                placeholder="e.g. Thermodynamic Laws"
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assign To</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                            >
+                                                <option value="ALL">All Students</option>
+                                                {(students || []).map((s, i) => (
+                                                    <option key={i} value={s.id || s.name}>{s.name || `Student ${i + 1}`}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                                <div>
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assign To</label>
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
-                                    >
-                                        <option value="ALL">All Students {selectedClassId ? `(${classes.find(c => c.id === selectedClassId)?.studentCount || 0})` : ''}</option>
-                                        {(students || []).map((s, i) => (
-                                            <option key={i} value={s.id || s.name}>{s.name || `Student ${i + 1}`}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {assignmentWizardStep === 2 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <button
+                                                onClick={() => setAssignmentFile(null)}
+                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${!assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'}`}
+                                            >
+                                                <div className="text-2xl mb-2">🤖</div>
+                                                <h4 className="font-bold text-sm text-slate-900 dark:text-white">AI Generator</h4>
+                                                <p className="text-[10px] text-slate-500 mt-1">Elora creates the questions based on your topic.</p>
+                                            </button>
+                                            <button
+                                                onClick={() => setAssignmentFile("manual_upload_placeholder")}
+                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'}`}
+                                            >
+                                                <div className="text-2xl mb-2">📂</div>
+                                                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Upload File</h4>
+                                                <p className="text-[10px] text-slate-500 mt-1">Atttach your own PDF or worksheet.</p>
+                                            </button>
+                                        </div>
 
-                                <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
-                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">PRO TIP</p>
-                                    <p className="text-[11px] text-slate-500 leading-relaxed italic">"Elora works best when you specify the target grade level or a specific difficulty tier."</p>
-                                </div>
+                                        {assignmentFile ? (
+                                            <div className="bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center">
+                                                <p className="text-xs font-bold text-slate-400">Click to browse or drag file here</p>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                                                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">ELORA SAYS</p>
+                                                <p className="text-[11px] text-slate-500 leading-relaxed italic">"I'll generate a 5-question module for {assignmentTopic || 'this topic'} tailored to the class level."</p>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
 
-                                <div className="flex gap-3">
+                                {assignmentWizardStep === 3 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                            <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Summary</h4>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-400">Topic:</span>
+                                                    <span className="font-bold text-slate-900 dark:text-white">{assignmentTopic}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-400">Content Source:</span>
+                                                    <span className="font-bold text-slate-900 dark:text-white">{assignmentFile ? 'Manual Upload' : 'AI Generation'}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-400">Due Date:</span>
+                                                    <span className="font-bold text-slate-900 dark:text-white text-emerald-500">Next Friday</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+
+                                <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                                     <button
-                                        onClick={() => setIsCreatingAssignment(false)}
-                                        className="flex-1 px-4 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                        onClick={() => {
+                                            if (assignmentWizardStep > 1) setAssignmentWizardStep(assignmentWizardStep - 1);
+                                            else setIsCreatingAssignment(false);
+                                        }}
+                                        className="px-6 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                     >
-                                        Cancel
+                                        {assignmentWizardStep === 1 ? "Cancel" : "Back"}
                                     </button>
+                                    {assignmentWizardStep < 3 ? (
+                                        <button
+                                            onClick={() => setAssignmentWizardStep(assignmentWizardStep + 1)}
+                                            disabled={!assignmentTopic}
+                                            className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl text-xs font-black hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Next Step →
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleCreateAssignment}
+                                            className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
+                                        >
+                                            Post Assignment 🚀
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                {classWizardStep === 1 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Class Name</label>
+                                            <input
+                                                autoFocus
+                                                value={newClassName}
+                                                onChange={e => setNewClassName(e.target.value)}
+                                                placeholder="e.g. 4A Physics"
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Region</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                value={newClassCountry}
+                                                onChange={e => {
+                                                    setNewClassCountry(e.target.value);
+                                                    setNewClassLevel(""); // Reset level when country changes
+                                                }}
+                                            >
+                                                <option value="">Select Country System</option>
+                                                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {classWizardStep === 2 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Academic Level</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                value={newClassLevel}
+                                                onChange={e => setNewClassLevel(e.target.value)}
+                                                disabled={!newClassCountry}
+                                            >
+                                                <option value="">{newClassCountry ? "Select Level" : "Select Country First"}</option>
+                                                {getCountryLevels(newClassCountry).map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Main Subject</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                value={newClassSubject}
+                                                onChange={e => setNewClassSubject(e.target.value)}
+                                                disabled={!newClassCountry || !newClassLevel}
+                                            >
+                                                <option value="">{newClassCountry && newClassLevel ? "Select Subject" : "Pick Level First"}</option>
+                                                {getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {classWizardStep === 3 && (
+                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Educator's Vision</label>
+                                            <div className="bg-indigo-50 dark:bg-indigo-500/10 p-4 rounded-2xl mb-2">
+                                                <p className="text-[11px] text-indigo-700 dark:text-indigo-300 italic">"Tell Elora how to teach this class. e.g. 'Focus on visual learning', 'Strict on grammar', 'Encourage debate'."</p>
+                                            </div>
+                                            <textarea
+                                                value={newClassVision}
+                                                onChange={e => setNewClassVision(e.target.value)}
+                                                placeholder="My vision for this class is..."
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all h-32 resize-none"
+                                            />
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                                     <button
-                                        onClick={handleCreateAssignment}
-                                        disabled={!assignmentTopic}
-                                        className="flex-[2] bg-indigo-600 text-white px-4 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                                        onClick={() => {
+                                            if (classWizardStep > 1) setClassWizardStep(classWizardStep - 1);
+                                            else setIsCreating(false);
+                                        }}
+                                        className="px-6 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                     >
-                                        Generate & Post →
+                                        {classWizardStep === 1 ? "Cancel" : "Back"}
                                     </button>
+
+                                    {classWizardStep < 3 ? (
+                                        <button
+                                            onClick={() => setClassWizardStep(classWizardStep + 1)}
+                                            disabled={(classWizardStep === 1 && !newClassName) || (classWizardStep === 2 && (!newClassLevel || !newClassSubject))}
+                                            className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl text-xs font-black hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Next Step →
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleCreateClass}
+                                            className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
+                                        >
+                                            {isEditingClass ? "Save Changes" : "Create Class 🚀"}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

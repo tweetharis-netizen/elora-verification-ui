@@ -243,13 +243,13 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     const avgOverallScore = heatmapData.length > 0 ? Math.round(heatmapData.reduce((sum, item) => sum + item.score, 0) / heatmapData.length) : 0;
     const vibe = struggleTopic ? "Confused" : (avgOverallScore > 85 ? "Excited" : "Focused");
     const sentimentInsight = struggleTopic
-        ? `${Math.floor(linkedStudents.length * 0.4) + 1} students feeling ${vibe.toLowerCase()} about ${struggleTopic}.`
+        ? `${Math.floor(safeStudents.length * 0.4) + 1} students feeling ${vibe.toLowerCase()} about ${struggleTopic}.`
         : `Class is generally ${vibe.toLowerCase()} and maintaining momentum.`;
 
     return {
         avgEngagement: Math.round(totalMessages / safeStudents.length),
         topSubject: top ? top[0] : "General",
-        totalHours: (totalMinutes / 60).toFixed(1),
+        totalHours: (safeStudents.length > 0 ? totalMinutes / 60 : 0).toFixed(1),
         heatmapData,
         recommendedVideos,
         struggleTopic,
@@ -332,6 +332,7 @@ function StudentModule({ data, onStartQuiz }) {
                 {[
                     { label: "Streak", val: `${data.streak} d`, icon: "🔥", color: "from-orange-500 to-rose-500" },
                     { label: "Today", val: `${data.todayMinutes}m`, icon: "⏱️", color: "from-indigo-500 to-violet-500" },
+                    { label: "Momentum", val: "+15%", icon: "🚀", color: "from-fuchsia-500 to-indigo-500" },
                     { label: "Progress", val: `${data.overallProgress}%`, icon: "📈", color: "from-emerald-500 to-cyan-500" },
                     { label: "Queries", val: data.achievements.filter(a => a.earned).length, icon: "💬", color: "from-amber-500 to-orange-500" }
                 ].map((s, i) => (

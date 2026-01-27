@@ -206,8 +206,16 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
 
     // Detect struggle points (any subject with average < 70)
     // For now, we'll simulate the "score" per student, but in real app it comes from s.stats
-    const heatmapData = entries.length > 0
-        ? entries.map(e => ({ subject: e[0], score: Math.round(Math.random() * 40 + 55), students: e[1] }))
+    const subjectsWithMetrics = entries.map(e => {
+        const subjectName = e[0];
+        const studentCount = e[1];
+        const totalScore = subjectScores[subjectName] || 0;
+        const avgScore = studentCount > 0 ? Math.round(totalScore / studentCount) : 0;
+        return { name: subjectName, students: studentCount, avg: avgScore };
+    });
+
+    const heatmapData = subjectsWithMetrics.length > 0
+        ? subjectsWithMetrics.map(s => ({ subject: s.name, score: s.avg, students: s.students }))
         : [
             { subject: "Math", score: 78, students: 12 },
             { subject: "Physics", score: 65, students: 8 },
@@ -215,10 +223,19 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
         ];
 
     const mainStruggle = heatmapData.find(h => h.score < 70);
-    const recommendedVideos = getRecommendations(
-        mainStruggle ? mainStruggle.subject : (top ? top[0] : "math"),
-        mainStruggle ? mainStruggle.subject : null
-    );
+
+    // AI Class Insights 2.0 Logic
+    const struggleTopic = mainStruggle?.subject;
+    const recommendationReason = getRecommendationReason(struggleTopic, linkedStudents.length);
+    const recommendedVideos = getRecommendations(subjectsWithMetrics[0]?.name || 'math', struggleTopic);
+
+    // "The Pulse" Sentiment Logic
+    const sentiments = ["Focused", "Curious", "Confused", "Excited", "Strained"];
+    const avgOverallScore = heatmapData.length > 0 ? Math.round(heatmapData.reduce((sum, item) => sum + item.score, 0) / heatmapData.length) : 0;
+    const vibe = struggleTopic ? "Confused" : (avgOverallScore > 85 ? "Excited" : "Focused");
+    const sentimentInsight = struggleTopic
+        ? `${Math.floor(linkedStudents.length * 0.4) + 1} students feeling ${vibe.toLowerCase()} about ${struggleTopic}.`
+        : `Class is generally ${vibe.toLowerCase()} and maintaining momentum.`;
 
     return {
         avgEngagement: Math.round(totalMessages / safeStudents.length),
@@ -226,9 +243,11 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
         totalHours: (totalMinutes / 60).toFixed(1),
         heatmapData,
         recommendedVideos,
-        struggleTopic: mainStruggle?.subject,
-        recommendationReason: getRecommendationReason(mainStruggle?.subject, mainStruggle?.students || 0),
-        isPreview: false
+        struggleTopic,
+        recommendationReason,
+        vibe,
+        sentimentInsight,
+        isPreview: !isVerified
     };
 }
 
@@ -340,6 +359,9 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [isSearchingVideos, setIsSearchingVideos] = useState(false);
     const [videoSearchQuery, setVideoSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
+
+    const [isPickingContext, setIsPickingContext] = useState(false);
+    const [contextAction, setContextAction] = useState(null); // 'lesson' or 'assignment'
 
     const handleAdd = () => {
         if (!nameInput || !code) return;
@@ -454,9 +476,20 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 text-white shadow-lg">
                     <h4 className="font-bold text-sm mb-2">⚡ Teacher Tools</h4>
                     <div className="space-y-2">
-                        <Link href="/assistant?action=lesson_plan&topic=New Lesson" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                        <button
+                            onClick={() => {
+                                setContextAction('lesson');
+                                if (classes.length > 1) setIsPickingContext(true);
+                                else {
+                                    const cls = classes[0] || { name: 'General', subject: 'Math', level: '10' };
+                                    const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
+                                    router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject || 'General'}&level=${cls.level || '10'}`);
+                                }
+                            }}
+                            className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                        >
                             📝 Plan a Lesson
-                        </Link>
+                        </button>
                         <button
                             onClick={() => setIsSearchingVideos(true)}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
@@ -628,40 +661,25 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     )}
                                 </p>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2 relative z-10"><span>🎯</span> Pedagogical Recommendations</h4>
-                                {students.length > 0 || metrics.isPreview ? (
-                                    <ul className="space-y-4 relative z-10">
-                                        {(metrics.struggleTopic ? [
-                                            `Prioritize ${metrics.struggleTopic} review in your next lecture.`,
-                                            `Assign the recommended videos below to students with scores < 70%.`,
-                                            `Elora suggests a quick retrieval quiz to bridge the knowledge gap.`
-                                        ] : [
-                                            "Introduce more challenging 'Advanced' tier topics to maintain engagement.",
-                                            "Encourage peer-to-peer teaching for current mastery topics.",
-                                            "Collect qualitative feedback on lesson speed."
-                                        ]).map((rec, i) => (
-                                            <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
-                                                <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
-                                                <span className="font-medium">{rec}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <div className="space-y-4 relative z-10">
-                                        <p className="text-sm text-slate-500 italic">Elora is waiting for your class to launch. Suggested first steps:</p>
-                                        <ul className="space-y-3">
-                                            <li className="flex items-center gap-3 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                                                <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">1</span>
-                                                Share your Magic Code with your students.
-                                            </li>
-                                            <li className="flex items-center gap-3 text-xs font-bold text-slate-400">
-                                                <span className="w-5 h-5 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center">2</span>
-                                                Elora will begin tracking engagement.
-                                            </li>
-                                        </ul>
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -mr-10 -mt-10 group-hover:scale-110 transition-transform" />
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2 relative z-10">
+                                    <span>🌈</span> The Pulse
+                                </h4>
+                                <div className="relative z-10 space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ${metrics.vibe === 'Excited' ? 'bg-amber-400 text-white' : metrics.vibe === 'Confused' ? 'bg-fuchsia-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                                            {metrics.vibe === 'Excited' ? '🔥' : metrics.vibe === 'Confused' ? '🤔' : '🧠'}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Class Vibe</p>
+                                            <p className="font-bold text-slate-900 dark:text-white">{metrics.vibe || 'Analyzing...'}</p>
+                                        </div>
                                     </div>
-                                )}
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                        {students.length > 0 || metrics.isPreview ? metrics.sentimentInsight : "Your digital classroom is silent. Share your magic code above to hear Elora's first pedagogical pulse."}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -926,6 +944,46 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         </motion.div>
                     </div>
                 )}
+                {/* Context Picker Modal */}
+                {isPickingContext && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsPickingContext(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="p-8 border-b border-slate-100 dark:border-slate-800">
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Choose Class</h3>
+                                <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Which context should Elora use?</p>
+                            </div>
+                            <div className="p-4 space-y-2">
+                                {classes.map((cls, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            if (contextAction === 'lesson') {
+                                                const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
+                                                router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject || 'General'}&level=${cls.level || '10'}`);
+                                            } else {
+                                                setIsCreatingAssignment(true);
+                                                setIsPickingContext(false);
+                                            }
+                                        }}
+                                        className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-left transition-all group"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-black text-sm">{cls.name}</p>
+                                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-tighter">{cls.subject || 'General'}</p>
+                                            </div>
+                                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all">→</div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="p-8">
+                                <button onClick={() => setIsPickingContext(false)} className="w-full py-4 text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">Cancel</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
         </div>
     );
@@ -1023,7 +1081,7 @@ export default function DashboardPage() {
                                                 <h3 className="text-lg font-bold mb-6">Subject Breakdown</h3>
                                                 <div className="h-56"><BarChart data={linkedData?.subjectBreakdown} labels={linkedData?.subjectLabels} color="#06b6d4" /></div>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm text-center flex flex-col justify-center">
+                                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-center flex flex-col justify-center">
                                                 <div className="text-5xl mb-4">🎯</div>
                                                 <h3 className="text-xl font-bold mb-2">Steady Progress</h3>
                                                 <p className="text-slate-500">Your student has completed <span className="font-black text-slate-900 dark:text-white">14 lessons</span> this week with an average score of 88%.</p>

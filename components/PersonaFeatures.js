@@ -142,10 +142,10 @@ function FeatureCard({ icon, title, desc, color, index }) {
                     {icon}
                 </div>
                 <div className="flex-1">
-                    <h4 className="text-white dark:text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
+                    <h4 className="text-slate-900 dark:text-white font-bold text-sm mb-1 font-[var(--font-outfit)]">
                         {title}
                     </h4>
-                    <p className="text-slate-300 dark:text-slate-400 text-xs leading-relaxed">
+                    <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                         {desc}
                     </p>
                 </div>
@@ -170,11 +170,11 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                 <motion.h2
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-2xl md:text-4xl font-black text-white dark:text-white font-[var(--font-outfit)] mb-3"
+                    className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white font-[var(--font-outfit)] mb-3"
                 >
                     <span className={colors.text}>Personalized</span> Experience
                 </motion.h2>
-                <p className="text-slate-300 dark:text-slate-400 text-sm max-w-md mx-auto">
+                <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
                     Discover features tailored to your unique role in the learning journey
                 </p>
             </div>
@@ -223,7 +223,7 @@ export default function PersonaFeatures({ initialRole = "student" }) {
                     {/* Headline */}
                     <div className="text-center mb-8">
                         <span className="text-4xl mb-2 block">{persona.icon}</span>
-                        <h3 className="text-xl font-bold text-white dark:text-white font-[var(--font-outfit)]">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white font-[var(--font-outfit)]">
                             {persona.headline}
                         </h3>
                     </div>

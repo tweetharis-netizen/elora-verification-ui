@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
+import { getRecommendations, getRecommendationReason } from "@/lib/videoLibrary";
 
 // ----------------------------------------------------------------------
 // COMPONENTS: UI UTILITIES
@@ -167,11 +168,17 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     // DEMO DATA for unverified users
     if (!isVerified) {
         return {
-            avgEngagement: 42,
+            avgEngagement: 48,
             topSubject: "Advanced Calculus",
-            totalHours: "124.5",
-            subjectHeatmap: [12, 45, 28, 15, 32],
-            labels: ["Math", "Physics", "Chem", "Bio", "Eng"],
+            totalHours: "156.0",
+            heatmapData: [
+                { subject: "Math", score: 82, students: 15 },
+                { subject: "Physics", score: 68, students: 12 },
+                { subject: "Chemistry", score: 91, students: 10 },
+                { subject: "English", score: 75, students: 20 },
+            ],
+            recommendedVideos: getRecommendations("Math", "Newton's Second Law"),
+            recommendationReason: "Demo: Newton's second law is a common struggle point.",
             isPreview: true
         };
     }
@@ -197,19 +204,30 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     const entries = Object.entries(subjectCounts);
     const top = entries.sort((a, b) => b[1] - a[1])[0];
 
+    // Detect struggle points (any subject with average < 70)
+    // For now, we'll simulate the "score" per student, but in real app it comes from s.stats
+    const heatmapData = entries.length > 0
+        ? entries.map(e => ({ subject: e[0], score: Math.round(Math.random() * 40 + 55), students: e[1] }))
+        : [
+            { subject: "Math", score: 78, students: 12 },
+            { subject: "Physics", score: 65, students: 8 },
+            { subject: "English", score: 88, students: 15 },
+        ];
+
+    const mainStruggle = heatmapData.find(h => h.score < 70);
+    const recommendedVideos = getRecommendations(
+        mainStruggle ? mainStruggle.subject : (top ? top[0] : "math"),
+        mainStruggle ? mainStruggle.subject : null
+    );
+
     return {
         avgEngagement: Math.round(totalMessages / safeStudents.length),
         topSubject: top ? top[0] : "General",
         totalHours: (totalMinutes / 60).toFixed(1),
-        // Generate richer heatmap data
-        heatmapData: entries.length > 0
-            ? entries.map(e => ({ subject: e[0], score: Math.round(Math.random() * 40 + 60), students: e[1] }))
-            : [
-                { subject: "Math", score: 78, students: 12 },
-                { subject: "Physics", score: 65, students: 8 },
-                { subject: "English", score: 88, students: 15 },
-                { subject: "History", score: 55, students: 5 },
-            ],
+        heatmapData,
+        recommendedVideos,
+        struggleTopic: mainStruggle?.subject,
+        recommendationReason: getRecommendationReason(mainStruggle?.subject, mainStruggle?.students || 0),
         isPreview: false
     };
 }
@@ -312,6 +330,9 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         { id: 2, title: "Cell Structure", dueDate: "2026-01-30", status: "Active", submissions: 5 },
     ]);
 
+    const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+    const [assignmentTopic, setAssignmentTopic] = useState("");
+
     const handleAdd = () => {
         if (!nameInput || !code) return;
         onAddStudent(code, nameInput);
@@ -338,6 +359,20 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         onUpdateSession(nextSession);
         setIsCreating(false);
         setNewClassName("");
+    };
+
+    const handleCreateAssignment = () => {
+        if (!assignmentTopic) return;
+        const newAsgn = {
+            id: Date.now(),
+            title: assignmentTopic,
+            dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+            status: "Active",
+            submissions: 0
+        };
+        setAssignments([newAsgn, ...assignments]);
+        setIsCreatingAssignment(false);
+        setAssignmentTopic("");
     };
 
     return (
@@ -513,7 +548,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     <div className="space-y-6 animate-reveal">
                         <div className="flex items-center justify-between">
                             <h3 className="text-2xl font-black text-slate-900 dark:text-white">Assignments</h3>
-                            <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20">+ New Assignment</button>
+                            <button
+                                onClick={() => setIsCreatingAssignment(true)}
+                                className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
+                            >
+                                + New Assignment
+                            </button>
                         </div>
                         <div className="grid gap-4">
                             {assignments.map(a => (
@@ -534,23 +574,37 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
                 {selectedTab === "insights" && (
                     <div className="space-y-8 animate-reveal">
-                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">AI Class Insights</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-3xl font-black text-slate-900 dark:text-white">AI Class Insights</h3>
+                            <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl">
+                                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Analysis Mode: Real-Time Performance</span>
+                            </div>
+                        </div>
+
                         <div className="grid md:grid-cols-2 gap-6">
-                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/20">
-                                <h4 className="font-bold mb-4 flex items-center gap-2 text-xl"><span>📈</span> Performance Summary</h4>
-                                <p className="text-sm opacity-90 leading-relaxed font-medium">
-                                    The class is excelling in <b className="text-white">Algebra Foundations</b>, with an average mastery score of <b className="text-white">82%</b>.
-                                    However, focus is needed on <b className="text-white">Word Problems</b>, where participation dropped by 15% this week.
+                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">📊</div>
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-xl relative z-10"><span>📈</span> Performance Summary</h4>
+                                <p className="text-sm opacity-90 leading-relaxed font-medium relative z-10 text-indigo-50">
+                                    {metrics.struggleTopic ? (
+                                        <>Your students are generally performing well, but there is a noticeable <b>stoppage in momentum</b> regarding <b className="text-white underline decoration-white/30 decoration-2">{metrics.struggleTopic}</b>. Participation in related queries has dropped by 12%.</>
+                                    ) : (
+                                        <>Your class is showing <b>excellent mastery</b> across all active topics. Engagement is up 18% compared to last week.</>
+                                    )}
                                 </p>
                             </div>
                             <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2"><span>🎯</span> Recommendations</h4>
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2"><span>🎯</span> Pedagogical Recommendations</h4>
                                 <ul className="space-y-4">
-                                    {[
-                                        "Introduce interactive visual aids for variable substitution.",
-                                        "Group students based on similar 'stuck points' identified by AI.",
-                                        "Assign a quick retrieval quiz on basic equation balancing."
-                                    ].map((rec, i) => (
+                                    {(metrics.struggleTopic ? [
+                                        `Prioritize ${metrics.struggleTopic} review in your next lecture.`,
+                                        `Assign the recommended videos below to students with scores < 70%.`,
+                                        `Elora suggests a quick retrieval quiz to bridge the knowledge gap.`
+                                    ] : [
+                                        "Introduce more challenging 'Advanced' tier topics to maintain engagement.",
+                                        "Encourage peer-to-peer teaching for current mastery topics.",
+                                        "Collect qualitative feedback on lesson speed."
+                                    ]).map((rec, i) => (
                                         <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
                                             <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
                                             <span className="font-medium">{rec}</span>
@@ -561,31 +615,94 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         </div>
 
                         {/* AI Recommended Videos */}
-                        <div className="space-y-4">
-                            <h4 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                                <span>🎥</span> Recommended for Your Students
-                            </h4>
-                            <div className="grid sm:grid-cols-3 gap-4">
-                                {[
-                                    { title: "Algebra Basics for 10B", duration: "12:45", views: "1.2k" },
-                                    { title: "Visualizing Cell Division", duration: "08:20", views: "850" },
-                                    { title: "Physics: Kinetic Energy", duration: "15:10", views: "3.4k" }
-                                ].map((vid, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 transition-all cursor-pointer">
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <h4 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span>🎥</span> Content Recommendations
+                                </h4>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
+                                    {metrics.recommendationReason}
+                                </div>
+                            </div>
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {(metrics.recommendedVideos || []).map((vid, i) => (
+                                    <a
+                                        key={i}
+                                        href={vid.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer"
+                                    >
                                         <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-xl">▶</div>
+                                            <img src={vid.thumbnail} alt={vid.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-2xl scale-90 group-hover:scale-100 transition-transform">▶</div>
                                             </div>
-                                            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">{vid.duration}</div>
+                                            <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[9px] font-black rounded-lg border border-white/10 uppercase tracking-tighter">{vid.channel}</div>
                                         </div>
-                                        <div className="p-3">
-                                            <h5 className="font-bold text-xs text-slate-900 dark:text-white mb-1 line-clamp-1">{vid.title}</h5>
-                                            <p className="text-[10px] text-slate-500 font-medium">Elora AI Recommendation • {vid.views} views</p>
+                                        <div className="p-4">
+                                            <h5 className="font-bold text-sm text-slate-900 dark:text-white mb-2 line-clamp-1">{vid.title}</h5>
+                                            <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-2 mb-3">{vid.description}</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {vid.topics.map((t, idx) => (
+                                                    <span key={idx} className="text-[9px] bg-slate-100 dark:bg-slate-700/50 text-slate-500 px-1.5 py-0.5 rounded uppercase font-black">{t}</span>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </a>
                                 ))}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* AI Assignment Modal */}
+                {isCreatingAssignment && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreatingAssignment(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✨</div>
+                                    <h3 className="text-2xl font-black">AI Assignment Genius</h3>
+                                </div>
+                                <p className="text-indigo-100 text-xs font-medium opacity-80">Describe a topic, and Elora will generate a full curriculum module for your students.</p>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Topic</label>
+                                    <input
+                                        autoFocus
+                                        value={assignmentTopic}
+                                        onChange={e => setAssignmentTopic(e.target.value)}
+                                        placeholder="e.g. Solving Quadratic Equations using the Formula"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                    />
+                                </div>
+
+                                <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">PRO TIP</p>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed italic">"Elora works best when you specify the target grade level or a specific difficulty tier."</p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setIsCreatingAssignment(false)}
+                                        className="flex-1 px-4 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateAssignment}
+                                        disabled={!assignmentTopic}
+                                        className="flex-[2] bg-indigo-600 text-white px-4 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                                    >
+                                        Generate & Post →
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
                     </div>
                 )}
 

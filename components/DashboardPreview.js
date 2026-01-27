@@ -59,18 +59,24 @@ function ModuleCard({ icon, title, subtitle, stats, chartData, color, delay, isL
 
                     {/* I need to update the component definition to accept chartData. */}
                     {/* I'll use a separate tool call for the component definition update to be safe and clean. */}
-                    <div className="flex items-center gap-4">
-                        {(stats || []).map((stat, i) => (
-                            <div key={i} className="text-center">
-                                <div className={`text-lg font-bold text-${color} font-[var(--font-outfit)]`}>
-                                    {stat.value}
+                    {chartData ? (
+                        <div className="h-10 w-full opacity-60">
+                            <LineChart data={chartData} color={color.split('-')[0]} />
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-4">
+                            {(stats || []).map((stat, i) => (
+                                <div key={i} className="text-center">
+                                    <div className={`text-lg font-bold text-${color} font-[var(--font-outfit)]`}>
+                                        {stat.value}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                                        {stat.label}
+                                    </div>
                                 </div>
-                                <div className="text-[10px] text-slate-500 uppercase tracking-wider">
-                                    {stat.label}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>
@@ -139,7 +145,7 @@ export default function DashboardPreview({ role = "all" }) {
                             {/* Screen header */}
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-indigo-500/30">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
                                         E
                                     </div>
                                     <div>
@@ -173,9 +179,9 @@ export default function DashboardPreview({ role = "all" }) {
                             </div>
 
                             {/* Hover overlay with CTA */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/90 via-indigo-600/50 to-transparent opacity-0 group-hover/monitor:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8 rounded-xl">
-                                <span className="px-6 py-3 bg-white text-indigo-600 font-bold text-sm rounded-xl shadow-xl">
-                                    Open Full Dashboard →
+                            <div className="absolute inset-0 bg-indigo-600/40 backdrop-blur-sm opacity-0 group-hover/monitor:opacity-100 transition-all duration-500 flex items-center justify-center rounded-xl overflow-hidden">
+                                <span className="px-6 py-3 bg-white/20 border border-white/40 backdrop-blur-xl text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-2xl scale-95 group-hover/monitor:scale-100 transition-transform duration-500">
+                                    Open Dashboard →
                                 </span>
                             </div>
                         </div>

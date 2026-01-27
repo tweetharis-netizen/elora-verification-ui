@@ -298,10 +298,26 @@ function StudentModule({ data }) {
 
 function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession }) {
     if (!activeSession) return null;
-    const [selectedClass, setSelectedClass] = useState(null); // null = Overview
+    const [selectedTab, setSelectedTab] = useState("overview"); // overview, assignments, insights
+    const [selectedClassId, setSelectedClassId] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [newClassName, setNewClassName] = useState("");
     const [newClassSubject, setNewClassSubject] = useState("");
+    const [nameInput, setNameInput] = useState("");
+    const [code, setCode] = useState("");
+
+    // Mock Assignments
+    const [assignments, setAssignments] = useState([
+        { id: 1, title: "Algebra Basics", dueDate: "2026-02-01", status: "Active", submissions: 12 },
+        { id: 2, title: "Cell Structure", dueDate: "2026-01-30", status: "Active", submissions: 5 },
+    ]);
+
+    const handleAdd = () => {
+        if (!nameInput || !code) return;
+        onAddStudent(code, nameInput);
+        setNameInput("");
+        setCode("");
+    };
 
     // Ensure classes exist
     const classes = activeSession?.classroom?.classes || [];
@@ -329,20 +345,35 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
             {/* Sidebar: Class List */}
             <div className="w-full lg:w-64 flex-shrink-0 space-y-4">
                 <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <button
-                        onClick={() => setSelectedClass(null)}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all mb-2 ${selectedClass === null ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
-                    >
-                        📊 Overview
-                    </button>
-
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 mb-2 mt-4">My Classes</div>
                     <div className="space-y-1">
+                        {[
+                            { id: "overview", label: "📊 Overview" },
+                            { id: "assignments", label: "📝 Assignments" },
+                            { id: "insights", label: "💡 AI Insights" }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setSelectedTab(tab.id)}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedTab === tab.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 mb-2 mt-6">My Classes</div>
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setSelectedClassId(null)}
+                            className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedClassId === null ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`}
+                        >
+                            All Students
+                        </button>
                         {classes.map(c => (
                             <button
                                 key={c.id}
-                                onClick={() => setSelectedClass(c.id)}
-                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClass === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 shadow-sm" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                                onClick={() => setSelectedClassId(c.id)}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
                             >
                                 <span>{c.name}</span>
                                 <span className="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500">{c.studentCount || 0}</span>
@@ -392,8 +423,8 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
             {/* Main Content Area */}
             <div className="flex-1 space-y-8">
-                {/* Aggregate Metrics (Overview) */}
-                {!selectedClass && (
+                {/* Content based on Tab */}
+                {selectedTab === "overview" && !selectedClassId && (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
@@ -414,12 +445,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         <div className="grid lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
                                 <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">All Students</h3>
-                                    <LockedFeatureOverlay isVerified={activeSession?.verified}>
-                                        <button className="text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-2 rounded-xl transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-500/20">
-                                            + Link Student
-                                        </button>
-                                    </LockedFeatureOverlay>
+                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Recent Activity</h3>
                                 </div>
 
                                 <div className="overflow-x-auto">
@@ -450,32 +476,28 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             </div>
 
                             <div className="space-y-6">
-                                {/* Add Student Card - Standardized Theme */}
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
                                     <h3 className="font-black mb-4 text-slate-900 dark:text-white">Link New Student</h3>
                                     <div className="space-y-3">
                                         <input
                                             value={nameInput} onChange={e => setNameInput(e.target.value)}
                                             placeholder="Student Nickname"
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         />
                                         <input
                                             value={code} onChange={e => setCode(e.target.value)}
                                             placeholder="ELORA-XXXX"
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         />
-                                        <LockedFeatureOverlay isVerified={activeSession?.verified}>
-                                            <button
-                                                onClick={handleAdd}
-                                                className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
-                                            >
-                                                Add to Roster +
-                                            </button>
-                                        </LockedFeatureOverlay>
+                                        <button
+                                            onClick={handleAdd}
+                                            className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                                            disabled={!activeSession?.verified}
+                                        >
+                                            Add Student +
+                                        </button>
                                     </div>
                                 </div>
-
-                                {/* Heatmap Card */}
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
                                     <h3 className="font-black mb-6 text-slate-900 dark:text-white">Class Mastery</h3>
                                     <div className="h-44">
@@ -487,22 +509,99 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     </>
                 )}
 
+                {selectedTab === "assignments" && (
+                    <div className="space-y-6 animate-reveal">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">Assignments</h3>
+                            <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20">+ New Assignment</button>
+                        </div>
+                        <div className="grid gap-4">
+                            {assignments.map(a => (
+                                <div key={a.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-bold text-slate-900 dark:text-white">{a.title}</h4>
+                                        <p className="text-xs text-slate-500">Due: {a.dueDate} • {a.submissions} submissions</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-full">{a.status}</span>
+                                        <button className="text-slate-400 hover:text-slate-600 font-bold text-sm">View Details</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {selectedTab === "insights" && (
+                    <div className="space-y-8 animate-reveal">
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">AI Class Insights</h3>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/20">
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-xl"><span>📈</span> Performance Summary</h4>
+                                <p className="text-sm opacity-90 leading-relaxed font-medium">
+                                    The class is excelling in <b className="text-white">Algebra Foundations</b>, with an average mastery score of <b className="text-white">82%</b>.
+                                    However, focus is needed on <b className="text-white">Word Problems</b>, where participation dropped by 15% this week.
+                                </p>
+                            </div>
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2"><span>🎯</span> Recommendations</h4>
+                                <ul className="space-y-4">
+                                    {[
+                                        "Introduce interactive visual aids for variable substitution.",
+                                        "Group students based on similar 'stuck points' identified by AI.",
+                                        "Assign a quick retrieval quiz on basic equation balancing."
+                                    ].map((rec, i) => (
+                                        <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                            <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
+                                            <span className="font-medium">{rec}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* AI Recommended Videos */}
+                        <div className="space-y-4">
+                            <h4 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                <span>🎥</span> Recommended for Your Students
+                            </h4>
+                            <div className="grid sm:grid-cols-3 gap-4">
+                                {[
+                                    { title: "Algebra Basics for 10B", duration: "12:45", views: "1.2k" },
+                                    { title: "Visualizing Cell Division", duration: "08:20", views: "850" },
+                                    { title: "Physics: Kinetic Energy", duration: "15:10", views: "3.4k" }
+                                ].map((vid, i) => (
+                                    <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 transition-all cursor-pointer">
+                                        <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-xl">▶</div>
+                                            </div>
+                                            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">{vid.duration}</div>
+                                        </div>
+                                        <div className="p-3">
+                                            <h5 className="font-bold text-xs text-slate-900 dark:text-white mb-1 line-clamp-1">{vid.title}</h5>
+                                            <p className="text-[10px] text-slate-500 font-medium">Elora AI Recommendation • {vid.views} views</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Class Detail View */}
-                {selectedClass && (
+                {selectedClassId && (
                     <div className="animate-reveal">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Class Detail</div>
-                                <h2 className="text-3xl font-black text-slate-900 dark:text-white">{classes.find(c => c.id === selectedClass)?.name}</h2>
+                                <h2 className="text-3xl font-black text-slate-900 dark:text-white">
+                                    {classes.find(c => c.id === selectedClassId)?.name || "Class"}
+                                </h2>
                             </div>
                             <div className="flex gap-2">
                                 <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Settings</button>
-                                <Link
-                                    href={`/assistant?action=lesson_plan&topic=New Assignment for ${classes.find(c => c.id === selectedClass)?.name || "Class"}`}
-                                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
-                                >
-                                    Create Assignment
-                                </Link>
+                                <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors">Create Assignment</button>
                             </div>
                         </div>
 

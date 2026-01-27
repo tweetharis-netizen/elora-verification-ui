@@ -337,8 +337,36 @@ function PreviewBanner() {
 // ROLE MODULES
 // ----------------------------------------------------------------------
 
-function StudentModule({ data, onStartQuiz, session }) {
+function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Added onUpdateSession
     if (!data) return null;
+    const [joinCodeInput, setJoinCodeInput] = useState("");
+    const [joinStatus, setJoinStatus] = useState("");
+
+    const handleJoinClass = () => {
+        if (!joinCodeInput) return;
+        setJoinStatus("Syncing...");
+        setTimeout(() => {
+            // Mock backend verification
+            if (joinCodeInput.length === 6) {
+                const s = getSession();
+                s.joinedClass = {
+                    name: "Physics 101", // Mock data
+                    code: joinCodeInput,
+                    subject: "Physics",
+                    level: "Grade 10",
+                    country: "United States",
+                    vision: "Focus on conceptual understanding"
+                };
+                onUpdateSession(s); // Use prop to update
+                setJoinStatus("Joined! ✅");
+                setJoinCodeInput("");
+            } else {
+                setJoinStatus("Invalid ❌");
+            }
+            setTimeout(() => setJoinStatus(""), 3000);
+        }, 1000);
+    };
+
     return (
         <div className="space-y-6">
             {/* AI Magic Insights Banner */}
@@ -1947,7 +1975,7 @@ export default function DashboardPage() {
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} session={session} />}
+                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} session={session} onUpdateSession={updateSessionAndSync} />}
 
                             {activeTab === 'parent' && (
                                 session?.linkedStudentId ? (

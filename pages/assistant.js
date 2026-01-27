@@ -645,6 +645,7 @@ export default function AssistantPage() {
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [lastActionTime, setLastActionTime] = useState(Date.now());
 
   // Context awareness from URL
   useEffect(() => {
@@ -1083,6 +1084,9 @@ export default function AssistantPage() {
         role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
 
       const currentSession = getSession();
+      const timeSpent = (Date.now() - lastActionTime) / 1000;
+      const sentiment = (attemptNext > 1 || timeSpent > 60) ? "supportive" : "standard";
+
       const payload = {
         role,
         action,
@@ -1096,6 +1100,8 @@ export default function AssistantPage() {
         searchMode,
         customStyleText,
         attempt: attemptNext,
+        sentiment, // NEW
+        timeSpent, // NEW
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         teacherRules: currentSession.classroom?.teacherRules || ""
@@ -1150,6 +1156,7 @@ export default function AssistantPage() {
     } finally {
       setChatText("");
       setLoading(false);
+      setLastActionTime(Date.now());
     }
   }
 

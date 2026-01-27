@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
-import { getRecommendations, getRecommendationReason } from "@/lib/videoLibrary";
+import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib/videoLibrary";
 
 // ----------------------------------------------------------------------
 // COMPONENTS: UI UTILITIES
@@ -330,8 +330,16 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         { id: 2, title: "Cell Structure", dueDate: "2026-01-30", status: "Active", submissions: 5 },
     ]);
 
+    const [resources, setResources] = useState([
+        { id: 'r1', title: "Khan Academy: Intro to Algebra", type: "Video", link: "https://www.youtube.com/watch?v=NybHckSEQBI" }
+    ]);
+
     const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
     const [assignmentTopic, setAssignmentTopic] = useState("");
+
+    const [isSearchingVideos, setIsSearchingVideos] = useState(false);
+    const [videoSearchQuery, setVideoSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState([]);
 
     const handleAdd = () => {
         if (!nameInput || !code) return;
@@ -449,9 +457,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         <Link href="/assistant?action=lesson_plan&topic=New Lesson" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
                             📝 Plan a Lesson
                         </Link>
-                        <Link href="/assistant?action=find_videos&topic=Educational Resources" className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+                        <button
+                            onClick={() => setIsSearchingVideos(true)}
+                            className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                        >
                             🔍 Find Videos
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -478,12 +489,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
                         {/* Analysis Grid */}
                         <div className="grid lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
                                 <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Recent Activity</h3>
+                                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Activity</h3>
                                 </div>
 
-                                <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
+                                <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide mb-12">
                                     <table className="w-full text-left min-w-[500px]">
                                         <thead>
                                             <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-[10px] sm:text-xs font-black uppercase">
@@ -503,10 +514,34 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                 </tr>
                                             ))}
                                             {students.length === 0 && (
-                                                <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No students linked yet.</td></tr>
+                                                <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No student activity recorded yet.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+
+                                <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Resources</h3>
+                                        <span className="text-[10px] font-black bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 px-3 py-1 rounded-lg uppercase tracking-widest">Active Curation</span>
+                                    </div>
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        {resources.map(r => (
+                                            <a key={r.id} href={r.link} target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-indigo-500 transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-lg shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                                        {r.type === 'Video' ? '🎬' : '📄'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{r.title}</p>
+                                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">{r.type}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">↗</div>
+                                            </a>
+                                        ))}
+                                        {resources.length === 0 && <p className="text-xs text-slate-400 italic py-4">No resources shared yet.</p>}
+                                    </div>
                                 </div>
                             </div>
 
@@ -593,24 +628,40 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     )}
                                 </p>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2"><span>🎯</span> Pedagogical Recommendations</h4>
-                                <ul className="space-y-4">
-                                    {(metrics.struggleTopic ? [
-                                        `Prioritize ${metrics.struggleTopic} review in your next lecture.`,
-                                        `Assign the recommended videos below to students with scores < 70%.`,
-                                        `Elora suggests a quick retrieval quiz to bridge the knowledge gap.`
-                                    ] : [
-                                        "Introduce more challenging 'Advanced' tier topics to maintain engagement.",
-                                        "Encourage peer-to-peer teaching for current mastery topics.",
-                                        "Collect qualitative feedback on lesson speed."
-                                    ]).map((rec, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
-                                            <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
-                                            <span className="font-medium">{rec}</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-xl flex items-center gap-2 relative z-10"><span>🎯</span> Pedagogical Recommendations</h4>
+                                {students.length > 0 || metrics.isPreview ? (
+                                    <ul className="space-y-4 relative z-10">
+                                        {(metrics.struggleTopic ? [
+                                            `Prioritize ${metrics.struggleTopic} review in your next lecture.`,
+                                            `Assign the recommended videos below to students with scores < 70%.`,
+                                            `Elora suggests a quick retrieval quiz to bridge the knowledge gap.`
+                                        ] : [
+                                            "Introduce more challenging 'Advanced' tier topics to maintain engagement.",
+                                            "Encourage peer-to-peer teaching for current mastery topics.",
+                                            "Collect qualitative feedback on lesson speed."
+                                        ]).map((rec, i) => (
+                                            <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                                <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
+                                                <span className="font-medium">{rec}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="space-y-4 relative z-10">
+                                        <p className="text-sm text-slate-500 italic">Elora is waiting for your class to launch. Suggested first steps:</p>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-center gap-3 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                                <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">1</span>
+                                                Share your Magic Code with your students.
+                                            </li>
+                                            <li className="flex items-center gap-3 text-xs font-bold text-slate-400">
+                                                <span className="w-5 h-5 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center">2</span>
+                                                Elora will begin tracking engagement.
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -621,37 +672,46 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     <span>🎥</span> Content Recommendations
                                 </h4>
                                 <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
-                                    {metrics.recommendationReason}
+                                    {students.length > 0 || metrics.isPreview ? metrics.recommendationReason : "Waiting for class performance data..."}
                                 </div>
                             </div>
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {(metrics.recommendedVideos || []).map((vid, i) => (
-                                    <a
-                                        key={i}
-                                        href={vid.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer"
-                                    >
-                                        <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
-                                            <img src={vid.thumbnail} alt={vid.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-2xl scale-90 group-hover:scale-100 transition-transform">▶</div>
+
+                            {(students.length > 0 || metrics.isPreview) ? (
+                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {(metrics.recommendedVideos || []).map((vid, i) => (
+                                        <a
+                                            key={i}
+                                            href={vid.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer"
+                                        >
+                                            <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
+                                                <img src={vid.thumbnail} alt={vid.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-2xl scale-90 group-hover:scale-100 transition-transform">▶</div>
+                                                </div>
+                                                <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[9px] font-black rounded-lg border border-white/10 uppercase tracking-tighter">{vid.channel}</div>
                                             </div>
-                                            <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[9px] font-black rounded-lg border border-white/10 uppercase tracking-tighter">{vid.channel}</div>
-                                        </div>
-                                        <div className="p-4">
-                                            <h5 className="font-bold text-sm text-slate-900 dark:text-white mb-2 line-clamp-1">{vid.title}</h5>
-                                            <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-2 mb-3">{vid.description}</p>
-                                            <div className="flex flex-wrap gap-1">
-                                                {vid.topics.map((t, idx) => (
-                                                    <span key={idx} className="text-[9px] bg-slate-100 dark:bg-slate-700/50 text-slate-500 px-1.5 py-0.5 rounded uppercase font-black">{t}</span>
-                                                ))}
+                                            <div className="p-4">
+                                                <h5 className="font-bold text-sm text-slate-900 dark:text-white mb-2 line-clamp-1">{vid.title}</h5>
+                                                <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-2 mb-3">{vid.description}</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {vid.topics.map((t, idx) => (
+                                                        <span key={idx} className="text-[9px] bg-slate-100 dark:bg-slate-700/50 text-slate-500 px-1.5 py-0.5 rounded uppercase font-black">{t}</span>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-12 text-center">
+                                    <div className="text-4xl mb-4 opacity-30">🍿</div>
+                                    <h5 className="font-bold text-slate-900 dark:text-white mb-2">No Recommendations Yet</h5>
+                                    <p className="text-xs text-slate-500 max-w-sm mx-auto">Once your students start their learning journey, Elora will suggest the best educational resources for them.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -736,6 +796,137 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     </div>
                 )}
             </div>
+
+            {/* AI Assignment Modal */}
+            <AnimatePresence>
+                {isCreatingAssignment && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreatingAssignment(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✨</div>
+                                    <h3 className="text-2xl font-black">AI Assignment Genius</h3>
+                                </div>
+                                <p className="text-indigo-100 text-xs font-medium opacity-80">Describe a topic, and Elora will generate a full curriculum module for your students.</p>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Topic</label>
+                                    <input
+                                        autoFocus
+                                        value={assignmentTopic}
+                                        onChange={e => setAssignmentTopic(e.target.value)}
+                                        placeholder="e.g. Solving Quadratic Equations using the Formula"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                    />
+                                </div>
+
+                                <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">PRO TIP</p>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed italic">"Elora works best when you specify the target grade level or a specific difficulty tier."</p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setIsCreatingAssignment(false)}
+                                        className="flex-1 px-4 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateAssignment}
+                                        disabled={!assignmentTopic}
+                                        className="flex-[2] bg-indigo-600 text-white px-4 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                                    >
+                                        Generate & Post →
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Video Explorer Modal */}
+                {isSearchingVideos && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setIsSearchingVideos(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85dvh]">
+                            <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-500/20">🎥</div>
+                                    <div>
+                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none">Video Explorer</h3>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-2">Hands-Free Classroom Curation</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsSearchingVideos(false)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+                            </div>
+
+                            <div className="p-8">
+                                <div className="relative">
+                                    <input
+                                        autoFocus
+                                        value={videoSearchQuery}
+                                        onChange={e => {
+                                            setVideoSearchQuery(e.target.value);
+                                            setSearchResults(searchVideos(e.target.value));
+                                        }}
+                                        placeholder="Search by topic, subject, or channel..."
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] px-14 py-5 text-sm focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                    />
+                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-xl opacity-30">🔍</div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-hide">
+                                {videoSearchQuery && searchResults.length === 0 ? (
+                                    <div className="text-center py-20">
+                                        <div className="text-4xl mb-4">🏜️</div>
+                                        <p className="font-bold text-slate-400">No videos found for "{videoSearchQuery}"</p>
+                                    </div>
+                                ) : videoSearchQuery ? (
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        {searchResults.map((vid, i) => (
+                                            <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 flex flex-col gap-4 group hover:bg-white dark:hover:bg-slate-800 transition-all">
+                                                <div className="aspect-video rounded-2xl overflow-hidden relative">
+                                                    <img src={vid.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm text-[8px] font-black text-white rounded uppercase">{vid.channel}</div>
+                                                </div>
+                                                <div className="flex-1 flex flex-col justify-between">
+                                                    <h5 className="font-bold text-xs text-slate-900 dark:text-white mb-4 line-clamp-2">{vid.title}</h5>
+                                                    <button
+                                                        onClick={() => {
+                                                            const newRes = {
+                                                                id: Date.now(),
+                                                                title: vid.title,
+                                                                link: vid.url,
+                                                                type: "Video"
+                                                            };
+                                                            setResources([newRes, ...resources]);
+                                                            setIsSearchingVideos(false);
+                                                            setVideoSearchQuery("");
+                                                        }}
+                                                        className="w-full py-2.5 bg-indigo-600 text-white border border-indigo-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+                                                    >
+                                                        Post to Class +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <div className="text-3xl mb-4 grayscale opacity-20">📂</div>
+                                        <p className="text-xs font-bold text-slate-400">Type a topic above to begin exploring.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

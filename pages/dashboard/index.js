@@ -6,6 +6,11 @@ import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/sessio
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib/videoLibrary";
 
+// SYSTEM CONSTANTS
+const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
+const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
+const LEVELS = ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Junior College 1", "Junior College 2", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+
 // ----------------------------------------------------------------------
 // COMPONENTS: UI UTILITIES
 // ----------------------------------------------------------------------
@@ -594,11 +599,17 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setIsVoiceActive(true);
         setVoiceStage('listening');
 
+        // Context Awareness: Inherit from selected class
+        const activeClass = classes.find(c => c.id === selectedClassId);
+        const contextSubject = activeClass?.subject || "General Education";
+        const contextLevel = activeClass?.level || "all grades";
+        const className = activeClass?.name || "the class";
+
         // Mock Transcription Workflow
         setTimeout(() => {
             setVoiceStage('transcribing');
             setTimeout(() => {
-                setVoiceTranscript("Planning a review session for the Grade 10s on Modern Algebra concepts covered yesterday.");
+                setVoiceTranscript(`Create a ${contextSubject} review session for ${className} (${contextLevel}) focused on the key concepts we discussed this week.`);
                 setVoiceStage('ready');
             }, 2000);
         }, 3000);
@@ -607,14 +618,25 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     // Ensure classes exist
     const classes = activeSession?.classroom?.classes || [];
 
+    const handleDeleteClass = (classId) => {
+        if (!window.confirm("Are you sure you want to delete this class? All linked student data for this class view will be removed.")) return;
+
+        const nextSession = { ...activeSession };
+        if (nextSession.classroom?.classes) {
+            nextSession.classroom.classes = nextSession.classroom.classes.filter(c => c.id !== classId);
+            onUpdateSession(nextSession);
+            if (selectedClassId === classId) setSelectedClassId(null);
+        }
+    };
+
     const handleCreateClass = () => {
         if (!newClassName) return;
         const newClass = {
             id: `cls_${Date.now()}`,
             name: newClassName,
             subject: newClassSubject || "General",
-            level: newClassLevel || "None",
-            country: newClassCountry || "General",
+            level: newClassLevel || "Primary 1",
+            country: newClassCountry || "Singapore",
             studentCount: 0,
             color: "indigo"
         };
@@ -675,14 +697,22 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             All Students
                         </button>
                         {classes.map(c => (
-                            <button
-                                key={c.id}
-                                onClick={() => setSelectedClassId(c.id)}
-                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
-                            >
-                                <span>{c.name}</span>
-                                <span className="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500">{c.studentCount || 0}</span>
-                            </button>
+                            <div key={c.id} className="group relative">
+                                <button
+                                    onClick={() => setSelectedClassId(c.id)}
+                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                                >
+                                    <span className="truncate pr-8">{c.name}</span>
+                                    <span className="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500 group-hover:opacity-0 transition-opacity">{c.studentCount || 0}</span>
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteClass(c.id); }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-rose-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg"
+                                    title="Delete Class"
+                                >
+                                    🗑️
+                                </button>
+                            </div>
                         ))}
                     </div>
 
@@ -704,25 +734,31 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     onChange={e => setNewClassName(e.target.value)}
                                 />
                                 <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        placeholder="Subject"
-                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                    <select
+                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={newClassSubject}
                                         onChange={e => setNewClassSubject(e.target.value)}
-                                    />
-                                    <input
-                                        placeholder="Level"
-                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                    >
+                                        <option value="">Select Subject</option>
+                                        {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <select
+                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={newClassLevel}
                                         onChange={e => setNewClassLevel(e.target.value)}
-                                    />
+                                    >
+                                        <option value="">Select Level</option>
+                                        {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
                                 </div>
-                                <input
-                                    placeholder="Country"
-                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                <select
+                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                     value={newClassCountry}
                                     onChange={e => setNewClassCountry(e.target.value)}
-                                />
+                                >
+                                    <option value="">Select Country</option>
+                                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
                                 <div className="flex gap-2 pt-2">
                                     <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-lg shadow-lg shadow-indigo-500/20">Add</button>
                                     <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg">Cancel</button>
@@ -1536,7 +1572,16 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         <button
                                             onClick={() => {
                                                 setIsVoiceActive(false);
-                                                router.push(`/assistant?action=lesson_plan&topic=${voiceTranscript}`);
+                                                const activeClass = classes.find(c => c.id === selectedClassId) || classes[0] || {};
+                                                const params = new URLSearchParams({
+                                                    action: 'lesson_plan',
+                                                    topic: voiceTranscript,
+                                                    class: activeClass.name || '',
+                                                    subject: activeClass.subject || '',
+                                                    level: activeClass.level || '',
+                                                    country: activeClass.country || ''
+                                                });
+                                                router.push(`/assistant?${params.toString()}`);
                                             }}
                                             className="flex-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all"
                                         >

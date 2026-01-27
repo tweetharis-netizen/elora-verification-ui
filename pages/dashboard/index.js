@@ -911,7 +911,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </button>
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setEditingClass({ ...c }); setIsEditingClass(true); }}
+                                        onClick={(e) => { e.stopPropagation(); handleOpenSettings(c); }}
                                         className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg"
                                         title="Edit Settings"
                                     >
@@ -930,61 +930,158 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                        {!isCreating ? (
-                            <button
-                                onClick={() => setIsCreating(true)}
-                                className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition-all"
-                            >
-                                + Create Class
-                            </button>
-                        ) : (
-                            <div className="space-y-2 animate-reveal">
-                                <input
-                                    autoFocus
-                                    placeholder="Class Name (e.g. 10B)"
-                                    className="w-full text-xs p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
-                                    value={newClassName}
-                                    onChange={e => setNewClassName(e.target.value)}
-                                />
-                                <select
-                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
-                                    value={newClassCountry}
-                                    onChange={e => {
-                                        setNewClassCountry(e.target.value);
-                                        setNewClassLevel(""); // Reset level when country changes
-                                    }}
-                                >
-                                    <option value="">Select Country</option>
-                                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
-                                        value={newClassSubject}
-                                        onChange={e => setNewClassSubject(e.target.value)}
-                                        disabled={!newClassCountry}
-                                    >
-                                        <option value="">{newClassCountry && newClassLevel ? "Select Subject" : "Pick Country & Level First"}</option>
-                                        {getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                    <select
-                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
-                                        value={newClassLevel}
-                                        onChange={e => setNewClassLevel(e.target.value)}
-                                        disabled={!newClassCountry}
-                                    >
-                                        <option value="">{newClassCountry ? "Select Level" : "Pick Country First"}</option>
-                                        {getCountryLevels(newClassCountry).map(l => <option key={l} value={l}>{l}</option>)}
-                                    </select>
-                                </div>
-                                <div className="flex gap-2 pt-2">
-                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-lg shadow-lg shadow-indigo-500/20">Add</button>
-                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg">Cancel</button>
-                                </div>
-                            </div>
-                        )}
+                        <button
+                            onClick={() => {
+                                setIsCreating(true);
+                                setIsEditingClass(false);
+                                setEditingClass(null);
+                                setClassWizardStep(1);
+                                setNewClassName("");
+                                setNewClassSubject("");
+                                setNewClassLevel("");
+                                setNewClassCountry("");
+                                setNewClassVision("");
+                            }}
+                            className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-500 hover:text-indigo-600 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all"
+                        >
+                            + Create New Class
+                        </button>
                     </div>
                 </div>
+
+                {/* CLASS WIZARD MODAL */}
+                <AnimatePresence>
+                    {isCreating && !isCreatingAssignment && !isCreatingQuiz && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsCreating(false)} />
+                            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-8 text-white flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">
+                                                {isEditingClass ? '⚙️' : '✨'}
+                                            </div>
+                                            <h3 className="text-2xl font-black">{isEditingClass ? 'Class Settings' : 'New Classroom'}</h3>
+                                        </div>
+                                        <p className="text-indigo-100 text-xs font-medium opacity-80">
+                                            {isEditingClass ? `Update configuration for ${editingClass?.name}` : "Create a new space for your students."}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        {[1, 2, 3].map(step => (
+                                            <div key={step} className={`w-2 h-2 rounded-full transition-all ${classWizardStep >= step ? 'bg-white' : 'bg-white/30'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="p-8 space-y-6">
+                                    {classWizardStep === 1 && (
+                                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Class Name</label>
+                                                <input
+                                                    autoFocus
+                                                    value={newClassName}
+                                                    onChange={e => setNewClassName(e.target.value)}
+                                                    placeholder="e.g. Physics 101 - Morning"
+                                                    className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Region / Country</label>
+                                                <select
+                                                    value={newClassCountry}
+                                                    onChange={e => {
+                                                        setNewClassCountry(e.target.value);
+                                                        setNewClassLevel("");
+                                                        setNewClassSubject("");
+                                                    }}
+                                                    className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                >
+                                                    <option value="">Select Region</option>
+                                                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {classWizardStep === 2 && (
+                                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Academic Level</label>
+                                                    <select
+                                                        value={newClassLevel}
+                                                        onChange={e => setNewClassLevel(e.target.value)}
+                                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                    >
+                                                        <option value="">Select Level</option>
+                                                        {getCountryLevels(newClassCountry).map(l => <option key={l} value={l}>{l}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Primary Subject</label>
+                                                    <select
+                                                        value={newClassSubject}
+                                                        onChange={e => setNewClassSubject(e.target.value)}
+                                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                    >
+                                                        <option value="">Select Subject</option>
+                                                        {getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            {!newClassLevel && <p className="text-[10px] text-amber-500 font-bold">Please select a level to see relevant subjects.</p>}
+                                        </motion.div>
+                                    )}
+
+                                    {classWizardStep === 3 && (
+                                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Classroom Vision (Optional)</label>
+                                                <textarea
+                                                    value={newClassVision}
+                                                    onChange={e => setNewClassVision(e.target.value)}
+                                                    placeholder="e.g. A focus on inquiry-based learning and critical thinking..."
+                                                    className="w-full h-32 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all resize-none placeholder:opacity-50"
+                                                />
+                                                <p className="text-[10px] text-slate-400 mt-2">Elora will tailor her responses based on this vision.</p>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                        <button
+                                            onClick={() => {
+                                                if (classWizardStep > 1) setClassWizardStep(classWizardStep - 1);
+                                                else setIsCreating(false);
+                                            }}
+                                            className="px-6 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                        >
+                                            {classWizardStep === 1 ? "Cancel" : "Back"}
+                                        </button>
+                                        {classWizardStep < 3 ? (
+                                            <button
+                                                onClick={() => setClassWizardStep(classWizardStep + 1)}
+                                                disabled={classWizardStep === 1 ? (!newClassName || !newClassCountry) : (!newClassLevel || !newClassSubject)}
+                                                className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl text-xs font-black hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                Next Step →
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleCreateClass}
+                                                className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
+                                            >
+                                                {isEditingClass ? 'Save Changes' : 'Create Class'} 🚀
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* Quick Tools */}
                 <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 text-white shadow-lg">

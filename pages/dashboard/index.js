@@ -9,7 +9,22 @@ import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
-const LEVELS = ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Junior College 1", "Junior College 2", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+const LEVELS_MAP = {
+    "Singapore": ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "Secondary 1", "Secondary 2", "Secondary 3", "Secondary 4", "Junior College 1", "Junior College 2"],
+    "United States": ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"],
+    "United Kingdom": ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "Year 13"],
+    "Australia": ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"],
+    "Malaysia": ["Standard 1", "Standard 2", "Standard 3", "Standard 4", "Standard 5", "Standard 6", "Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Form 6"],
+    "Other": ["Elementary", "Middle", "High School", "Tertiary"]
+};
+
+function getCountryLevels(country) {
+    return LEVELS_MAP[country] || LEVELS_MAP["Other"];
+}
+
+function generateJoinCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 // ----------------------------------------------------------------------
 // COMPONENTS: UI UTILITIES
@@ -354,6 +369,52 @@ function StudentModule({ data, onStartQuiz, session }) {
                 </div>
             </motion.div>
 
+            {/* Join Class Banner */}
+            {!session?.joinedClass ? (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 bg-gradient-to-r from-indigo-600 to-violet-700 rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform text-4xl">🎓</div>
+                    <div className="relative z-10 max-w-xl">
+                        <h2 className="text-2xl font-black mb-2 uppercase tracking-tight">Sync with your Class</h2>
+                        <p className="text-indigo-100/80 text-sm font-medium mb-6">Enter the 6-digit code from your teacher to unlock class-specific quizzes and resources.</p>
+                        <div className="flex gap-3">
+                            <input
+                                value={joinCodeInput}
+                                onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                                placeholder="CLASS-CODE"
+                                maxLength={6}
+                                className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-sm font-black tracking-widest focus:bg-white/20 outline-none transition-all placeholder:text-white/40 w-32 md:w-48"
+                            />
+                            <button
+                                onClick={handleJoinClass}
+                                className="bg-white text-indigo-600 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                            >
+                                {joinStatus || "Join →"}
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            ) : (
+                <div className="mb-8 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white text-lg">✅</div>
+                        <div>
+                            <p className="text-xs font-black text-emerald-600 uppercase tracking-widest">Joined Class</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">{session.joinedClass.name} • {session.joinedClass.subject}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            const s = getSession();
+                            delete s.joinedClass;
+                            updateSessionAndSync(s);
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                        Leave Class
+                    </button>
+                </div>
+            )}
+
             {/* NEW: Knowledge Forest (Visual Gamification) */}
             <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 text-4xl">🌳</div>
@@ -595,6 +656,23 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setQuizTopic("");
     };
 
+    const [editingClass, setEditingClass] = useState(null);
+    const [isEditingClass, setIsEditingClass] = useState(false);
+
+    const handleUpdateClassSettings = () => {
+        if (!editingClass) return;
+        const nextSession = { ...activeSession };
+        if (nextSession.classroom?.classes) {
+            const idx = nextSession.classroom.classes.findIndex(c => c.id === editingClass.id);
+            if (idx !== -1) {
+                nextSession.classroom.classes[idx] = editingClass;
+                onUpdateSession(nextSession);
+                setIsEditingClass(false);
+                setEditingClass(null);
+            }
+        }
+    };
+
     const handleVoiceComm = () => {
         setIsVoiceActive(true);
         setVoiceStage('listening');
@@ -633,10 +711,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         if (!newClassName) return;
         const newClass = {
             id: `cls_${Date.now()}`,
+            joinCode: generateJoinCode(),
             name: newClassName,
             subject: newClassSubject || "General",
             level: newClassLevel || "Primary 1",
             country: newClassCountry || "Singapore",
+            vision: "",
             studentCount: 0,
             color: "indigo"
         };
@@ -702,16 +782,28 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     onClick={() => setSelectedClassId(c.id)}
                                     className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
                                 >
-                                    <span className="truncate pr-8">{c.name}</span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="truncate pr-8">{c.name}</span>
+                                        <span className="text-[9px] font-black text-indigo-500/60 uppercase tracking-tighter">Code: {c.joinCode}</span>
+                                    </div>
                                     <span className="text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full text-slate-500 group-hover:opacity-0 transition-opacity">{c.studentCount || 0}</span>
                                 </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteClass(c.id); }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-rose-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg"
-                                    title="Delete Class"
-                                >
-                                    🗑️
-                                </button>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setEditingClass({ ...c }); setIsEditingClass(true); }}
+                                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg"
+                                        title="Edit Settings"
+                                    >
+                                        ⚙️
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteClass(c.id); }}
+                                        className="w-8 h-8 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg"
+                                        title="Delete Class"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -733,6 +825,17 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     value={newClassName}
                                     onChange={e => setNewClassName(e.target.value)}
                                 />
+                                <select
+                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
+                                    value={newClassCountry}
+                                    onChange={e => {
+                                        setNewClassCountry(e.target.value);
+                                        setNewClassLevel(""); // Reset level when country changes
+                                    }}
+                                >
+                                    <option value="">Select Country</option>
+                                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
                                 <div className="grid grid-cols-2 gap-2">
                                     <select
                                         className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
@@ -746,19 +849,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={newClassLevel}
                                         onChange={e => setNewClassLevel(e.target.value)}
+                                        disabled={!newClassCountry}
                                     >
-                                        <option value="">Select Level</option>
-                                        {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                        <option value="">{newClassCountry ? "Select Level" : "Pick Country First"}</option>
+                                        {getCountryLevels(newClassCountry).map(l => <option key={l} value={l}>{l}</option>)}
                                     </select>
                                 </div>
-                                <select
-                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
-                                    value={newClassCountry}
-                                    onChange={e => setNewClassCountry(e.target.value)}
-                                >
-                                    <option value="">Select Country</option>
-                                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
                                 <div className="flex gap-2 pt-2">
                                     <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-lg shadow-lg shadow-indigo-500/20">Add</button>
                                     <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg">Cancel</button>
@@ -1579,7 +1675,9 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                     class: activeClass.name || '',
                                                     subject: activeClass.subject || '',
                                                     level: activeClass.level || '',
-                                                    country: activeClass.country || ''
+                                                    country: activeClass.country || '',
+                                                    vision: activeClass.vision || '',
+                                                    classCode: activeClass.joinCode || ''
                                                 });
                                                 router.push(`/assistant?${params.toString()}`);
                                             }}
@@ -1593,6 +1691,79 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         </div>
                     )}
                 </AnimatePresence>
+
+                {/* Class Settings Modal */}
+                {isEditingClass && editingClass && (
+                    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsEditingClass(false)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="p-8 bg-indigo-600 text-white">
+                                <h3 className="text-2xl font-black">Class Settings</h3>
+                                <p className="text-xs font-bold text-indigo-100/60 uppercase tracking-widest mt-1">Configure {editingClass.name} pedagogy</p>
+                            </div>
+                            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Display Name</label>
+                                        <input
+                                            value={editingClass.name}
+                                            onChange={e => setEditingClass({ ...editingClass, name: e.target.value })}
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Subject</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
+                                            value={editingClass.subject}
+                                            onChange={e => setEditingClass({ ...editingClass, subject: e.target.value })}
+                                        >
+                                            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Country / System</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
+                                            value={editingClass.country}
+                                            onChange={e => setEditingClass({ ...editingClass, country: e.target.value, level: "" })}
+                                        >
+                                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Level</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
+                                            value={editingClass.level}
+                                            onChange={e => setEditingClass({ ...editingClass, level: e.target.value })}
+                                            disabled={!editingClass.country}
+                                        >
+                                            <option value="">Select Level</option>
+                                            {(editingClass.country ? getCountryLevels(editingClass.country) : []).map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Educator Vision (Deep Tailoring)</label>
+                                    <textarea
+                                        value={editingClass.vision || ""}
+                                        onChange={e => setEditingClass({ ...editingClass, vision: e.target.value })}
+                                        placeholder="e.g. Focus on real-world application, avoid heavy latex, emphasize conceptual logic over memorization."
+                                        className="w-full h-32 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all resize-none"
+                                    />
+                                    <p className="text-[9px] text-slate-400 mt-2 italic">Elora will prioritize this vision when tutoring students in this class.</p>
+                                </div>
+                                <div className="flex gap-4 pt-4">
+                                    <button onClick={() => setIsEditingClass(false)} className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors">Cancel</button>
+                                    <button onClick={handleUpdateClassSettings} className="flex-2 bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20">Save Settings</button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
 
                 {/* Context Picker Modal */}
                 {isPickingContext && (
@@ -1610,7 +1781,17 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         onClick={() => {
                                             if (contextAction === 'lesson') {
                                                 const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
-                                                router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject || 'General'}&level=${cls.level || '10'}`);
+                                                const params = new URLSearchParams({
+                                                    action: 'lesson_plan',
+                                                    topic,
+                                                    class: cls.name,
+                                                    subject: cls.subject || 'General',
+                                                    level: cls.level || '10',
+                                                    country: cls.country || '',
+                                                    vision: cls.vision || '',
+                                                    classCode: cls.joinCode || ''
+                                                });
+                                                router.push(`/assistant?${params.toString()}`);
                                             } else if (contextAction === 'assignment') {
                                                 setIsCreatingAssignment(true);
                                                 setIsPickingContext(false);
@@ -1675,6 +1856,36 @@ export default function DashboardPage() {
     const updateSessionAndSync = (newSession) => {
         saveSession(newSession);
         setSession({ ...newSession });
+    };
+
+    const [joinCodeInput, setJoinCodeInput] = useState("");
+    const [joinStatus, setJoinStatus] = useState("");
+
+    const handleJoinClass = () => {
+        if (!joinCodeInput) return;
+        setJoinStatus("Syncing...");
+
+        // Mock verification: In a real app, this would check the DB
+        setTimeout(() => {
+            const s = getSession();
+            // Simulate finding a class by code (searching all local sessions for now in this prototype context)
+            // For the demo, we'll just accept any 6-digit code as a success
+            if (joinCodeInput.length === 6) {
+                s.joinedClass = {
+                    name: "Joined Class",
+                    code: joinCodeInput,
+                    subject: "Physics", // Mock inherited data
+                    level: "Grade 10",
+                    country: "United States"
+                };
+                updateSessionAndSync(s);
+                setJoinStatus("Joined Successfully! ✅");
+                setJoinCodeInput("");
+            } else {
+                setJoinStatus("Invalid Code. ❌");
+            }
+            setTimeout(() => setJoinStatus(""), 3000);
+        }, 1500);
     };
 
     const handleAddStudent = (code, name) => {

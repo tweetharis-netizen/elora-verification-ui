@@ -90,25 +90,31 @@ const PERSONA_DATA = {
 
 const colorMap = {
     indigo: {
-        bg: "from-indigo-500/20 to-indigo-600/10",
-        border: "border-indigo-500/30",
-        text: "text-indigo-500",
-        glow: "shadow-indigo-500/20",
-        button: "bg-indigo-500 hover:bg-indigo-600",
+        bg: "bg-indigo-50 dark:bg-indigo-500/10",
+        border: "border-indigo-100 dark:border-indigo-500/30",
+        text: "text-indigo-600 dark:text-indigo-400",
+        glow: "shadow-indigo-500/10 dark:shadow-indigo-500/20",
+        button: "bg-indigo-600 hover:bg-indigo-700",
+        iconBg: "bg-indigo-100 dark:bg-indigo-900/40",
+        iconText: "text-indigo-600 dark:text-indigo-400"
     },
     cyan: {
-        bg: "from-cyan-500/20 to-cyan-600/10",
-        border: "border-cyan-500/30",
-        text: "text-cyan-500",
-        glow: "shadow-cyan-500/20",
-        button: "bg-cyan-500 hover:bg-cyan-600",
+        bg: "bg-cyan-50 dark:bg-cyan-500/10",
+        border: "border-cyan-100 dark:border-cyan-500/30",
+        text: "text-cyan-600 dark:text-cyan-400",
+        glow: "shadow-cyan-500/10 dark:shadow-cyan-500/20",
+        button: "bg-cyan-600 hover:bg-cyan-700",
+        iconBg: "bg-cyan-100 dark:bg-cyan-900/40",
+        iconText: "text-cyan-600 dark:text-cyan-400"
     },
     purple: {
-        bg: "from-purple-500/20 to-purple-600/10",
-        border: "border-purple-500/30",
-        text: "text-purple-500",
-        glow: "shadow-purple-500/20",
-        button: "bg-purple-500 hover:bg-purple-600",
+        bg: "bg-purple-50 dark:bg-purple-500/10",
+        border: "border-purple-100 dark:border-purple-500/30",
+        text: "text-purple-600 dark:text-purple-400",
+        glow: "shadow-purple-500/10 dark:shadow-purple-500/20",
+        button: "bg-purple-600 hover:bg-purple-700",
+        iconBg: "bg-purple-100 dark:bg-purple-900/40",
+        iconText: "text-purple-600 dark:text-purple-400"
     },
 };
 
@@ -121,21 +127,20 @@ function FeatureCard({ icon, title, desc, color, index }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4 }}
             className={`
-        group relative p-5 rounded-2xl
-        bg-gradient-to-br ${colors.bg}
+        group relative p-6 rounded-[2rem]
+        ${colors.bg}
         border ${colors.border}
-        backdrop-blur-sm
         transition-all duration-300
-        hover:scale-[1.02] hover:shadow-xl ${colors.glow}
+        hover:scale-[1.02] hover:shadow-2xl ${colors.glow}
       `}
         >
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-5">
                 <div
                     className={`
-            w-12 h-12 rounded-xl
-            bg-white/10 dark:bg-white/5
+            w-14 h-14 rounded-2xl
+            ${colors.iconBg}
             flex items-center justify-center
-            text-2xl
+            text-3xl
             group-hover:scale-110 transition-transform duration-300
           `}
                 >

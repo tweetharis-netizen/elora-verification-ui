@@ -10,6 +10,10 @@ import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib
 // COMPONENTS: UI UTILITIES
 // ----------------------------------------------------------------------
 
+function cn(...inputs) {
+    return inputs.filter(Boolean).join(" ");
+}
+
 function Greeting({ name, role }) {
     const [greeting, setGreeting] = useState("Hello");
 
@@ -246,6 +250,20 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
         ? `${Math.floor(safeStudents.length * 0.4) + 1} students feeling ${vibe.toLowerCase()} about ${struggleTopic}.`
         : `Class is generally ${vibe.toLowerCase()} and maintaining momentum.`;
 
+    // AI Micro-Coaching (Teacher Strategic Intelligence)
+    const recentSubmissions = safeStudents.flatMap(s => s.classroom?.submissions || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const struggleSubmissions = recentSubmissions.filter(s => s.score / s.total < 0.7);
+
+    let coachingNote = null;
+    if (struggleSubmissions.length >= 2) {
+        const commonTopic = struggleSubmissions[0].quizTitle;
+        coachingNote = {
+            topic: commonTopic,
+            count: struggleSubmissions.length,
+            advice: `Elora detected a pattern: ${struggleSubmissions.length} students are stalling on "${commonTopic}". Try a 5-minute visual analogy before the next quiz.`
+        };
+    }
+
     return {
         avgEngagement: Math.round(totalMessages / safeStudents.length),
         topSubject: top ? top[0] : "General",
@@ -253,6 +271,7 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
         heatmapData,
         recommendedVideos,
         struggleTopic,
+        coachingNote, // NEW
         recommendationReason,
         vibe,
         sentimentInsight,
@@ -329,6 +348,54 @@ function StudentModule({ data, onStartQuiz, session }) {
                     </button>
                 </div>
             </motion.div>
+
+            {/* NEW: Knowledge Forest (Visual Gamification) */}
+            <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10 text-4xl">🌳</div>
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Your Knowledge Forest</h3>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mt-1">Mastery Visualizer</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-lg text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            Growing: {data.recentTopics.length} Topics
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-end justify-center gap-12 py-8 min-h-[160px] bg-slate-50/50 dark:bg-slate-900/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                    {data.recentTopics.length > 0 ? (
+                        data.recentTopics.map((t, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ scale: 0, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                transition={{ delay: i * 0.1, type: 'spring' }}
+                                className="flex flex-col items-center group cursor-pointer"
+                            >
+                                <div className="relative mb-2">
+                                    {/* Tree visual based on progress */}
+                                    <div
+                                        className="text-4xl transition-all duration-1000 group-hover:drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                        style={{
+                                            transform: `scale(${0.5 + (t.progress / 100)})`,
+                                            filter: t.progress > 80 ? 'hue-rotate(0deg)' : 'hue-rotate(-40deg)'
+                                        }}
+                                    >
+                                        {t.progress > 90 ? '🌳' : t.progress > 50 ? '🌿' : '🌱'}
+                                    </div>
+                                    {t.progress > 95 && <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 10, ease: 'linear' }} className="absolute -top-1 -right-1 text-[10px]">✨</motion.div>}
+                                </div>
+                                <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400 group-hover:text-indigo-500 transition-colors">{t.name}</span>
+                                <div className="text-[10px] font-bold text-slate-900 dark:text-white">{t.progress}%</div>
+                            </motion.div>
+                        ))
+                    ) : (
+                        <div className="text-center opacity-30 italic text-xs font-medium">Complete a lesson to plant your first tree.</div>
+                    )}
+                </div>
+            </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
@@ -444,6 +511,8 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [isCreating, setIsCreating] = useState(false);
     const [newClassName, setNewClassName] = useState("");
     const [newClassSubject, setNewClassSubject] = useState("");
+    const [newClassLevel, setNewClassLevel] = useState("");
+    const [newClassCountry, setNewClassCountry] = useState("");
     const [nameInput, setNameInput] = useState("");
     const [code, setCode] = useState("");
 
@@ -477,6 +546,10 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [videoSearchQuery, setVideoSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [noteInput, setNoteInput] = useState("");
+
+    const [isVoiceActive, setIsVoiceActive] = useState(false);
+    const [voiceStage, setVoiceStage] = useState('idle'); // idle, listening, transcribing, ready
+    const [voiceTranscript, setVoiceTranscript] = useState("");
 
     const [isPickingContext, setIsPickingContext] = useState(false);
     const [contextAction, setContextAction] = useState(null); // 'lesson', 'assignment', 'quiz'
@@ -517,6 +590,20 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setQuizTopic("");
     };
 
+    const handleVoiceComm = () => {
+        setIsVoiceActive(true);
+        setVoiceStage('listening');
+
+        // Mock Transcription Workflow
+        setTimeout(() => {
+            setVoiceStage('transcribing');
+            setTimeout(() => {
+                setVoiceTranscript("Planning a review session for the Grade 10s on Modern Algebra concepts covered yesterday.");
+                setVoiceStage('ready');
+            }, 2000);
+        }, 3000);
+    };
+
     // Ensure classes exist
     const classes = activeSession?.classroom?.classes || [];
 
@@ -526,6 +613,8 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
             id: `cls_${Date.now()}`,
             name: newClassName,
             subject: newClassSubject || "General",
+            level: newClassLevel || "None",
+            country: newClassCountry || "General",
             studentCount: 0,
             color: "indigo"
         };
@@ -536,6 +625,9 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         onUpdateSession(nextSession);
         setIsCreating(false);
         setNewClassName("");
+        setNewClassSubject("");
+        setNewClassLevel("");
+        setNewClassCountry("");
     };
 
     const handleCreateAssignment = () => {
@@ -607,13 +699,33 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 <input
                                     autoFocus
                                     placeholder="Class Name (e.g. 10B)"
-                                    className="w-full text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                                    className="w-full text-xs p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                                     value={newClassName}
                                     onChange={e => setNewClassName(e.target.value)}
                                 />
-                                <div className="flex gap-2">
-                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-bold py-1.5 rounded-lg">Add</button>
-                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold py-1.5 rounded-lg">Cancel</button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        placeholder="Subject"
+                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                        value={newClassSubject}
+                                        onChange={e => setNewClassSubject(e.target.value)}
+                                    />
+                                    <input
+                                        placeholder="Level"
+                                        className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                        value={newClassLevel}
+                                        onChange={e => setNewClassLevel(e.target.value)}
+                                    />
+                                </div>
+                                <input
+                                    placeholder="Country"
+                                    className="w-full text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                    value={newClassCountry}
+                                    onChange={e => setNewClassCountry(e.target.value)}
+                                />
+                                <div className="flex gap-2 pt-2">
+                                    <button onClick={handleCreateClass} className="flex-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-lg shadow-lg shadow-indigo-500/20">Add</button>
+                                    <button onClick={() => setIsCreating(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg">Cancel</button>
                                 </div>
                             </div>
                         )}
@@ -627,11 +739,11 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         <button
                             onClick={() => {
                                 setContextAction('lesson');
-                                if (classes.length > 1) setIsPickingContext(true);
+                                if (classes.length > 1 && !selectedClassId) setIsPickingContext(true);
                                 else {
-                                    const cls = classes[0] || { name: 'General', subject: 'Math', level: '10' };
+                                    const cls = classes.find(c => c.id === selectedClassId) || classes[0] || { name: 'General', subject: 'Math', level: 'Primary', country: 'Singapore' };
                                     const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
-                                    router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject || 'General'}&level=${cls.level || '10'}`);
+                                    router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject}&level=${cls.level}&country=${cls.country}`);
                                 }
                             }}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
@@ -641,8 +753,11 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         <button
                             onClick={() => {
                                 setContextAction('quiz');
-                                if (classes.length > 1) setIsPickingContext(true);
-                                else setIsCreatingQuiz(true);
+                                if (classes.length > 1 && !selectedClassId) setIsPickingContext(true);
+                                else {
+                                    const cls = classes.find(c => c.id === selectedClassId) || classes[0] || { name: 'General', subject: 'Math', level: 'Primary', country: 'Singapore' };
+                                    router.push(`/assistant?action=quiz&class=${cls.name}&subject=${cls.subject}&level=${cls.level}&country=${cls.country}`);
+                                }
                             }}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
                         >
@@ -653,6 +768,12 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
                         >
                             🔍 Find Videos
+                        </button>
+                        <button
+                            onClick={handleVoiceComm}
+                            className="block w-full text-left bg-indigo-400/20 hover:bg-indigo-400/30 px-3 py-2 rounded-lg text-xs font-bold transition-all border border-indigo-400/30 animate-pulse-subtle"
+                        >
+                            🎙️ Voice-to-Task (BETA)
                         </button>
                     </div>
                 </div>
@@ -984,6 +1105,36 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Analysis Mode: Real-Time Performance</span>
                             </div>
                         </div>
+
+                        {/* Elora's Strategic Strategy Note (Micro-Coaching) */}
+                        <AnimatePresence>
+                            {metrics.coachingNote && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                                    className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-amber-500/20 relative overflow-hidden group"
+                                >
+                                    <div className="absolute top-0 right-0 p-8 opacity-20 text-6xl group-hover:rotate-12 transition-transform duration-500">💡</div>
+                                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div className="space-y-2 text-center md:text-left">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 border border-white/30 text-[10px] font-black uppercase tracking-widest mb-2">
+                                                <span className="animate-pulse">●</span> Elora's Strategy Note
+                                            </div>
+                                            <h4 className="text-2xl font-black">{metrics.coachingNote.topic} Mastery Alert</h4>
+                                            <p className="text-amber-50 text-sm font-medium opacity-90 leading-relaxed max-w-xl">
+                                                {metrics.coachingNote.advice}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => router.push(`/assistant?action=lesson_plan&topic=${metrics.coachingNote.topic}&subject=${metrics.topSubject}`)}
+                                            className="px-8 py-4 bg-white text-orange-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-all"
+                                        >
+                                            Generate Bridge Lesson →
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
@@ -1342,6 +1493,61 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                         </motion.div>
                     </div>
                 )}
+
+                {/* Voice-to-Task Modal */}
+                <AnimatePresence>
+                    {isVoiceActive && (
+                        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" />
+                            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-center p-10">
+                                <div className="mb-8">
+                                    <div className="relative inline-block">
+                                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl transition-all duration-700 ${voiceStage === 'listening' ? 'bg-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)] scale-110' : voiceStage === 'transcribing' ? 'bg-indigo-600 animate-spin-slow' : 'bg-emerald-500 text-white'}`}>
+                                            {voiceStage === 'listening' ? '🎙️' : voiceStage === 'transcribing' ? '⏳' : '✅'}
+                                            {voiceStage === 'listening' && <div className="absolute inset-0 rounded-full border-4 border-rose-500 animate-ping opacity-50" />}
+                                        </div>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-6 uppercase tracking-tight">
+                                        {voiceStage === 'listening' ? 'Listening...' : voiceStage === 'transcribing' ? 'Syncing Thoughts...' : 'Insight Captured'}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 font-bold mt-2 uppercase tracking-widest opacity-60">
+                                        {voiceStage === 'listening' ? 'Speak naturally about your lesson plan' : voiceStage === 'transcribing' ? 'Elora is organizing your pedagogy' : 'Ready to generate lesson'}
+                                    </p>
+                                </div>
+
+                                <div className="min-h-[100px] flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 mb-8">
+                                    {voiceStage === 'ready' ? (
+                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed italic">"{voiceTranscript}"</p>
+                                    ) : (
+                                        <div className="flex gap-1">
+                                            {[1, 2, 3].map(i => <div key={i} className={`w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce`} style={{ animationDelay: `${i * 0.1}s` }} />)}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => { setIsVoiceActive(false); setVoiceStage('idle'); }}
+                                        className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                        Discard
+                                    </button>
+                                    {voiceStage === 'ready' && (
+                                        <button
+                                            onClick={() => {
+                                                setIsVoiceActive(false);
+                                                router.push(`/assistant?action=lesson_plan&topic=${voiceTranscript}`);
+                                            }}
+                                            className="flex-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all"
+                                        >
+                                            Generate Plan →
+                                        </button>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* Context Picker Modal */}
                 {isPickingContext && (

@@ -1,11 +1,15 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/router";
-import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/session";
+import { getSession, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib/videoLibrary";
 import { AssignmentWizard, ClassSwitcher, AssignmentList } from "@/components/AssignmentComponents";
+import { SubmissionModal } from "@/components/SubmissionModal";
+import { GradingModal } from "@/components/GradingModal";
+import { NotificationProvider, notify } from "@/components/Notifications";
+import { generateDemoData, DemoModeBanner } from "@/lib/demoData";
 
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
@@ -105,20 +109,20 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
     const points = data.map((val, i) => {
         const x = (i / (data.length - 1)) * 100;
         const y = 100 - ((val - min) / range) * 100;
-        return `${x},${y}`;
+        return `${x},${y} `;
     }).join(" ");
     return (
         <div className="relative w-full overflow-hidden" style={{ height }}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                 <defs>
-                    <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id={`gradient - ${color} `} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={color} stopOpacity="0.2" />
                         <stop offset="100%" stopColor={color} stopOpacity="0" />
                     </linearGradient>
                 </defs>
                 <motion.path
-                    d={`M 0,100 L 0,${100 - ((data[0] - min) / range) * 100} ${points.split(" ").map(p => `L ${p}`).join(" ")} L 100,100 Z`}
-                    fill={`url(#gradient-${color})`}
+                    d={`M 0, 100 L 0, ${100 - ((data[0] - min) / range) * 100} ${points.split(" ").map(p => `L ${p}`).join(" ")} L 100, 100 Z`}
+                    fill={`url(#gradient - ${color})`}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
                 />
                 <motion.polyline
@@ -143,8 +147,8 @@ function BarChart({ data, labels, height = 200, color = "#10b981" }) {
                     <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                         <motion.div
                             className="w-full rounded-t-lg opacity-80 group-hover:opacity-100 transition-opacity"
-                            style={{ backgroundColor: color, height: `${h}%` }}
-                            initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ duration: 0.8, delay: i * 0.05 }}
+                            style={{ backgroundColor: color, height: `${h}% ` }}
+                            initial={{ height: 0 }} animate={{ height: `${h}% ` }} transition={{ duration: 0.8, delay: i * 0.05 }}
                         />
                         <div className="text-[10px] font-bold text-slate-500 truncate w-full text-center mt-2">{labels[i]}</div>
                     </div>
@@ -163,14 +167,14 @@ function ClassHeatmap({ data }) {
                 <div key={i} className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 flex flex-col justify-between border border-slate-100 dark:border-white/5">
                     <div className="flex justify-between items-start mb-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{item.subject}</span>
-                        <div className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${item.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : item.score >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'}`}>
+                        <div className={`text - [10px] px - 1.5 py - 0.5 rounded - md font - bold ${item.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : item.score >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'} `}>
                             {item.score}%
                         </div>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full ${item.score >= 80 ? 'bg-emerald-500' : item.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                            style={{ width: `${item.score}%` }}
+                            className={`h - full rounded - full ${item.score >= 80 ? 'bg-emerald-500' : item.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'} `}
+                            style={{ width: `${item.score}% ` }}
                         />
                     </div>
                 </div>
@@ -321,7 +325,7 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
         coachingNote = {
             topic: commonTopic,
             count: struggleSubmissions.length,
-            advice: `Elora detected a pattern: ${struggleSubmissions.length} students are stalling on "${commonTopic}". Try a 5-minute visual analogy before the next quiz.`
+            advice: `Elora detected a pattern: ${struggleSubmissions.length} students are stalling on "${commonTopic}".Try a 5 - minute visual analogy before the next quiz.`
         };
     }
 
@@ -378,7 +382,7 @@ function PreviewBanner() {
 // ROLE MODULES
 // ----------------------------------------------------------------------
 
-function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
+function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode, demoData, isSubmitting, setIsSubmitting, setActiveAssignment }) {
     if (!data) return null;
     const [selectedClassIndex, setSelectedClassIndex] = useState(0);
     const [joinCodeInput, setJoinCodeInput] = useState("");
@@ -455,7 +459,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                         </h3>
                         <p className="text-indigo-100 text-sm font-medium opacity-90 max-w-md">
                             {session?.classroom?.submissions?.[0]
-                                ? `Elora noticed you excelled at ${session.classroom.submissions[0].details.find(d => d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'recent topics'}. Ready for the next tier?`
+                                ? `Elora noticed you excelled at ${session.classroom.submissions[0].details.find(d => d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'recent topics'}. Ready for the next tier ? `
                                 : "Elora is analyzing your latest sessions to build your personalized mastery path. Complete a quiz to see your strategy here."}
                         </p>
                     </div>
@@ -509,10 +513,10 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                             <button
                                 key={idx}
                                 onClick={() => setSelectedClassIndex(idx)}
-                                className={`group relative px-6 py-4 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${selectedClassIndex === idx
+                                className={`group relative px - 6 py - 4 rounded - 2xl font - bold text - sm whitespace - nowrap transition - all flex - shrink - 0 ${selectedClassIndex === idx
                                     ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30'
                                     : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
-                                    }`}
+                                    } `}
                             >
                                 <div>
                                     <div className="font-black">{cls.name}</div>
@@ -523,8 +527,8 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                                         e.stopPropagation();
                                         handleLeaveClass(idx);
                                     }}
-                                    className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${selectedClassIndex === idx ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                                        }`}
+                                    className={`absolute top - 2 right - 2 w - 6 h - 6 rounded - full flex items - center justify - center opacity - 0 group - hover: opacity - 100 transition - opacity ${selectedClassIndex === idx ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                        } `}
                                     title="Leave class"
                                 >
                                     ✕
@@ -611,9 +615,9 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                     { label: "Streak", val: `${data.streak} d`, icon: "🔥", color: "from-orange-500 to-rose-500" },
-                    { label: "Today", val: `${data.todayMinutes}m`, icon: "⏱️", color: "from-indigo-500 to-violet-500" },
+                    { label: "Today", val: `${data.todayMinutes} m`, icon: "⏱️", color: "from-indigo-500 to-violet-500" },
                     { label: "Momentum", val: "+15%", icon: "🚀", color: "from-fuchsia-500 to-indigo-500" },
-                    { label: "Progress", val: `${data.overallProgress}%`, icon: "📈", color: "from-emerald-500 to-cyan-500" },
+                    { label: "Progress", val: `${data.overallProgress}% `, icon: "📈", color: "from-emerald-500 to-cyan-500" },
                     { label: "Queries", val: data.achievements.filter(a => a.earned).length, icon: "💬", color: "from-amber-500 to-orange-500" }
                 ].map((s, i) => (
                     <motion.div key={i}
@@ -623,7 +627,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                         whileHover={{ y: -5, scale: 1.02 }}
                         className="elora-glass dark:elora-glass-dark p-6 rounded-[2rem] border border-white/10 shadow-xl overflow-hidden group relative"
                     >
-                        <div className={`absolute -top-12 -right-12 w-24 h-24 bg-gradient-to-br ${s.color} opacity-10 group-hover:opacity-20 blur-2xl transition-opacity`} />
+                        <div className={`absolute - top - 12 - right - 12 w - 24 h - 24 bg - gradient - to - br ${s.color} opacity - 10 group - hover: opacity - 20 blur - 2xl transition - opacity`} />
                         <div className="flex items-center gap-4 mb-3">
                             <span className="text-3xl filter drop-shadow-md">{s.icon}</span>
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{s.label}</span>
@@ -645,7 +649,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                             <div key={i}>
                                 <div className="flex justify-between text-sm mb-1 font-bold"><span>{t.emoji} {t.name}</span><span>{t.progress}%</span></div>
                                 <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div className="h-full bg-indigo-500" style={{ width: `${t.progress}%` }} />
+                                    <div className="h-full bg-indigo-500" style={{ width: `${t.progress}% ` }} />
                                 </div>
                             </div>
                         ))}
@@ -766,7 +770,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
                                             <span>📅</span>
                                             <span>Due {assignment.dueDate}</span>
                                         </div>
-                                        <div className={`px-2 py-1 rounded-md ${hasSubmitted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'}`}>
+                                        <div className={`px - 2 py - 1 rounded - md ${hasSubmitted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'} `}>
                                             {hasSubmitted ? "Submitted" : "Pending"}
                                         </div>
                                     </div>
@@ -790,7 +794,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
     );
 }
 
-function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession }) {
+function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession, isDemoMode, demoData, isGrading, setIsGrading, setActiveSubmission, setActiveAssignment }) {
     if (!activeSession) return null;
     const [selectedTab, setSelectedTab] = useState("overview"); // overview, assignments, insights
     const [selectedClassId, setSelectedClassId] = useState(null);
@@ -850,6 +854,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const [isPickingContext, setIsPickingContext] = useState(false);
     const [contextAction, setContextAction] = useState(null); // 'lesson', 'assignment', 'quiz'
 
+
     // Sync quizzes to session
     useEffect(() => {
         const nextSession = { ...activeSession };
@@ -872,7 +877,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const handleCreateQuiz = () => {
         if (!quizTopic) return;
         const newQuiz = {
-            id: `q_${Date.now()}`,
+            id: `q_${Date.now()} `,
             title: quizTopic,
             questions: [
                 { id: 1, text: `Explain the fundamental concept of ${quizTopic}.`, type: "open" },
@@ -901,7 +906,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         setTimeout(() => {
             setVoiceStage('transcribing');
             setTimeout(() => {
-                setVoiceTranscript(`Create a ${contextSubject} review session for ${className} (${contextLevel}) focused on the key concepts we discussed this week.`);
+                setVoiceTranscript(`Create a ${contextSubject} review session for ${className}(${contextLevel}) focused on the key concepts we discussed this week.`);
                 setVoiceStage('ready');
             }, 2000);
         }, 3000);
@@ -914,7 +919,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         const cls = classes.find(c => c.id === id);
         if (!cls) return; // Should not happen
 
-        const confirmName = window.prompt(`To confirm deletion, type "${cls.name}":`);
+        const confirmName = window.prompt(`To confirm deletion, type "${cls.name}": `);
         if (confirmName !== cls.name) {
             alert("Class name did not match. Deletion cancelled.");
             return;
@@ -929,16 +934,16 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     };
 
     const handleOpenSettings = (cls) => {
-        setEditingClass(cls);
-        // Pre-fill state
+        setEditingClass({ ...cls }); // Shallow copy to prevent immediate changes to session
+        // Pre-fill state (optional, if we use separate inputs, but we're editing editingClass directly)
         setNewClassName(cls.name);
         setNewClassSubject(cls.subject);
         setNewClassLevel(cls.level);
         setNewClassCountry(cls.country);
         setNewClassVision(cls.vision || "");
-        setIsCreating(true); // Reuse the modal
+
         setIsEditingClass(true); // Indicate we are editing
-        setClassWizardStep(1); // Reset wizard
+        setIsCreating(false); // Do NOT trigger the wizard
     };
 
     const handleOpenAssignment = (cls) => {
@@ -948,6 +953,20 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         // We need a way to track *which* class this assignment is for if opened directly
         // Ideally we'd store a 'targetClassId' state, but for now let's rely on the user seeing the pre-filled topic
         // effectively guiding them. Or better, update handleCreateAssignment to use selectedClassId if available.
+    };
+
+    const handleUpdateClassSettings = (updatedClass) => {
+        const nextSession = { ...activeSession };
+        if (!nextSession.classroom?.classes) return;
+
+        nextSession.classroom.classes = nextSession.classroom.classes.map(c =>
+            c.id === updatedClass.id ? { ...c, ...updatedClass } : c
+        );
+
+        onUpdateSession(nextSession);
+        setIsEditingClass(false);
+        setEditingClass(null);
+        notify("Class settings updated successfully!", "success");
     };
 
     const handleCreateClass = () => {
@@ -972,7 +991,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         } else {
             // Create new class
             const newClass = {
-                id: `cls_${Date.now()}`,
+                id: `cls_${Date.now()} `,
                 joinCode: generateJoinCode(),
                 name: newClassName,
                 subject: newClassSubject || "General",
@@ -1007,7 +1026,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
         if (!Array.isArray(nextSession.classroom.assignments)) nextSession.classroom.assignments = [];
 
         const newAsgn = {
-            id: `assign_${Date.now()}`,
+            id: `assign_${Date.now()} `,
             title: assignmentTopic,
             dueDate: "2026-02-10", // Mock date - should be from form
             classCode: selectedClassId || "ALL",
@@ -1046,7 +1065,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <button
                                 key={tab.id}
                                 onClick={() => setSelectedTab(tab.id)}
-                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedTab === tab.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                                className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${selectedTab === tab.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
                             >
                                 {tab.label}
                             </button>
@@ -1057,7 +1076,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     <div className="space-y-1">
                         <button
                             onClick={() => setSelectedClassId(null)}
-                            className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedClassId === null ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`}
+                            className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${selectedClassId === null ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"} `}
                         >
                             All Students
                         </button>
@@ -1065,7 +1084,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <div key={c.id} className="group relative">
                                 <button
                                     onClick={() => setSelectedClassId(c.id)}
-                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                                    className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all flex items - center justify - between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
                                 >
                                     <div className="flex flex-col min-w-0">
                                         <span className="truncate pr-8">{c.name}</span>
@@ -1133,7 +1152,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     </div>
                                     <div className="flex gap-1">
                                         {[1, 2, 3].map(step => (
-                                            <div key={step} className={`w-2 h-2 rounded-full transition-all ${classWizardStep >= step ? 'bg-white' : 'bg-white/30'}`} />
+                                            <div key={step} className={`w - 2 h - 2 rounded - full transition - all ${classWizardStep >= step ? 'bg-white' : 'bg-white/30'} `} />
                                         ))}
                                     </div>
                                 </div>
@@ -1257,8 +1276,8 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 if (classes.length > 1 && !selectedClassId) setIsPickingContext(true);
                                 else {
                                     const cls = classes.find(c => c.id === selectedClassId) || classes[0] || { name: 'General', subject: 'Math', level: 'Primary', country: 'Singapore' };
-                                    const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
-                                    router.push(`/assistant?action=lesson_plan&topic=${topic}&class=${cls.name}&subject=${cls.subject}&level=${cls.level}&country=${cls.country}`);
+                                    const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic} ` : 'New Lesson';
+                                    router.push(`/ assistant ? action = lesson_plan & topic=${topic}& class=${cls.name}& subject=${cls.subject}& level=${cls.level}& country=${cls.country} `);
                                 }
                             }}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
@@ -1271,7 +1290,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 if (classes.length > 1 && !selectedClassId) setIsPickingContext(true);
                                 else {
                                     const cls = classes.find(c => c.id === selectedClassId) || classes[0] || { name: 'General', subject: 'Math', level: 'Primary', country: 'Singapore' };
-                                    router.push(`/assistant?action=quiz&class=${cls.name}&subject=${cls.subject}&level=${cls.level}&country=${cls.country}`);
+                                    router.push(`/ assistant ? action = quiz & class=${cls.name}& subject=${cls.subject}& level=${cls.level}& country=${cls.country} `);
                                 }
                             }}
                             className="block w-full text-left bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
@@ -1641,7 +1660,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => router.push(`/assistant?action=lesson_plan&topic=${metrics.coachingNote.topic}&subject=${metrics.topSubject}`)}
+                                            onClick={() => router.push(`/ assistant ? action = lesson_plan & topic=${metrics.coachingNote.topic}& subject=${metrics.topSubject} `)}
                                             className="px-8 py-4 bg-white text-orange-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-all"
                                         >
                                             Generate Bridge Lesson →
@@ -1670,7 +1689,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </h4>
                                 <div className="relative z-10 space-y-4">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ${metrics.vibe === 'Excited' ? 'bg-amber-400 text-white' : metrics.vibe === 'Confused' ? 'bg-fuchsia-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                                        <div className={`w - 12 h - 12 rounded - 2xl flex items - center justify - center text - xl shadow - lg ${metrics.vibe === 'Excited' ? 'bg-amber-400 text-white' : metrics.vibe === 'Confused' ? 'bg-fuchsia-500 text-white' : 'bg-emerald-500 text-white'} `}>
                                             {metrics.vibe === 'Excited' ? '🔥' : metrics.vibe === 'Confused' ? '🤔' : '🧠'}
                                         </div>
                                         <div>
@@ -1751,7 +1770,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </div>
                                 <div className="flex gap-1">
                                     {[1, 2, 3].map(step => (
-                                        <div key={step} className={`w-2 h-2 rounded-full transition-all ${assignmentWizardStep >= step ? 'bg-white' : 'bg-white/30'}`} />
+                                        <div key={step} className={`w - 2 h - 2 rounded - full transition - all ${assignmentWizardStep >= step ? 'bg-white' : 'bg-white/30'} `} />
                                     ))}
                                 </div>
                             </div>
@@ -1776,7 +1795,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             >
                                                 <option value="ALL">All Students</option>
                                                 {(students || []).map((s, i) => (
-                                                    <option key={i} value={s.id || s.name}>{s.name || `Student ${i + 1}`}</option>
+                                                    <option key={i} value={s.id || s.name}>{s.name || `Student ${i + 1} `}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -1788,7 +1807,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setAssignmentFile(null)}
-                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${!assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'}`}
+                                                className={`p - 6 rounded - 2xl border - 2 text - left transition - all ${!assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
                                             >
                                                 <div className="text-2xl mb-2">🤖</div>
                                                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">AI Generator</h4>
@@ -1796,7 +1815,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             </button>
                                             <button
                                                 onClick={() => setAssignmentFile("manual_upload_placeholder")}
-                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'}`}
+                                                className={`p - 6 rounded - 2xl border - 2 text - left transition - all ${assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
                                             >
                                                 <div className="text-2xl mb-2">📂</div>
                                                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Upload File</h4>
@@ -2135,7 +2154,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                     <button
                                                         onClick={() => {
                                                             const newRes = {
-                                                                id: `r_${Date.now()}`,
+                                                                id: `r_${Date.now()} `,
                                                                 title: vid.title,
                                                                 link: vid.url,
                                                                 type: "Video",
@@ -2219,7 +2238,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-center p-10">
                                 <div className="mb-8">
                                     <div className="relative inline-block">
-                                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl transition-all duration-700 ${voiceStage === 'listening' ? 'bg-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)] scale-110' : voiceStage === 'transcribing' ? 'bg-indigo-600 animate-spin-slow' : 'bg-emerald-500 text-white'}`}>
+                                        <div className={`w - 24 h - 24 rounded - full flex items - center justify - center text - 3xl transition - all duration - 700 ${voiceStage === 'listening' ? 'bg-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)] scale-110' : voiceStage === 'transcribing' ? 'bg-indigo-600 animate-spin-slow' : 'bg-emerald-500 text-white'} `}>
                                             {voiceStage === 'listening' ? '🎙️' : voiceStage === 'transcribing' ? '⏳' : '✅'}
                                             {voiceStage === 'listening' && <div className="absolute inset-0 rounded-full border-4 border-rose-500 animate-ping opacity-50" />}
                                         </div>
@@ -2237,7 +2256,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed italic">"{voiceTranscript}"</p>
                                     ) : (
                                         <div className="flex gap-1">
-                                            {[1, 2, 3].map(i => <div key={i} className={`w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce`} style={{ animationDelay: `${i * 0.1}s` }} />)}
+                                            {[1, 2, 3].map(i => <div key={i} className={`w - 1.5 h - 1.5 rounded - full bg - indigo - 500 animate - bounce`} style={{ animationDelay: `${i * 0.1} s` }} />)}
                                         </div>
                                     )}
                                 </div>
@@ -2264,7 +2283,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                     vision: activeClass.vision || '',
                                                     classCode: activeClass.joinCode || ''
                                                 });
-                                                router.push(`/assistant?${params.toString()}`);
+                                                router.push(`/ assistant ? ${params.toString()} `);
                                             }}
                                             className="flex-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all"
                                         >
@@ -2345,7 +2364,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </div>
                                 <div className="flex gap-4 pt-4">
                                     <button onClick={() => setIsEditingClass(false)} className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors">Cancel</button>
-                                    <button onClick={handleUpdateClassSettings} className="flex-2 bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20">Save Settings</button>
+                                    <button onClick={() => handleUpdateClassSettings(editingClass)} className="flex-2 bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20">Save Settings</button>
                                 </div>
                             </div>
                         </motion.div>
@@ -2367,7 +2386,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         key={i}
                                         onClick={() => {
                                             if (contextAction === 'lesson') {
-                                                const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic}` : 'New Lesson';
+                                                const topic = metrics.struggleTopic ? `Review of ${metrics.struggleTopic} ` : 'New Lesson';
                                                 const params = new URLSearchParams({
                                                     action: 'lesson_plan',
                                                     topic,
@@ -2378,7 +2397,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                     vision: cls.vision || '',
                                                     classCode: cls.joinCode || ''
                                                 });
-                                                router.push(`/assistant?${params.toString()}`);
+                                                router.push(`/ assistant ? ${params.toString()} `);
                                             } else if (contextAction === 'assignment') {
                                                 setIsCreatingAssignment(true);
                                                 setIsPickingContext(false);
@@ -2420,6 +2439,27 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState("student");
     const [linkedData, setLinkedData] = useState(null);
     const [activeQuiz, setActiveQuiz] = useState(null);
+
+    // demo Mode & feature Unlock States
+    const [isDemoMode, setIsDemoMode] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [activeAssignment, setActiveAssignment] = useState(null);
+    const [isGrading, setIsGrading] = useState(false);
+    const [activeSubmission, setActiveSubmission] = useState(null);
+
+    // Effect to check verification status and enable demo mode
+    useEffect(() => {
+        if (session && !session.verified) {
+            setIsDemoMode(true);
+        }
+    }, [session]);
+
+    // Use memoized demo data
+    const demoData = useMemo(() => {
+        if (!isDemoMode) return null;
+        const role = session?.role || 'student';
+        return generateDemoData(role);
+    }, [isDemoMode, session?.role]);
 
     // Assignment & Multi-Class State
     const [showAssignmentWizard, setShowAssignmentWizard] = useState(false);
@@ -2528,9 +2568,10 @@ export default function DashboardPage() {
     const classMetrics = computeClassMetrics(session.linkedStudents, session.verified);
 
     return (
-        <>
+        <NotificationProvider>
             <Head><title>Dashboard | Elora</title></Head>
             <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
+                <DemoModeBanner isDemo={isDemoMode} />
                 <div className="elora-container pt-12">
                     {!session.verified && <PreviewBanner />}
                     <Greeting
@@ -2546,7 +2587,7 @@ export default function DashboardPage() {
                             return id === userRole;
                         }).map(id => (
                             <button key={id} onClick={() => setActiveTab(id)}
-                                className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"}`}>
+                                className={`px - 6 py - 2.5 rounded - full text - xs font - black tracking - widest uppercase transition - all duration - 300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"} `}>
                                 {id}
                             </button>
                         ))}
@@ -2554,8 +2595,19 @@ export default function DashboardPage() {
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {activeTab === 'student' && <StudentModule data={studentData} onStartQuiz={(q) => setActiveQuiz(q)} session={session} onUpdateSession={updateSessionAndSync} />}
-
+                            {activeTab === 'student' && (
+                                <StudentModule
+                                    data={studentData}
+                                    onStartQuiz={setActiveQuiz}
+                                    session={session}
+                                    onUpdateSession={updateSessionAndSync}
+                                    isDemoMode={isDemoMode}
+                                    demoData={demoData}
+                                    isSubmitting={isSubmitting}
+                                    setIsSubmitting={setIsSubmitting}
+                                    setActiveAssignment={setActiveAssignment}
+                                />
+                            )}
                             {activeTab === 'parent' && (
                                 session?.linkedStudentId ? (
                                     <div className="space-y-6">
@@ -2598,7 +2650,19 @@ export default function DashboardPage() {
                             )}
 
                             {activeTab === 'teacher' && (
-                                <TeacherModule students={session.linkedStudents || []} metrics={classMetrics} onAddStudent={handleAddStudent} session={session} onUpdateSession={updateSessionAndSync} />
+                                <TeacherModule
+                                    students={session.linkedStudents || []}
+                                    metrics={classMetrics}
+                                    onAddStudent={handleAddStudent}
+                                    session={session}
+                                    onUpdateSession={updateSessionAndSync}
+                                    isDemoMode={isDemoMode}
+                                    demoData={demoData}
+                                    isGrading={isGrading}
+                                    setIsGrading={setIsGrading}
+                                    setActiveSubmission={setActiveSubmission}
+                                    setActiveAssignment={setActiveAssignment}
+                                />
                             )}
                         </motion.div>
                     </AnimatePresence>
@@ -2635,7 +2699,7 @@ export default function DashboardPage() {
                                         onClick={() => {
                                             const currentSession = getSession();
                                             const submission = {
-                                                id: `sub_${Date.now()}`,
+                                                id: `sub_${Date.now()} `,
                                                 studentName: currentSession.email?.split('@')[0] || "Guest Student",
                                                 quizTitle: activeQuiz.title,
                                                 score: Math.floor(activeQuiz.questions.length * 0.8), // Mocking a score for open response for now
@@ -2666,7 +2730,34 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </AnimatePresence>
+
+                {/* New Modals */}
+                <AnimatePresence>
+                    {isSubmitting && (
+                        <SubmissionModal
+                            assignment={activeAssignment}
+                            isOpen={isSubmitting}
+                            onClose={() => setIsSubmitting(false)}
+                            onSubmit={(sub) => {
+                                notify("Assignment submitted successfully!", "success");
+                                setIsSubmitting(false);
+                            }}
+                        />
+                    )}
+                    {isGrading && (
+                        <GradingModal
+                            submission={activeSubmission}
+                            assignment={activeAssignment}
+                            isOpen={isGrading}
+                            onClose={() => setIsGrading(false)}
+                            onSaveGrade={(grade) => {
+                                notify("Grade saved successfully!", "success");
+                                setIsGrading(false);
+                            }}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
-        </>
+        </NotificationProvider>
     );
 }

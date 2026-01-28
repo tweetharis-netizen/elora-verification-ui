@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Modal from "../components/Modal";
@@ -553,7 +554,7 @@ const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
         {recs.map(v => (
           <a key={v.id} href={v.url} target="_blank" rel="noreferrer" className="block group">
             <div className="relative aspect-video rounded-xl overflow-hidden mb-2">
-              <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <Image src={v.thumbnail} alt={v.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
               <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[8px] font-bold text-white rounded">FREE</div>
             </div>
@@ -1698,7 +1699,7 @@ export default function AssistantPage() {
             </div>
 
             {/* RIGHT - Chat Area */}
-            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[85dvh] lg:h-[calc(100dvh-32px)] w-full max-w-[1600px] mx-auto">
+            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[96dvh] lg:h-[calc(100dvh-60px)] w-full max-w-[1600px] mx-auto">
               {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>

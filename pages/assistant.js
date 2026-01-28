@@ -1834,23 +1834,23 @@ export default function AssistantPage() {
 
                     display = cleanAssistantText(display);
                     return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal mb-6 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
+                      <div key={idx} className={cn("flex w-full group animate-reveal mb-8 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-5 sm:p-7 shadow-2xl transition-all duration-500 max-w-[98%] sm:max-w-[85%] lg:max-w-[70%]",
+                          "relative p-8 sm:p-10 shadow-2xl transition-all duration-500 max-w-[98%] sm:max-w-[90%] lg:max-w-[80%]",
                           isUser
                             ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border border-white/10"
                             : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left"
                         )}>
-                          <div className="font-bold flex items-center gap-2 mb-2">
-                            <div className={cn("w-1.5 h-1.5 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+                          <div className="font-bold flex items-center gap-3 mb-4">
+                            <div className={cn("w-3 h-3 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
+                            <span className="text-[13px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
 
                           {/* Improved rendering for structured content (quizzes, lessons) */}
                           <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-[1.7] text-[15px]",
+                            "whitespace-pre-wrap font-medium break-words leading-[1.8] text-[18px]",
                             !isUser && "elora-markdown-view"
                           )}>
                             {display ? (display || "").split('\n').map((line, i) => {

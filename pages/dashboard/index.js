@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/router";
 import { getSession, saveSession } from "@/lib/session";
@@ -1726,7 +1727,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer"
                                         >
                                             <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
-                                                <img src={vid.thumbnail} alt={vid.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <Image src={vid.thumbnail} alt={vid.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                                                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-600 pl-1 shadow-2xl scale-90 group-hover:scale-100 transition-transform">▶</div>
                                                 </div>
@@ -2132,7 +2133,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         {searchResults.map((vid, i) => (
                                             <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 flex flex-col gap-4 group hover:bg-white dark:hover:bg-slate-800 transition-all">
                                                 <div className="aspect-video rounded-2xl overflow-hidden relative">
-                                                    <img src={vid.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                    <Image src={vid.thumbnail} alt={vid.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                                                     <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm text-[8px] font-black text-white rounded uppercase border border-white/10">{vid.channel}</div>
                                                     <div className="absolute bottom-2 left-2 flex gap-1">
                                                         <div className="px-2 py-0.5 bg-indigo-600/80 backdrop-blur-md text-[8px] font-black text-white rounded">👁 {vid.views}</div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { getSession, refreshVerifiedFromServer, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib/videoLibrary";
+import { AssignmentWizard, ClassSwitcher, AssignmentList } from "@/components/AssignmentComponents";
 
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
@@ -377,8 +378,9 @@ function PreviewBanner() {
 // ROLE MODULES
 // ----------------------------------------------------------------------
 
-function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Added onUpdateSession
+function StudentModule({ data, onStartQuiz, session, onUpdateSession }) {
     if (!data) return null;
+    const [selectedClassIndex, setSelectedClassIndex] = useState(0);
     const [joinCodeInput, setJoinCodeInput] = useState("");
     const [joinStatus, setJoinStatus] = useState("");
 
@@ -389,15 +391,29 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Add
             // Mock backend verification
             if (joinCodeInput.length === 6) {
                 const s = getSession();
-                s.joinedClass = {
-                    name: "Physics 101", // Mock data
+
+                // Initialize joinedClasses if it doesn't exist
+                if (!Array.isArray(s.joinedClasses)) s.joinedClasses = [];
+
+                // Check if already joined
+                const alreadyJoined = s.joinedClasses.some(c => c.code === joinCodeInput);
+                if (alreadyJoined) {
+                    setJoinStatus("Already joined ✓");
+                    setTimeout(() => setJoinStatus(""), 3000);
+                    return;
+                }
+
+                // Add new class to array
+                const newClass = {
+                    name: "Physics 101", // Mock data - would come from server
                     code: joinCodeInput,
                     subject: "Physics",
                     level: "Grade 10",
                     country: "United States",
                     vision: "Focus on conceptual understanding"
                 };
-                onUpdateSession(s); // Use prop to update
+                s.joinedClasses.push(newClass);
+                onUpdateSession(s);
                 setJoinStatus("Joined! ✅");
                 setJoinCodeInput("");
             } else {
@@ -406,6 +422,18 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Add
             setTimeout(() => setJoinStatus(""), 3000);
         }, 1000);
     };
+
+    const handleLeaveClass = (index) => {
+        const s = getSession();
+        s.joinedClasses.splice(index, 1);
+        onUpdateSession(s);
+        if (selectedClassIndex >= s.joinedClasses.length) {
+            setSelectedClassIndex(Math.max(0, s.joinedClasses.length - 1));
+        }
+    };
+
+    const joinedClasses = session?.joinedClasses || [];
+    const currentClass = joinedClasses[selectedClassIndex];
 
     return (
         <div className="space-y-6">
@@ -437,8 +465,8 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Add
                 </div>
             </motion.div>
 
-            {/* Join Class Banner */}
-            {!session?.joinedClass ? (
+            {/* Join Class Banner / Class Switcher */}
+            {joinedClasses.length === 0 ? (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 bg-gradient-to-r from-indigo-600 to-violet-700 rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform text-4xl">🎓</div>
                     <div className="relative z-10 max-w-xl">
@@ -462,24 +490,73 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Add
                     </div>
                 </motion.div>
             ) : (
-                <div className="mb-8 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white text-lg">✅</div>
-                        <div>
-                            <p className="text-xs font-black text-emerald-600 uppercase tracking-widest">Joined Class</p>
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{session.joinedClass.name} • {session.joinedClass.subject}</p>
-                        </div>
+                <div className="mb-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">My Classes</h3>
+                        <button
+                            onClick={() => {
+                                // Show join modal
+                                setJoinCodeInput("");
+                                setJoinStatus("");
+                            }}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                        >
+                            + Join Another
+                        </button>
                     </div>
-                    <button
-                        onClick={() => {
-                            const s = getSession();
-                            delete s.joinedClass;
-                            updateSessionAndSync(s);
-                        }}
-                        className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                        Leave Class
-                    </button>
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {joinedClasses.map((cls, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setSelectedClassIndex(idx)}
+                                className={`group relative px-6 py-4 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${selectedClassIndex === idx
+                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                                    }`}
+                            >
+                                <div>
+                                    <div className="font-black">{cls.name}</div>
+                                    <div className="text-[10px] opacity-70">{cls.subject} • {cls.code}</div>
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLeaveClass(idx);
+                                    }}
+                                    className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${selectedClassIndex === idx ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                        }`}
+                                    title="Leave class"
+                                >
+                                    ✕
+                                </button>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Join Code Input (collapsed) */}
+                    {joinCodeInput !== "" && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="flex gap-3 p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl">
+                            <input
+                                value={joinCodeInput}
+                                onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                                placeholder="ENTER-CODE"
+                                maxLength={6}
+                                className="flex-1 bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-500/30 rounded-xl px-4 py-2 text-sm font-black tracking-widest focus:border-indigo-500 outline-none transition-all"
+                            />
+                            <button
+                                onClick={handleJoinClass}
+                                className="bg-indigo-600 text-white px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                            >
+                                {joinStatus || "Join"}
+                            </button>
+                            <button
+                                onClick={() => setJoinCodeInput("")}
+                                className="text-slate-400 hover:text-slate-600 px-2"
+                            >
+                                ✕
+                            </button>
+                        </motion.div>
+                    )}
                 </div>
             )}
 
@@ -631,6 +708,81 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession }) { // Add
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Assignments Section */}
+            {session?.classroom?.assignments && session.classroom.assignments.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm animate-reveal">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <span className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center text-lg">📝</span>
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white">My Assignments</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Tasks</p>
+                            </div>
+                        </div>
+                        <div className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                            {session.classroom.assignments.length} Total
+                        </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {session.classroom.assignments.map(assignment => {
+                            // Check if submitted
+                            const hasSubmitted = session?.classroom?.submissions?.some(
+                                s => s.assignmentId === assignment.id
+                            );
+                            const assignmentClassCode = assignment.classCode || "ALL";
+                            const currentClassCode = currentClass?.code || "";
+
+                            // Only show if assignment is for current class or for all students
+                            if (assignmentClassCode !== "ALL" && assignmentClassCode !== currentClassCode && joinedClasses.length > 0) {
+                                return null;
+                            }
+
+                            return (
+                                <motion.div
+                                    key={assignment.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-slate-900/40 dark:to-slate-800/40 p-6 rounded-2xl border-2 border-indigo-100 dark:border-indigo-500/20 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group cursor-pointer"
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex-1">
+                                            <h4 className="text-base font-black text-slate-900 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">{assignment.title}</h4>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                {assignment.description || "No description provided"}
+                                            </p>
+                                        </div>
+                                        {hasSubmitted && (
+                                            <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ml-2">
+                                                ✓
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] font-bold mb-4">
+                                        <div className="flex items-center gap-1 text-slate-400">
+                                            <span>📅</span>
+                                            <span>Due {assignment.dueDate}</span>
+                                        </div>
+                                        <div className={`px-2 py-1 rounded-md ${hasSubmitted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'}`}>
+                                            {hasSubmitted ? "Submitted" : "Pending"}
+                                        </div>
+                                    </div>
+                                    {!hasSubmitted && (
+                                        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all group-hover:scale-[1.02]">
+                                            Start Assignment →
+                                        </button>
+                                    )}
+                                    {hasSubmitted && (
+                                        <button className="w-full bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-3 rounded-xl text-xs font-black uppercase tracking-widest border-2 border-slate-200 dark:border-slate-600 transition-all">
+                                            View Submission
+                                        </button>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -850,21 +1002,33 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const handleCreateAssignment = () => {
         if (!assignmentTopic) return;
 
+        const nextSession = { ...activeSession };
+        if (!nextSession.classroom) nextSession.classroom = {};
+        if (!Array.isArray(nextSession.classroom.assignments)) nextSession.classroom.assignments = [];
+
         const newAsgn = {
-            id: assignments.length + 1,
+            id: `assign_${Date.now()}`,
             title: assignmentTopic,
-            dueDate: "2026-02-10", // Mock date
+            dueDate: "2026-02-10", // Mock date - should be from form
+            classCode: selectedClassId || "ALL",
             status: "Active",
             submissions: 0,
-            type: assignmentFile ? "Manual Upload" : "AI Generated", // metadata
-            attachment: assignmentFile || "generated_module.pdf"
+            createdBy: nextSession.email || "teacher",
+            type: assignmentFile ? "Manual Upload" : "AI Generated",
+            attachment: assignmentFile || "generated_module.pdf",
+            createdAt: new Date().toISOString()
         };
 
+        // Add to session
+        nextSession.classroom.assignments.push(newAsgn);
+        onUpdateSession(nextSession);
+
+        // Update local state
         setAssignments([newAsgn, ...assignments]);
         setIsCreatingAssignment(false);
         setAssignmentTopic("");
         setAssignmentFile(null);
-        setAssignmentWizardStep(1); // Reset wizard
+        setAssignmentWizardStep(1);
     };
 
     return (
@@ -2138,8 +2302,10 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                                             value={editingClass.subject}
                                             onChange={e => setEditingClass({ ...editingClass, subject: e.target.value })}
+                                            disabled={!editingClass.country || !editingClass.level}
                                         >
-                                            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                            <option value="">Select Subject</option>
+                                            {getCountrySubjects(editingClass.country, editingClass.level).map(s => <option key={s} value={s}>{s}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -2255,6 +2421,10 @@ export default function DashboardPage() {
     const [linkedData, setLinkedData] = useState(null);
     const [activeQuiz, setActiveQuiz] = useState(null);
 
+    // Assignment & Multi-Class State
+    const [showAssignmentWizard, setShowAssignmentWizard] = useState(false);
+    const [activeClass, setActiveClass] = useState(null);
+
     const [hasMounted, setHasMounted] = useState(false);
 
     useEffect(() => {
@@ -2317,6 +2487,22 @@ export default function DashboardPage() {
         };
         s.linkedStudents = [...(s.linkedStudents || []), newStudent];
         updateSessionAndSync(s);
+    };
+
+    // Assignment Handlers
+    const handleSaveAssignment = (assignment) => {
+        const s = getSession();
+        if (!s.classroom) s.classroom = { assignments: [] };
+        if (!s.classroom.assignments) s.classroom.assignments = [];
+
+        s.classroom.assignments = [assignment, ...s.classroom.assignments];
+        updateSessionAndSync(s);
+        // Show success toast/notification here if we had one
+    };
+
+    const handleSwitchClass = (cls) => {
+        setActiveClass(cls);
+        // In real app, this would filter data. For now we just set state.
     };
 
     const handleLinkParent = (code) => {

@@ -837,6 +837,13 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
     const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
     const [assignmentTopic, setAssignmentTopic] = useState("");
+    const [assignmentDescription, setAssignmentDescription] = useState("");
+    const [assignmentDueDate, setAssignmentDueDate] = useState("");
+    const [assignmentContentSource, setAssignmentContentSource] = useState("ai"); // 'ai' or 'manual'
+    const [assignmentTargetClass, setAssignmentTargetClass] = useState("");
+    const [assignmentTargetStudents, setAssignmentTargetStudents] = useState([]);
+    const [assignmentQuestions, setAssignmentQuestions] = useState([]);
+    const [assignmentRubric, setAssignmentRubric] = useState(null);
 
     const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
     const [quizTopic, setQuizTopic] = useState("");
@@ -1022,21 +1029,48 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
     const handleCreateAssignment = () => {
         if (!assignmentTopic) return;
 
+        // Validate due date is not in the past
+        if (assignmentDueDate) {
+            const selectedDate = new Date(assignmentDueDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate < today) {
+                alert("Due date cannot be in the past. Please select a future date.");
+                return;
+            }
+        }
+
         const nextSession = { ...activeSession };
         if (!nextSession.classroom) nextSession.classroom = {};
         if (!Array.isArray(nextSession.classroom.assignments)) nextSession.classroom.assignments = [];
 
+        // Build questions array from assignmentQuestions state
+        const questions = assignmentQuestions.map((q, idx) => ({
+            id: `q_${idx + 1}`,
+            question: q.text,
+            type: q.type || "open",
+            points: q.points || 10,
+            options: q.options || []
+        }));
+
         const newAsgn = {
-            id: `assign_${Date.now()} `,
+            id: `assign_${Date.now()}`,
             title: assignmentTopic,
-            dueDate: "2026-02-10", // Mock date - should be from form
-            classCode: selectedClassId || "ALL",
+            description: assignmentDescription || `Complete this ${assignmentContentSource === 'ai' ? 'AI-generated' : 'custom'} assignment on ${assignmentTopic}`,
+            dueDate: assignmentDueDate || "No due date",
+            classCode: assignmentTargetClass || selectedClassId || "ALL",
+            assignedTo: assignmentTargetStudents.length > 0 ? assignmentTargetStudents : "ALL",
             status: "Active",
-            submissions: 0,
+            submissions: [],
             createdBy: nextSession.email || "teacher",
+            contentSource: assignmentContentSource,
             type: assignmentFile ? "Manual Upload" : "AI Generated",
-            attachment: assignmentFile || "generated_module.pdf",
-            createdAt: new Date().toISOString()
+            attachment: assignmentFile || null,
+            questions: questions,
+            totalPoints: questions.reduce((sum, q) => sum + (q.points || 10), 0),
+            createdAt: new Date().toISOString(),
+            rubric: assignmentRubric || null
         };
 
         // Add to session
@@ -1045,9 +1079,18 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
 
         // Update local state
         setAssignments([newAsgn, ...assignments]);
+
+        // Reset all assignment form fields
         setIsCreatingAssignment(false);
         setAssignmentTopic("");
+        setAssignmentDescription("");
+        setAssignmentDueDate("");
         setAssignmentFile(null);
+        setAssignmentContentSource("ai");
+        setAssignmentTargetClass("");
+        setAssignmentTargetStudents([]);
+        setAssignmentQuestions([]);
+        setAssignmentRubric(null);
         setAssignmentWizardStep(1);
     };
 
@@ -2041,51 +2084,270 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 )}
             </div>
 
-            {/* AI Assignment Modal */}
+            {/* Enhanced AI Assignment Modal - Multi-Step Wizard */}
             <AnimatePresence>
                 {isCreatingAssignment && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreatingAssignment(false)} />
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✨</div>
-                                    <h3 className="text-2xl font-black">AI Assignment Genius</h3>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 p-8 text-white flex-shrink-0">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✨</div>
+                                        <h3 className="text-2xl font-black">AI Assignment Genius</h3>
+                                    </div>
+                                    <div className="text-xs font-black bg-white/20 px-3 py-1 rounded-full">
+                                        Step {assignmentWizardStep} of 4
+                                    </div>
                                 </div>
-                                <p className="text-indigo-100 text-xs font-medium opacity-80">Describe a topic, and Elora will generate a full curriculum module for your students.</p>
+                                <p className="text-indigo-100 text-xs font-medium opacity-80">Create comprehensive assignments with AI assistance</p>
                             </div>
 
-                            <div className="p-8 space-y-6">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Topic</label>
-                                    <input
-                                        autoFocus
-                                        value={assignmentTopic}
-                                        onChange={e => setAssignmentTopic(e.target.value)}
-                                        placeholder="e.g. Solving Quadratic Equations using the Formula"
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
-                                    />
-                                </div>
+                            {/* Content - Scrollable */}
+                            <div class Name="flex-1 overflow-y-auto p-8 space-y-6">
+                                {/* Step 1: Topic & Description */}
+                                {assignmentWizardStep === 1 && (
+                                    <div className="space-y-5 animate-reveal">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assignment Title *</label>
+                                            <input
+                                                autoFocus
+                                                value={assignmentTopic}
+                                                onChange={e => setAssignmentTopic(e.target.value)}
+                                                placeholder="e.g. Solving Quadratic Equations using the Formula"
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Description (Optional)</label>
+                                            <textarea
+                                                value={assignmentDescription}
+                                                onChange={e => setAssignmentDescription(e.target.value)}
+                                                placeholder="Provide additional context or instructions for students..."
+                                                rows={4}
+                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all placeholder:opacity-50 resize-none"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Due Date *</label>
+                                                <input
+                                                    type="date"
+                                                    value={assignmentDueDate}
+                                                    onChange={e => setAssignmentDueDate(e.target.value)}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                    className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Assign To Class</label>
+                                                <select
+                                                    value={assignmentTargetClass}
+                                                    onChange={e => setAssignmentTargetClass(e.target.value)}
+                                                    className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                >
+                                                    <option value="">All Classes</option>
+                                                    {classes.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
-                                <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
-                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mb-1">PRO TIP</p>
-                                    <p className="text-[11px] text-slate-500 leading-relaxed italic">"Elora works best when you specify the target grade level or a specific difficulty tier."</p>
-                                </div>
+                                {/* Step 2: Content Source */}
+                                {assignmentWizardStep === 2 && (
+                                    <div className="space-y-5 animate-reveal">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 block">Content Source</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button
+                                                    onClick={() => setAssignmentContentSource('ai')}
+                                                    className={`p-6 rounded-2xl border-2 transition-all ${assignmentContentSource === 'ai' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
+                                                >
+                                                    <div className="text-3xl mb-2">🤖</div>
+                                                    <div className="text-sm font-black text-slate-900 dark:text-white">AI Generated</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Elora creates questions automatically</div>
+                                                </button>
+                                                <button
+                                                    onClick={() => setAssignmentContentSource('manual')}
+                                                    className={`p-6 rounded-2xl border-2 transition-all ${assignmentContentSource === 'manual' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
+                                                >
+                                                    <div className="text-3xl mb-2">✍️</div>
+                                                    <div className="text-sm font-black text-slate-900 dark:text-white">Manual Entry</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Create custom questions yourself</div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {assignmentContentSource === 'ai' && (
+                                            <div className="bg-indigo-50 dark:bg-indigo-500/5 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                                                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-black mb-2 uppercase tracking-widest">🎯 AI Power</p>
+                                                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                                    Elora will automatically generate {Math.floor(Math.random() * 3) + 3}-{Math.floor(Math.random() * 5) + 6} tailored questions based on your topic,
+                                                    aligned to curriculum standards with varying difficulty levels.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setIsCreatingAssignment(false)}
-                                        className="flex-1 px-4 py-4 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleCreateAssignment}
-                                        disabled={!assignmentTopic}
-                                        className="flex-[2] bg-indigo-600 text-white px-4 py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                                    >
-                                        Generate & Post →
-                                    </button>
+                                {/* Step 3: Question Builder (if Manual) */}
+                                {assignmentWizardStep === 3 && (
+                                    <div className="space-y-5 animate-reveal">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Questions ({assignmentQuestions.length})</label>
+                                            <button
+                                                onClick={() => setAssignmentQuestions([...assignmentQuestions, { text: '', type: 'open', points: 10, options: [] }])}
+                                                className="text-xs font-black bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
+                                            >
+                                                + Add Question
+                                            </button>
+                                        </div>
+                                        {assignmentQuestions.length === 0 ? (
+                                            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+                                                <div className="text-4xl mb-3">📝</div>
+                                                <p className="text-sm font-bold text-slate-400">No questions yet. Add your first question above.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                                {assignmentQuestions.map((q, idx) => (
+                                                    <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0">{idx + 1}</span>
+                                                            <div className="flex-1 space-y-3">
+                                                                <input
+                                                                    value={q.text}
+                                                                    onChange={e => {
+                                                                        const updated = [...assignmentQuestions];
+                                                                        updated[idx].text = e.target.value;
+                                                                        setAssignmentQuestions(updated);
+                                                                    }}
+                                                                    placeholder="Enter your question..."
+                                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500 transition-all"
+                                                                />
+                                                                <div className="flex gap-2">
+                                                                    <select
+                                                                        value={q.type}
+                                                                        onChange={e => {
+                                                                            const updated = [...assignmentQuestions];
+                                                                            updated[idx].type = e.target.value;
+                                                                            setAssignmentQuestions(updated);
+                                                                        }}
+                                                                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-xs font-bold outline-none"
+                                                                    >
+                                                                        <option value="open">Open Response</option>
+                                                                        <option value="mcq">Multiple Choice</option>
+                                                                        <option value="true-false">True/False</option>
+                                                                    </select>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={q.points}
+                                                                        onChange={e => {
+                                                                            const updated = [...assignmentQuestions];
+                                                                            updated[idx].points = parseInt(e.target.value) || 10;
+                                                                            setAssignmentQuestions(updated);
+                                                                        }}
+                                                                        className="w-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-xs font-bold outline-none"
+                                                                        min="1"
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => setAssignmentQuestions(assignmentQuestions.filter((_, i) => i !== idx))}
+                                                                        className="text-xs font-bold text-red-500 hover:text-red-600 px-3"
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {assignmentContentSource === 'ai' && (
+                                            <div className="bg-emerald-50 dark:bg-emerald-500/5 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-500/20">
+                                                <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
+                                                    ✨ AI will auto-generate questions for "{assignmentTopic}". You can skip this step or add custom questions.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 4: Review */}
+                                {assignmentWizardStep === 4 && (
+                                    <div className="space-y-5 animate-reveal">
+                                        <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-500/10 dark:to-fuchsia-500/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
+                                            <h4 className="text-lg font-black text-slate-900 dark:text-white mb-4">📋 Assignment Summary</h4>
+                                            <div className="space-y-3 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500 font-bold">Title:</span>
+                                                    <span className="font-black text-slate-900 dark:text-white">{assignmentTopic || 'Untitled'}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500 font-bold">Due Date:</span>
+                                                    <span className="font-black text-indigo-600">{assignmentDueDate || 'No due date'}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500 font-bold">Content Source:</span>
+                                                    <span className="font-black text-slate-900 dark:text-white">{assignmentContentSource === 'ai' ? '🤖 AI Generated' : '✍️ Manual'}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500 font-bold">Questions:</span>
+                                                    <span className="font-black text-slate-900 dark:text-white">
+                                                        {assignmentContentSource === 'ai' ? 'Auto-generated' : `${assignmentQuestions.length} custom`}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500 font-bold">Total Points:</span>
+                                                    <span className="font-black text-emerald-600">
+                                                        {assignmentQuestions.reduce((sum, q) => sum + (q.points || 10), 0) || (assignmentContentSource === 'ai' ? '~50-100' : '0')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-amber-50 dark:bg-amber-500/5 p-4 rounded-2xl border border-amber-200 dark:border-amber-500/20">
+                                            <p className="text-xs text-amber-700 dark:text-amber-400 font-bold">
+                                                ⚡ Ready to publish? Students will be able to view and submit this assignment immediately.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer - Actions */}
+                            <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
+                                <button
+                                    onClick={() => {
+                                        if (assignmentWizardStep > 1) {
+                                            setAssignmentWizardStep(assignmentWizardStep - 1);
+                                        } else {
+                                            setIsCreatingAssignment(false);
+                                        }
+                                    }}
+                                    className="px-5 py-3 rounded-2xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    {assignmentWizardStep === 1 ? 'Cancel' : '← Back'}
+                                </button>
+                                <div className="flex gap-2">
+                                    {assignmentWizardStep < 4 ? (
+                                        <button
+                                            onClick={() => setAssignmentWizardStep(assignmentWizardStep + 1)}
+                                            disabled={assignmentWizardStep === 1 && (!assignmentTopic || !assignmentDueDate)}
+                                            className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Next Step →
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleCreateAssignment}
+                                            disabled={!assignmentTopic}
+                                            className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                        >
+                                            Generate & Publish Assignment ✨
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

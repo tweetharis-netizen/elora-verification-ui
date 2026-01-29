@@ -1851,7 +1851,7 @@ export default function AssistantPage() {
 
                           {/* Improved rendering for structured content (quizzes, lessons) */}
                           <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-[1.8] text-[18px]",
+                            "whitespace-pre-wrap font-medium break-words leading-[1.9] text-[20px]",
                             !isUser && "elora-markdown-view"
                           )}>
                             {display ? (display || "").split('\n').map((line, i) => {

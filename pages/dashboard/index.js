@@ -2503,7 +2503,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-center p-10">
                                 <div className="mb-8">
                                     <div className="relative inline-block">
-                                        <div className={`w - 24 h - 24 rounded - full flex items - center justify - center text - 3xl transition - all duration - 700 ${voiceStage === 'listening' ? 'bg-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)] scale-110' : voiceStage === 'transcribing' ? 'bg-indigo-600 animate-spin-slow' : 'bg-emerald-500 text-white'} `}>
+                                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl transition-all duration-700 ${voiceStage === 'listening' ? 'bg-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)] scale-110' : voiceStage === 'transcribing' ? 'bg-indigo-600 animate-spin-slow' : 'bg-emerald-500 text-white'}`}>
                                             {voiceStage === 'listening' ? '🎙️' : voiceStage === 'transcribing' ? '⏳' : '✅'}
                                             {voiceStage === 'listening' && <div className="absolute inset-0 rounded-full border-4 border-rose-500 animate-ping opacity-50" />}
                                         </div>
@@ -2521,7 +2521,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed italic">"{voiceTranscript}"</p>
                                     ) : (
                                         <div className="flex gap-1">
-                                            {[1, 2, 3].map(i => <div key={i} className={`w - 1.5 h - 1.5 rounded - full bg - indigo - 500 animate - bounce`} style={{ animationDelay: `${i * 0.1} s` }} />)}
+                                            {[1, 2, 3].map(i => <div key={i} className={`w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce`} style={{ animationDelay: `${i * 0.1}s` }} />)}
                                         </div>
                                     )}
                                 </div>

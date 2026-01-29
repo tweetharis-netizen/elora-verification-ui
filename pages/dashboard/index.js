@@ -6,7 +6,6 @@ import { useRouter } from "next/router";
 import { getSession, saveSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecommendations, getRecommendationReason, searchVideos } from "@/lib/videoLibrary";
-import { AssignmentWizard, ClassSwitcher, AssignmentList } from "@/components/AssignmentComponents";
 import { SubmissionModal } from "@/components/SubmissionModal";
 import { GradingModal } from "@/components/GradingModal";
 import { NotificationProvider, notify } from "@/components/Notifications";
@@ -14,6 +13,7 @@ import { generateDemoData, DemoModeBanner } from "@/lib/demoData";
 
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
+const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing", "Physics", "Chemistry", "Biology", "Economics"];
 const SUBJECTS_MAP = {
     "Singapore": {
         "Primary": ["English", "Mathematics", "Science", "Chinese", "Malay", "Tamil"],
@@ -1204,15 +1204,17 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Primary Subject</label>
-                                                    <select
-                                                        value={newClassSubject}
-                                                        onChange={e => setNewClassSubject(e.target.value)}
-                                                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
-                                                    >
-                                                        <option value="">Select Subject</option>
-                                                        {getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>)}
-                                                    </select>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Primary Subject</label>
+                                                        <select
+                                                            value={newClassSubject}
+                                                            onChange={e => setNewClassSubject(e.target.value)}
+                                                            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                                                        >
+                                                            <option value="">Select Subject</option>
+                                                            {(newClassCountry && newClassLevel) ? getCountrySubjects(newClassCountry, newClassLevel).map(s => <option key={s} value={s}>{s}</option>) : <option value="">Select Level First</option>}
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                             {!newClassLevel && <p className="text-[10px] text-amber-500 font-bold">Please select a level to see relevant subjects.</p>}
@@ -2318,6 +2320,9 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Subject</label>
+                                        {console.log("DEBUG: editingClass", editingClass)}
+                                        {console.log("DEBUG: editingClass.country", editingClass?.country)}
+                                        {console.log("DEBUG: editingClass.level", editingClass?.level)}
                                         <select
                                             className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                                             value={editingClass.subject}
@@ -2325,7 +2330,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             disabled={!editingClass.country || !editingClass.level}
                                         >
                                             <option value="">Select Subject</option>
-                                            {getCountrySubjects(editingClass.country, editingClass.level).map(s => <option key={s} value={s}>{s}</option>)}
+                                            {(editingClass.country && editingClass.level) ? getCountrySubjects(editingClass.country, editingClass.level).map(s => <option key={s} value={s}>{s}</option>) : <option value="">Select Level First</option>}
                                         </select>
                                     </div>
                                 </div>

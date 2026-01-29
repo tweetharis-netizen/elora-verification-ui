@@ -950,8 +950,11 @@ export default function AssistantPage() {
     setThreads(listThreads(userKey));
     setActiveChatIdState(nextActive);
 
+    const msgs = getThreadMessages(userKey, nextActive) || [];
+    setMessages(msgs);
+
     if (verified) {
-      persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
+      persistSessionPatch({ activeChatId: nextActive, messages: msgs });
     }
     return nextActive;
   }
@@ -1841,10 +1844,10 @@ export default function AssistantPage() {
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-8 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-8 sm:p-10 shadow-2xl transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%]",
+                          "relative p-5 sm:p-6 shadow-2xl transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%] border",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border border-white/10"
-                            : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left"
+                            ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border-white/10"
+                            : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left border-slate-200/50 dark:border-white/5"
                         )}>
                           <div className="font-bold flex items-center gap-3 mb-4">
                             <div className={cn("w-3 h-3 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
@@ -1855,7 +1858,7 @@ export default function AssistantPage() {
 
                           {/* Improved rendering for structured content (quizzes, lessons) */}
                           <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[14px]",
+                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[15px]",
                             !isUser && "elora-markdown-view"
                           )}>
                             {display ? (display || "").split('\n').map((line, i) => {

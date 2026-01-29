@@ -1781,7 +1781,7 @@ export default function AssistantPage() {
                 {/* Messages Container */}
                 <div
                   ref={listRef}
-                  className="flex-1 overflow-y-auto px-4 space-y-6 scroll-smooth pb-8"
+                  className="flex-1 min-h-[700px] max-h-[calc(100vh-250px)] overflow-y-auto px-4 space-y-6 scroll-smooth pb-8"
                   onScroll={() => {
                     const el = listRef.current;
                     if (!el) return;

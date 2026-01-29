@@ -14,6 +14,7 @@ import { generateDemoData, DemoModeBanner } from "@/lib/demoData";
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing", "Physics", "Chemistry", "Biology", "Economics"];
+const SUBJECTS_FALLBACK = SUBJECTS;
 const SUBJECTS_MAP = {
     "Singapore": {
         "Primary": ["English", "Mathematics", "Science", "Chinese", "Malay", "Tamil"],
@@ -289,7 +290,7 @@ function computeClassMetrics(linkedStudents = [], isVerified = true) {
     const subjectsWithMetrics = entries.map(e => {
         const subjectName = e[0];
         const studentCount = e[1];
-        const avgScore = 75 + (Math.floor(Math.random() * 20) - 10); // Simulated realistic average
+        const avgScore = hasMounted ? (75 + (Math.floor(Math.random() * 20) - 10)) : 75; // Simulated realistic average
         return { name: subjectName, students: studentCount, avg: avgScore };
     });
 
@@ -2185,7 +2186,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             <div className="bg-indigo-50 dark:bg-indigo-500/5 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
                                                 <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-black mb-2 uppercase tracking-widest">🎯 AI Power</p>
                                                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                                                    Elora will automatically generate {Math.floor(Math.random() * 3) + 3}-{Math.floor(Math.random() * 5) + 6} tailored questions based on your topic,
+                                                    Elora will automatically generate {hasMounted ? Math.floor(Math.random() * 3) + 3 : 3}-{hasMounted ? Math.floor(Math.random() * 5) + 6 : 6} tailored questions based on your topic,
                                                     aligned to curriculum standards with varying difficulty levels.
                                                 </p>
                                             </div>
@@ -2852,7 +2853,7 @@ export default function DashboardPage() {
                             return id === userRole;
                         }).map(id => (
                             <button key={id} onClick={() => setActiveTab(id)}
-                                className={`px - 6 py - 2.5 rounded - full text - xs font - black tracking - widest uppercase transition - all duration - 300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"} `}>
+                                className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"} `}>
                                 {id}
                             </button>
                         ))}

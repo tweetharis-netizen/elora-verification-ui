@@ -573,6 +573,7 @@ const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
 export default function AssistantPage() {
   const router = useRouter();
 
+  const [mounted, setMounted] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(true);
 
   const [session, setSession] = useState(() => getSession());
@@ -682,10 +683,13 @@ export default function AssistantPage() {
     }
   }, [router.isReady, router.query]);
   const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
-  const starterSaltRef = useRef(
-    // changes on reload, but stable through the session
-    typeof window !== "undefined" ? `${Date.now()}-${Math.random()}` : "ssr"
-  );
+  const starterSaltRef = useRef("ssr");
+
+  // Hydration safety: only set the salt on the client
+  useEffect(() => {
+    starterSaltRef.current = `${Date.now()}-${Math.random()}`;
+    setMounted(true);
+  }, []);
 
   // Debounce topic so suggestions don't "flicker" while the user is typing.
   useEffect(() => {
@@ -1798,7 +1802,7 @@ export default function AssistantPage() {
                         I'm your personalized {role} assistant. How can I help you today?
                       </p>
                       <div className="mt-8 grid grid-cols-1 gap-2 w-full max-w-sm">
-                        {starterPrompts.map((p, i) => (
+                        {mounted && starterPrompts.map((p, i) => (
                           <button
                             key={i}
                             onClick={() => setChatText(p)}
@@ -1837,7 +1841,7 @@ export default function AssistantPage() {
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-8 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-8 sm:p-10 shadow-2xl transition-all duration-500 max-w-[98%] sm:max-w-[90%] lg:max-w-[80%]",
+                          "relative p-8 sm:p-10 shadow-2xl transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%]",
                           isUser
                             ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border border-white/10"
                             : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left"
@@ -1851,7 +1855,7 @@ export default function AssistantPage() {
 
                           {/* Improved rendering for structured content (quizzes, lessons) */}
                           <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[16px]",
+                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[14px]",
                             !isUser && "elora-markdown-view"
                           )}>
                             {display ? (display || "").split('\n').map((line, i) => {

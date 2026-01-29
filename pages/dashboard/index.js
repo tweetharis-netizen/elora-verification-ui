@@ -2105,7 +2105,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             </div>
 
                             {/* Content - Scrollable */}
-                            <div class Name="flex-1 overflow-y-auto p-8 space-y-6">
+                            <div className="flex-1 overflow-y-auto p-8 space-y-6">
                                 {/* Step 1: Topic & Description */}
                                 {assignmentWizardStep === 1 && (
                                     <div className="space-y-5 animate-reveal">

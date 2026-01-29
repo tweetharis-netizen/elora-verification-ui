@@ -117,14 +117,14 @@ function LineChart({ data, height = 200, color = "#6366f1" }) {
         <div className="relative w-full overflow-hidden" style={{ height }}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                 <defs>
-                    <linearGradient id={`gradient - ${color} `} x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={color} stopOpacity="0.2" />
                         <stop offset="100%" stopColor={color} stopOpacity="0" />
                     </linearGradient>
                 </defs>
                 <motion.path
                     d={`M 0, 100 L 0, ${100 - ((data[0] - min) / range) * 100} ${points.split(" ").map(p => `L ${p}`).join(" ")} L 100, 100 Z`}
-                    fill={`url(#gradient - ${color})`}
+                    fill={`url(#gradient-${color})`}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
                 />
                 <motion.polyline
@@ -237,7 +237,7 @@ function deriveStudentStats(session) {
     };
 }
 
-function computeClassMetrics(linkedStudents = [], isVerified = true) {
+function computeClassMetrics(linkedStudents = [], isVerified = true, hasMounted = false) {
     // DEMO DATA for unverified users
     if (!isVerified) {
         return {
@@ -796,7 +796,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
     );
 }
 
-function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession, isDemoMode, demoData, isGrading, setIsGrading, setActiveSubmission, setActiveAssignment }) {
+function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession, isDemoMode, demoData, isGrading, setIsGrading, setActiveSubmission, setActiveAssignment, hasMounted }) {
     if (!activeSession) return null;
     const [selectedTab, setSelectedTab] = useState("overview"); // overview, assignments, insights
     const [selectedClassId, setSelectedClassId] = useState(null);
@@ -2831,7 +2831,7 @@ export default function DashboardPage() {
     );
 
     const studentData = deriveStudentStats(session);
-    const classMetrics = computeClassMetrics(session.linkedStudents, session.verified);
+    const classMetrics = computeClassMetrics(session.linkedStudents, session.verified, hasMounted);
 
     return (
         <NotificationProvider>
@@ -2928,6 +2928,7 @@ export default function DashboardPage() {
                                     setIsGrading={setIsGrading}
                                     setActiveSubmission={setActiveSubmission}
                                     setActiveAssignment={setActiveAssignment}
+                                    hasMounted={hasMounted}
                                 />
                             )}
                         </motion.div>

@@ -1788,7 +1788,7 @@ export default function AssistantPage() {
                 {/* Messages Container */}
                 <div
                   ref={listRef}
-                  className="flex-1 min-h-[60vh] max-h-[calc(100vh-200px)] overflow-y-auto px-6 space-y-6 scroll-smooth pb-8"
+                  className="flex-1 min-h-[60vh] max-h-[calc(100vh-200px)] overflow-y-auto px-6 space-y-6 scroll-smooth pb-32"
                   onScroll={() => {
                     const el = listRef.current;
                     if (!el) return;
@@ -1826,7 +1826,7 @@ export default function AssistantPage() {
                     let quizData = null;
                     let display = m.text || "";
                     if (!isUser) {
-                      const match = display.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/i);
+                      const match = display.match(/<quiz_?data>([\s\S]*?)<\/quiz_?data>/im);
                       if (match) {
                         try {
                           let rawJson = match[1].trim();
@@ -1941,7 +1941,7 @@ export default function AssistantPage() {
               </div>
 
               {/* Composer - Floating Island */}
-              <div className="mt-auto p-4 lg:p-6 sticky bottom-0 z-30 pointer-events-none">
+              <div className="mt-auto p-4 lg:p-6 sticky bottom-0 z-[100] pointer-events-none">
                 <div className="max-w-5xl mx-auto w-full pointer-events-auto">
                   {/* Tiny toolbar above input */}
                   <div className="flex items-center gap-2 px-4 py-2 mb-2 overflow-x-auto scrollbar-hide">

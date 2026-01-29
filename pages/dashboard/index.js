@@ -10,6 +10,7 @@ import { SubmissionModal } from "@/components/SubmissionModal";
 import { GradingModal } from "@/components/GradingModal";
 import { NotificationProvider, notify } from "@/components/Notifications";
 import { generateDemoData, DemoModeBanner } from "@/lib/demoData";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // SYSTEM CONSTANTS
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
@@ -36,6 +37,7 @@ const SUBJECTS_MAP = {
 
 function getCountrySubjects(country, level) {
     if (!country || !SUBJECTS_MAP[country]) return SUBJECTS_MAP["Other"];
+    if (!level || typeof level !== 'string') return SUBJECTS_MAP["Other"];
 
     // Simple heuristic to match level string to category
     const map = SUBJECTS_MAP[country];
@@ -2834,197 +2836,199 @@ export default function DashboardPage() {
     const classMetrics = computeClassMetrics(session.linkedStudents, session.verified, hasMounted);
 
     return (
-        <NotificationProvider>
-            <Head><title>Dashboard | Elora</title></Head>
-            <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
-                <DemoModeBanner isDemo={isDemoMode} />
-                <div className="elora-container pt-12">
-                    {!session.verified && <PreviewBanner />}
-                    <Greeting
-                        name={session?.email?.split('@')[0]}
-                        role={activeTab === 'teacher' ? 'Classroom Admin' : activeTab === 'parent' ? 'Parent' : 'Student'}
-                    />
+        <ErrorBoundary>
+            <NotificationProvider>
+                <Head><title>Dashboard | Elora</title></Head>
+                <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
+                    <DemoModeBanner isDemo={isDemoMode} />
+                    <div className="elora-container pt-12">
+                        {!session.verified && <PreviewBanner />}
+                        <Greeting
+                            name={session?.email?.split('@')[0]}
+                            role={activeTab === 'teacher' ? 'Classroom Admin' : activeTab === 'parent' ? 'Parent' : 'Student'}
+                        />
 
-                    {/* Dynamic Tabs - Only show the verified role tab */}
-                    <div className="flex gap-2 mb-10 bg-slate-100/50 dark:bg-white/5 p-1.5 rounded-full w-fit border border-slate-200/50 dark:border-white/10">
-                        {['student', 'parent', 'teacher'].filter(id => {
-                            const userRole = session?.role?.toLowerCase();
-                            if (id === 'teacher' && userRole === 'educator') return true;
-                            return id === userRole;
-                        }).map(id => (
-                            <button key={id} onClick={() => setActiveTab(id)}
-                                className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"} `}>
-                                {id}
-                            </button>
-                        ))}
+                        {/* Dynamic Tabs - Only show the verified role tab */}
+                        <div className="flex gap-2 mb-10 bg-slate-100/50 dark:bg-white/5 p-1.5 rounded-full w-fit border border-slate-200/50 dark:border-white/10">
+                            {['student', 'parent', 'teacher'].filter(id => {
+                                const userRole = session?.role?.toLowerCase();
+                                if (id === 'teacher' && userRole === 'educator') return true;
+                                return id === userRole;
+                            }).map(id => (
+                                <button key={id} onClick={() => setActiveTab(id)}
+                                    className={`px-6 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${activeTab === id ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl" : "text-slate-400 hover:text-slate-600"} `}>
+                                    {id}
+                                </button>
+                            ))}
+                        </div>
+
+                        <AnimatePresence mode="wait">
+                            <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
+                                {activeTab === 'student' && (
+                                    <StudentModule
+                                        data={studentData}
+                                        onStartQuiz={setActiveQuiz}
+                                        session={session}
+                                        onUpdateSession={updateSessionAndSync}
+                                        isDemoMode={isDemoMode}
+                                        demoData={demoData}
+                                        isSubmitting={isSubmitting}
+                                        setIsSubmitting={setIsSubmitting}
+                                        setActiveAssignment={setActiveAssignment}
+                                    />
+                                )}
+                                {activeTab === 'parent' && (
+                                    session?.linkedStudentId ? (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between px-2">
+                                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Tracking: {linkedData?.name || "Student"}</h3>
+                                                <button onClick={() => handleLinkParent(null)} className="text-xs font-bold text-red-500 hover:underline">Disconnect</button>
+                                            </div>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                    <h3 className="text-lg font-bold mb-6">Subject Breakdown</h3>
+                                                    <div className="h-56"><BarChart data={linkedData?.subjectBreakdown} labels={linkedData?.subjectLabels} color="#06b6d4" /></div>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 p-4 opacity-5 text-6xl group-hover:scale-110 transition-transform">🧠</div>
+                                                    <h3 className="text-lg font-black mb-4 flex items-center gap-2"><span>🌈</span> AI Parenting Pulse</h3>
+                                                    {session?.classroom?.submissions?.length > 0 ? (
+                                                        <p className="text-sm text-slate-500 leading-relaxed">
+                                                            Your student recently tackled <span className="font-black text-slate-900 dark:text-white">"{session.classroom.submissions[0].quizTitle}"</span>.
+                                                            Elora noticed they are <span className="text-indigo-500 font-bold">accelerating in subject mastery</span>.
+                                                            Next goal: Reviewing {session.classroom.submissions[0].details.find(d => !d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'advanced concepts'}.
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-slate-500 text-sm leading-relaxed">Your student hasn't completed any tracked quizzes yet. As they work with Elora, you'll see deep insights here.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gradient-to-br from-indigo-600 to-fuchsia-700 rounded-3xl p-10 text-white shadow-2xl">
+                                            <h3 className="text-3xl font-black mb-4">Parental Link</h3>
+                                            <p className="mb-8 opacity-80 max-w-lg">Enter your child's ELORA code to see their live progress charts and subject mastery reports.</p>
+                                            <div className="flex gap-3 max-w-md">
+                                                <input placeholder="ELORA-XXXX" className="flex-1 bg-white/10 border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-white/50" />
+                                                <LockedFeatureOverlay isVerified={session?.verified}>
+                                                    <button onClick={() => handleLinkParent("DEMO")} className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl">Link Child</button>
+                                                </LockedFeatureOverlay>
+                                            </div>
+                                        </div>
+                                    )
+                                )}
+
+                                {activeTab === 'teacher' && (
+                                    <TeacherModule
+                                        students={session.linkedStudents || []}
+                                        metrics={classMetrics}
+                                        onAddStudent={handleAddStudent}
+                                        session={session}
+                                        onUpdateSession={updateSessionAndSync}
+                                        isDemoMode={isDemoMode}
+                                        demoData={demoData}
+                                        isGrading={isGrading}
+                                        setIsGrading={setIsGrading}
+                                        setActiveSubmission={setActiveSubmission}
+                                        setActiveAssignment={setActiveAssignment}
+                                        hasMounted={hasMounted}
+                                    />
+                                )}
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
 
-                    <AnimatePresence mode="wait">
-                        <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {activeTab === 'student' && (
-                                <StudentModule
-                                    data={studentData}
-                                    onStartQuiz={setActiveQuiz}
-                                    session={session}
-                                    onUpdateSession={updateSessionAndSync}
-                                    isDemoMode={isDemoMode}
-                                    demoData={demoData}
-                                    isSubmitting={isSubmitting}
-                                    setIsSubmitting={setIsSubmitting}
-                                    setActiveAssignment={setActiveAssignment}
-                                />
-                            )}
-                            {activeTab === 'parent' && (
-                                session?.linkedStudentId ? (
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between px-2">
-                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">Tracking: {linkedData?.name || "Student"}</h3>
-                                            <button onClick={() => handleLinkParent(null)} className="text-xs font-bold text-red-500 hover:underline">Disconnect</button>
+                    <AnimatePresence>
+                        {activeQuiz && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setActiveQuiz(null)} />
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                    <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">{activeQuiz.title}</h3>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Elora AI Evaluation</p>
                                         </div>
-                                        <div className="grid md:grid-cols-2 gap-6">
-                                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                                <h3 className="text-lg font-bold mb-6">Subject Breakdown</h3>
-                                                <div className="h-56"><BarChart data={linkedData?.subjectBreakdown} labels={linkedData?.subjectLabels} color="#06b6d4" /></div>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-                                                <div className="absolute top-0 right-0 p-4 opacity-5 text-6xl group-hover:scale-110 transition-transform">🧠</div>
-                                                <h3 className="text-lg font-black mb-4 flex items-center gap-2"><span>🌈</span> AI Parenting Pulse</h3>
-                                                {session?.classroom?.submissions?.length > 0 ? (
-                                                    <p className="text-sm text-slate-500 leading-relaxed">
-                                                        Your student recently tackled <span className="font-black text-slate-900 dark:text-white">"{session.classroom.submissions[0].quizTitle}"</span>.
-                                                        Elora noticed they are <span className="text-indigo-500 font-bold">accelerating in subject mastery</span>.
-                                                        Next goal: Reviewing {session.classroom.submissions[0].details.find(d => !d.isCorrect)?.question.split(' ').slice(0, 2).join(' ') || 'advanced concepts'}.
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-slate-500 text-sm leading-relaxed">Your student hasn't completed any tracked quizzes yet. As they work with Elora, you'll see deep insights here.</p>
-                                                )}
-                                            </div>
-                                        </div>
+                                        <button onClick={() => setActiveQuiz(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
                                     </div>
-                                ) : (
-                                    <div className="bg-gradient-to-br from-indigo-600 to-fuchsia-700 rounded-3xl p-10 text-white shadow-2xl">
-                                        <h3 className="text-3xl font-black mb-4">Parental Link</h3>
-                                        <p className="mb-8 opacity-80 max-w-lg">Enter your child's ELORA code to see their live progress charts and subject mastery reports.</p>
-                                        <div className="flex gap-3 max-w-md">
-                                            <input placeholder="ELORA-XXXX" className="flex-1 bg-white/10 border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-white/50" />
-                                            <LockedFeatureOverlay isVerified={session?.verified}>
-                                                <button onClick={() => handleLinkParent("DEMO")} className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl">Link Child</button>
-                                            </LockedFeatureOverlay>
-                                        </div>
+                                    <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
+                                        {(activeQuiz.questions || []).map((q, i) => (
+                                            <div key={i} className="space-y-4">
+                                                <p className="font-bold text-slate-900 dark:text-white flex gap-3">
+                                                    <span className="text-indigo-600">Q{i + 1}</span> {typeof q === 'string' ? q : (q.text || q.question)}
+                                                </p>
+                                                <textarea
+                                                    placeholder="Type your answer here..."
+                                                    className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all h-24 resize-none"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                )
-                            )}
+                                    <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+                                        <button onClick={() => setActiveQuiz(null)} className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Save for Later</button>
+                                        <button
+                                            onClick={() => {
+                                                const currentSession = getSession();
+                                                const submission = {
+                                                    id: `sub_${Date.now()} `,
+                                                    studentName: currentSession.email?.split('@')[0] || "Guest Student",
+                                                    quizTitle: activeQuiz.title,
+                                                    score: Math.floor(activeQuiz.questions.length * 0.8), // Mocking a score for open response for now
+                                                    total: activeQuiz.questions.length,
+                                                    details: activeQuiz.questions.map(q => ({
+                                                        question: typeof q === 'string' ? q : (q.text || q.question),
+                                                        studentAnswer: "User provided response...",
+                                                        isCorrect: true // Open response is marked as seen
+                                                    })),
+                                                    timestamp: new Date().toISOString(),
+                                                    isOpenResponse: true
+                                                };
 
-                            {activeTab === 'teacher' && (
-                                <TeacherModule
-                                    students={session.linkedStudents || []}
-                                    metrics={classMetrics}
-                                    onAddStudent={handleAddStudent}
-                                    session={session}
-                                    onUpdateSession={updateSessionAndSync}
-                                    isDemoMode={isDemoMode}
-                                    demoData={demoData}
-                                    isGrading={isGrading}
-                                    setIsGrading={setIsGrading}
-                                    setActiveSubmission={setActiveSubmission}
-                                    setActiveAssignment={setActiveAssignment}
-                                    hasMounted={hasMounted}
-                                />
-                            )}
-                        </motion.div>
+                                                if (!currentSession.classroom) currentSession.classroom = {};
+                                                if (!currentSession.classroom.submissions) currentSession.classroom.submissions = [];
+                                                currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
+
+                                                saveSession(currentSession);
+                                                alert("Quiz submitted! Elora is grading your responses...");
+                                                setActiveQuiz(null);
+                                            }}
+                                            className="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors uppercase tracking-widest"
+                                        >
+                                            Submit to Teacher →
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* New Modals */}
+                    <AnimatePresence>
+                        {isSubmitting && (
+                            <SubmissionModal
+                                assignment={activeAssignment}
+                                isOpen={isSubmitting}
+                                onClose={() => setIsSubmitting(false)}
+                                onSubmit={(sub) => {
+                                    notify("Assignment submitted successfully!", "success");
+                                    setIsSubmitting(false);
+                                }}
+                            />
+                        )}
+                        {isGrading && (
+                            <GradingModal
+                                submission={activeSubmission}
+                                assignment={activeAssignment}
+                                isOpen={isGrading}
+                                onClose={() => setIsGrading(false)}
+                                onSaveGrade={(grade) => {
+                                    notify("Grade saved successfully!", "success");
+                                    setIsGrading(false);
+                                }}
+                            />
+                        )}
                     </AnimatePresence>
                 </div>
-
-                <AnimatePresence>
-                    {activeQuiz && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setActiveQuiz(null)} />
-                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                                <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white">{activeQuiz.title}</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Elora AI Evaluation</p>
-                                    </div>
-                                    <button onClick={() => setActiveQuiz(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">✕</button>
-                                </div>
-                                <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
-                                    {(activeQuiz.questions || []).map((q, i) => (
-                                        <div key={i} className="space-y-4">
-                                            <p className="font-bold text-slate-900 dark:text-white flex gap-3">
-                                                <span className="text-indigo-600">Q{i + 1}</span> {typeof q === 'string' ? q : (q.text || q.question)}
-                                            </p>
-                                            <textarea
-                                                placeholder="Type your answer here..."
-                                                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 outline-none transition-all h-24 resize-none"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex gap-4">
-                                    <button onClick={() => setActiveQuiz(null)} className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Save for Later</button>
-                                    <button
-                                        onClick={() => {
-                                            const currentSession = getSession();
-                                            const submission = {
-                                                id: `sub_${Date.now()} `,
-                                                studentName: currentSession.email?.split('@')[0] || "Guest Student",
-                                                quizTitle: activeQuiz.title,
-                                                score: Math.floor(activeQuiz.questions.length * 0.8), // Mocking a score for open response for now
-                                                total: activeQuiz.questions.length,
-                                                details: activeQuiz.questions.map(q => ({
-                                                    question: typeof q === 'string' ? q : (q.text || q.question),
-                                                    studentAnswer: "User provided response...",
-                                                    isCorrect: true // Open response is marked as seen
-                                                })),
-                                                timestamp: new Date().toISOString(),
-                                                isOpenResponse: true
-                                            };
-
-                                            if (!currentSession.classroom) currentSession.classroom = {};
-                                            if (!currentSession.classroom.submissions) currentSession.classroom.submissions = [];
-                                            currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
-
-                                            saveSession(currentSession);
-                                            alert("Quiz submitted! Elora is grading your responses...");
-                                            setActiveQuiz(null);
-                                        }}
-                                        className="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-colors uppercase tracking-widest"
-                                    >
-                                        Submit to Teacher →
-                                    </button>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
-
-                {/* New Modals */}
-                <AnimatePresence>
-                    {isSubmitting && (
-                        <SubmissionModal
-                            assignment={activeAssignment}
-                            isOpen={isSubmitting}
-                            onClose={() => setIsSubmitting(false)}
-                            onSubmit={(sub) => {
-                                notify("Assignment submitted successfully!", "success");
-                                setIsSubmitting(false);
-                            }}
-                        />
-                    )}
-                    {isGrading && (
-                        <GradingModal
-                            submission={activeSubmission}
-                            assignment={activeAssignment}
-                            isOpen={isGrading}
-                            onClose={() => setIsGrading(false)}
-                            onSaveGrade={(grade) => {
-                                notify("Grade saved successfully!", "success");
-                                setIsGrading(false);
-                            }}
-                        />
-                    )}
-                </AnimatePresence>
-            </div>
-        </NotificationProvider>
+            </NotificationProvider>
+        </ErrorBoundary>
     );
 }

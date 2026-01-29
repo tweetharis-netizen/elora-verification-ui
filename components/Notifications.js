@@ -1,6 +1,5 @@
 // Toast Notification System
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 let addNotification = null;
 
@@ -34,23 +33,18 @@ export function NotificationProvider({ children }) {
     return (
         <>
             {children}
-            <div className="fixed bottom-6 right-6 z-[9999] space-y-3">
-                <AnimatePresence>
-                    {notifications.map(notif => (
-                        <motion.div
-                            key={notif.id}
-                            initial={{ opacity: 0, y: 50, scale: 0.3 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                            className={`bg-gradient-to-r ${colors[notif.type]} text-white px-6 py-4 rounded-2xl shadow-2xl min-w-[300px] max-w-md flex items-center gap-3`}
-                        >
-                            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-black text-lg">
-                                {icons[notif.type]}
-                            </div>
-                            <p className="flex-1 font-bold text-sm">{notif.message}</p>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
+            <div className="fixed bottom-6 right-6 z-[9999] space-y-3 pointer-events-none">
+                {notifications.map(notif => (
+                    <div
+                        key={notif.id}
+                        className={`pointer-events-auto transform transition-all duration-500 ease-in-out bg-gradient-to-r ${colors[notif.type]} text-white px-6 py-4 rounded-2xl shadow-2xl min-w-[300px] max-w-md flex items-center gap-3 animate-in slide-in-from-right-10 fade-in`}
+                    >
+                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-black text-lg">
+                            {icons[notif.type]}
+                        </div>
+                        <p className="flex-1 font-bold text-sm">{notif.message}</p>
+                    </div>
+                ))}
             </div>
         </>
     );

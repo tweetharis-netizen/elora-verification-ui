@@ -1781,7 +1781,7 @@ export default function AssistantPage() {
                 {/* Messages Container */}
                 <div
                   ref={listRef}
-                  className="flex-1 min-h-[700px] max-h-[calc(100vh-250px)] overflow-y-auto px-4 space-y-6 scroll-smooth pb-8"
+                  className="flex-1 min-h-[60vh] max-h-[calc(100vh-200px)] overflow-y-auto px-6 space-y-6 scroll-smooth pb-8"
                   onScroll={() => {
                     const el = listRef.current;
                     if (!el) return;
@@ -1851,7 +1851,7 @@ export default function AssistantPage() {
 
                           {/* Improved rendering for structured content (quizzes, lessons) */}
                           <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-[1.9] text-[20px]",
+                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[16px]",
                             !isUser && "elora-markdown-view"
                           )}>
                             {display ? (display || "").split('\n').map((line, i) => {

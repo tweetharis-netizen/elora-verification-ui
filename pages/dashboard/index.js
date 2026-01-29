@@ -514,7 +514,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
                             <button
                                 key={idx}
                                 onClick={() => setSelectedClassIndex(idx)}
-                                className={`group relative px - 6 py - 4 rounded - 2xl font - bold text - sm whitespace - nowrap transition - all flex - shrink - 0 ${selectedClassIndex === idx
+                                className={`group relative px-6 py-4 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${selectedClassIndex === idx
                                     ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30'
                                     : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
                                     } `}
@@ -528,7 +528,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
                                         e.stopPropagation();
                                         handleLeaveClass(idx);
                                     }}
-                                    className={`absolute top - 2 right - 2 w - 6 h - 6 rounded - full flex items - center justify - center opacity - 0 group - hover: opacity - 100 transition - opacity ${selectedClassIndex === idx ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                    className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${selectedClassIndex === idx ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                                         } `}
                                     title="Leave class"
                                 >
@@ -650,7 +650,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
                             <div key={i}>
                                 <div className="flex justify-between text-sm mb-1 font-bold"><span>{t.emoji} {t.name}</span><span>{t.progress}%</span></div>
                                 <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div className="h-full bg-indigo-500" style={{ width: `${t.progress}% ` }} />
+                                    <div className="h-full bg-indigo-500" style={{ width: `${t.progress}%` }} />
                                 </div>
                             </div>
                         ))}
@@ -771,7 +771,7 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
                                             <span>📅</span>
                                             <span>Due {assignment.dueDate}</span>
                                         </div>
-                                        <div className={`px - 2 py - 1 rounded - md ${hasSubmitted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'} `}>
+                                        <div className={`px-2 py-1 rounded-md ${hasSubmitted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'} `}>
                                             {hasSubmitted ? "Submitted" : "Pending"}
                                         </div>
                                     </div>
@@ -1109,7 +1109,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <button
                                 key={tab.id}
                                 onClick={() => setSelectedTab(tab.id)}
-                                className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${selectedTab === tab.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedTab === tab.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
                             >
                                 {tab.label}
                             </button>
@@ -1120,7 +1120,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                     <div className="space-y-1">
                         <button
                             onClick={() => setSelectedClassId(null)}
-                            className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${selectedClassId === null ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"} `}
+                            className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedClassId === null ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"} `}
                         >
                             All Students
                         </button>
@@ -1128,7 +1128,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             <div key={c.id} className="group relative">
                                 <button
                                     onClick={() => setSelectedClassId(c.id)}
-                                    className={`w - full text - left px - 4 py - 3 rounded - xl text - sm font - bold transition - all flex items - center justify - between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
+                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-between ${selectedClassId === c.id ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30" : "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"} `}
                                 >
                                     <div className="flex flex-col min-w-0">
                                         <span className="truncate pr-8">{c.name}</span>
@@ -1735,7 +1735,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </h4>
                                 <div className="relative z-10 space-y-4">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w - 12 h - 12 rounded - 2xl flex items - center justify - center text - xl shadow - lg ${metrics.vibe === 'Excited' ? 'bg-amber-400 text-white' : metrics.vibe === 'Confused' ? 'bg-fuchsia-500 text-white' : 'bg-emerald-500 text-white'} `}>
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ${metrics.vibe === 'Excited' ? 'bg-amber-400 text-white' : metrics.vibe === 'Confused' ? 'bg-fuchsia-500 text-white' : 'bg-emerald-500 text-white'} `}>
                                             {metrics.vibe === 'Excited' ? '🔥' : metrics.vibe === 'Confused' ? '🤔' : '🧠'}
                                         </div>
                                         <div>
@@ -1816,7 +1816,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                 </div>
                                 <div className="flex gap-1">
                                     {[1, 2, 3].map(step => (
-                                        <div key={step} className={`w - 2 h - 2 rounded - full transition - all ${assignmentWizardStep >= step ? 'bg-white' : 'bg-white/30'} `} />
+                                        <div key={step} className={`w-2 h-2 rounded-full transition-all ${assignmentWizardStep >= step ? 'bg-white' : 'bg-white/30'} `} />
                                     ))}
                                 </div>
                             </div>
@@ -1853,7 +1853,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setAssignmentFile(null)}
-                                                className={`p - 6 rounded - 2xl border - 2 text - left transition - all ${!assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
+                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${!assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
                                             >
                                                 <div className="text-2xl mb-2">🤖</div>
                                                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">AI Generator</h4>
@@ -1861,7 +1861,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                             </button>
                                             <button
                                                 onClick={() => setAssignmentFile("manual_upload_placeholder")}
-                                                className={`p - 6 rounded - 2xl border - 2 text - left transition - all ${assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
+                                                className={`p-6 rounded-2xl border-2 text-left transition-all ${assignmentFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-200'} `}
                                             >
                                                 <div className="text-2xl mb-2">📂</div>
                                                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Upload File</h4>
@@ -2077,7 +2077,7 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                             </p>
                             <div className="inline-flex items-center gap-4 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Magic Code</div>
-                                <span className="font-mono text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-wider">ELORA-{Math.floor(Math.random() * 9000) + 1000}</span>
+                                <span className="font-mono text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-wider">ELORA-{hasMounted ? Math.floor(Math.random() * 9000) + 1000 : "####"}</span>
                             </div>
                         </div>
                     </div>
@@ -2582,9 +2582,6 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Subject</label>
-                                        {console.log("DEBUG: editingClass", editingClass)}
-                                        {console.log("DEBUG: editingClass.country", editingClass?.country)}
-                                        {console.log("DEBUG: editingClass.level", editingClass?.level)}
                                         <select
                                             className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                                             value={editingClass.subject}

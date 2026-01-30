@@ -19,7 +19,7 @@ function mapError(code) {
   }
 }
 
-// New progress steps component
+// Cinematic progress steps component
 function ProgressSteps({ currentStep }) {
   const steps = [
     { id: 1, name: "Enter email", icon: "📧" },
@@ -28,25 +28,28 @@ function ProgressSteps({ currentStep }) {
   ];
 
   return (
-    <div className="flex items-center justify-between mb-8 relative">
-      <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-slate-200 dark:bg-slate-700 -translate-y-1/2 z-0" />
+    <div className="flex items-center justify-between mb-10 relative">
+      <div className="absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r from-purple-600/30 via-cyan-600/30 to-purple-600/30 -translate-y-1/2 z-0" />
       {steps.map((step, index) => (
         <motion.div
           key={step.id}
           className="relative z-10 flex flex-col items-center"
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
+          transition={{ delay: index * 0.15, type: "spring", stiffness: 100 }}
         >
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold transition-all ${
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black transition-all duration-500 relative overflow-hidden ${
             currentStep >= step.id 
-              ? 'bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-lg' 
-              : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+              ? 'bg-gradient-to-br from-purple-600 via-pink-500 to-cyan-500 text-white shadow-2xl shadow-purple-500/40 animate-pulse-glow' 
+              : 'bg-gradient-to-br from-slate-700 to-slate-800 text-cyan-400/60 border border-cyan-500/20'
           }`}>
+            {currentStep >= step.id && (
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 animate-gradient-x" />
+            )}
             {step.icon}
           </div>
-          <span className={`text-xs font-medium mt-2 ${
-            currentStep >= step.id ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'
+          <span className={`text-xs font-black mt-3 tracking-wider uppercase ${
+            currentStep >= step.id ? 'text-white drop-shadow-lg' : 'text-cyan-400/70'
           }`}>
             {step.name}
           </span>
@@ -177,38 +180,50 @@ export default function VerifyPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 flex items-center justify-center min-h-[80vh]">
+    <div className="mx-auto max-w-4xl px-6 flex items-center justify-center min-h-[85vh] relative">
+      {/* Cinematic background elements */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-[800px] h-[800px] bg-gradient-to-r from-purple-600/10 via-cyan-600/10 to-pink-600/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute w-[600px] h-[600px] bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-full blur-3xl animate-float-delayed" />
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="elora-card p-6 sm:p-8 w-full relative overflow-hidden"
+        transition={{ duration: 0.8, ease: "easeOut", type: "spring" }}
+        className="elora-card p-8 sm:p-12 w-full relative overflow-hidden backdrop-blur-2xl border border-purple-500/20"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none" />
+        {/* Cinematic glow overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-cyan-600/5 pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
 
         <div className="relative z-10">
-          <h1 className="font-black text-[clamp(22px,3vw,30px)]">Verify your email</h1>
-          <p className="mt-2 elora-muted">
-            Verification unlocks full teacher workflows (exports, assessments, and more). It persists across refreshes.
+          <h1 className="font-black text-[clamp(26px,4vw,36px)] text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 drop-shadow-2xl tracking-tight">
+            Verify Your Email
+          </h1>
+          <p className="mt-3 text-base font-medium text-cyan-200/90 leading-relaxed">
+            Verification unlocks the full cinematic Elora experience with enhanced AI capabilities and premium features.
           </p>
 
           <ProgressSteps currentStep={currentStep} />
 
-          <div className="mt-6 grid gap-4">
-            <div className="relative">
+          <div className="mt-8 space-y-4">
+            <div className="relative group">
               <input
-                className={`elora-input pr-10 ${currentStep >= 2 ? 'bg-slate-50 dark:bg-slate-800' : ''}`}
+                className={`w-full px-6 py-4 text-base font-medium bg-gradient-to-r from-slate-800/90 via-slate-900/80 to-slate-800/90 border ${currentStep >= 2 ? 'border-cyan-500/30 text-cyan-300/80' : 'border-purple-500/30 text-white'} rounded-2xl backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/60 transition-all duration-300 placeholder:text-cyan-400/60 shadow-xl`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="Enter your email address"
                 inputMode="email"
                 autoComplete="email"
                 disabled={currentStep >= 2}
               />
+              {/* Cinematic glow effect on focus */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-cyan-600/10 to-purple-600/10 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none" />
               {emailSent && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-green-500 flex items-center justify-center shadow-lg shadow-cyan-500/50 animate-pulse">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -217,34 +232,49 @@ export default function VerifyPage() {
             </div>
 
             <motion.button
-              whileHover={{ scale: sending || cooldown > 0 ? 1 : 1.01 }}
-              whileTap={{ scale: sending || cooldown > 0 ? 1 : 0.99 }}
+              whileHover={{ scale: sending || cooldown > 0 ? 1 : 1.02 }}
+              whileTap={{ scale: sending || cooldown > 0 ? 1 : 0.98 }}
               type="button"
-              className={`elora-btn relative overflow-hidden transition-all ${
+              className={`relative px-8 py-4 text-base font-black rounded-2xl transition-all duration-300 overflow-hidden ${
                 emailSent 
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-                  : ''
+                  ? 'bg-gradient-to-br from-green-600/90 to-cyan-600/90 border-green-500/30 shadow-lg shadow-green-500/30 text-white' 
+                  : 'bg-gradient-to-br from-purple-600 via-pink-500 to-cyan-500 border-purple-500/30 shadow-2xl shadow-purple-500/40 text-white hover:shadow-3xl hover:shadow-purple-500/50'
               }`}
               onClick={send}
               disabled={sending || cooldown > 0 || emailSent}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] hover:translate-x-[100%] transition-transform duration-1000" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
               {sending ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <span className="flex items-center justify-center gap-3">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Sending...
+                  <span className="uppercase tracking-wider">Sending...</span>
                 </span>
               ) : emailSent ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <span className="flex items-center justify-center gap-3">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  Email sent!
+                  <span className="uppercase tracking-wider">Email Sent!</span>
                 </span>
-              ) : cooldown > 0 ? `Wait ${cooldown}s` : "Send verification email"}
+              ) : cooldown > 0 ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  <span className="uppercase tracking-wider">Wait {cooldown}s</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-3 uppercase tracking-wider">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                  </svg>
+                  Send Verification Email
+                </span>
+              )}
             </motion.button>
 
             {status && (

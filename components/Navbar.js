@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { getSession, hasSession as hasSessionFn, logout, refreshVerifiedFromServer } from "@/lib/session";
 
 function clsx(...parts) {
@@ -173,66 +174,120 @@ export default function Navbar() {
             {/* Mobile hamburger */}
             <div className="sm:hidden relative" ref={mobileRef}>
               <button
-                className="flex items-center gap-2 rounded-xl border border-white/20 dark:border-slate-800/70 bg-white/10 dark:bg-slate-900/70 px-3 py-2 text-sm font-semibold text-white dark:text-slate-200 shadow-sm backdrop-blur-md"
+                className="flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-slate-800/70 bg-white/90 dark:bg-slate-900/90 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-md backdrop-blur-xl min-h-[44px] min-w-[44px]"
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label="Open menu"
+                aria-expanded={mobileOpen}
               >
-                <span className={clsx(dotClass, "h-2 w-2 rounded-full")} />
-                Menu
-                <span className="relative block h-3 w-4">
-                  <span className="absolute inset-x-0 top-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
-                  <span className="absolute inset-x-0 top-1.5 h-[2px] rounded-full bg-current" aria-hidden="true" />
-                  <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                <span className={clsx(dotClass, "h-2 w-2 rounded-full flex-shrink-0")} />
+                <span className="flex-1 text-left">Menu</span>
+                <span className="relative block h-4 w-5 flex-shrink-0">
+                  <span className={`absolute inset-x-0 top-0 h-[2px] rounded-full bg-current transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-1.5" : ""}`} aria-hidden="true" />
+                  <span className={`absolute inset-x-0 top-1.5 h-[2px] rounded-full bg-current transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} aria-hidden="true" />
+                  <span className={`absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-current transition-all duration-300 ${mobileOpen ? "-rotate-45 -translate-y-1.5" : ""}`} aria-hidden="true" />
                 </span>
               </button>
 
               {mobileOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-3 space-y-1" 
+                  role="menu" 
+                  aria-label="Mobile navigation"
+                >
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">🏠</span>
                     Home
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/story" onClick={() => setMobileOpen(false)}>
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/story" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">📖</span>
                     Story
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/assistant" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">💬</span>
                     Assistant
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/dashboard" onClick={() => setMobileOpen(false)}>
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/dashboard" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">📊</span>
                     Dashboard
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/help" onClick={() => setMobileOpen(false)}>
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/help" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">❓</span>
                     Help
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/settings" onClick={() => setMobileOpen(false)}>
+                  <Link 
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] transition-colors" 
+                    href="/settings" 
+                    onClick={() => setMobileOpen(false)}
+                    role="menuitem"
+                  >
+                    <span className="w-5 h-5 flex items-center justify-center">⚙️</span>
                     Settings
                   </Link>
 
-                  <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
+                  <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-2" />
 
                   {!verified && (
-                    <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800" href="/verify" onClick={() => setMobileOpen(false)}>
-                      Verify email
+                    <Link 
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 min-h-[44px] transition-colors border border-indigo-200/50 dark:border-indigo-700/30" 
+                      href="/verify" 
+                      onClick={() => setMobileOpen(false)}
+                      role="menuitem"
+                    >
+                      <span className="w-5 h-5 flex items-center justify-center">✉️</span>
+                      <span>Verify email</span>
+                      <span className="ml-auto text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-full">Required</span>
                     </Link>
                   )}
 
                   {canLogout && (
                     <>
-                      <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
+                      <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-2" />
                       <button
-                        className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        className="flex items-center gap-3 w-full text-left rounded-xl px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 min-h-[44px] transition-colors"
                         onClick={async () => {
                           setMobileOpen(false);
                           await logout();
                           if (typeof window !== "undefined") window.location.href = "/";
                         }}
                         type="button"
+                        role="menuitem"
                       >
+                        <span className="w-5 h-5 flex items-center justify-center">🚪</span>
                         Log out
                       </button>
                     </>
                   )}
-                </div>
+                </motion.div>
               )}
             </div>
 

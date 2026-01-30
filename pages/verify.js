@@ -36,6 +36,7 @@ export default function VerifyPage() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [statusType, setStatusType] = useState("info"); // info, success, error, warning
 
   // Backwards compatibility:
   // Old emails linked to /verify?token=...
@@ -62,7 +63,10 @@ export default function VerifyPage() {
 
   useEffect(() => {
     const msg = mapError(errorCode);
-    if (msg) setStatus(msg);
+    if (msg) {
+      setStatus(msg);
+      setStatusType("error");
+    }
   }, [errorCode]);
 
   useEffect(() => {
@@ -76,7 +80,8 @@ export default function VerifyPage() {
 
     const trimmed = email.trim();
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
-      setStatus("Enter a valid email address.");
+      setStatus("Please enter a valid email address.");
+      setStatusType("error");
       return;
     }
 
@@ -96,17 +101,21 @@ export default function VerifyPage() {
         if (data?.error === "rate_limited") {
           const retry = Number(data?.retryAfter || 30);
           setCooldown(Number.isFinite(retry) ? Math.min(120, Math.max(10, retry)) : 30);
-          setStatus("Please wait a moment before trying again.");
+          setStatus(`Too many requests. Please wait ${retry || 30} seconds before trying again.`);
+          setStatusType("warning");
         } else {
-          setStatus("Could not send verification email. Please try again.");
+          setStatus("Failed to send verification email. Please check your email and try again.");
+          setStatusType("error");
         }
         return;
       }
 
       setCooldown(30);
-      setStatus("Sent. Check your inbox (and spam) for a verification link.");
+      setStatus("✅ Verification email sent! Check your inbox (and spam folder) for the link.");
+      setStatusType("success");
     } catch {
-      setStatus("Could not reach the server. Please try again.");
+      setStatus("Network error. Please check your connection and try again.");
+      setStatusType("error");
     } finally {
       setSending(false);
     }
@@ -139,22 +148,45 @@ export default function VerifyPage() {
             />
 
             <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              whileHover={{ scale: sending || cooldown > 0 ? 1 : 1.01 }}
+              whileTap={{ scale: sending || cooldown > 0 ? 1 : 0.99 }}
               type="button"
-              className="elora-btn relative overflow-hidden"
+              className={`elora-btn relative overflow-hidden flex items-center justify-center gap-2 min-h-[44px] ${
+                sending ? "opacity-75 cursor-not-allowed" : cooldown > 0 ? "opacity-60 cursor-not-allowed" : ""
+              }`}
               onClick={send}
               disabled={sending || cooldown > 0}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] hover:translate-x-[100%] transition-transform duration-1000" />
-              {sending ? "Sending…" : cooldown > 0 ? `Wait ${cooldown}s` : "Send verification email"}
+              {sending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sending verification...
+                </>
+              ) : cooldown > 0 ? (
+                <>
+                  <div className="w-4 h-4 flex items-center justify-center">⏱️</div>
+                  Wait {cooldown}s
+                </>
+              ) : (
+                <>
+                  <div className="w-4 h-4 flex items-center justify-center">✉️</div>
+                  Send verification email
+                </>
+              )}
             </motion.button>
 
             {status ? (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                className="elora-toast"
+                className={`
+                  rounded-xl p-4 text-sm font-medium
+                  ${statusType === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : 
+                    statusType === "error" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                    statusType === "warning" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                    "bg-blue-500/10 text-blue-400 border border-blue-500/20"}
+                `}
               >
                 {status}
               </motion.div>

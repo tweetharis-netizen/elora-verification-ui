@@ -868,3 +868,42 @@ html[data-theme="light"] .elora-md code {
 .delay-300 {
   animation-delay: 300ms;
 }
+
+/* Loading spinner utilities */
+@keyframes elora-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: elora-spin 1s linear infinite;
+}
+
+/* Status message utilities */
+.elora-status-success {
+  background: color-mix(in oklab, var(--ok) 15%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ok) 30%, var(--line));
+  color: color-mix(in oklab, var(--ok) 20%, var(--text));
+}
+
+.elora-status-error {
+  background: color-mix(in oklab, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in oklab, var(--danger) 30%, var(--line));
+  color: color-mix(in oklab, var(--danger) 20%, var(--text));
+}
+
+.elora-status-warning {
+  background: color-mix(in oklab, var(--warn) 15%, transparent);
+  border: 1px solid color-mix(in oklab, var(--warn) 30%, var(--line));
+  color: color-mix(in oklab, var(--warn) 20%, var(--text));
+}
+
+.elora-status-info {
+  background: color-mix(in oklab, var(--accent) 15%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
+  color: color-mix(in oklab, var(--accent) 20%, var(--text));
+}

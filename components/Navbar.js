@@ -120,28 +120,31 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto max-w-6xl px-4 pointer-events-auto">
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] px-4 py-2.5 lg:px-5 lg:py-3 transition-all duration-300 hover:border-indigo-500/30 dark:hover:border-indigo-400/30">
-          <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit]">
+        <div className="flex items-center justify-between gap-4 rounded-3xl border border-purple-500/20 bg-gradient-to-r from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-2xl shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_30px_rgba(139,92,246,0.2)] px-4 py-3 lg:px-6 lg:py-3.5 transition-all duration-300 hover:border-purple-500/40 hover:shadow-[0_20px_50px_rgba(0,0,0,0.4),0_0_40px_rgba(139,92,246,0.3)] relative overflow-hidden">
+          {/* Cinematic glow overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 via-transparent to-cyan-600/5 opacity-0 hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+          <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit] relative z-10">
             <div className="relative">
               <div
                 className={clsx(
-                  "absolute -inset-2 rounded-2xl blur-xl opacity-40",
-                  "bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/25 to-sky-400/30",
-                  "dark:from-indigo-400/30 dark:via-fuchsia-400/20 dark:to-sky-300/25",
-                  "group-hover:opacity-60 transition-opacity"
+                  "absolute -inset-3 rounded-3xl blur-2xl opacity-50 animate-pulse-glow",
+                  "bg-gradient-to-br from-purple-600/30 via-pink-500/25 to-cyan-400/20",
+                  "dark:from-purple-500/25 dark:via-pink-400/20 dark:to-cyan-300/15",
+                  "group-hover:opacity-80 transition-opacity"
                 )}
                 aria-hidden="true"
               />
-              <div className="relative flex items-center gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl px-3 py-2 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
-                <div className="w-9 h-9 rounded-2xl grid place-items-center bg-gradient-to-br from-indigo-600 via-indigo-500 to-fuchsia-500 text-white font-bold shadow-md shadow-indigo-500/30">
+              <div className="relative flex items-center gap-3 rounded-3xl border border-purple-500/30 bg-gradient-to-br from-slate-800/90 via-slate-900/80 to-slate-800/90 backdrop-blur-xl px-4 py-2.5 shadow-xl shadow-purple-500/20 group-hover:shadow-2xl group-hover:shadow-purple-500/30 transition-all">
+                <div className="w-10 h-10 rounded-2xl grid place-items-center bg-gradient-to-br from-purple-600 via-pink-500 to-cyan-500 text-white font-black shadow-lg shadow-purple-500/40 group-hover:scale-110 transition-transform">
                   E
                 </div>
                 <div className="leading-tight">
-                  <div className="font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-700 dark:from-white dark:via-indigo-200 dark:to-fuchsia-200 font-[var(--font-brand)]">
+                  <div className="font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 dark:from-cyan-200 dark:via-purple-200 dark:to-pink-200 font-[var(--font-brand)] drop-shadow-lg">
                     Elora
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">
-                    AI learning assistant
+                  <div className="text-[10px] font-black text-cyan-400/90 uppercase tracking-wider">
+                    Cinematic AI
                   </div>
                 </div>
               </div>
@@ -149,21 +152,25 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
+          <nav className="hidden sm:flex items-center gap-1" aria-label="Primary">
             {[
-              { href: "/", label: "Home" },
-              { href: "/story", label: "Story" },
-              { href: "/assistant", label: "Assistant" },
-              { href: "/dashboard", label: "Dashboard" },
-              { href: "/help", label: "Help" },
-              { href: "/settings", label: "Settings" },
+              { href: "/", label: "Home", icon: "🏠" },
+              { href: "/story", label: "Story", icon: "📖" },
+              { href: "/assistant", label: "Assistant", icon: "🤖" },
+              { href: "/dashboard", label: "Dashboard", icon: "📊" },
+              { href: "/help", label: "Help", icon: "❓" },
+              { href: "/settings", label: "Settings", icon: "⚙️" },
             ].map((item) => (
               <Link
                 key={item.href}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors"
+                className="group relative px-4 py-2.5 rounded-2xl text-sm font-black text-cyan-300/90 hover:text-white transition-all duration-300 hover:bg-gradient-to-r hover:from-purple-600/20 hover:to-cyan-600/20 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20"
                 href={item.href}
               >
-                {item.label}
+                <span className="relative z-10 flex items-center gap-2">
+                  <span className="text-base group-hover:scale-110 transition-transform">{item.icon}</span>
+                  {item.label}
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-cyan-600/10 to-purple-600/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </Link>
             ))}
           </nav>

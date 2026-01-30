@@ -1464,31 +1464,33 @@ export default function AssistantPage() {
         <meta name="theme-color" content="#070b16" />
       </Head>
 
-      <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
+      <div className="elora-page min-h-screen overflow-x-hidden">
         <div className="elora-container pt-4 lg:pt-8 pb-32 lg:pb-12">
-          {/* Mobile Header - Compact */}
-          <div className="lg:hidden flex items-center justify-between px-6 py-4 mb-4 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-3xl mx-4 sticky top-4 z-40">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 grid place-items-center text-white font-black text-xs shrink-0">E</div>
-              <div className="min-w-0">
-                <h1 className="text-sm font-black text-slate-950 dark:text-white truncate uppercase tracking-widest">{activeMeta?.title || "Assistant"}</h1>
-                <div className="text-[9px] font-bold text-indigo-500 uppercase">{contextMode === 'auto' ? 'Smart Auto' : `${country} • ${level}`}</div>
+          {/* Mobile Header - Cinematic */}
+          <div className="lg:hidden flex items-center justify-between px-6 py-4 mb-6 mx-4 sticky top-4 z-40">
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-800/90 to-slate-900/80 backdrop-blur-xl border border-purple-500/20 rounded-3xl" />
+            <div className="relative flex items-center gap-3 min-w-0 w-full">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-600 to-cyan-500 grid place-items-center text-white font-black text-sm shrink-0 shadow-lg shadow-purple-500/25">E</div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base font-black text-white truncate uppercase tracking-wider drop-shadow-lg">{activeMeta?.title || "Assistant"}</h1>
+                <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest drop-shadow">{contextMode === 'auto' ? 'Smart Auto' : `${country} • ${level}`}</div>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowResourceDrawer(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none shadow-lg shadow-indigo-500/20"
-              >
-                <span className="text-sm">🧪</span>
-                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Resource Lab</span>
-              </button>
-              <button
-                onClick={() => setPrefsOpen(!prefsOpen)}
-                className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none"
-              >
-                <span className="text-lg">⚙️</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowResourceDrawer(true)}
+                  className="relative flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none shadow-lg shadow-purple-500/30 group"
+                >
+                  <span className="text-sm group-hover:scale-110 transition-transform">🧪</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Lab</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-2xl" />
+                </button>
+                <button
+                  onClick={() => setPrefsOpen(!prefsOpen)}
+                  className="relative p-3 bg-gradient-to-br from-slate-700 to-slate-800 text-cyan-400 rounded-2xl hover:scale-105 active:scale-95 transition-all outline-none border border-cyan-500/20"
+                >
+                  <span className="text-lg hover:rotate-90 transition-transform duration-300">⚙️</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1505,7 +1507,12 @@ export default function AssistantPage() {
                 onClick={() => setPrefsOpen(false)}
               />
 
-              <div className="w-[85%] sm:w-[400px] lg:w-full h-full lg:h-fit bg-white dark:bg-slate-900 lg:bg-white/70 lg:dark:bg-slate-950/30 border-r lg:border border-slate-200/60 dark:border-white/10 lg:rounded-[2.5rem] shadow-2xl p-6 lg:p-8 flex flex-col gap-6 overflow-y-auto">
+              <div className="w-[85%] sm:w-[400px] lg:w-full h-full lg:h-fit bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 lg:from-white/80 lg:to-white/70 lg:dark:from-slate-950/85 lg:dark:to-slate-900/80 border-r lg:border border-purple-500/20 lg:dark:border-purple-500/15 lg:rounded-[3rem] shadow-2xl lg:shadow-3xl p-6 lg:p-8 flex flex-col gap-6 overflow-y-auto backdrop-blur-xl relative">
+                {/* Cinematic overlay effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-cyan-600/5 rounded-[3rem] pointer-events-none" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+                
+                <div className="relative z-10">
                 <div className="flex items-center justify-between">
                   <h1 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="text-indigo-500">⚙️</span> Settings
@@ -1799,19 +1806,23 @@ export default function AssistantPage() {
                 >
                   {messages.length === 0 && !loading && (
                     <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                      <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-500 text-3xl grid place-items-center mb-6 animate-float">👋</div>
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 font-[var(--font-brand)]">Hello! I'm Elora.</h3>
-                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 max-w-xs">
+                      <div className="relative mb-8">
+                        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-600 to-cyan-500 text-4xl grid place-items-center animate-float shadow-2xl shadow-purple-500/25">👋</div>
+                        <div className="absolute inset-0 w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-600 to-cyan-500 blur-xl opacity-50 animate-pulse-glow" />
+                      </div>
+                      <h3 className="text-2xl font-black text-white mb-3 font-[var(--font-brand)] tracking-tight drop-shadow-lg">Hello! I'm Elora.</h3>
+                      <p className="text-base font-medium text-cyan-300/90 max-w-md leading-relaxed">
                         I'm your personalized {role} assistant. How can I help you today?
                       </p>
-                      <div className="mt-8 grid grid-cols-1 gap-2 w-full max-w-sm">
+                      <div className="mt-10 grid grid-cols-1 gap-3 w-full max-w-md">
                         {mounted && starterPrompts.map((p, i) => (
                           <button
                             key={i}
                             onClick={() => setChatText(p)}
-                            className="text-left p-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-indigo-500/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all text-xs font-bold"
+                            className="text-left p-5 rounded-2xl border border-purple-500/20 bg-gradient-to-r from-slate-800/80 to-slate-900/80 hover:border-cyan-500/40 hover:bg-gradient-to-r hover:from-purple-900/40 hover:to-cyan-900/40 transition-all text-xs font-black text-cyan-100 backdrop-blur-sm group overflow-hidden relative"
                           >
-                            {p}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                            <span className="relative z-10">{p}</span>
                           </button>
                         ))}
                       </div>
@@ -1844,14 +1855,25 @@ export default function AssistantPage() {
                     return (
                       <div key={idx} className={cn("flex w-full group animate-reveal mb-8 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
                         <div className={cn(
-                          "relative p-5 sm:p-6 shadow-2xl transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%] border",
+                          "relative p-5 sm:p-6 transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%] border backdrop-blur-xl",
                           isUser
-                            ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border-white/10"
-                            : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left border-slate-200/50 dark:border-white/5"
+                            ? "bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-[3rem] rounded-tr-none shadow-2xl shadow-indigo-500/40 origin-right border-white/20"
+                            : "bg-gradient-to-br from-slate-800/90 via-slate-900/80 to-slate-800/90 text-cyan-100 rounded-[3rem] rounded-tl-none shadow-2xl shadow-cyan-500/30 origin-left border-purple-500/20"
                         )}>
-                          <div className="font-bold flex items-center gap-3 mb-4">
-                            <div className={cn("w-3 h-3 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[13px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+                          {/* Cinematic glow overlay */}
+                          <div className="absolute inset-0 rounded-[3rem] opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                            <div className={cn(
+                              "absolute inset-0 rounded-[3rem] blur-xl",
+                              isUser ? "bg-gradient-to-r from-indigo-400 to-purple-400" : "bg-gradient-to-r from-cyan-400 to-purple-400"
+                            )} />
+                          </div>
+                          
+                          <div className="relative z-10 font-bold flex items-center gap-3 mb-4">
+                            <div className={cn("w-4 h-4 rounded-full shadow-lg", isUser ? "bg-white/90 shadow-white/50" : "bg-gradient-to-br from-cyan-400 to-purple-500 shadow-cyan-400/50")} />
+                            <span className={cn(
+                              "text-[11px] font-black uppercase tracking-wider drop-shadow-md",
+                              isUser ? "text-white/90" : "text-cyan-400"
+                            )}>
                               {isUser ? "You" : "Elora"}
                             </span>
                           </div>
@@ -1967,38 +1989,58 @@ export default function AssistantPage() {
                     {attachErr && <span className="text-[8px] font-black text-red-500 shrink-0">{attachErr}</span>}
                   </div>
 
-                  <div className="relative group p-1.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] flex items-end gap-2 ring-1 ring-indigo-500/5 focus-within:ring-indigo-500/20 transition-all">
-                    <button onClick={() => fileInputRef.current?.click()} className="p-4 text-slate-400 hover:text-indigo-600 transition-colors" title="Attach file">
-                      <span className="text-xl">📎</span>
+                  <div className="relative group p-2 bg-gradient-to-br from-slate-800/90 via-slate-900/80 to-slate-800/90 backdrop-blur-2xl border border-purple-500/20 rounded-[3rem] shadow-[0_25px_60px_-20px_rgba(0,0,0,0.4),0_0_30px_rgba(139,92,246,0.2)] flex items-end gap-2 ring-1 ring-purple-500/10 focus-within:ring-purple-500/30 focus-within:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-all">
+                    {/* Cinematic glow effect on focus */}
+                    <div className="absolute inset-0 rounded-[3rem] bg-gradient-to-r from-purple-600/5 via-cyan-600/5 to-purple-600/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur-xl" />
+                    
+                    <button 
+                      onClick={() => fileInputRef.current?.click()} 
+                      className="relative p-4 text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 group" 
+                      title="Attach file"
+                    >
+                      <span className="text-xl group-hover:rotate-12 transition-transform duration-300">📎</span>
+                      <div className="absolute inset-0 bg-cyan-500/20 rounded-xl scale-0 group-hover:scale-100 transition-transform duration-300" />
                     </button>
 
-                    <textarea
-                      value={chatText}
-                      onChange={(e) => setChatText(e.target.value)}
-                      placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || subject}...`}
-                      rows={1}
-                      className="flex-1 bg-transparent border-none px-1 py-4 text-[16px] font-medium focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-500"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          sendChat();
-                        }
-                      }}
-                    />
+                    <div className="flex-1 relative">
+                      <textarea
+                        value={chatText}
+                        onChange={(e) => setChatText(e.target.value)}
+                        placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || subject}...`}
+                        rows={1}
+                        className="w-full bg-transparent border-none px-2 py-4 text-base font-medium focus:ring-0 outline-none resize-none min-h-[48px] max-h-[200px] scrollbar-hide text-white placeholder:text-cyan-400/60"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendChat();
+                          }
+                        }}
+                      />
+                      {/* Character hint */}
+                      <div className="absolute bottom-1 right-2 text-[10px] font-bold text-cyan-500/60 uppercase tracking-wider">
+                        {chatText.length > 0 && `${chatText.length} chars`}
+                      </div>
+                    </div>
 
                     <button
                       disabled={loading || (!chatText.trim() && !attachedImage)}
                       onClick={sendChat}
-                      className="h-12 w-12 flex items-center justify-center rounded-[1.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 disabled:opacity-30 transition-all"
+                      className="relative h-14 w-14 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-purple-600 to-cyan-500 text-white shadow-xl shadow-purple-500/40 hover:scale-110 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 transition-all group overflow-hidden"
                     >
-                      <span className="text-xl">➔</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                      <span className="text-2xl group-hover:rotate-12 transition-transform duration-300">➔</span>
+                      {loading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-[2rem]">
+                          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
                     </button>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-center gap-4 px-4 opacity-50">
-                    <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Elora Genesis v1.4</div>
-                    <div className="h-1 w-1 rounded-full bg-slate-400" />
-                    <div className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Shaik Haris Era</div>
+                  <div className="mt-4 flex items-center justify-center gap-6 px-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-cyan-500/80 drop-shadow-md">Elora Genesis v1.4</div>
+                    <div className="h-1 w-1 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500" />
+                    <div className="text-[10px] font-black uppercase tracking-widest text-purple-500/80 drop-shadow-md">Cinematic Era</div>
                   </div>
                 </div>
               </div>

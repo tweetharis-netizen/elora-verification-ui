@@ -159,6 +159,13 @@ export default function HomePage() {
     setRoleState(r);
   };
 
+  const handleKeyDown = (e, r) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectRole(r);
+    }
+  };
+
   const goVerify = () => {
     setRole(role);
     setGuest(false);
@@ -182,6 +189,13 @@ export default function HomePage() {
       </Head>
 
       <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+        {/* Skip to main content for accessibility */}
+        <a 
+          href="#main-content" 
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-indigo-600 text-white px-4 py-2 rounded-md z-50"
+        >
+          Skip to main content
+        </a>
         {/* Cinematic background gradients */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
@@ -202,9 +216,9 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="elora-container relative z-10">
+        <main id="main-content" className="elora-container relative z-10">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center py-8 lg:py-16 min-h-[90vh]">
-            <motion.div
+            <section
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
@@ -238,7 +252,7 @@ export default function HomePage() {
                 </motion.p>
               </div>
 
-              <div className="flex flex-wrap gap-2 sm:gap-3">
+              <div role="radiogroup" aria-label="Select your role" className="flex flex-wrap gap-2 sm:gap-3">
                 {["educator", "student", "parent"].map((r) => {
                   const isBlocked = r === "educator" && !verified;
                   return (
@@ -251,18 +265,30 @@ export default function HomePage() {
                       transition={isBlocked && shake ? { duration: 0.4 } : {}}
                       type="button"
                       onClick={() => selectRole(r)}
+                      onKeyDown={(e) => handleKeyDown(e, r)}
+                      disabled={isBlocked}
+                      role="radio"
+                      aria-checked={role === r}
+                      aria-describedby={isBlocked ? `blocked-${r}` : undefined}
                       className={cn(
-                        "rounded-full border px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-300 shadow-sm relative overflow-hidden backdrop-blur-xl",
+                        "rounded-full border px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-300 shadow-sm relative overflow-hidden backdrop-blur-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/30",
                         role === r
                           ? "border-indigo-500/60 bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.05] z-10"
+                          : isBlocked
+                          ? "border-slate-300/50 dark:border-slate-600/50 bg-slate-100/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 cursor-not-allowed"
                           : "border-white/40 dark:border-slate-700/50 bg-white/20 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800 hover:border-white/60 dark:hover:border-slate-600 hover:shadow-lg"
                       )}
                     >
                       {/* Tooltip for blocked educator role */}
                       {isBlocked && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 text-white text-[10px] font-bold opacity-0 hover:opacity-100 transition-opacity">
-                          Verify Email First
-                        </div>
+                        <>
+                          <div id={`blocked-${r}`} className="sr-only">
+                            {ROLE_META[r].label} role requires email verification. Please verify your email first.
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 text-white text-[10px] font-bold opacity-0 hover:opacity-100 transition-opacity">
+                            Verify Email First
+                          </div>
+                        </>
                       )}
                       {ROLE_META[r].label}
                     </motion.button>
@@ -277,10 +303,11 @@ export default function HomePage() {
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={() => router.push("/dashboard")}
-                  className="elora-cta-primary text-base shadow-[0_0_30px_-5px_rgba(99,102,241,0.5)] border border-white/20"
+                  className="elora-cta-primary text-base shadow-[0_0_30px_-5px_rgba(99,102,241,0.5)] border border-white/20 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+                  aria-label="Go to dashboard to track progress and access tools"
                 >
                   <span className="relative z-10 flex items-center gap-2 text-white">
-                    <span>🚀</span>
+                    <span aria-hidden="true">🚀</span>
                     Go to Dashboard
                   </span>
                 </motion.button>
@@ -290,7 +317,8 @@ export default function HomePage() {
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={verified ? () => router.push("/dashboard") : goVerify}
-                  className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-slate-800/50 backdrop-blur-xl px-7 py-4 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800 hover:border-white/80 dark:hover:border-indigo-500/50 transition-all duration-500 shadow-2xl shadow-slate-900/5"
+                  className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-slate-800/50 backdrop-blur-xl px-7 py-4 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800 hover:border-white/80 dark:hover:border-indigo-500/50 transition-all duration-500 shadow-2xl shadow-slate-900/5 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+                  aria-label={verified ? "Go to dashboard as user" : "Verify email to access all features"}
                 >
                   {verified ? (
                     <span className="flex items-center gap-2">

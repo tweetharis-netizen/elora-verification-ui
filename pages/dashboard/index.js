@@ -174,196 +174,27 @@ function ClassHeatmap({ data }) {
                         <div className={`text - [10px] px - 1.5 py - 0.5 rounded - md font - bold ${item.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : item.score >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'} `}>
                             {item.score}%
                         </div>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
-                        <div
-                            className={`h - full rounded - full ${item.score >= 80 ? 'bg-emerald-500' : item.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'} `}
-                            style={{ width: `${item.score}% ` }}
-                        />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-// ----------------------------------------------------------------------
-// DATA DERIVATION HELPERS: ROBUST
-// ----------------------------------------------------------------------
-
-function deriveStudentStats(session) {
-    const isVerified = Boolean(session?.verified);
-    const usage = session?.usage || {};
-
-    // DEMO DATA for unverified users
-    if (!isVerified) {
-        return {
-            name: "Future Scholar",
-            streak: 0,
-            todayMinutes: 0,
-            overallProgress: 12,
-            recentTopics: [
-                { name: "Algebra Foundations", progress: 45, emoji: "🔢" },
-                { name: "Cell Biology", progress: 20, emoji: "🧬" }
-            ],
-            chartData: [5, 12, 8, 20, 15, 25],
-            achievements: [
-                { title: "First Message", earned: false },
-                { title: "Focus Timer", earned: false }
-            ],
-            isPreview: true
-        };
-    }
-
-    const safeSubjects = Array.isArray(usage.subjects) ? usage.subjects : [];
-    const messagesSent = Number(usage.messagesSent) || 0;
-    const activeMinutes = Number(usage.activeMinutes) || 0;
-    const streak = Number(usage.streak) || 0;
-
-    return {
-        name: session?.email?.split('@')[0] || "Student",
-        streak,
-        todayMinutes: activeMinutes,
-        overallProgress: Math.min(100, messagesSent * 5),
-        recentTopics: safeSubjects.length > 0
-            ? safeSubjects.map(s => ({ name: String(s), progress: 65, emoji: "📚" }))
-            : [{ name: "Getting Started", progress: 0, emoji: "🚀" }],
-        chartData: [10, 15, 20, 25, 30, messagesSent + 30],
-        achievements: [
-            { title: "First Message", earned: (messagesSent > 0) },
-            { title: "Focus Timer", earned: (activeMinutes > 10) },
-        ],
-        resources: session?.classroom?.resources || [], // Sync resources here
-        quizzes: session?.classroom?.quizzes || [], // Sync quizzes here
-        isPreview: false
-    };
-}
-
-function computeClassMetrics(linkedStudents = [], isVerified = true, hasMounted = false) {
-    // DEMO DATA for unverified users
-    if (!isVerified) {
-        return {
-            avgEngagement: 48,
-            topSubject: "Advanced Calculus",
-            totalHours: "156.0",
-            heatmapData: [
-                { subject: "Math", score: 82, students: 15 },
-                { subject: "Physics", score: 68, students: 12 },
-                { subject: "Chemistry", score: 91, students: 10 },
-                { subject: "English", score: 75, students: 20 },
-            ],
-            recommendedVideos: getRecommendations("Math", "Newton's Second Law"),
-            recommendationReason: "Demo: Newton's second law is a common struggle point.",
-            isPreview: true
-        };
-    }
-
-    const safeStudents = Array.isArray(linkedStudents) ? linkedStudents : [];
-    if (safeStudents.length === 0) return {
-        avgEngagement: 0,
-        topSubject: "N/A",
-        totalHours: "0.0",
-        heatmapData: [],
-        recommendedVideos: [],
-        vibe: "Focused",
-        sentimentInsight: "Waiting for student activity."
-    };
-
-    let totalMessages = 0;
-    let totalMinutes = 0;
-    const subjectCounts = {};
-
-    safeStudents.forEach(s => {
-        if (!s) return;
-        totalMessages += (Number(s.stats?.messagesSent) || 0);
-        totalMinutes += (Number(s.stats?.activeMinutes) || 0);
-        const stSubjects = Array.isArray(s.stats?.subjects) ? s.stats.subjects : [];
-        stSubjects.forEach(sub => {
-            if (!sub) return;
-            subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
-        });
-    });
-
-    const entries = Object.entries(subjectCounts);
-    const top = entries.sort((a, b) => b[1] - a[1])[0];
-
-    // Detect struggle points (any subject with average < 70)
-    // For now, we'll simulate the "score" per student based on their query count for the demo
-    const subjectsWithMetrics = entries.map(e => {
-        const subjectName = e[0];
-        const studentCount = e[1];
-        const avgScore = hasMounted ? (75 + (Math.floor(Math.random() * 20) - 10)) : 75; // Simulated realistic average
-        return { name: subjectName, students: studentCount, avg: avgScore };
-    });
-
-    const heatmapData = subjectsWithMetrics.length > 0
-        ? subjectsWithMetrics.map(s => ({ subject: s.name, score: s.avg, students: s.students }))
-        : [
-            { subject: "Math", score: 78, students: 12 },
-            { subject: "Physics", score: 65, students: 8 },
-            { subject: "English", score: 88, students: 15 },
-        ];
-
-    const mainStruggle = heatmapData.find(h => h.score < 70);
-
-    // AI Class Insights 2.0 Logic
-    const struggleTopic = mainStruggle?.subject;
-    const recommendationReason = getRecommendationReason(struggleTopic, linkedStudents.length);
-    const recommendedVideos = getRecommendations(subjectsWithMetrics[0]?.name || 'math', struggleTopic);
-
-    // "The Pulse" Sentiment Logic
-    const sentiments = ["Focused", "Curious", "Confused", "Excited", "Strained"];
-    const avgOverallScore = heatmapData.length > 0 ? Math.round(heatmapData.reduce((sum, item) => sum + item.score, 0) / heatmapData.length) : 0;
-    const vibe = struggleTopic ? "Confused" : (avgOverallScore > 85 ? "Excited" : "Focused");
-    const sentimentInsight = struggleTopic
-        ? `${Math.floor(safeStudents.length * 0.4) + 1} students feeling ${vibe.toLowerCase()} about ${struggleTopic}.`
-        : `Class is generally ${vibe.toLowerCase()} and maintaining momentum.`;
-
-    // AI Micro-Coaching (Teacher Strategic Intelligence)
-    const recentSubmissions = safeStudents.flatMap(s => s.classroom?.submissions || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    const struggleSubmissions = recentSubmissions.filter(s => s.score / s.total < 0.7);
-
-    let coachingNote = null;
-    if (struggleSubmissions.length >= 2) {
-        const commonTopic = struggleSubmissions[0].quizTitle;
-        coachingNote = {
-            topic: commonTopic,
-            count: struggleSubmissions.length,
-            advice: `Elora detected a pattern: ${struggleSubmissions.length} students are stalling on "${commonTopic}".Try a 5 - minute visual analogy before the next quiz.`
-        };
-    }
-
-    return {
-        avgEngagement: Math.round(totalMessages / safeStudents.length),
-        topSubject: top ? top[0] : "General",
-        totalHours: (safeStudents.length > 0 ? totalMinutes / 60 : 0).toFixed(1),
-        heatmapData,
-        recommendedVideos,
-        struggleTopic,
-        coachingNote, // NEW
-        recommendationReason,
-        vibe,
-        sentimentInsight,
-        isPreview: !isVerified
-    };
-}
-
-function LockedFeatureOverlay({ children, isVerified }) {
-    if (isVerified) return children;
-
-    return (
-        <div className="relative group cursor-not-allowed">
-            <div className="blur-[1px] opacity-70 pointer-events-none transition-all group-hover:blur-[2px]">
-                {children}
+                        )}
+                    </>
+                )}
             </div>
-            <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-slate-900/90 dark:bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-2xl border border-white/10 dark:border-slate-200">
-                    <Link href="/verify" className="flex items-center gap-2 no-underline">
-                        <span className="text-xs font-black text-white dark:text-slate-900 whitespace-nowrap">Verify to Unlock →</span>
-                    </Link>
-                </div>
-            </div>
-        </div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-3">
+                {title}
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-8">
+                {description}
+            </p>
+            {action && (
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={action}
+                    className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-2xl font-black text-sm shadow-lg shadow-indigo-500/20 hover:shadow-xl transition-all"
+                >
+                    {actionLabel}
+                </motion.button>
+            )}
+        </motion.div>
     );
 }
 
@@ -387,7 +218,18 @@ function PreviewBanner() {
 // ----------------------------------------------------------------------
 
 function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode, demoData, isSubmitting, setIsSubmitting, setActiveAssignment }) {
-    if (!data) return null;
+    if (!data) {
+        return (
+            <EmptyState
+                icon="📚"
+                title="No Learning Data Yet"
+                description="Start chatting with Elora to see your learning progress, achievements, and personalized insights here."
+                action={() => window.location.href = '/assistant'}
+                actionLabel="Start Learning"
+                illustration="✨"
+            />
+        );
+    }
     const [selectedClassIndex, setSelectedClassIndex] = useState(0);
     const [joinCodeInput, setJoinCodeInput] = useState("");
     const [joinStatus, setJoinStatus] = useState("");
@@ -800,6 +642,9 @@ function StudentModule({ data, onStartQuiz, session, onUpdateSession, isDemoMode
 
 function TeacherModule({ students, metrics, onAddStudent, session: activeSession, onUpdateSession, isDemoMode, demoData, isGrading, setIsGrading, setActiveSubmission, setActiveAssignment, hasMounted }) {
     if (!activeSession) return null;
+
+    const hasStudents = students && students.length > 0;
+    const hasRealData = !isDemoMode;
     const [selectedTab, setSelectedTab] = useState("overview"); // overview, assignments, insights
     const [selectedClassId, setSelectedClassId] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -1429,89 +1274,18 @@ function TeacherModule({ students, metrics, onAddStudent, session: activeSession
                 )}                {/* Content based on Tab */}
                 {selectedTab === "overview" && !selectedClassId && (
                     <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
-                                <p className="text-indigo-100 text-[10px] font-black uppercase tracking-widest mb-1">Total Enrollment</p>
-                                <p className="text-3xl sm:text-4xl font-black">{students.length} <span className="text-xs sm:text-sm font-medium opacity-70">students</span></p>
-                            </div>
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Most Active Class</p>
-                                <p className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white truncate">{classes[0]?.name || "N/A"}</p>
-                            </div>
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Total Class Minutes</p>
-                                <p className="text-3xl sm:text-4xl font-black text-emerald-500">{metrics.totalHours}h</p>
-                            </div>
-                        </div>
-
-                        {/* Analysis Grid */}
-                        <div className="grid lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Subject Mastery</h3>
-                                    </div>
-                                    <div className="h-64 sm:h-80"><ClassHeatmap data={metrics.heatmapData} height={300} /></div>
-                                </div>
-
-                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <h3 className="text-xl font-black text-slate-900 dark:text-white">Class Activity</h3>
-                                    </div>
-
-                                    <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
-                                        <table className="w-full text-left min-w-[500px]">
-                                            <thead>
-                                                <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-500 text-[10px] sm:text-xs font-black uppercase">
-                                                    <th className="pb-4 pl-2">Student</th>
-                                                    <th className="pb-4">Queries</th>
-                                                    <th className="pb-4">Time</th>
-                                                    <th className="pb-4">Last Topic</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                                                {students.map((s, i) => (
-                                                    <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                        <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                                                        <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.messagesSent || 0}</td>
-                                                        <td className="py-4 text-sm text-slate-600 dark:text-slate-300">{s.stats?.activeMinutes || 0}m</td>
-                                                        <td className="py-4 text-xs font-bold text-indigo-600 dark:text-indigo-400">{s.stats?.subjects?.[0] || 'Unstarted'}</td>
-                                                    </tr>
-                                                ))}
-                                                {students.length === 0 && (
-                                                    <tr><td colSpan="4" className="py-12 text-center text-slate-500 dark:text-slate-400 font-bold italic bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">No student activity recorded yet.</td></tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                    <h3 className="font-black mb-4 text-slate-900 dark:text-white">Link New Student</h3>
-                                    <div className="space-y-3">
-                                        <input
-                                            value={nameInput} onChange={e => setNameInput(e.target.value)}
-                                            placeholder="Student Nickname"
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        />
-                                        <input
-                                            value={code} onChange={e => setCode(e.target.value)}
-                                            placeholder="ELORA-XXXX"
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        />
-                                        <button
-                                            onClick={() => onAddStudent(code, nameInput)}
-                                            className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-                                            disabled={!activeSession?.verified}
-                                        >
-                                            Add Student +
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
+                        {!hasStudents && !isDemoMode && (
+                            <EmptyState
+                                icon="👥"
+                                title="Your Classroom Awaits Students"
+                                description="Create your first class and share the join code with students to see their progress and AI insights here."
+                                action={() => setIsCreating(true)}
+                                actionLabel="Create First Class"
+                                illustration="✨"
+                            />
+                        )}
+                        {(hasStudents || isDemoMode) && (
+                            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
                                     <h3 className="text-xl font-black mb-6 flex items-center gap-3">
                                         <span className="w-10 h-10 bg-slate-100 dark:bg-slate-700/50 rounded-xl flex items-center justify-center text-lg">📂</span>
                                         Managed Materials

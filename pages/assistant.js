@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import { motion, AnimatePresence } from "framer-motion";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -202,6 +203,90 @@ function seededShuffle(arr, rnd) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// Loading spinner component
+function LoadingSpinner({ size = "md", className = "" }) {
+  const sizeClasses = {
+    sm: "w-4 h-4",
+    md: "w-5 h-5", 
+    lg: "w-6 h-6"
+  };
+
+  return (
+    <div className={`inline-flex items-center justify-center ${className}`}>
+      <svg 
+        className={`animate-spin ${sizeClasses[size]} text-current`} 
+        fill="none" 
+        viewBox="0 0 24 24"
+      >
+        <circle 
+          className="opacity-25" 
+          cx="12" 
+          cy="12" 
+          r="10" 
+          stroke="currentColor" 
+          strokeWidth="4" 
+        />
+        <path 
+          className="opacity-75" 
+          fill="currentColor" 
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" 
+        />
+      </svg>
+    </div>
+  );
+}
+
+// Typing indicator component
+function TypingIndicator({ isVisible }) {
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="flex items-center gap-2 px-4 py-3"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            E
+          </div>
+          <div className="flex gap-1 items-center">
+            <motion.div
+              className="w-2 h-2 bg-slate-400 rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+            />
+            <motion.div
+              className="w-2 h-2 bg-slate-400 rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+            />
+            <motion.div
+              className="w-2 h-2 bg-slate-400 rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Skeleton loader for messages
+function MessageSkeleton() {
+  return (
+    <div className="flex gap-3 px-4 py-3">
+      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse w-3/4" />
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse w-1/2" />
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse w-5/6" />
+      </div>
+    </div>
+  );
 }
 
 function LockedFeatureOverlay({ children, isVerified }) {
@@ -663,6 +748,7 @@ export default function AssistantPage() {
   const [renameValue, setRenameValue] = useState("");
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState("sending"); // 'sending', 'thinking', 'generating'
   const [attempt, setAttempt] = useState(0);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
 
@@ -1091,6 +1177,7 @@ export default function AssistantPage() {
     if (!userText && !attachedImage?.dataUrl) return;
 
     setLoading(true);
+    setLoadingStage("sending");
 
     try {
       if (role === "educator" && !currentSession?.verified) {
@@ -1112,6 +1199,7 @@ export default function AssistantPage() {
       const timeSpent = (Date.now() - lastActionTime) / 1000;
       const sentiment = (attemptNext > 1 || timeSpent > 60) ? "supportive" : "standard";
 
+      setLoadingStage("thinking");
       const payload = {
         role,
         action,
@@ -1134,6 +1222,7 @@ export default function AssistantPage() {
         teacherRules: currentSession.classroom?.teacherRules || ""
       };
 
+      setLoadingStage("generating");
       const r = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1183,6 +1272,7 @@ export default function AssistantPage() {
     } finally {
       setChatText("");
       setLoading(false);
+      setLoadingStage("sending");
       setLastActionTime(Date.now());
     }
   }
@@ -1920,11 +2010,42 @@ export default function AssistantPage() {
                   {loading && (
                     <div className="flex justify-start pr-12 animate-reveal">
                       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 rounded-3xl rounded-tl-none p-5 shadow-sm">
-                        <div className="flex gap-1.5">
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce" />
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                            E
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                              {loadingStage === 'sending' && 'Sending your message...'}
+                              {loadingStage === 'thinking' && 'Elora is thinking...'}
+                              {loadingStage === 'generating' && 'Generating response...'}
+                            </div>
+                            <div className="flex gap-1 mt-2">
+                              <motion.div
+                                className="w-2 h-2 bg-indigo-500 rounded-full"
+                                animate={{ scale: [1, 1.2, 1] }}
+                                transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                              />
+                              <motion.div
+                                className="w-2 h-2 bg-indigo-500 rounded-full"
+                                animate={{ scale: [1, 1.2, 1] }}
+                                transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                              />
+                              <motion.div
+                                className="w-2 h-2 bg-indigo-500 rounded-full"
+                                animate={{ scale: [1, 1.2, 1] }}
+                                transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                              />
+                            </div>
+                          </div>
                         </div>
+                        {loadingStage === 'generating' && (
+                          <div className="mt-3 space-y-1">
+                            <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-full" />
+                            <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-4/5" />
+                            <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-3/4" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1989,9 +2110,31 @@ export default function AssistantPage() {
                     <button
                       disabled={loading || (!chatText.trim() && !attachedImage)}
                       onClick={sendChat}
-                      className="h-12 w-12 flex items-center justify-center rounded-[1.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 disabled:opacity-30 transition-all"
+                      className="h-12 w-12 flex items-center justify-center rounded-[1.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all relative overflow-hidden"
                     >
-                      <span className="text-xl">➔</span>
+                      <AnimatePresence mode="wait">
+                        {loading ? (
+                          <motion.div
+                            key="loading"
+                            initial={{ rotate: 0 }}
+                            animate={{ rotate: 360 }}
+                            exit={{ rotate: 0 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          >
+                            <LoadingSpinner size="sm" className="text-white" />
+                          </motion.div>
+                        ) : (
+                          <motion.span
+                            key="send"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="text-xl"
+                          >
+                            ➔
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </button>
                   </div>
 

@@ -59,7 +59,7 @@ const ROLE_QUICK_ACTIONS = {
   parent: [
     { id: "explain", label: "Explain to me", hint: "Plain language, no jargon" },
     { id: "tutor", label: "Tutor Mode", hint: "Help me coach my child ✨" },
-    { id: "curriculum", label: "Topic Roadmap", hint: "See the journey ahead ✨" },
+    { id: "curriculum", label: "Topic Roadmap", hint: "See journey ahead ✨" },
     { id: "message", label: "Write a message", hint: "To teacher or school" },
   ],
 };
@@ -605,6 +605,7 @@ export default function AssistantPage() {
   const [showResourceDrawer, setShowResourceDrawer] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
 
+  // Auto-configure from URL query (e.g. from Dashboard)
   useEffect(() => {
     if (!router.isReady) return;
     const { action: qAction, topic: qTopic } = router.query;
@@ -617,6 +618,7 @@ export default function AssistantPage() {
       }
     }
 
+    // Always check for overrides from URL or Joined Class
     if (router.query.topic) setTopic(router.query.topic);
     if (router.query.level) setLevel(router.query.level);
     if (router.query.subject) setSubject(router.query.subject);
@@ -624,6 +626,7 @@ export default function AssistantPage() {
     if (router.query.vision) setVision(router.query.vision);
     if (router.query.classCode) setClassCode(router.query.classCode);
 
+    // If URL didn't specify, fall back to Joined Class context
     if (session?.joinedClass) {
       if (!router.query.level) setLevel(session.joinedClass.level);
       if (!router.query.country) setCountry(session.joinedClass.country);
@@ -636,8 +639,9 @@ export default function AssistantPage() {
       setTopic(qTopic);
       setTopicForSuggestions(qTopic);
     }
-  }, [router.isReady, router.query]);
+  }, [router.isReady, router.query, session?.joinedClass]);
 
+  // Threaded chat state
   const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
   const [activeChatId, setActiveChatIdState] = useState(() =>
     getActiveThreadId(getChatUserKey(getSession()))
@@ -653,6 +657,7 @@ export default function AssistantPage() {
 
   const activeMeta = useMemo(
     () => getThreadMeta(chatUserKey, activeChatId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatUserKey, activeChatId, threads]
   );
 
@@ -666,17 +671,24 @@ export default function AssistantPage() {
   const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
   const starterSaltRef = useRef("ssr");
 
+  // Hydration safety: only set salt on client
   useEffect(() => {
     starterSaltRef.current = `${Date.now()}-${Math.random()}`;
     setMounted(true);
   }, []);
 
+  // Debounce topic so suggestions don't "flicker" while user is typing.
   useEffect(() => {
     const t = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
     return () => clearTimeout(t);
   }, [topic]);
 
   const starterSeed = useMemo(() => {
+    // Stable for small UI changes, but changes when:
+    // - page reloads (salt)
+    // - user switches chat thread (activeChatId)
+    // - user changes key settings (role/country/level/subject)
+    // - topic changes after debounce
     return [
       "starter-v2",
       starterSaltRef.current,
@@ -737,6 +749,7 @@ export default function AssistantPage() {
     [threads, canManageChats]
   );
 
+  // Close chat menu on outside click
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -749,6 +762,7 @@ export default function AssistantPage() {
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
 
+  // Preferences panel open/close persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -764,6 +778,7 @@ export default function AssistantPage() {
     } catch { }
   }, [prefsOpen]);
 
+  // Preview notice persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -785,28 +800,31 @@ export default function AssistantPage() {
   }, [verified]);
 
   useEffect(() => {
+    // When country changes: ensure level is valid for that country.
     const allowed = getCountryLevels(country);
     if (!allowed.includes(level)) {
       setLevel(allowed[0] || "Primary 1");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
-  function onSessionEvent() {
-    const s = getSession();
-    setSession(s);
-    setRole(s?.role || "student");
-    setCountry(s?.country || "Singapore");
-
-    const allowed = getCountryLevels(s?.country || "Singapore");
-    const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
-    setLevel(nextLevel);
-
-    setSubject(s?.subject || "General");
-    setTopic(s?.topic || "");
-    setAction(s?.action || "explain");
-  }
-
+  // Session events
   useEffect(() => {
+    function onSessionEvent() {
+      const s = getSession();
+      setSession(s);
+      setRole(s?.role || "student");
+      setCountry(s?.country || "Singapore");
+
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
+      setLevel(nextLevel);
+
+      setSubject(s?.subject || "General");
+      setTopic(s?.topic || "");
+      setAction(s?.action || "explain");
+    }
+
     if (typeof window !== "undefined") {
       window.addEventListener("elora:session", onSessionEvent);
     }
@@ -868,15 +886,27 @@ export default function AssistantPage() {
       setCopiedIdx(idx);
       window.setTimeout(() => setCopiedIdx(-1), 900);
     } catch {
+      // no-op
     }
   }
 
   async function persistSessionPatch(patch) {
     try {
+      // Note: Endpoint /api/session/set expects a token, not a patch.
+      // Persisting UI state via localStorage (getSession/saveSession) instead.
+      /*
+      await fetch("/api/session/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      */
     } catch {
+      // ignore
     }
   }
 
+  // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
   async function saveServerChatIfVerified(currentSession, nextMessages) {
     try {
       if (!currentSession?.verified) return;
@@ -886,6 +916,7 @@ export default function AssistantPage() {
         body: JSON.stringify({ messages: nextMessages }),
       });
     } catch {
+      // ignore
     }
   }
 
@@ -894,6 +925,7 @@ export default function AssistantPage() {
       if (!currentSession?.verified) return;
       await fetch("/api/chat/clear", { method: "POST" });
     } catch {
+      // ignore
     }
   }
 
@@ -913,6 +945,7 @@ export default function AssistantPage() {
     return nextActive;
   }
 
+  // Init: refresh verification, then load threads for correct identity (guest vs verified)
   useEffect(() => {
     let mounted = true;
 
@@ -936,8 +969,10 @@ export default function AssistantPage() {
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // When verification/email changes, switch identity (guest chats stay separate from verified)
   useEffect(() => {
     const s = getSession();
     const nextKey = getChatUserKey(s);
@@ -949,6 +984,7 @@ export default function AssistantPage() {
     setAttachedImage(null);
     setAttachErr("");
     setChatMenuOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verified, session?.email]);
 
   useEffect(() => {
@@ -960,8 +996,10 @@ export default function AssistantPage() {
       topic,
       action,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, country, level, subject, topic, action]);
 
+  // Session Heartbeat for activeMinutes tracking
   useEffect(() => {
     const timer = setInterval(() => {
       const s = getSession();
@@ -969,7 +1007,7 @@ export default function AssistantPage() {
       s.usage.activeMinutes = (Number(s.usage.activeMinutes) || 0) + 1;
       s.usage.lastActive = new Date().toISOString();
       saveSession(s);
-    }, 60000);
+    }, 60000); // Every 1 minute
 
     return () => clearInterval(timer);
   }, []);
@@ -991,28 +1029,34 @@ export default function AssistantPage() {
   function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
     setMessages(nextMessages);
 
+    // NO-MEMORY RULE for unverified users: Do not persist to storage or server.
     if (!verified) return;
 
     upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
     setThreads(listThreads(chatUserKey));
 
+    // Track usage on every message sent (only if Elora or User)
     const isActuallyNew = nextMessages.length > messages.length;
     if (isActuallyNew) {
       const s = getSession();
       if (!s.usage) s.usage = { messagesSent: 0, subjects: [], streak: 0 };
       s.usage.messagesSent = (Number(s.usage.messagesSent) || 0) + 1;
 
+      // Update subjects explored
       if (subject && !Array.isArray(s.usage.subjects)) s.usage.subjects = [];
       if (subject && !s.usage.subjects.includes(subject)) {
         s.usage.subjects.push(subject);
       }
 
+      // Update session log (limited to last 50 for storage size)
       if (!Array.isArray(s.usage.sessionLog)) s.usage.sessionLog = [];
       const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
       s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
 
+      // Update last active
       s.usage.lastActive = new Date().toISOString();
 
+      // Update streak
       s.usage.streak = Math.max(Number(s.usage.streak) || 0, 1);
 
       saveSession(s);
@@ -1067,10 +1111,10 @@ export default function AssistantPage() {
         searchMode,
         customStyleText,
         attempt: attemptNext,
-        sentiment,
-        timeSpent,
-        vision,
-        classCode,
+        sentiment, // NEW
+        timeSpent, // NEW
+        vision, // PHASE 4
+        classCode, // PHASE 4
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         teacherRules: currentSession.classroom?.teacherRules || ""
@@ -1098,6 +1142,7 @@ export default function AssistantPage() {
 
       const outRaw = data?.reply || data?.text || data?.answer || "";
       if (!outRaw) {
+        // Fallback if engine returns empty but OK
         const next = [...base, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
@@ -1132,7 +1177,7 @@ export default function AssistantPage() {
     const trimmed = String(chatText || "").trim();
     if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
-    setLoading(true);
+    setLoading(true); // Pre-emptive lock
     setAttachErr("");
 
     const inferred = inferActionFromMessage(trimmed);
@@ -1144,10 +1189,12 @@ export default function AssistantPage() {
 
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
 
+    // Use functional update to ensure we have the absolute latest messages
     setMessages(prev => {
       const next = [...prev, userMsg];
       persistActiveMessages(next, { alsoSyncServer: true });
 
+      // Delay the actual call slightly to ensure state has settled
       setTimeout(() => {
         callElora({ messageOverride: trimmed, baseMessages: next });
       }, 0);
@@ -1405,6 +1452,7 @@ export default function AssistantPage() {
 
       <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
         <div className="elora-container pt-4 lg:pt-8 pb-32 lg:pb-12">
+          {/* Mobile Header - Compact */}
           <div className="lg:hidden flex items-center justify-between px-6 py-4 mb-4 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-3xl mx-4 sticky top-4 z-40">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-indigo-600 grid place-items-center text-white font-black text-xs shrink-0">E</div>
@@ -1432,10 +1480,12 @@ export default function AssistantPage() {
 
           <div className={cn("grid gap-8", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
 
+            {/* LEFT - Preferences Panel (Dynamic Drawer on Mobile) */}
             <div className={cn(
               "z-[60] fixed lg:sticky top-0 lg:top-[calc(var(--elora-nav-offset)+1rem)] left-0 w-full lg:w-auto h-full lg:h-fit transition-all duration-500 lg:duration-300",
               prefsOpen ? "translate-x-0 opacity-100" : "-translate-x-full lg:hidden opacity-0"
             )}>
+              {/* Overlay for mobile tap-to-close */}
               <div
                 className="lg:hidden absolute inset-0 bg-slate-950/40 backdrop-blur-sm -z-10"
                 onClick={() => setPrefsOpen(false)}
@@ -1474,6 +1524,7 @@ export default function AssistantPage() {
                 </div>
 
                 <div className="space-y-6">
+                  {/* Mode & Response Section */}
                   <div className="space-y-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Response Goal</div>
                     <div className="grid grid-cols-3 gap-2">
@@ -1496,6 +1547,7 @@ export default function AssistantPage() {
 
                   {contextMode === "manual" && (
                     <div className="space-y-6 animate-reveal">
+                      {/* Context Section */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Context</div>
@@ -1603,6 +1655,7 @@ export default function AssistantPage() {
                     Reset Current Conversation
                   </button>
 
+                  {/* Mastery Tracker Mockup */}
                   <div className="p-5 rounded-[2rem] bg-slate-900 border border-white/5 shadow-2xl overflow-hidden relative group">
                     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">📈</div>
                     <div className="relative z-10">
@@ -1634,7 +1687,9 @@ export default function AssistantPage() {
               </div>
             </div>
 
+            {/* RIGHT - Chat Area */}
             <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[96dvh] lg:h-[calc(100dvh-60px)] w-full max-w-[1600px] mx-auto">
+              {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-[var(--font-brand)]">
@@ -1656,8 +1711,10 @@ export default function AssistantPage() {
                 </div>
               </div>
 
+              {/* Chat Thread Area */}
               <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 lg:p-6 flex-1 flex flex-col min-h-0 relative">
 
+                {/* Chat History Header */}
                 <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
                   {canManageChats ? (
                     <div className="relative shrink min-w-0" ref={chatMenuRef}>
@@ -1695,6 +1752,7 @@ export default function AssistantPage() {
                             </div>
                           </div>
 
+                          {/* Pinned Threads */}
                           {pinnedThreads.length > 0 && (
                             <div className="p-3 border-b border-slate-100 dark:border-white/5">
                               <div className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2">Pinned</div>
@@ -1756,38 +1814,39 @@ export default function AssistantPage() {
                                     "w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all group",
                                     t.id === activeChatId
                                       ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
-                                      : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
-                                  )}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="truncate">{t.title}</span>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveThreadAndLoad(t.id);
-                                          onOpenRename();
-                                        }}
-                                        className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
-                                      >
-                                        ✏️
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveThreadAndLoad(t.id);
-                                          onTogglePin();
-                                        }}
-                                        className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
-                                      >
-                                        {t.pinned ? "📌" : "📍"}
-                                      </button>
+                                        : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate">{t.title}</span>
+                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveThreadAndLoad(t.id);
+                                            onOpenRename();
+                                          }}
+                                          className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
+                                        >
+                                          ✏️
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveThreadAndLoad(t.id);
+                                            onTogglePin();
+                                          }}
+                                          className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
+                                        >
+                                          {t.pinned ? "📌" : "📍"}
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                </button>
-                              ))}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1821,6 +1880,7 @@ export default function AssistantPage() {
                   </div>
                 </div>
 
+                {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-2" ref={listRef} onScroll={() => {
                   const el = listRef.current;
                   if (!el) return;
@@ -1858,6 +1918,7 @@ export default function AssistantPage() {
                                 {msg.text}
                               </div>
                               
+                              {/* Quiz Detection and Rendering */}
                               {msg.from === "elora" && msg.text.includes("<quiz_data>") && (
                                 <div className="mt-4">
                                   {(() => {
@@ -1906,6 +1967,7 @@ export default function AssistantPage() {
                                       </button>
                                     </LockedFeatureOverlay>
                                   </div>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => copyToClipboard(msg.text, idx)}
@@ -1927,7 +1989,7 @@ export default function AssistantPage() {
                             )}
                           </div>
                         </div>
-                      ))
+                      ))}
                     )}
 
                     {loading && (
@@ -1940,6 +2002,7 @@ export default function AssistantPage() {
                     )}
                   </div>
 
+                  {/* Jump to Latest Button */}
                   {showJump && (
                     <button
                       type="button"
@@ -1951,6 +2014,7 @@ export default function AssistantPage() {
                   )}
                 </div>
 
+                {/* Refinement Chips */}
                 {hasEloraAnswer && !loading && (
                   <div className="mt-4 p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
                     <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-3">Refine Response</div>
@@ -1970,6 +2034,7 @@ export default function AssistantPage() {
                   </div>
                 )}
 
+                {/* Chat Input */}
                 <div className="mt-4 space-y-3">
                   {attachErr && (
                     <div className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
@@ -2053,6 +2118,7 @@ export default function AssistantPage() {
                     />
                   </div>
 
+                  {/* Preview Notice */}
                   {!verified && !dismissPreviewNotice && (
                     <div className="relative group">
                       <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm rounded-2xl" />
@@ -2079,122 +2145,125 @@ export default function AssistantPage() {
               </div>
             </div>
           </div>
-        </div>
 
-        <AIResourceDrawer 
-          open={showResourceDrawer} 
-          onClose={() => setShowResourceDrawer(false)} 
-          topic={topic} 
-          subject={subject} 
-        />
+          <AIResourceDrawer 
+            open={showResourceDrawer} 
+            onClose={() => setShowResourceDrawer(false)} 
+            topic={topic} 
+            subject={subject} 
+          />
 
-        <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)}>
-          <div className="text-center p-8 max-w-sm">
-            <div className="text-4xl mb-4">🔐</div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Verify Your Email</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-              This feature requires email verification. It's quick and unlocks all of Elora's capabilities.
-            </p>
-            <div className="space-y-3">
-              <Link
-                href="/verify"
-                className="block w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
-              >
-                Verify Email →
-              </Link>
-              <button
-                type="button"
-                onClick={() => setVerifyGateOpen(false)}
-                className="w-full py-3 text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                Maybe Later
-              </button>
+          {/* Verification Gate Modal */}
+          <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)}>
+            <div className="text-center p-8 max-w-sm">
+              <div className="text-4xl mb-4">🔐</div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Verify Your Email</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                This feature requires email verification. It's quick and unlocks all of Elora's capabilities.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  href="/verify"
+                  className="block w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                >
+                  Verify Email →
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setVerifyGateOpen(false)}
+                  className="w-full py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
 
-        <Modal open={teacherGateOpen} onClose={() => setTeacherGateOpen(false)}>
-          <div className="text-center p-8 max-w-sm">
-            <div className="text-4xl mb-4">👨‍🏫</div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Teacher Access Required</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-              This feature is designed for educators. Enter your teacher invite code or verify your educator account.
-            </p>
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={teacherGateCode}
-                onChange={(e) => setTeacherGateCode(e.target.value)}
-                placeholder="Enter teacher code"
-                className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              />
-              {teacherGateStatus && (
-                <div className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
-                  {teacherGateStatus}
+          {/* Teacher Gate Modal */}
+          <Modal open={teacherGateOpen} onClose={() => setTeacherGateOpen(false)}>
+            <div className="text-center p-8 max-w-sm">
+              <div className="text-4xl mb-4">👨‍🏫</div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Teacher Access Required</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                This feature is designed for educators. Enter your teacher invite code or verify your educator account.
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={teacherGateCode}
+                  onChange={(e) => setTeacherGateCode(e.target.value)}
+                  placeholder="Enter teacher code"
+                  className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                />
+                {teacherGateStatus && (
+                  <div className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
+                    {teacherGateStatus}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (validateAndActivateInvite(teacherGateCode)) {
+                        setTeacherGateOpen(false);
+                        setTeacherGateCode("");
+                        setTeacherGateStatus("");
+                      }
+                    }}
+                    className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                  >
+                    Activate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTeacherGateOpen(false)}
+                    className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (validateAndActivateInvite(teacherGateCode)) {
-                      setTeacherGateOpen(false);
-                      setTeacherGateCode("");
-                      setTeacherGateStatus("");
-                    }
-                  }}
-                  className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
-                >
-                  Activate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTeacherGateOpen(false)}
-                  className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
               </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
 
-        <Modal open={renameOpen} onClose={() => setRenameOpen(false)}>
-          <div className="text-center p-8 max-w-sm">
-            <div className="text-4xl mb-4">✏️</div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Rename Conversation</h3>
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                placeholder="Conversation title"
-                className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    renameThread(chatUserKey, activeChatId, renameValue);
-                    setThreads(listThreads(chatUserKey));
-                    setRenameOpen(false);
-                    setRenameValue("");
-                  }}
-                  className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRenameOpen(false)}
-                  className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
+          {/* Rename Modal */}
+          <Modal open={renameOpen} onClose={() => setRenameOpen(false)}>
+            <div className="text-center p-8 max-w-sm">
+              <div className="text-4xl mb-4">✏️</div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Rename Conversation</h3>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  placeholder="Conversation title"
+                  className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      renameThread(chatUserKey, activeChatId, renameValue);
+                      setThreads(listThreads(chatUserKey));
+                      setRenameOpen(false);
+                      setRenameValue("");
+                    }}
+                    className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRenameOpen(false)}
+                    className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
+        </div>
       </div>
     </>
   );

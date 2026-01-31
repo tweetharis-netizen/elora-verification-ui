@@ -520,9 +520,6 @@ const InteractiveQuiz = ({ data, onComplete }) => {
               </p>
             </motion.div>
           )}
-        )}
-      </div>
-    </div>
   );
 };
 

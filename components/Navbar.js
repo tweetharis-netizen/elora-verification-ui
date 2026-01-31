@@ -152,8 +152,9 @@ export default function Navbar() {
           <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
             {[
               { href: "/", label: "Home" },
-              { href: "/story", label: "Story" },
               { href: "/assistant", label: "Assistant" },
+              { href: "/classes", label: "Classes" },
+              { href: "/assignments", label: "Assignments" },
               { href: "/dashboard", label: "Dashboard" },
               { href: "/help", label: "Help" },
               { href: "/settings", label: "Settings" },
@@ -192,11 +193,14 @@ export default function Navbar() {
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
                     Home
                   </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/story" onClick={() => setMobileOpen(false)}>
-                    Story
-                  </Link>
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
                     Assistant
+                  </Link>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/classes" onClick={() => setMobileOpen(false)}>
+                    Classes
+                  </Link>
+                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assignments" onClick={() => setMobileOpen(false)}>
+                    Assignments
                   </Link>
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/dashboard" onClick={() => setMobileOpen(false)}>
                     Dashboard

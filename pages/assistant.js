@@ -502,24 +502,32 @@ const InteractiveQuiz = ({ data, onComplete }) => {
           <button
             onClick={handleFinish}
             disabled={answeredCount < totalQuestions}
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
-              <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
-              </div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                Session Result: {score} / {totalQuestions}
-              </div>
-              <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
-                <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
-              </div>
-              <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
-                Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
-              </p>
-            </motion.div>
-          )}
+            className="mt-10 w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            Grade My Progress →
+          </button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl"
+          >
+            <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+              Session Result: {score} / {totalQuestions}
+            </div>
+            <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
+              <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
+            </div>
+            <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
+              Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
+            </p>
+          </motion.div>
+        )}
   );
 };
 

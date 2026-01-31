@@ -111,6 +111,16 @@ export default function Navbar() {
 
   const accountLabel = verified ? "Dashboard" : canLogout ? "Account" : "Menu";
 
+  const mainNavItems = [
+    { href: "/", label: "Home" },
+    { href: "/assistant", label: "Assistant" },
+    { href: "/classes", label: "Classes" },
+    { href: "/assignments", label: "Assignments" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/help", label: "Help" },
+    { href: "/settings", label: "Settings" },
+  ];
+
   return (
     <header
       ref={navRef}
@@ -145,19 +155,11 @@ export default function Navbar() {
                   </div>
                 </div>
               </div>
-            </div>
-          </Link>
+            </Link>
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/story", label: "Story" },
-              { href: "/assistant", label: "Assistant" },
-              { href: "/dashboard", label: "Dashboard" },
-              { href: "/help", label: "Help" },
-              { href: "/settings", label: "Settings" },
-            ].map((item) => (
+            {mainNavItems.map((item) => (
               <Link
                 key={item.href}
                 className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors"
@@ -188,25 +190,17 @@ export default function Navbar() {
               </button>
 
               {mobileOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
-                    Home
-                  </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/story" onClick={() => setMobileOpen(false)}>
-                    Story
-                  </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/assistant" onClick={() => setMobileOpen(false)}>
-                    Assistant
-                  </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/dashboard" onClick={() => setMobileOpen(false)}>
-                    Dashboard
-                  </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/help" onClick={() => setMobileOpen(false)}>
-                    Help
-                  </Link>
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/settings" onClick={() => setMobileOpen(false)}>
-                    Settings
-                  </Link>
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
+                  {mainNavItems.map((item) => (
+                    <Link 
+                      key={item.href} 
+                      className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" 
+                      href={item.href} 
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
 
                   <div className="h-px bg-slate-200/80 dark:bg-slate-800/80 my-1" />
 
@@ -249,7 +243,7 @@ export default function Navbar() {
               </button>
 
               {accountOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 shadow-2xl shadow-slate-900/10 dark:shadow-black/30 backdrop-blur-xl p-2 space-y-1">
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 shadow-2xl p-2 space-y-1">
                   {!verified && (
                     <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800" href="/verify" onClick={() => setAccountOpen(false)}>
                       Verify email

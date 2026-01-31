@@ -3,7 +3,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { motion } from "framer-motion";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -29,6 +28,11 @@ import {
   upsertThreadMessages,
 } from "../lib/chatThreads";
 import { getRecommendations } from "../lib/videoLibrary";
+import { motion, AnimatePresence } from "../components/MotionPolyfill";
+
+function cn(...inputs) {
+  return inputs.filter(Boolean).join(" ");
+}
 
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
@@ -56,13 +60,11 @@ const ROLE_QUICK_ACTIONS = {
     { id: "check", label: "Check my answer", hint: "Hints first. Answer unlocks on attempt 3." },
     { id: "study", label: "Study plan", hint: "Small steps, realistic plan" },
   ],
-  ],
   parent: [
     { id: "explain", label: "Explain to me", hint: "Plain language, no jargon" },
     { id: "tutor", label: "Tutor Mode", hint: "Help me coach my child ✨" },
-    { id: "curriculum", label: "Topic Roadmap", hint: "See journey ahead ✨" },
+    { id: "curriculum", label: "Topic Roadmap", hint: "See the journey ahead ✨" },
     { id: "message", label: "Write a message", hint: "To teacher or school" },
-    ],
   ],
 };
 
@@ -71,8 +73,7 @@ const REFINEMENT_CHIPS = {
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
     { id: "steps", label: "Show steps" },
-    { id: "Check", label: "Add a quick check question" },
-  ],
+    { id: "check", label: "Add a quick check question" },
   ],
   lesson: [
     { id: "diff", label: "Add differentiation" },
@@ -80,47 +81,49 @@ const REFINEMENT_CHIPS = {
     { id: "check", label: "Add checks for understanding" },
     { id: "resources", label: "Add resources" },
   ],
-  ],
   worksheet: [
     { id: "easier", label: "Make it easier" },
     { id: "harder", label: "Make it harder" },
     { id: "answers", label: "Add teacher answers" },
-    { id: "faces": "Add A/B versions" },
+    { id: "variants", label: "Add A/B versions" },
   ],
   assessment: [
     { id: "markscheme", label: "Add mark scheme" },
-    { id: "variants", label: "Add two variants (A/B) with same skills tested" },
-    ],
+    { id: "variants", label: "Add variants" },
+    { id: "harder", label: "Make it harder" },
+    { id: "easier", label: "Make it easier" },
   ],
   slides: [
-    { id: "outline", label: "Tighten slide outline" },
+    { id: "outline", label: "Tighten outline" },
     { id: "hooks", label: "Add hook" },
     { id: "examples", label: "Add examples" },
-    { id: "notes", label: "Add short teacher notes" },
-    ],
+    { id: "notes", label: "Add teacher notes" },
   ],
   check: [
     { id: "more-steps", label: "Show more steps" },
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
-    ],
+  ],
+  study: [
+    { id: "shorter", label: "Make it shorter" },
+    { id: "steps", label: "Show steps" },
+    { id: "check", label: "Add a check question" },
   ],
   coach: [
+    { id: "simpler", label: "Make it simpler" },
     { id: "steps", label: "Give steps" },
-    ],
+    { id: "check", label: "Add a check question" },
+  ],
   message: [
     { id: "shorter", label: "Make it shorter" },
-    ],
-  ],
+    { id: "simpler", label: "Make it simpler" },
   ],
   custom: [
     { id: "simpler", label: "Make it simpler" },
     { id: "example", label: "Add an example" },
     { id: "steps", label: "Show steps" },
-    ],
   ],
-  ],
-  ];
+};
 
 const STARTER_SUGGESTION_POOLS = {
   educator: ({ country, level, subject, topic }) => {
@@ -130,75 +133,53 @@ const STARTER_SUGGESTION_POOLS = {
     const safeTopic = topic || "a tricky topic your class is currently on";
 
     return [
-      `Draft a ${safeLevel} ${safeSubject} lesson on "${safeTopic}" using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
-      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on "${safeTopic}", with printable prompts.`,
-      `Generate a quick formative check for "${safeTopic}": 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
-      `Write teacher feedback comments for 3 common student errors on "${safeTopic}" (one sentence each) plus a targeted next step for improvement.`,
-      `Build a rubric for ${safeSubject} work on "${safeTopic}" (4 bands) with concrete descriptors and a sample "Band 3" exemplar answer.`,
-      `Differentiate "${safeTopic}" for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
-      `Make a mini-quiz (8 questions) on "${safeTopic}" aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
-      `Turn "${safeTopic}" into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
-      `Create assignment workflows and connect them to existing session/classroom structures`,
-      `Create a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
-      `Write 6 gentle conversation starters about "${safeTopic}" that feel supportive (not like a test) — good for dinner or bedtime chats.`,
-      `Create a simple checklist I can use to help with ${safeSubject} homework on "${safeTopic}" without taking over (what to ask, what not to say).`,
-      `Draft a calm "frustration reset" script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
-      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
-      `Create a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Explain my mistake: I'll paste my working for "${safeTopic}" — tell me the misconception and give 2 similar questions to practice.`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Create a 7-day spaced revision plan for "${safeTopic}" with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
-      `Explain my mistake: I'll paste my working for "${safeTopic}" — tell me the misconception and give 2 similar questions to practice.`,
-      `Make a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      `Make a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
+      `Draft a ${safeLevel} ${safeSubject} lesson on “${safeTopic}” using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
+      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on “${safeTopic}”, with printable prompts.`,
+      `Generate a quick formative check for “${safeTopic}”: 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
+      `Write teacher feedback comments for 3 common student errors on “${safeTopic}” (one sentence each) plus a targeted next step for improvement.`,
+      `Build a rubric for ${safeSubject} work on “${safeTopic}” (4 bands) with concrete descriptors and a sample “Band 3” exemplar answer.`,
+      `Differentiate “${safeTopic}” for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
+      `Make a mini-quiz (8 questions) on “${safeTopic}” aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
+      `Turn “${safeTopic}” into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
     ];
   },
   parent: ({ country, level, subject, topic }) => {
     const safeCountry = country || "our country";
-    const safeLevel = level || "my child's level";
+    const safeLevel = level || "my child’s level";
     const safeSubject = subject || "schoolwork";
-    const safeTopic = topic || "what they're learning this week";
+    const safeTopic = topic || "what they’re learning this week";
 
     return [
-      `Explain "${safeTopic}" in plain parent-friendly language, then give me a 2-minute "car ride explanation" I can say to my child at ${safeLevel}.`,
-      `Give me 3 at-home mini-activities to support ${safeSubject} on "${safeTopic}" (10 minutes each, no printing, uses common household items).`,
-      `Write 6 gentle conversation starters about "${safeTopic}" that feel supportive (not like a test) — good for dinner or bedtime chats.`,
-      `Create a simple checklist I can use to help with ${safeSubject} homework on "${safeTopic}" without taking over (what to ask, what not to say).`,
-      `Draft a calm "frustration reset" script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
-      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Create a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
+      `Explain “${safeTopic}” in plain parent-friendly language, then give me a 2-minute “car ride explanation” I can say to my child at ${safeLevel}.`,
+      `Give me 3 at-home mini-activities to support ${safeSubject} on “${safeTopic}” (10 minutes each, no printing, uses common household items).`,
+      `Write 6 gentle conversation starters about “${safeTopic}” that feel supportive (not like a test) — good for dinner or bedtime chats.`,
+      `Create a simple checklist I can use to help with ${safeSubject} homework on “${safeTopic}” without taking over (what to ask, what not to say).`,
+      `Draft a calm “frustration reset” script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
+      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to “${safeTopic}” with specific steps.`,
+      `Give me 5 praise phrases that reward effort and strategy during “${safeTopic}” practice (and 3 follow-up questions that encourage thinking).`,
+      `Turn “${safeTopic}” into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
     ];
-  },
   },
   student: ({ level, subject, topic }) => {
     const safeLevel = level || "my level";
     const safeSubject = subject || "my subject";
-    const safeTopic = topic || "a topic I'm stuck on";
+    const safeTopic = topic || "a topic I’m stuck on";
 
     return [
-      `Teach me "${safeTopic}" for ${safeSubject} at ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers)`,
-      `Make me a 20-minute study sprint for "${safeTopic}": warm-up → 2 focused drills → 1 mixed question → quick recap.`,
-      `Give me 6 practice questions on "${safeTopic}" at ${safeLevel} and mark them one-by-one after I answer each (no spoilers).`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Create a 7-day spaced revision plan for "${safeTopic}" with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
-      `Explain my mistake: I'll paste my working for "${safeTopic}" — tell me the misconception and give 2 similar questions to practice.`,
-      `Make a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      `Make a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      `Create a 7-day spaced revision plan for "${safeTopic}" with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
+      `Teach me “${safeTopic}” for ${safeSubject} at ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers).`,
+      `Make me a 20-minute study sprint for “${safeTopic}”: warm-up → 2 focused drills → 1 mixed question → quick recap.`,
+      `Give me 6 practice questions on “${safeTopic}” at ${safeLevel} and mark them one-by-one after I answer each (no spoilers).`,
+      `I’ll paste my working for “${safeTopic}”. First highlight what I did correctly, then show the first wrong step and how to fix it.`,
+      `Help me revise “${safeTopic}” for an exam: 5-bullet summary, 3 “must know” rules, and 3 exam-style questions with a marking guide.`,
+      `Create a 7-day spaced revision plan for “${safeTopic}” with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
+      `Explain my mistake: I’ll paste a wrong answer about “${safeTopic}” — tell me the misconception and give 2 similar questions to practice.`,
+      `Make a “teach-back” script so I can explain “${safeTopic}” to a friend in 60 seconds, then quiz me with 3 short questions.`,
     ];
   },
 };
 
 function stableHashToUint32(input) {
+  // Simple non-crypto hash for deterministic UI randomness
   const s = String(input || "");
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -209,10 +190,10 @@ function stableHashToUint32(input) {
 }
 
 function mulberry32(seed) {
-  let state = seed >>> 0;
+  let t = seed >>> 0;
   return () => {
-    state += 0x6d2b79f5;
-    let x = state;
+    t += 0x6d2b79f5;
+    let x = t;
     x = Math.imul(x ^ (x >>> 15), x | 1);
     x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
@@ -267,16 +248,11 @@ function pickStarterSuggestions({ seed, role, country, level, subject, topic }) 
 const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
 const PREFS_OPEN_KEY = "elora_assistant_prefs_open_v1";
 
-function cn(...xs) {
-  return xs.filter(Boolean).join(" ");
-}
-
 function stripInternalTags(text) {
   return String(text || "")
     .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
+    .replace(/<\s*internal\s*\/\s*>/gi, "")
+    .replace(/<\s*internal\s*>/gi, "")
     .trim();
 }
 
@@ -286,13 +262,14 @@ function cleanAssistantText(text) {
   t = t.replace(/`+/g, "");
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
   t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
-  t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
-  t = t.replace(/\[\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-  t = t.replace(/^\s*([-*_])\1\+\s*$/gm, "");
+  t = t.replace(/\*([^*]+)\*/g, "$1");
+  t = t.replace(/__([^_]+)__/g, "$1");
+  t = t.replace(/_([^_]+)_/g, "$1");
+  t = t.replace(/^\s*>\s?/gm, "");
   t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
   t = t.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "");
-  t = t.replace(/\n{3,}/g, "");
-  t = t.replace(/\n{3,}/g, "");
+  t = t.replace(/\n{3,}/g, "\n\n").trim();
   return t;
 }
 
@@ -304,22 +281,6 @@ function inferActionFromMessage(text) {
     t.includes("check my answer") ||
     t.includes("is this correct") ||
     t.includes("is it correct") ||
-    t.includes("am i correct") ||
-    t.includes("did i get it right") ||
-    t.includes("right or wrong") ||
-    /\bmy answer\b/.test(t) ||
-    /\banswer\s*:\s*/.test(t) ||
-    /\b=\s*-?\d/.test(t)
-  ) {
-    return "check";
-  }
-
-  if (t.includes("lesson plan")) return "lesson";
-  if (t.includes("worksheet")) return "worksheet";
-  if (t.includes("assessment") || t.includes("test") || t.includes("quiz")) return "assessment";
-  if (t.includes("slides") || t.includes("powerpoint")) return "slides";
-  if (t.includes("check my answer") ||
-    t.includes("is this correct") ||
     t.includes("am i correct") ||
     t.includes("did i get it right") ||
     t.includes("right or wrong") ||
@@ -447,7 +408,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
   const progressPercent = (answeredCount / totalQuestions) * 100;
 
   const handleFinish = () => {
-    let correctCount = 0;
+    let s = 0;
     const submissionDetails = data.questions.map(q => ({
       question: q.question,
       studentAnswer: answers[q.id],
@@ -456,18 +417,19 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     }));
 
     data.questions.forEach(q => {
-      if (answers[q.id] === q.answer) correctCount++;
+      if (answers[q.id] === q.answer) s++;
     });
 
-    setScore(correctCount);
+    setScore(s);
     setSubmitted(true);
 
+    // Sync to Session (Global Classroom)
     const currentSession = getSession();
     const submission = {
       id: `sub_${Date.now()}`,
       studentName: currentSession.email?.split('@')[0] || "Guest Student",
       quizTitle: data.title || "Quick Knowledge Check",
-      score: correctCount,
+      score: s,
       total: totalQuestions,
       details: submissionDetails,
       timestamp: new Date().toISOString()
@@ -478,7 +440,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
     saveSession(currentSession);
 
-    if (onComplete) onComplete(correctCount, totalQuestions);
+    if (onComplete) onComplete(s, totalQuestions);
   };
 
   return (
@@ -493,22 +455,18 @@ const InteractiveQuiz = ({ data, onComplete }) => {
             <h4 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{data.title || "AI Knowledge Check"}</h4>
             <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Question {answeredCount} of {totalQuestions}</p>
           </div>
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-lg shadow-indigo-500/20">
-            🎯
-          </div>
+          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20">🎯</div>
         </div>
 
         <div className="space-y-10">
           {data.questions.map((q, idx) => (
             <div key={q.id} className="space-y-4 group">
               <div className="flex gap-4">
-                <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-500/20">
-                  {idx + 1}
-                </span>
+                <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-500/20">{idx + 1}</span>
                 <p className="text-[15px] font-bold text-slate-700 dark:text-slate-100 leading-relaxed pt-1">{q.question}</p>
               </div>
 
-              <div className="grid grid grid-cols-1 sm:grid-cols-2 gap-3 pl-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-12">
                 {q.options?.map(opt => {
                   const isSelected = answers[q.id] === opt;
                   const isCorrect = submitted && opt === q.answer;
@@ -523,16 +481,19 @@ const InteractiveQuiz = ({ data, onComplete }) => {
                         "group/opt p-4 rounded-2xl border-2 text-xs font-black transition-all text-left relative overflow-hidden",
                         isSelected
                           ? "border-indigo-500 bg-indigo-500 text-white shadow-xl scale-[1.02]"
-                          : "border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 text-slate-600 hover:border-indigo-500/30 hover:bg-indigo-50"
+                          : "border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-indigo-300 hover:bg-indigo-50/50",
+                        isCorrect && "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20",
+                        isWrong && "border-rose-500 bg-rose-500 text-white shadow-lg shadow-rose-500/20"
                       )}
-                  >
+                    >
                       <div className="relative z-10 flex items-center justify-between">
                         <span>{opt}</span>
                         {isCorrect && <span className="text-xl">✓</span>}
                         {isWrong && <span className="text-xl">✕</span>}
                       </div>
-                  </button>
-                )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -547,11 +508,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
             Grade My Progress →
           </button>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
             <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
             <div className="flex items-center justify-center gap-2 mb-6">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -564,7 +521,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
               <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
             </div>
             <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
-              Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in Resource Lab to help you bridge the gap."}
+              Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
             </p>
           </motion.div>
         )}
@@ -574,272 +531,172 @@ const InteractiveQuiz = ({ data, onComplete }) => {
 };
 
 const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
-  const [recommendations, setRecommendations] = useState([]);
+  const [recs, setRecs] = useState([]);
 
   useEffect(() => {
     if (open) {
-      setRecommendations(getRecommendations(subject, topic));
+      setRecs(getRecommendations(subject, topic));
     }
   }, [open, topic, subject]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-80 bg-white dark:bg-slate-950 shadow-2xl z-[100] border-l border-slate-200 dark:border-white/10 flex flex-col animate-reveal-right">
-      <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Resource Lab</h3>
-          <p className="text-[10px] text-indigo-500 font-bold">AI Recommended for you</p>
-        </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center">✕</button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {recommendations.length === 0 && <p className="text-center text-xs text-slate-500 py-10">No specific resources found for this topic yet.</p>}
-        {recommendations.map(video => (
-          <a key={video.id} href={video.url} target="_blank" rel="noreferrer" className="block group">
-            <div className="relative aspect-video rounded-xl overflow-hidden mb-2">
-              <Image src={video.thumbnail} alt={video.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 opacity-0 transition-opacity" />
-              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[8px] font-bold text-white rounded">FREE</div>
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-[100]"
+          />
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-950 shadow-[-20px_0_50px_rgba(0,0,0,0.2)] z-[101] flex flex-col border-l border-slate-100 dark:border-white/5"
+          >
+            <div className="p-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">Resource Lab</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">AI Curated for "{topic || subject}"</p>
+              </div>
+              <button onClick={onClose} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all font-black text-slate-400">✕</button>
             </div>
-            </a>
-            <h4 className="text-[11px] font-black leading-tight text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">{video.title}</h4>
-            <div className="text-[9px] font-medium text-slate-500 mt-1">{video.channel} • {video.views} views</div>
-          </a>
-        ))}
-      </div>
-      <div className="p-6 bg-indigo-500/5 mt-auto">
-        <p className="text-[10px] leading-tight text-slate-500 italic">"Study these to master {topic || 'your current topic'} faster." — Elora</p>
-      </div>
-    </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+              {recs.length === 0 ? (
+                <div className="text-center py-20 space-y-4">
+                  <div className="text-4xl">🔎</div>
+                  <p className="text-sm font-bold text-slate-400">Expanding the library... check back in a few seconds.</p>
+                </div>
+              ) : (
+                recs.map((rec, idx) => (
+                  <motion.a
+                    key={idx}
+                    href={rec.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="block group p-4 rounded-3xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm hover:shadow-xl"
+                  >
+                    <div className="aspect-video rounded-2xl overflow-hidden mb-4 relative">
+                      <Image
+                        src={rec.thumbnail || `https://images.unsplash.com/photo-1546410531-bb4caa1b4247?auto=format&fit=crop&q=80&w=400`}
+                        alt={rec.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-indigo-600/10 group-hover:bg-transparent transition-colors" />
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-900/80 backdrop-blur-md text-[8px] font-black text-white rounded-lg">LIVE</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">{rec.type || "VIDEO"}</div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors leading-snug">{rec.title}</h4>
+                      <p className="text-[10px] font-medium text-slate-500 line-clamp-2 mt-2 leading-relaxed">{rec.description}</p>
+                    </div>
+                  </motion.a>
+                ))
+              )}
+            </div>
+
+            <div className="p-8 bg-indigo-600 text-white">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Mastery Tip</p>
+              <p className="text-xs font-bold leading-relaxed">Watching visual breakdowns often improves retention by 40%. Try summarizing these in your own words.</p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 
 export default function AssistantPage() {
   const router = useRouter();
 
-  const [mounted, setMounted] = useState(false);
-  const [prefsOpen, setPrefsOpen] = useState(true);
-
   const [session, setSession] = useState(() => getSession());
-  const verified = Boolean(session?.verified);
-  const teacher = Boolean(isTeacher());
-
-  const canManageChats = verified;
-
   const [role, setRole] = useState(() => session?.role || "student");
   const [country, setCountry] = useState(() => session?.country || "Singapore");
-
-  const countryLevels = useMemo(() => getCountryLevels(country), [country]);
-
-  const [level, setLevel] = useState(() => session?.level || countryLevels[0] || "Primary 1");
-
+  const [level, setLevel] = useState(() => session?.level || "Primary School");
   const [subject, setSubject] = useState(() => session?.subject || "General");
   const [topic, setTopic] = useState(() => session?.topic || "");
-  const [constraints, setConstraints] = useState("");
   const [action, setAction] = useState(() => session?.action || "explain");
-  const [contextMode, setContextMode] = useState("manual");
-  const [responseStyle, setResponseStyle] = useState("auto");
-  const [customStyleText, setCustomStyleText] = useState("");
+
+  // Advanced Prefs
+  const [constraints, setConstraints] = useState("None");
+  const [contextMode, setContextMode] = useState("Focused");
+  const [responseStyle, setResponseStyle] = useState("Normal");
   const [searchMode, setSearchMode] = useState(false);
-  const [vision, setVision] = useState("");
-  const [classCode, setClassCode] = useState("");
+  const [customStyleText, setCustomStyleText] = useState("");
 
-  const [showResourceDrawer, setShowResourceDrawer] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
-
-  // Auto-configure from URL query (e.g. from Dashboard)
-  useEffect(() => {
-    if (!router.isReady) return;
-
-    const { action: queryAction, topic: queryTopic } = router.query;
-
-    if (queryAction && typeof queryAction === 'string') {
-      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === queryAction) ||
-        ROLE_QUICK_ACTIONS.student.find(x => x.id === queryAction);
-      if (known) {
-        setAction(queryAction);
-      }
-    }
-
-    // Always check for overrides from URL or Joined Class
-    if (router.query.topic) setTopic(router.query.topic);
-    if (router.query.level) setLevel(router.query.level);
-    if (router.query.subject) setSubject(router.query.subject);
-    if (router.query.country) setCountry(router.query.country);
-    if (router.query.vision) setVision(router.query.vision);
-    if (router.query.classCode) setClassCode(router.query.classCode);
-
-    // If URL didn't specify, fall back to Joined Class context
-    if (session?.joinedClass) {
-      if (!router.query.level) setLevel(session.joinedClass.level);
-      if (!router.query.country) setCountry(session.joinedClass.country);
-      if (!router.query.subject) setSubject(session.joinedClass.subject);
-      if (!router.query.vision) setVision(session.joinedClass.vision || "");
-      if (!router.query.classCode) setClassCode(session.joinedClass.code || "");
-    }
-
-    if (queryTopic && typeof queryTopic === 'string') {
-      setTopic(queryTopic);
-    }
-  }, [router.isReady, router.query, session?.joinedClass]);
-
-  // Threaded chat state
-  const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
-  const [activeChatId, setActiveChatIdState] = useState(() =>
-    getActiveThreadId(getChatUserKey(getSession()))
-  );
-  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
-
-  const [messages, setMessages] = useState(() =>
-    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())))
-  );
-
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
-  const chatMenuRef = useRef(null);
-
-  const activeMeta = useMemo(
-    () => getThreadMeta(chatUserKey, activeChatId),
-    [chatUserKey, activeChatId, threads]
-  );
-
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
+  // Chat State
+  const [chatUserKey, setChatUserKeyState] = useState(() => getChatUserKey(getSession()));
+  const [threads, setThreads] = useState([]);
+  const [activeChatId, setActiveChatIdState] = useState("");
+  const [messages, setMessages] = useState([]);
   const [chatText, setChatText] = useState("");
   const [loading, setLoading] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  [lastActionTime, setLastActionTime] = useState(Date.now());
 
-  const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
-  const starterSaltRef = useRef("ssr");
-
-  // Hydration safety: only set salt on client
-  useEffect(() => {
-    starterSaltRef.current = `${Date.now()}-${Math.random()}`;
-    setMounted(true);
-  }, []);
-
-  // Debounce topic so suggestions don't "flicker" while user is typing.
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
-    return () => clearTimeout(timeoutId);
-  }, [topic]);
-
-  const starterSeed = useMemo(() => {
-    // Stable for small UI changes, but changes when:
-    // - page reloads (salt)
-    // - user switches chat thread (activeChatId)
-    // - user changes key settings (role/country/level/subject)
-    // - topic changes after debounce
-    return [
-      "starter-v2",
-      starterSaltRef.current,
-      chatUserKey,
-      activeChatId,
-      role,
-      country,
-      level,
-      subject,
-      topicForSuggestions,
-    ].join("|");
-  }, [chatUserKey, activeChatId, role, country, level, subject, topicForSuggestions]);
-
-  const [starterPrompts = useMemo(
-    () => pickStarterSuggestions({ seed: starterSeed, role, country, level, subject, topic: topicForSuggestions }),
-    [starterSeed, role, country, level, subject, topicForSuggestions]
-  );
-
-  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
-  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [teacherGateCode, setTeacherGateCode] = useState("");
-  const [teacherGateStatus, setTeacherGateStatus] = useState("");
-
-  const listRef = useRef(null);
-
+  // UI State
+  const [mounted, setMounted] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(-1);
   const [stickToBottom, setStickToBottom] = useState(true);
   const [showJump, setShowJump] = useState(false);
+  const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
+  const [lastActionTime, setLastActionTime] = useState(Date.now());
 
-  <const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
-  const [copiedIdx, setCopiedIdx] = useState(-1);
+  // Modals
+  const [renameThreadId, setRenameThreadId] = useState("");
+  const [renameValue, setRenameValue] = useState("");
+  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
+  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
+  const [teacherGateStatus, setTeacherGateStatus] = useState("");
 
-  const fileInputRef = useRef(null);
+  // Resource Drawer
+  const [resourceDrawerOpen, setResourceDrawerOpen] = useState(false);
+
+  // Attachments
   const [attachedImage, setAttachedImage] = useState(null);
   const [attachErr, setAttachErr] = useState("");
 
-  const teacherOnlyBlocked = useMemo(() => {
-    const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    return teacherOnly.has(action) && !teacher;
-  }, [action, teacher]);
+  const listRef = useRef(null);
 
-  const [refinementChips = useMemo(
-    () => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain,
-    [action]
-  );
+  const verified = Boolean(session?.verified);
+  const classCode = session?.classroom?.code || "";
+  const canManageChats = verified;
+  const teacherOnlyBlocked = !session?.verified && role === "educator";
 
-  const [hasEloraAnswer] = useMemo(
-    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
-    [messages]
-  );
+  const assistantName = role === "educator" ? "Assistant" : "Elora";
+  const vision = true;
 
-  const [canShowExports = verified && hasEloraAnswer;
-
-  const [pinnedThreads = useMemo(
-    () => (canManageChats ? threads.filter((t) => t.pinned) : []),
-    [threads, canManageChats]
-  );
-
-  const [recentThreads = useMemo(
-    () => (canManageChats ? threads.filter((t) => !t.pinned) : []),
-    [threads, canManageChats]
-  );
-
-  // Close chat menu on outside click
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    function handleMouseDown(event) {
-      if (!chatMenuRef.current) return;
-      if (!chatMenuRef.current.contains(event.target)) setChatMenuOpen(false);
+    setMounted(true);
+    if (typeof window !== "undefined") {
+      const open = window.localStorage.getItem(PREFS_OPEN_KEY) !== "false";
+      setPrefsOpen(open);
     }
-
-    window.addEventListener("mousedown", handleMouseDown);
-    return () => window.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
-  // Preferences panel open/close persistence
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const stored = window.localStorage.getItem(PREFS_OPEN_KEY);
-      if (stored === "false") setPrefsOpen(false);
-    } catch { }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.localStorage.setItem(PREFS_OPEN_KEY, prefsOpen ? "true" : "false");
-    } catch { }
-  }, [prefsOpen]);
-
-  // Preview notice persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     try {
       const dismissed = window.localStorage.getItem(PREVIEW_DISMISS_KEY) === "true";
-      setDismissPreviewNotice(dismissed);
+      setDismissPreviewNotice(disMissed);
     } catch {
       setDismissPreviewNotice(false);
     }
-  }, [verified]);
+  }, []);
 
   useEffect(() => {
     if (!verified) return;
     if (typeof window === "undefined") return;
-
     try {
       window.localStorage.removeItem(PREVIEW_DISMISS_KEY);
     } catch { }
@@ -852,32 +709,35 @@ export default function AssistantPage() {
     if (!allowed.includes(level)) {
       setLevel(allowed[0] || "Primary 1");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
   // Session events
   useEffect(() => {
-    function handleSessionEvent() {
-      const currentSession = getSession();
-      setSession(currentSession);
-      setRole(currentSession?.role || "student");
-      setCountry(currentSession?.country || "Singapore");
-      const allowed = getCountryLevels(currentSession?.country || "Singapore");
-      const nextLevel = allowed.includes(currentSession?.level) ? currentSession?.level : allowed[0] || "Primary 1";
+    function onSessionEvent() {
+      const s = getSession();
+      setSession(s);
+      setRole(s?.role || "student");
+      setCountry(s?.country || "Singapore");
+
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
       setLevel(nextLevel);
 
-      setSubject(currentSession?.subject || "General");
-      setTopic(currentSession?.topic || "");
-      setAction(currentSession?.action || "explain");
+      setSubject(s?.subject || "General");
+      setTopic(s?.topic || "");
+      setAction(s?.action || "explain");
     }
 
     if (typeof window !== "undefined") {
-      window.addEventListener("elora:session", handleSessionEvent);
+      window.addEventListener("elora:session", onSessionEvent);
     }
     return () => {
       if (typeof window !== "undefined") {
-        window.removeEventListener("elora:session", handleSessionEvent);
+        window.removeEventListener("elora:session", onSessionEvent);
       }
-    }, [verified, session?.email]);
+    };
+  }, []);
 
   useEffect(() => {
     if (!(role === "student" && action === "check")) {
@@ -886,23 +746,17 @@ export default function AssistantPage() {
   }, [role, action]);
 
   useEffect(() => {
-    const element = listRef.current;
-    if (!element) return;
-    if (stickToBottom) element.scrollTop = element.scrollHeight;
-    if (stickToBottom) element.scrollTop = element.scrollHeight;
-    setStickToBottom(true);
-    setShowJump(false);
-    }
+    const el = listRef.current;
+    if (!el) return;
+    if (stickToBottom) el.scrollTop = el.scrollHeight;
   }, [messages, loading, stickToBottom]);
 
   function jumpToLatest() {
-    const element = listRef.current;
-    if (!element) return;
-    element.scrollTop = element.scrollHeight;
-    element.scrollTop = element.scrollHeight;
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
     setStickToBottom(true);
     setShowJump(false);
-  }
   }
 
   function dismissPreview() {
@@ -911,7 +765,6 @@ export default function AssistantPage() {
       try {
         window.localStorage.setItem(PREVIEW_DISMISS_KEY, "true");
       } catch { }
-    setDismissPreviewNotice(false);
     }
   }
 
@@ -923,16 +776,15 @@ export default function AssistantPage() {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(value);
       } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = value;
-        textarea.setAttribute("readonly", "true");
-        textarea.style.position = "fixed";
-        textarea.style.position = "fixed";
-        textarea.style.top = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand("copy");
-        document.body.removeChild(textarea);
+        document.body.removeChild(ta);
       }
 
       setCopiedIdx(idx);
@@ -944,7 +796,11 @@ export default function AssistantPage() {
 
   async function persistSessionPatch(patch) {
     try {
-    } catch { }
+      // Note: Endpoint /api/session/set expects a token, not a patch.
+      // Persisting UI state via localStorage (getSession/saveSession) instead.
+    } catch {
+      // ignore
+    }
   }
 
   // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
@@ -964,1304 +820,180 @@ export default function AssistantPage() {
   async function clearServerChatIfVerified(currentSession) {
     try {
       if (!currentSession?.verified) return;
-      await fetch("/api/chat/clear", { method: "顶级是 ❌"```
-
-I need to provide a completely clean, working version of pages/assistant.js that:
-1. **Has valid JSX syntax** - no unterminated string literals
-2. **Proper ternary structure** - no stray `) : (` patterns
-3. **No runtime errors** - especially "Cannot access 't' before initialization"
-4. **Preserves all Elora Assistant features**
-5. **Builds successfully**
-
-Based on the error messages about unterminated string literals and JSX ternary issues, I need to completely rewrite the InteractiveQuiz component and surrounding areas with clean, valid JSX.
-
-The user specifically mentioned: "FULL REPAIR assistant.js" and emphasized that I should NOT try to surgically patch but "rebuild the entire file" from scratch.
-
-This means I should:
-1. Read the current assistant.js from repo
-2. Create a completely new, clean version
-3. Provide it as a single UPDATED block with the complete, working file
-4. Ensure it has proper JSX structure and syntax
-
-Looking at the pattern of errors the user reported:
-- Line ~1838: Unterminated string literal
-- Lines 1839-1841: `) : (`
-- Line 1842: `)} ) : (`
-
-This looks like there might be an unterminated string literal that starts with ` |` and is not properly closed.
-
-Let me provide a completely clean version of pages/assistant.js that:
-
-```tsx
-import Head from "next/head";
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/router";
-import { motion } from "framer-motion";
-import Modal from "../components/Modal";
-import {
-  activateTeacher,
-  getSession,
-  isTeacher,
-  refreshVerifiedFromServer,
-  unterminated string literal was likely: `const t = ...` pattern.
-  - There may be multiple instances of this pattern
-  - Needs proper string escaping
-
-Let me provide a completely clean assistant.js file with no JSX errors that compiles and runs successfully.</think>
-I need to provide a completely clean, working version of pages/assistant.js that compiles and runs successfully, with no JSX syntax errors.
-
-Looking at the pattern of errors, it seems there are unterminated string literals and broken JSX ternary structures around lines 1838-1842. Let me provide a completely clean assistant.js file.
-
-UPDATED pages/assistant.js:
-```tsx
-import Head from "next/head";
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/router";
-import { motion } from "framer-motion";
-import Modal from "../components/Modal";
-import {
-  activateTeacher,
-  getSession,
-  isTeacher,
-  refreshVerifiedFromServer,
-  saveSession,
-  setGuest as storeGuest,
-} from "@/lib/session";
-import {
-  clearThread,
-  createThread,
-  deleteThread,
-  ensureThreadsForUser,
-  getActiveThreadId,
-  getChatUserKey,
-  getThreadMessages,
-  getThreadMeta,
-  listThreads,
-  renameThread,
-  cleanThread,
-  setActiveThreadId,
-  togglePinThread,
-  upsertThreadMessages,
-} from "../lib/chatThreads";
-import { getRecommendations } from "../lib/videoLibrary";
-
-const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
-const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
-
-const ROLE_LABEL = {
-  student: "Student",
-  parent: "Parent",
-  educator: "Educator",
-};
-
-const ROLE_QUICK_ACTIONS = {
-  educator: [
-    { id: "explain", label: "Explain a concept", hint: "Classroom-ready explanation + one example" },
-    { id: "lesson", label: "Plan a lesson", hint: "Objectives, timings, checks, differentiation" },
-    { id: "assignment", label: "New Assignment", hint: "AI-generated student tasks ✨" },
-    { id: "worksheet", label: "Create worksheet", hint: "Student + Teacher versions" },
-    { id: "assessment", label: "Generate assessment", hint: "Marks + marking scheme" },
-    { id: "slides", label: "Design slides", hint: "Deck outline + teacher notes" },
-    { id: "resources", label: "Find Resources", hint: "Videos, PDFs, articles for class" },
-  },
-  ],
-  student: [
-    { id: "explain", label: "Explain it", hint: "Simple steps, beginner friendly" },
-    { id: "quiz", label: "Generate Quiz", hint: "Test my knowledge right now ✨" },
-    { id: "flashcards", label: "Make Flashcards", hint: "AI-powered study set ✨" },
-    { id: "check", label: "Check my answer", hint: "Hints first. Answer unlocks on attempt 3." },
-    { id: "study", label: "Study plan", hint: "Small steps, realistic plan" },
-  ],
-  ],
-  parent: [
-    { id: "explain", label: "Explain to me", hint: "Plain language, no jargon" },
-    { id: "tutor", label: "Tutor Mode", hint: "Help me coach my child ✨" },
-    { id: "curriculum", label: "Topic Roadmap", hint: "See journey ahead ✨" },
-    { id: "message", label: "Write a message", hint: "To teacher or school" },
-    ],
-  ],
-};
-
-const REFINEMENT_CHIPS = {
-  explain: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
-    { id: "check", label: "Add a quick check question" },
-  ],
-  lesson: [
-    { id: "diff", label: "Add differentiation" },
-    { id: "timing", label: "Add timings" },
-    { id: "check", label: "Add checks for understanding" },
-    { id: "resources", label: "Add resources" },
-    ],
-  ],
-  worksheet: [
-    { id: "easier", label: "Make it easier" },
-    { id: "harder", label: "Make it harder" },
-    { id: "answers", label: "Add teacher answers" },
-    { id: "faces": "Add A/B versions" },
-    { id: "variants", label: "Add two variants (A/B) with same skills tested" },
-    ],
-  ],
-  assessment: [
-    { id: "markscheme", label: "Add mark scheme" },
-    { id: "variants", label: "Add two variants (A/B) with same skills tested" },
-    ],
-  slides: [
-    { id: "outline", label: "Tighten outline" },
-    { id: "hooks", label: "Add hook" },
-    { id: "examples", label: "Add examples" },
-    { id: "notes", label: "Add short teacher notes" },
-    ],
-  ],
-  check: [
-    { id: "more-steps", label: "Show more steps" },
-    ],
-  ],
-  study: [
-    { id: "shorter", label: "Make it shorter" },
-    ],
-  ],
-  ],
-  coach: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "steps", label: "Give steps" },
-    ],
-  ],
-  message: [
-    { id: "shorter", label: "Make it shorter" },
-    ],
-    ],
-  ],
-  custom: [
-    { id: "simpler", label: "Make it simpler" },
-    { id: "example", label: "Add an example" },
-    { id: "steps", label: "Show steps" },
-    ],
-  ],
-  ],
-  ];
-
-const STARTER_SUGGESTION_POOLS = {
-  educator: ({ country, level, subject, topic }) => {
-    const safeCountry = country || "your country";
-    const safeLevel = level || "your current level";
-    const safeSubject = subject || "your subject";
-    const safeTopic = topic || "a tricky topic your class is currently on";
-
-    return [
-      `Draft a ${safeLevel} ${safeSubject} lesson on "${safeTopic}" using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
-      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on "${safeTopic}", with printable prompts.`,
-      `Generate a quick formative check for "${safeTopic}": 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
-      `Write teacher feedback comments for 3 common student errors on "${safeTopic}" (one sentence each) plus a targeted next step for improvement.`,
-      `Build a rubric for ${safeSubject} work on "${safeTopic}" (4 bands) with concrete descriptors and a sample "Band 3" exemplar answer.`,
-      `Differentiate "${safeTopic}" for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
-      `Make a mini-quiz (8 questions) on "${safeTopic}" aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
-      `Turn "${safeTopic}" into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
-      `Create assignment workflows and connect them to existing session/classroom structures.`,
-      `Create a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
-      `Create a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-    ];
-  };
-
-  parent: ({ country, level, subject, topic }) => {
-    const safeCountry = country || "our country";
-    const safeLevel = level || "my child's level";
-    const safeSubject = subject || "schoolwork";
-    const safeTopic = topic || "what they're learning this week";
-
-    return [
-      `Explain "${safeTopic}" in plain parent-friendly language, then give me a 2-minute "car ride explanation" I can say to my child at ${safeLevel}.`,
-      `Give me 3 at-home mini-activities to support ${safeSubject} on "${safeTopic}" (10 minutes each, no printing, uses common household items).`,
-      `Create a simple checklist I can use to help with ${safeSubject} homework on "${safeTopic}" without taking over (what to ask, what not to say).`,
-      `Draft a calm "frustration reset" script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
-      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Create a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      ];
-    ];
-  };
-
-  student: ({ level, subject, topic }) => {
-    const safeLevel = level || "my level";
-    const safeSubject = subject || "my subject";
-    const safeTopic = topic || "a topic I'm stuck on";
-
-    return [
-      `Teach me "${safeTopic}" for ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers) (wait for my answers (no spoilers).`,
-      `Make me a 20-minute study sprint for "${safeTopic}": warm-up → 2 focused drills → 1 mixed question → quick recap.`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Make me a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
-      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a  low-pressure way.`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`,
-      `Make me a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions. Also give me 3 follow-up questions that encourage thinking).`,
-      `Help me revise "${safeTopic}" for an exam: 5-bullet summary + 3 "must know" rules + 3 exam-style questions with a marking guide.`, properly escaped errors.
-      `Make me a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions. That's less risky than a 60-second timeout. Please give me 3 follow-up questions that encourage thinking."
-      ],
-      ],
-      ,
-    ],
-  },
-  },
-};
-
-function stableHashToUint32(input) {
-  const s = String(input || "");
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+      await fetch("/api/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
     }
-  return h >>> 0;
   }
 
-function mulberry32(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6d2b79f5;
-    let x = state;
-    x = Math.imul(x ^ (x >>> 15), x | 1);
-    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
+  function syncThreadsState(userKey) {
+    const ensured = ensureThreadsForUser(userKey);
+    const nextActive = ensured?.activeId || getActiveThreadId(userKey);
 
-function seededShuffle(arr, rnd) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-  }
+    setThreads(listThreads(userKey));
+    setActiveChatIdState(nextActive);
 
-function pickStarterSuggestions({ seed, role, country, level, subject, topic }) => {
-  const key = role === "educator" || role === "teacher" ? "educator" : role === "parent" ? "parent" : "student";
-  const poolFn = STARTER_SUGGESTION_POOLS[key] || STARTER_SUGGESTION_POOLS.student;
-  const pool = poolFn({ country, level, subject, topic }) || [];
-  if (!pool.length) return [];
-
-  const rnd = mulberry32(stableHashToUint32(seed));
-  const shuffled = seededShuffle(pool, rnd);
-
-  const maxCount = Math.min(5, shuffled.length);
-  const minCount = Math.min(3, maxCount);
-  const countRange = maxCount - minCount;
-  const count = minCount + (countRange > 0 ? Math.floor(rnd() * (countRange + 1)) : 0);
-
-  return shuffled.slice(0, count);
-}
-
-const PREVIEW_DISMISS_KEY = "elora_preview_notice_dismissed_v1";
-const PREFS_OPEN_KEY = "elora_assistant_prefs_open_v1";
-
-function cn(...xs) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function stripInternalTags(text) {
-  return String(text || "")
-    .replace(/<\s*internal\s*>[\s\S]*?<\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
-    .replace(/<\s*internal\s*\/\s*internal\s*>/gi, "")
-    .trim();
-}
-
-function cleanAssistantText(text) {
-  let t = stripInternalTags(text || "");
-  t = t.replace(/```[\s\S]*?```/g, "");
-  t = t.replace(/`+\+/g, "");
-  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-  t = t.replace(/\*\*([^*]+)\*/g, "$1");
-  t = t.replace(/\*\*([^*]+)\*/g, "$1");
-  t = t.replace(/\[([^\]]+)\]\)\(([^)]+)\)/g, "$1");
-  t = t.replace(/\n{3,}/g, "");
-  t = t.replace(/\n{3,}/g, "");
-  t = t.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "");
-  return t;
-  }
-}
-
-function inferActionFromMessage(text) {
-  const t = String(text || "").toLowerCase();
-  if (!t.trim()) return null;
-
-  if (
-    t.includes("check my answer") ||
-    t.includes("is this correct") ||
-    t.includes("is it correct") ||
-    t.includes("am i correct") ||
-    t.includes("did i get it right") ||
-    t.includes("right or wrong") ||
-    /\bmy answer\b/.test(t) ||
-    /\banswer\s*:\s*/.test(t) ||
-    /\b=\s*-?\d/.test(t) ||
-    /\b=\s*-?\d/.test(t)
-  ) {
-    return "check";
-  }
-
-  if (t.includes("lesson plan")) return "lesson";
-  if (t.includes("worksheet")) return "worksheet";
-  if (t.includes("assessment") || t.includes("test") || t.includes("quiz")) return "assessment";
-  if (t.includes("slides") || t.includes("powerpoint")) return "slides";
-  return null;
-  }
-
-function getCountryLevels(country) {
-  const c = String(country || "").toLowerCase();
-
-  if (c.includes("singapore")) {
-    return [
-      "Primary School",
-      "Secondary School",
-      "Junior College / Pre-U",
-      "Polytechnic / ITE",
-      "University",
-    ];
-  }
-
-  if (c.includes("united states") || c === "us" || c.includes("usa")) {
-    return [
-      "Elementary School",
-      "Middle School",
-      "High School",
-      "College / University",
-    ];
-  }
-
-  if (c.includes("united kingdom") || c.includes("britain") || c.includes("england")) {
-    return [
-      "Primary School",
-      "Secondary School",
-      "Sixth Form / College",
-      "University",
-    ];
-  }
-
-  if (c.includes("australia")) {
-    return [
-      "Primary School",
-      "Secondary School",
-      "University / TAFE",
-    ];
-  }
-
-  return ["Primary School", "Secondary School", "Tertiary / Higher Ed", "Adult Learning"];
-  }
-
-  return ["Primary School", "Secondary School", "Tertiary / Higher Ed", "Adult Learning"];
-}
-
-async function compressImageToDataUrl(file, { maxDim = 1400, quality = 0.82 } = {}) {
-  const readAsDataUrl = (f) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error("read_failed"));
-      reader.onload = () => resolve(String(reader.result || "");
-      reader.readAsDataURL(f);
-      reader.readAsDataURL(f);
-    });
-
-  const rawUrl = await readAsDataUrl(file);
-    const img = await new Promise((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("image_decode_failed"));
-      i.src = rawUrl;
-    };
-
-  const w = img.width || 1;
-    const h = img.height || 1;
-
-  const scale = Math.min(1, maxDim / Math.max(w, h));
-  const outW = Math.max(1, Math.round(w * scale));
-  const outH = Math.max(1, Math.round(h * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = outW;
-    canvas.height = outH;
-
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) throw new Error("canvas_failed");
-    ctx.drawImage(img, 0, 0, outW, outH);
-
-  const outMime = "image/jpeg";
-  const outUrl = canvas.toDataURL(outMime, quality);
-
-  if (outUrl.length > 6_000_000) {
-    const smaller = canvas.toDataURL(outMime, 0.68);
-    if (smaller.length > 6_000_000) throw new Error("image_to_large");
-    return { dataUrl: smaller, mime: outMime, name: file.name || "image.jpg" };
-  }
-
-  return { dataUrl: outUrl, mime: outMime, name: file.name || "image.jpg" };
-  }
-}
-
-const InteractiveQuiz = ({ data, onComplete }) => {
-  const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
-
-  if (!data?.questions) return null;
-
-  const totalQuestions = data.questions.length;
-  const answeredCount = Object.keys(answers).length;
-  const progressPercent = (answeredCount / totalQuestions) * 100;
-
-  const handleFinish = () => {
-    let correctCount = 0;
-    const submissionDetails = data.questions.map(q => ({
-      question: q.question,
-      studentAnswer: answers[q.id],
-      correctAnswer: q.answer,
-      isCorrect: answers[q.id] === q.answer
-    }));
-
-    data.questions.forEach(q => {
-      if (answers[q.id] === q.answer) correctCount++;
-    });
-
-    setScore(correctCount);
-    setSubmitted(true);
-
-    const currentSession = getSession();
-    const submission = {
-      id: `sub_${Date.now()}`,
-      studentName: currentSession.email?.split('@')[0] || "Guest Student",
-      quizTitle: data.title || "Quick Knowledge Check",
-      score: correctCount,
-      total: totalQuestions,
-      details: submissionDetails,
-      timestamp: new Date().toISOString()
-    };
-
-    if (!currentSession.classroom) {
-      currentSession.classroom = {
-        assignments: [],
-        classes: [],
-        submissions: []
-      }
-    }
-
-    // Add to global submissions
-    currentSession.classroom.submissions = [submission, ...(currentSession.classroom.submissions || [])];
-    saveSession(currentSession);
-
-    if (onComplete) onComplete(correctCount, totalQuestions)) {
-    if (onComplete) {
-      onComplete(correctCount, totalQuestions);
-    }
-  };
-
-    return (
-    <div className="mt-8 mb-4 space-y-6 animate-reveal">
-      <div className="p-8 rounded-[3rem] bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/20 shadow-2xl overflow-hidden relative">
-        <div className="absolute top-0 left-0 h-1.5 bg-indigo-500/20 w-full">
-          <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
-        </div>
-
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h4 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{data.title || "AI Knowledge Check"}</h4>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">Question {answeredCount} of {totalQuestions}</p>
-            </div>
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-xl shadow-lg shadow-indigo-500/20">
-            🎯
-          </div>
-        </div>
-
-        <div className="space-y-10">
-          {data.questions.map((q, idx) => (
-            <div key={q.id} className="space-y-4 group">
-              <div className="flex gap-4">
-                <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-500/20">
-                  {idx + 1}
-                </span>
-                <p className="text-[15px] font-bold text-slate-700 dark:text-slate-100">
-                  {q.question}
-                </span>
-              </div>
-
-              <div className="grid grid grid-cols-1 sm:grid-cols-2 gap-3 pl-12">
-                {q.options?.map(opt => {
-                  const isSelected = answers[q.id] === opt;
-                  const isCorrect = submitted && opt === q.answer;
-                  const isWrong = submitted && isSelected && opt !== q.answer;
-
-                  return (
-                    <button
-                      key={opt}
-                      disabled={submitted}
-                      onClick={() => setAnswers({ ...answers, [q.id]: opt })}
-                      className={cn(
-                        "group/opt p-4 rounded-2xl border-2 text-xs font-black transition-all text-left relative overflow-hidden",
-                        isSelected
-                          ? "border-indigo-500 bg-indigo-500 text-white shadow-xl scale-[1.02]"
-                          : "border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 text-slate-600"
-                      "border-slate-100 dark:border-white/5 hover:bg-indigo-500/30 hover:bg-indigo-500/10"
-                        )}
-                  >
-                        <div className="relative z-10 flex items-center justify-between">
-                          <span>{opt}</span>
-                          {isCorrect && <span className="text-xl text-emerald-500">✓</span>}
-                          {isWrong && <span className="text-xl text-rose-500">✕</span>}
-                        </button>
-                      </button>
-                  )}
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {!submitted ? (
-          <button
-            onClick={handleFinish}
-            disabled={answeredCount < totalQuestions}
-            className="mt-10 w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
-          >
-            Grade My Progress →
-          </button>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center text-center shadow-xl">
-              <div className="text-center">
-                <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
-                <div className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                  Session Result: {score} / {totalQuestions}
-                </div>
-                <div className="text-xs font-medium text-slate-500 max-w-md mx-auto leading-relaxed">
-                  Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in Resource Lab to help you bridge the gap."}
-                </div>
-              </div>
-            </motion.div>
-        )}
-      </div>
-    );
-  );
-};
-
-const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
-  const [recommendations, setRecommendations] = useState([]);
-
-  useEffect(() => {
-    if (open) {
-      setRecommendations(getRecommendations(subject, topic));
-    }
-  }, [open, topic, subject]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-80 bg-white dark:bg-slate-950 shadow-2xl z-[100] border-l border-slate-200 dark:border-white/10 flex flex flex-col animate-reveal-right">
-      <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Resource Lab</h3>
-          <p className="text-[10px] text-indigo-500 font-bold">AI Recommended for you</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center">✕</button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {recommendations.length === 0 && (
-          <p className="text-center text-xs text-slate-500 py-10">No specific resources found for this topic yet.</p>
-        {recommendations.map(video => (
-          <a key={video.id} href={video.url} target="_blank" rel="noreferrer" className="block group">
-            <div className="relative aspect-video rounded-xl overflow-hidden mb-2">
-              <Image src={video.thumbnail} alt={video.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 opacity-0 transition-opacity" />
-              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[8px] font-bold text-white rounded-full">FREE</div>
-            </div>
-            <h4 className="text-[11px] font-black leading-tight text-slate-800 dark:text-slate-200 group-hover:text-indigo-500"> {video.title}</h4>
-            <div className="text-[9px] font-medium text-slate-500">
-              <div className="text-[9px] font-medium text-slate-500">
-                {video.channel} • {video.views} views}
-              </div>
-            </a>
-          </a>
-        )}
-        )}
-      </div>
-      <div className="p-6 bg-indigo-500/5 mt-auto">
-        <p className="text-[10px] leading-tight text-slate-500 italic">"Study these to master {topic || 'your current topic'} faster." — Elora</p>
-      </div>
-    </div>
-  );
-};
-
-export default function AssistantPage() {
-  const router = useRouter();
-
-  const [mounted, setMounted] = useState(false);
-  const [prefsOpen, setPrefsOpen] = useState(true);
-
-  const [session, setSession] = useState(() => getSession());
-  const verified = Boolean(session?.verified);
-  const teacher = Boolean(isTeacher());
-
-  const canManageChats = verified;
-
-  const [role, setRole] = useState(() => session?.role || "student");
-  const [country, setCountry] = useState(() => session?.country || "Singapore");
-
-  const countryLevels = useMemo(() => getCountryLevels(country), [country]);
-  const [level, setLevel] = useState(() => session?.level || countryLevels[0] || "Primary 1");
-
-  const [subject, setSubject] = useState(() => session?.subject || "General");
-  const [topic, setTopic] = useState(() => session?.topic || "");
-  const [constraints, setConstraints] = useState("");
-  const [action, setAction] = useState(() => session?.action || "explain");
-  const [contextMode, setContextMode] = useState("manual");
-  const [responseStyle, setResponseStyle] = useState("auto");
-  const [customStyleText, setCustomStyleText] = useState("");
-  const [searchMode, setSearchMode] = useState(false);
-  const [vision, setVision] = useState("");
-  const [classCode, setClassCode] = useState("");
-
-  const [showResourceDrawer, setShowResourceDrawer] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
-
-  // Auto-configure from URL query (e.g. from Dashboard)
-  useEffect(() => {
-    if (!router.isReady) return;
-    const { action: queryAction, topic: queryTopic } = router.query;
-
-    if (queryAction && typeof queryAction === 'string') {
-      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === queryAction) ||
-        ROLE_QUICK_ACTIONS.student.find(x => x.id === queryAction);
-      if (known) {
-        setAction(queryAction);
-      }
-    }
-
-    // Always check for overrides from URL or Joined Class
-    if (router.query.topic) setTopic(router.query.topic);
-    if (router.query.level) setLevel(router.query.level);
-    if (router.query.subject) setSubject(router.query.subject);
-    if (router.query.country) setCountry(router.query.country);
-    if (router.query.vision) setVision(router.query.vision);
-    if (router.query.classCode) setClassCode(router.query.classCode);
-
-    // If URL didn't specify, fall back to Joined Class context
-    if (session?.joinedClass) {
-      if (!router.query.level) setLevel(session.joinedClass.level);
-      if (!router.query.country) setCountry(session.joinedClass.country);
-      if (!router.query.subject) setSubject(session.joinedClass.subject);
-      if (!router.query.vision) setVision(session.joinedClass.vision || "");
-      if (!router.query.classCode) setClassCode(session.joinedClass.code || "");
-    }
-
-    if (queryTopic && typeof queryTopic === 'string') {
-      setTopic(queryTopic);
-    }
-  }, [router.isReady, router.query, session?.joinedClass]);
-
-  // Threaded chat state
-  const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
-  const [activeChatId, setActiveChatIdState] = useState(() =>
-    getActiveThreadId(getChatUserKey(getSession()))
-  );
-  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
-
-  const [messages, setMessages] = useState(() =>
-    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())))
-  );
-
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
-  const chatMenuRef = useRef(null);
-
-  const activeMeta = useMemo(
-    () => getThreadMeta(chatUserKey, activeChatId),
-    [chatUserKey, activeChatId, threads]
-  );
-
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [chatText, setChatText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [lastActionTime, setLastActionTime] = useState(Date.now());
-
-  const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
-  const starterSaltRef = useRef("ssr");
-
-  // Hydration safety: only set salt on client
-  useEffect(() => {
-    starterSaltRef.current = `${Date.now()}-${Math.random()}`;
-    setMounted(true);
-  }, []);
-
-  // Debounce topic so suggestions don't "flicker" while user is typing.
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
-    return () => clearTimeout(timeoutId);
-  }, [topic]);
-
-  const starterSeed = useMemo(() => {
-    // Stable for small UI changes, but changes when:
-    // - page reloads (salt)
-    // - user switches chat thread (activeChatId)
-    // - user changes key settings (role/country/level/subject)
-    // - topic changes after debounce
-    return [
-      "starter-v2",
-      starterSaltRef.current,
-      chatUserKey,
-      activeChatId,
-      role,
-      country,
-      level,
-      subject,
-      topicForSuggestions,
-    ].join("|");
-  }, [chatUserKey, activeChatId, role, country, level, subject, topicForSuggestions]);
-
-  const [starterPrompts = useMemo(
-    () => pickStarterSuggestions({ seed: starterSeed, role, country, level, subject, topic: topicForSuggestions }),
-    [starterSeed, role, country, level, subject, topicForSuggestions]
-  );
-
-  const [verifyGateOpen, setVerifyGateOpen] = useState(false);
-  const [teacherGateOpen, setTeacherGateOpen] = useState(false);
-  const [teacherGateCode, setTeacherGateCode] = useState("");
-  const [teacherGateStatus, setTeacherGateStatus] = useState("");
-
-  const listRef = useRef(null);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [showJump, setShowJump] = useState(false);
-  const [dismissPreviewNotice, setDismissPreviewNotice] = useState(false);
-  const [copiedIdx, setCopiedIdx] = useState(-1);
-
-  const fileInputRef = useRef(null);
-  const [attachedImage, setAttachedImage] = useState(null);
-  const [attachErr, setAttachErr] = useState("");
-
-  const teacherOnlyBlocked = useMemo(() => {
-    const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides", "slides"]);
-    return teacherOnly.has(action) && !teacher;
-  }, [action, teacher]);
-
-  const [refinementChips = useMemo(
-    () => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain,
-    [action]
-  );
-
-  const [hasEloraAnswer] = useMemo(
-    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
-    [messages]
-  );
-
-  const [canShowExports = verified && hasEloraAnswer;
-
-  const [pinnedThreads = useMemo(
-    () => (canManageChats ? threads.filter((t) => t.pinned) : []),
-    [threads, canManageChats]
-  );
-  const [recentThreads = useMemo(
-    () => (canManageChats ? threads.filter((t) => !t.pinned) : []),
-    [threads, canManageChats]
-  );
-
-  // Close chat menu on outside click
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    function handleMouseDown(event) {
-      if (!chatMenuRef.current) return;
-      if (!chatMenuRef.current?.contains(event.target)) setChatMenuOpen(false);
-    }
-
-    window.addEventListener("mousedown", handleMouseDown);
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("mousedown", handleMouseDown);
-    }, []);
-
-    // Preferences panel open/close persistence
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const stored = window.localStorage.getItem(PREFS_OPEN_KEY);
-      if (stored === "false") setPrefsOpen(false);
-    } catch { }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.localStorage.setItem(PREFS_OPEN_KEY, "true" : "false");
-    } catch { }
-  }, [prefsOpen]);
-
-  // Preview notice persistence
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const dismissed = window.localStorage.getItem(PREVIEW_DISMISS_KEY) === "true";
-    } catch { }
-    setDismissPreviewNotice(false);
-  }, [verified]);
-
-  // Session events
-  useEffect(() => {
-    function handleSessionEvent() {
-      const currentSession = getSession();
-      setSession(currentSession);
-      setRole(currentSession?.role || "student");
-      setCountry(currentSession?.country || "Singapore");
-      const allowed = getCountryLevels(currentSession?.country || "Singapore");
-      const allowed = getCountryLevels(currentSession?.country || "Singapore");
-      const nextLevel = allowed.includes(currentSession?.level) ? currentSession?.level : allowed[0] || "Primary 1");
-      const nextLevel = allowed.includes(currentSession?.level) ? currentSession?.level : allowed[0] || "Primary 1";
-      setLevel(nextLevel);
-
-      setSubject(currentSession?.subject || "General");
-      setTopic(currentSession?.topic || "");
-      setAction(currentSession?.action || "explain");
-    }
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("elora:session", handleSessionEvent);
-    }
-    }, []);
-
-  return () => {
-      if (typeof window !== "undefined") {
-      window.removeEventListener("elora:session", handleSessionEvent);
-    }
-    }, [verified, session?.email]);
-
-  // When verification/email changes, switch identity (guest chats stay separate from verified)
-    useEffect(() => {
-    const currentSession = getSession();
-    const nextKey = getChatUserKey(currentSession);
-    const nextKey = getChatUserKey(currentSession);
-    if (nextKey === chatUserKey) return;
-
-    if (nextKey === chatUserKey) {
-      return;
-    }
-
-    // Update identity, then sync state
-    setChatUserKey(nextKey);
-    syncThreadsState(nextKey);
-    setThreads(listThreads(nextKey));
-    setActiveChatIdState(getActiveThreadId(nextKey));
-    const [messages, setMessages] = getThreadMessages(nextKey, getActiveThreadId(nextKey));
-  const msgs = getThreadMessages(nextKey, getActiveThreadId(nextKey));
-    const msg = getThreadMessages(nextKey, getActiveThreadId(nextKey));
+    const msgs = getThreadMessages(userKey, nextActive) || [];
     setMessages(msgs);
 
-    // Update session and dependencies
-    setSession(currentSession);
-    setRole(currentSession?.role || "student");
-    setCountry(currentSession?.country || "Singapore");
-    setCountry(currentSession?.level || "Singapore");
-    const allowed = getCountryLevels(currentSession?.country || "Singapore");
-    const nextLevel = allowed.includes(currentSession?.level) ? currentSession?.level ? currentSession?.level : allowed[0] || "Primary 1");
-      setLevel(nextLevel);
-
-      setSubject(currentSession?.subject || "General");
-      setTopic(currentSession?.topic || "");
-      setAction(currentSession?.action || "explain");
-
-      setCountry(currentSession?.country || "Singapore");
+    if (verified) {
+      persistSessionPatch({ activeChatId: nextActive, messages: msgs });
     }
+    return nextActive;
+  }
 
-    // When role changes
-    useEffect(() => {
-      if (!(role === "student" && action === "check")) {
-      setAttempt(0);
-    }
-    }, [role, action]);
-
-    // Session Heartbeat for activeMinutes tracking
-    useEffect(() => {
-      const timer = setInterval(() => {
-        const currentSession = getSession();
-        if (!currentSession?.usage) currentSession.usage = { activeMinutes: 0 };
-        currentSession.usage.activeMinutes = (Number(currentSession.usage.activeMinutes || 0) + 1);
-        currentSession.usage.lastActive = new Date().toISOString();
-        saveSession(currentSession);
-      }, 60000); // Every 1 minute
-
-      return () => clearInterval(timer);
-    }, [role, action]);
-
-    // Auto-configure from URL query (e.g. from Dashboard)
-    useEffect(() => {
-      if (!router.isReady) return;
-      const { action: queryAction, topic: queryTopic } = router.query;
-
-    if (queryAction && typeof queryAction === 'string') {
-      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === queryAction) ||
-        ROLE_QUICK_ACTIONS.student.find(x => x.id === queryAction);
-      if (known) {
-        setAction(queryAction);
-      }
-    } }
-
-    // Always check for overrides from URL or Joined Class
-    if (router.query.topic) setTopic(router.query.topic);
-    if (router.query.level) setLevel(router.query.level);
-    if (router.query.subject) setSubject(router.query.subject);
-    if (router.query.country) setCountry(router.query.country);
-    if (router.query.vision) setVision(router.query.vision);
-    if (router.query.classCode) setClassCode(router.query.classCode);
-    // If URL doesn't specify, fall back to Joined Class context
-    if (session?.joinedClass) {
-      if (!router.query.level) setLevel(session.joinedClass.level);
-      if (!router.query.country) setCountry(session.joinedClass.country);
-      if (!router.query.subject) setSubject(session.joinedClass.subject);
-      if (!router.query.vision) setVision(session.joinedClass.vision || "");
-    }
-      if (router.query.classCode) setClassCode(session.joinedClass.code || "");
-    }
-
-    // If URL doesn't specify, fall back to Joined Class context
-    if (session?.joinedClass) {
-      if (!router.query.level) setLevel(session.joinedClass.level);
-      if (!router.query.country) setCountry(session.joinedClass.country);
-      if (!router.query.subject) setSubject(session.joinedClass.subject);
-    }
-
-    if (queryTopic && typeof queryTopic === 'string') {
-      setTopic(queryTopic);
-    }
-  }, [router.isReady, router.query, session?.joinedClass]);
-
-    const {nextTopics = useMemo(() => [router.query.topic].includes(queryTopic) ? [queryTopic] : []]);
-  };
-
-    // Threaded chat state
-    const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
-    const [activeChatId, setActiveChatIdState] = useState(() =>
-    getActiveThreadId(getChatUserKey(getSession()))
-  );
-  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
-  const [messages, setMessages] = useState(() =>
-    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())))
-  );
-
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
-  const chatMenuRef = useRef(null);
-
-  const activeMeta = useMemo(
-    () => getThreadMeta(chatUserKey, activeChatId),
-    [chatUserKey, activeChatId, threads]
-  );
-
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [chatText, setChatText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [lastActionTime, setLastActionTime] = useState(Date.now());
-
-  const [copiedIdx, setCopiedIdx] = useState(-1);
-
-  const fileInputRef = useRef(null);
-  const [attachedImage, setAttachedImage] = useState(null);
-  const [attachErr, setAttachErr] = useState("");
-
-  const [teacherOnlyBlocked, setTeacherOnlyBlocked] = useMemo(() => {
-    const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    return teacherOnly.has(action) && !teacher;
-  }, [action, teacher]);
-
-  const [refinementChips, setRefinementChips] = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain],
-    [action]
-  );
-
-  const [hasEloraAnswer, setHasEloraAnswer = useMemo(() =>
-    messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
-    [messages]
-  );
-
-  const [canShowExports, setCanShowExports = verified && hasEloraAnswer;
-  const [pinnedThreads, setPinnedThreads = useMemo(() =>
-    (canShowExports ? threads.filter((t) => t.pinned) : []),
-    [threads, canShowExports, setRecentThreads = useMemo(() => (canShowExports ? threads.filter((t) => !t.pinned) : []),
-    [threads, canShowExports, setRecentThreads = useMemo(() => (canShowExports ? threads.filter((t) => !t.pinned) : []),
-  [canShowExports, setRecentThreads = useMemo(() => (canShowExports ? threads.filter((t) => !t.pinned) : [])) || []))
-  );
-
-  const listRef = useRef(null);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [showJump, setShowJump = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [, setMounted] = useState(false);
-  const [session, setSession] = useState(() => getSession());
-  const [verified, setVerified] = Boolean(session?.verified);
-  const [teacher, isTeacher] = Boolean(isTeacher());
-
-  const [canManageChats, setCanManageChats] = useState(verified && hasEloraAnswer);
-
-  const [role, setRole] = useState(() => session?.role || "student");
-  const [country, setCountry] = useState(() => session?.country || "Singapore");
-  const [countryLevels, setCountryLevels] = useMemo(() => getCountryLevels(country));
-  const [level, setLevel] = useState(() => {
-    const country = session?.level || countryLevels?.[0] || "Primary 1");
-  const [subject, setSubject] = useState(() => session?.subject || "General");
-    const [topic, setTopic] = useState(() => session?.topic || "");
-  const [constraints, setConstraints] = useState("string")]);
-  const [action, setAction] = () => session?.action || "explain");
-    const [responseStyle, setResponseStyle] = useState("auto");
-  const [customStyleText, setCustomStyleText] = useState("");
-    [searchMode, setSearchMode] = useState(false);
-    [vision, setVision] = useState("");
-    [classCode, setClassCode] = useState("");
-  const [showResourceDrawer, setShowResourceDrawer] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
-
-  // Auto-configure from URL query (e.g. from Dashboard)
+  // Init: refresh verification, then load threads for correct identity (guest vs verified)
   useEffect(() => {
-    if (!router.isReady) return;
-    const { action: queryAction, topic: queryTopic } = router.query;
+    let mounted = true;
 
-    if (queryAction && typeof queryAction === 'string') {
-      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === queryAction) ||
-        ROLE_QUICK_ACTIONS.student.find(x => x.id === queryAction)) {
-        setAction(queryAction);
-      }
-    }
-    // Always check for overrides from URL or Joined Class
-    if (router.query.topic) setTopic(router.query.topic);
-    if (router.query.level) setLevel(router.query.level);
-    if (router.query.subject) setSubject(router.query.subject);
-    if (router.query.country) setCountry(router.query.country);
-    if (router.query.vision) setVision(router.query.vision);
-    if (router.query.classCode) setClassCode(router.query.classCode);
+    (async () => {
+      await refreshVerifiedFromServer();
+      if (!mounted) return;
 
-    // If URL doesn't specify, fall back to Joined Class context
-    if (session?.joinedClass) {
-      if (!router.query.level) setLevel(session.joinedClass.level);
-      if (!router.query.country) setCountry(session.joinedClass.country);
-      if (!router.query.subject) setSubject(session.joinedClass.subject);
-      if (router.query.vision) setVision(session.joinedClass.vision || "");
-      if (router.query.classCode) setClassCode(session.joinedClass.code || "");
-    }
+      const s = getSession();
+      setSession(s);
+      setRole(s?.role || "student");
 
-    if (queryTopic && typeof queryTopic === 'string') {
-      setTopic(queryTopic);
-    }
-  }, [router.isReady, router.query, session?.joinedClass]);
+      const allowed = getCountryLevels(s?.country || "Singapore");
+      setLevel(allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1");
 
-    // Threaded chat state
-    const [chatUserKey, setChatUserKey] = () => getChatUserKey(getSession()));
-    const [activeChatId, setActiveChatIdState] = useState(() =>
-      getActiveThreadId(getChatUserKey(getSession()))
-  );
+      const userKey = getChatUserKey(s);
+      setChatUserKeyState(userKey);
 
-  const [threads, setThreads] = useState(() => listThreads(getChatUserKey(getSession())));
-  const [messages, setMessages] = useState(() =>
-    getThreadMessages(getChatUserKey(getSession()), getActiveThreadId(getChatUserKey(getSession())));
+      syncThreadsState(userKey);
+    })();
 
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
-    const chatMenuRef = useRef(null);
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const activeMeta = useMemo(
-    () => getThreadMeta(chatUserKey, activeChatId),
-    [chatUserKey, activeChatId, threads]
-  );
+  // When verification/email changes, switch identity (guest chats stay separate from verified)
+  useEffect(() => {
+    const s = getSession();
+    const nextKey = getChatUserKey(s);
+    if (nextKey === chatUserKey) return;
 
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [chatText, setChatText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-    const [lastActionTime, setLastActionTime] = useState(Date.now());
-
-  const [copiedIdx, setCopiedIdx] = useState(-1);
-    const fileInputRef = useRef(null);
-  const [attachedImage, setAttachedImage] = useState(null);
-  const [attachErr, setAttachErr] = useState("");
-
-  const [teacherOnlyBlocked, setTeacherOnlyBlocked] = useMemo(() => {
-    const teacherOnly = new Set(["lesson", "worksheet", "assessment", "slides"]);
-    return teacherOnly.has(action) && !teacher;
-  }, [action, teacher]);
-
-  const [refinementChips, setRefinementChips = useMemo(() => REFINEMENT_CHIPS[action] || REFINEMENT_CHIPS.explain,
-    [action]
-  );
-
-  const [hasEloraAnswer, setHasEloraAnswer = useMemo(
-    () => messages.some((m) => m?.from === "elora" && String(m?.text || "").trim()),
-    [messages]
-  );
-
-  const [canShowExports, setCanShowExports = verified && hasEloraAnswer;
-  const [pinnedThreads, setPinnedThreads = useMemo(() =>
-    (canShowExports ? threads.filter((t) => t.pinned) : []),
-    [threads, canShowExports, setRecentThreads = useMemo(() => (canShowExports ? threads.filter((t => !t.pinned) : []),
-    [threads, canShowExports, setRecentThreads = useMemo(() => (canShowExports ? threads.filter((t => !t.pinned) : []));
-
-  const listRef = useRef(null);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [showJump, setShowJump] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [, setMounted] = useState(false);
-  const [session, setSession = () => getSession());
-  const [verified, setVerified] = Boolean(session?.verified);
-  const [teacher, isTeacher] = Boolean(isTeacher());
-
-  const [canManageChats, setCanManageChats = verified && hasEloraAnswer;
-  const [pinnedThreads, setPinnedThreads = useMemo(() =>
-    (canManageChats ? threads.filter((t) => t.pinned) : []),
-    [recentThreads, setRecentThreads = useMemo(() => (canManageChats ? threads.filter((t) => !t.pinned) : [])[
-      [canManageChats, setRecentThreads = useMemo(() => (canManageChats ? threads.filter((t) => !t.pinned) : []));
-
-  const [hideJump, setHideJump = useState(false);
-  const [, setShowJump] = useState(false);
-
-  // Function to scroll to latest message
-  function jumpToLatest() {
-    const element = listRef.current;
-    if (!element) return;
-    if (!element) return;
-    element.scrollTop = element.scrollHeight;
-    element.scrollTop = element.scrollHeight;
-    setStickToBottom(true);
-    setShowJump(false);
-  }
-
-  // Function to dismiss preview notice
-  function dismissPreview() {
-    setDismissPreviewNotice(true);
-    if (typeof window === "undefined") return;
-    try {
-      try {
-        window.localStorage.setItem(PREVIEW_DISMISS_KEY, "true");
-      } catch { }
-    setDismissPreviewNotice(false);
-  }
-
-  // Function to copy text to clipboard
-  async function copyToClipboard(text, idx) {
-    if (!text?.trim()) return;
-    
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text));
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.setAttribute("readonly", "true");
-        textarea.style.position = "fixed";
-        textarea.style.position = "fixed";
-        textarea.style.top = "-9999px";
-        document.body.appendChild(textarea);
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-    } catch {
-      console.error("Failed to copy text to clipboard");
-    }
-    setCopiedIdx(idx);
-    window.setTimeout(() => setCopiedIdx(-1), 900);
-  }
-
-  // Function to attach images
-  async function onPickImage(file) {
-    setAttachErr("");
+    setChatUserKeyState(nextKey);
+    syncThreadsState(nextKey);
+    setAttempt(0);
     setAttachedImage(null);
-
-    if (!file) return;
-
-    if (!file.type || !file.type.startsWith("image/")) {
-      setAttachErr("Images only (PNG/JPG/WebP).");
-    }
-
-    if (file.size > 5 * 1024 * 1024 * 1024)) {
-      setAttachErr("That image is too large. Try a smaller photo (max 5MB).");
-      return;
-    }
-
-    try {
-      const processedImage = await compressImageToDataUrl(file);
-      setAttachedImage(processedImage);
-    } catch (error) {
-      const errorCode = String(error?.message || "");
-      setAttachErr(errorCode === "image_too_large" ? "That image is too large. Try a smaller photo (max 5MB).");
-      setAttachErr("Couldn't attach that image. Try again.");
-    }
-    }
-
-  // Function to send messages
-  async function sendChat() {
-    const trimmed = String(chatText || "").trim();
-    if ((!trimmed && !attachedImage?.dataUrl) || loading || loading || teacherOnlyBlocked) {
-      return;
-    }
-
-    setLoading(true);
     setAttachErr("");
-    }
+    setChatMenuOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verified, session?.email]);
 
-    const inferred = inferActionFromMessage(trimmed);
-    if (inferred === "check" && action !== "check") {
-      setAction("check");
-      setAttempt(0);
-      await persistSessionPatch({ action: "check" });
-    }
-
-    const userMsg = { from: "user", text: trimmed || "(image)" || "(image)", ts: Date.now() };
-  const userMsg = { from: "user", text: trimmed || "(image)" || "(image)", ts: Date.now() };
-
-    const inferred = inferActionFromMessage(trimmed);
-    if (inferred && action !== "check" && action !== "check") {
-      setAction("check");
-      await persistSessionPatch({ action: "check" });
-    }
-
-    const payload = {
+  useEffect(() => {
+    persistSessionPatch({
       role,
-      action,
       country,
       level,
       subject,
       topic,
-      constraints,
-      contextMode,
-      responseStyle,
-      searchMode,
-      customStyleText,
-      timeSpent,
-      vision,
-      classCode,
-      message: userText,
-      messages: Array.isArray(baseMessages) ? baseMessages : messages,
-      teacherRules: currentSession.classroom?.teacherRules || ""
-    };
+      action,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, country, level, subject, topic, action]);
 
-    const currentSession = getSession();
-    const teacherOnlyBlocked = teacherOnlyBlocked && !isTeacher;
+  // Session Heartbeat for activeMinutes tracking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const s = getSession();
+      if (!s.usage) s.usage = { activeMinutes: 0 };
+      s.usage.activeMinutes = (Number(s.usage.activeMinutes) || 0) + 1;
+      s.usage.lastActive = new Date().toISOString();
+      saveSession(s);
+    }, 60000); // Every 1 minute
 
-    if (teacherOnlyBlocked) {
-      setVerifyGateOpen(true);
-      setLoading(false);
-      return;
+    return () => clearInterval(timer);
+  }, []);
+
+  function setActiveThreadAndLoad(nextId) {
+    const id = setActiveThreadId(chatUserKey, nextId);
+    setActiveChatIdState(id);
+    setThreads(listThreads(chatUserKey));
+    const msgs = getThreadMessages(chatUserKey, id);
+    setMessages(msgs);
+    setAttempt(0);
+    setAttachedImage(null);
+    setAttachErr("");
+    setChatMenuOpen(false);
+
+    persistSessionPatch({ activeChatId: id, messages: msgs });
+  }
+
+  function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
+    setMessages(nextMessages);
+
+    // NO-MEMORY RULE for unverified users: Do not persist to storage or server.
+    if (!verified) return;
+
+    upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
+    setThreads(listThreads(chatUserKey));
+
+    // Track usage on every message sent (only if Elora or User)
+    const isActuallyNew = nextMessages.length > messages.length;
+    if (isActuallyNew) {
+      const s = getSession();
+      if (!s.usage) s.usage = { messagesSent: 0, subjects: [], streak: 0 };
+      s.usage.messagesSent = (Number(s.usage.messagesSent) || 0) + 1;
+
+      // Update subjects explored
+      if (subject && !Array.isArray(s.usage.subjects)) s.usage.subjects = [];
+      if (subject && !s.usage.subjects.includes(subject)) {
+        s.usage.subjects.push(subject);
+      }
+
+      // Update session log (limited to last 50 for storage size)
+      if (!Array.isArray(s.usage.sessionLog)) s.usage.sessionLog = [];
+      const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
+      s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
+
+      // Update last active
+      s.usage.lastActive = new Date().toISOString();
+
+      // Update streak
+      s.usage.streak = Math.max(Number(s.usage.streak) || 0, 1);
+
+      saveSession(s);
     }
 
+    persistSessionPatch({ activeChatId, messages: nextMessages });
+
+    if (alsoSyncServer) {
+      const currentSession = getSession();
+      saveServerChatIfVerified(currentSession, nextMessages);
+    }
+  }
+
+  async function callElora({ messageOverride, baseMessages }) {
+    const currentSession = getSession();
+
+    const userText = String(messageOverride || chatText || "").trim();
+    if (!userText && !attachedImage?.dataUrl) return;
+
+    setLoading(true);
+
     try {
+      if (role === "educator" && !currentSession?.verified) {
+        setVerifyGateOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      if (teacherOnlyBlocked) {
+        setTeacherGateOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      const attemptNext =
+        role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
+
+      const timeSpent = (Date.now() - lastActionTime) / 1000;
+      const sentiment = (attemptNext > 1 || timeSpent > 60) ? "supportive" : "standard";
+
       const payload = {
         role,
         action,
@@ -2274,292 +1006,1077 @@ export default function AssistantPage() {
         responseStyle,
         searchMode,
         customStyleText,
-        timeSpent,
+        attempt: attemptNext,
+        sentiment,
         vision,
         classCode,
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
-        teacherRules
+        teacherRules: currentSession.classroom?.teacherRules || ""
       };
 
-      const response = await fetch("/api/assistant", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      const r = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = await r.json().catch(() => null);
 
       const base = Array.isArray(baseMessages) ? baseMessages : messages;
-      const baseMsgs = Array.isArray(baseMessages) ? baseMessages : messages;
 
-      if (!response.ok) {
-        const err = data?.error || data?.message || data?.message || "Request failed.";
-        if (String(err).toLowerCase().includes("verify")) {
-          setVerifyGateOpen(true);
-          setVerifyGateOpen(false);
-        }
-        }
+      if (!r.ok) {
+        const err = data?.error || data?.message || "Request failed.";
+        if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
 
-        if (!response.ok) {
-          const err = data?.error || data?.message || "Request failed.";
-          const next = [...baseMsgs, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
-          persistSessionPatch({ action: "check" });
-          setVerifyGateOpen(false);
-        }
-
-        const outRaw = data?.reply || data?.text || data?.answer || "";
-        if (!outRaw) {
-          const cleanedText = cleanAssistantText(outRaw);
-          const next = [...baseMsgs, { from: "elora", text: cleanedText, ts: Date.now() }];
-          const next = [...baseMsgs, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
-          persistActiveMessages(nextMsgs, { alsoSyncServer: true });
-          persistSessionPatch({ action: "check" });
-        }
+        const next = [...base, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: true });
+        setLoading(false);
+        return;
       }
 
-      setMessages(nextMsgs);
-      setMessages(nextMsgs);
-      setLoading(false);
-      setLastActionTime(Date.now());
+      const outRaw = data?.reply || data?.text || data?.answer || "";
+      if (!outRaw) {
+        // Fallback if the engine returns empty but OK
+        const next = [...base, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: true });
+        setLoading(false);
+        return;
+      }
+      const out = cleanAssistantText(outRaw);
+      const next = [...base, { from: "elora", text: out, ts: Date.now() }];
+
+      persistActiveMessages(next, { alsoSyncServer: true });
+
+      if (role === "student" && action === "check") {
+        setAttempt((a) => a + 1);
+      }
+
+      setAttachedImage(null);
+      setAttachErr("");
     } catch (err) {
       console.error("AI Assistant Error:", err);
       const next = [
         ...messages,
-        { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }
+        { from: "elora", text: `⚠️ System Error: ${err.message || "Connection failed"}. This usually happens if the backend server is busy. Please try again in 5 seconds.`, ts: Date.now() },
       ];
-      persistActiveMessages(nextMsgs, { alsoSyncServer: true });
-    }
-    }
-
-    function persistSessionPatch(patch) {
-    try {
-    } catch {
-    }
+      persistActiveMessages(next, { alsoSyncServer: true });
+    } finally {
+      setChatText("");
+      setLoading(false);
+      setLastActionTime(Date.now());
     }
   }
 
-  async function saveServerChatIfVerified(currentSession, nextMessages) {
-    if (!currentSession?.verified) return;
-    await fetch("/api/chat/set", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: nextMessages }),
+  async function sendChat() {
+    const trimmed = String(chatText || "").trim();
+    if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
+
+    setLoading(true); // Pre-emptive lock
+    setAttachErr("");
+
+    const inferred = inferActionFromMessage(trimmed);
+    if (inferred === "check" && action !== "check") {
+      setAction("check");
+      setAttempt(0);
+      await persistSessionPatch({ action: "check" });
+    }
+
+    const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
+
+    // Use functional update to ensure we have the absolute latest messages
+    setMessages(prev => {
+      const next = [...prev, userMsg];
+      persistActiveMessages(next, { alsoSyncServer: true });
+
+      // Delay the actual call slightly to ensure state has settled
+      setTimeout(() => {
+        callElora({ messageOverride: trimmed, baseMessages: next });
+      }, 0);
+
+      return next;
     });
   }
 
-  async function clearServerChatIfVerified(currentSession) {
-    if (!currentSession?.verified) return;
-    await fetch("/api/chat/clear", { method: "POST" });
-  }
-
-  function syncThreadsState(userKey) {
-    const ensured = ensureThreadsForUser(userKey);
-    const nextActive = ensured?.activeId || getActiveThreadId(userKey));
-    setThreads(listThreads(userKey));
-    setActiveChatIdState(nextActive);
-    const msgs = getThreadMessages(userKey, nextActive);
-    const msgs = getThreadMessages(userKey, nextActiveId) || []);
-    setMessages(msgs);
-
-    if (verified) {
-      persistSessionPatch({ activeChatId: nextActive, messages: msgs });
+  async function exportLast(type) {
+    const last = [...messages].reverse().find((m) => m?.from === "elora");
+    if (!last?.text) {
+      const next = [
+        ...messages,
+        { from: "elora", text: "Nothing to export yet — ask me something first.", ts: Date.now() },
+      ];
+      persistActiveMessages(next, { alsoSyncServer: false });
+      return;
     }
 
-    return nextActive;
-  }
-
-    function persistActiveMessages(nextMsgs, { alsoSyncServer: true } = {}) => {
-    setMessages(nextMsgs);
-
-    if (!verified) return;
-
-    upsertThreadMessages(chatUserKey, nextActive, nextMsgs);
-  }
-
-    setMessages(nextMsgs);
-    setThreads(listThreads(userKey));
-  }
-
-    if (verified) {
-      persistSessionPatch({ activeChatId: nextActive, messages: nextMsgs });
+    if (!verified) {
+      setVerifyGateOpen(true);
+      const next = [
+        ...messages,
+        { from: "elora", text: "Exports are locked until your email is verified.", ts: Date.now() },
+      ];
+      persistActiveMessages(next, { alsoSyncServer: false });
+      return;
     }
 
-    setThreads(listThreads(userKey));
-  }
+    try {
+      const endpoint =
+        type === "docx" ? "/api/export-docx" : type === "pptx" ? "/api/export-slides" : "/api/export-pdf";
 
-    // Track usage on every message sent (only if Elora or User)
-    useEffect(() => {
-    const timer = setInterval(() => {
-      const currentSession = getSession();
-      if (!currentSession?.usage) currentSession.usage = { activeMinutes: 0 };
-      currentSession.usage.activeMinutes = (Number(currentSession.usage?.usage?.activeMinutes || 0) + 1);
-      currentSession.usage.lastActive = new Date().toISOString();
-      saveSession(currentSession);
-    }, 60000); // Every 1 minute
+      const content = cleanAssistantText(last.text);
+      const title = type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
 
-      return () => clearInterval(timer);
-    }, []);
-
-    // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
-    async function saveServerChatIfVerified(currentSession, nextMessages) {
-      if (!currentSession?.verified) return;
-      await fetch("/api/chat/set", {
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
-      };
-    }
+        body: JSON.stringify({ title, content }),
+      });
 
-  async function clearServerChatIfVerified(currentSession) {
-    if (!currentSession?.verified) return;
-    await fetch("/api/chat/clear", { method: "POST" });
-  }
-
-  function syncThreadsState(userKey) {
-    const ensured = ensureThreadsForUser(userKey);
-    const nextActive = ensured?.activeId || getActiveThreadId(userKey));
-    setThreads(listThreads(userKey));
-    setActiveChatIdState(nextActive);
-    const msgs = getThreadMessages(userKey, nextActiveId) || []);
-    setMessages(msgs);
-
-    if (verified) {
-      persistSessionPatch({ activeChatId: nextActive, messages: msgs });
-    }
-
-    return nextActive;
-  }
-
-  function setActiveThreadAndLoad(nextId) {
-    const id = setActiveThreadId(chatUserKey, nextId);
-    setActiveChatIdState(nextId);
-    setThreads(listThreads(userKey));
-    setMessages(getThreadMessages(userKey, nextActiveId));
-    const msgs = getThreadMessages(userKey, nextActiveId) || []);
-
-    setMessages(msgs);
-    setAttempt(0);
-    setAttachedImage(null);
-    setAttachErr("");
-    setChatMenuOpen(false);
-    renameThread(chatUserKey, activeChatId) => {
-      renameThread(chatUserKey, activeChatId);
-      const threadMeta = getThreadMeta(chatUserKey, activeChatId, threads);
-      const label = threadMeta?.title || "New chat";
-      const label = threadMeta?.title ? `"${threadMeta.title}" : "this chat"}`;
-      const renameValue = threadMeta?.title || "New chat";
-      setRenameValue(threadMeta?.title || "this chat");
-      setRenameOpen(true);
-      setRenameOpen(true);
-      setChatMenuOpen(false);
-      persistSessionPatch({ activeChatId: nextActive, messages: msgs });
-    }
-
-    renameThread(chatUserKey, activeChatId, renameValue) => {
-      renameThread(chatUserKey, activeChatId, renameValue) = threadMeta?.title || "New chat");
-      setRenameValue = threadMeta?.title || "New chat");
-    }
-  } else {
-      setRenameOpen(false);
-    }
-
-    togglePinThread(chatUserKey, activeChatId) {
-      togglePinThread(chatUserKey, activeChatId);
-      setThreads(listThreads(chatUserKey));
-      setThreads(listThreads(chatUserKey));
-    }
-
-    deleteThread(chatUserKey, activeChatId) => {
-      const threadId = String(chatUserKey || "");
-      const threadId = String(id || "").trim();
-
-      const threadIndex = threads.findIndex((t) => t.id === threadId);
-      const threadMeta = threads.find((t) => t.id === threadId);
-      const label = threadMeta?.title ? `"${threadMeta.title}" : "this chat"`;
-      const label = threadMeta?.title || "New chat";
-      const label = threadMeta?.title || "this chat"}`;
-      const [foundThread, setFoundThread] = threadIndex !== -1) ? threads[threadIndex] : -1) : threads.length === 0 ? -1 : threadIndex - 1];
-    const foundThread = threads[threadIndex !== -1 ? threads[threadIndex - 1] : threads.length === 0 ? threadIndex + 1 : threadIndex - 1 : 0 : threadIndex - 1;
-
-      if (foundThread) === -1) {
-      setRenameOpen(true);
-      setRenameValue(threadMeta?.title || "this chat");
-    } else {
-      if (foundThread === -1) {
-        setRenameValue("");
+      const ct = String(r.headers.get("content-type") || "");
+      if (!r.ok || ct.includes("application/json")) {
+        let err = `Export failed (HTTP ${r.status}).`;
+        let data = null;
+        try {
+          data = await r.json();
+        } catch { }
+        const code = String(data?.error || data?.message || "").trim();
+        if (r.status === 403 || code === "not_verified") {
+          setVerifyGateOpen(true);
+          err = "Export blocked: verify your email to unlock exports.";
+        } else if (code) {
+          err = `Export failed: ${code}`;
+        }
+        const next = [...messages, { from: "elora", text: err, ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
+        return;
       }
+
+      const blob = await r.blob();
+      if (!blob || blob.size === 0) {
+        const next = [...messages, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }];
+        persistActiveMessages(next, { alsoSyncServer: false });
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      const next = [...messages, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }];
+      persistActiveMessages(next, { alsoSyncServer: false });
+    }
+  }
+
+  async function applyRefinement(chipId) {
+    const map = {
+      simpler: "Make it simpler and more beginner-friendly.",
+      example: "Add one clear example that matches the topic.",
+      steps: "Show the steps clearly (short).",
+      check: "Give one quick check question at the end.",
+      diff: "Add differentiation: easier + harder extension.",
+      timing: "Add a simple timeline with approximate minutes.",
+      resources: "Add a short list of materials/resources.",
+      easier: "Make it easier while keeping the same topic.",
+      harder: "Make it harder and add a challenge question.",
+      answers: "Add a teacher answer key after the questions.",
+      rubric: "Add a short marking guide/rubric.",
+      shorter: "Make it shorter and more direct.",
+      markscheme: "Include a clear marking scheme.",
+      variants: "Add two variants (A/B) with the same skills tested.",
+      outline: "Tighten the slide outline into clear sections.",
+      hooks: "Add 1-2 engaging hooks or questions for the start.",
+      examples: "Add more examples that students can relate to.",
+      notes: "Add short teacher notes for each section.",
+      "more-steps": "Add more steps and explain the reasoning clearly.",
+    };
+
+    const refinement = map[chipId] || "Improve the answer.";
+
+    const userMsg = { from: "user", text: refinement, ts: Date.now() };
+    const nextMessages = [...messages, userMsg];
+
+    persistActiveMessages(nextMessages, { alsoSyncServer: true });
+    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
+  }
+
+  async function validateAndActivateInvite(code) {
+    const trimmed = (code || "").trim();
+    setTeacherGateStatus("");
+
+    if (!trimmed) {
+      setTeacherGateStatus("Enter a code.");
+      return false;
+    }
+    if (!verified) {
+      setTeacherGateStatus("Verify your email first.");
+      return false;
     }
 
-    deleteThread(chatUserKey, activeChatId);
-      const nextActiveId = getActiveThreadId(chatUserKey);
+    try {
+      const act = await activateTeacher(trimmed);
+      if (!act?.ok) {
+        setTeacherGateStatus("Invalid code.");
+        return false;
+      }
+
+      await refreshVerifiedFromServer();
+      const s = getSession();
+      setSession(s);
+
+      if (isTeacher()) {
+        setTeacherGateStatus("Teacher role active ✅");
+        return true;
+      }
+
+      setTeacherGateStatus("Code accepted, but teacher role not active. Refresh and try again.");
+      return false;
+    } catch {
+      setTeacherGateStatus("Could not validate right now. Try again.");
+      return false;
+    }
+  }
+
+  async function onPickImage(file) {
+    setAttachErr("");
+    setAttachedImage(null);
+
+    if (!file) return;
+
+    if (!file.type || !file.type.startsWith("image/")) {
+      setAttachErr("Images only (PNG/JPG/WebP).");
+      return;
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      setAttachErr("That image is too large. Try a smaller photo (max 5MB).");
+      return;
+    }
+
+    try {
+      const out = await compressImageToDataUrl(file);
+      setAttachedImage(out);
+    } catch (e) {
+      const code = String(e?.message || "");
+      setAttachErr(
+        code === "image_too_large"
+          ? "That image is too large to send. Try a closer crop."
+          : "Couldn’t attach that image. Try again."
+      );
+    }
+  }
+
+  function onNewChat() {
+    if (!canManageChats) {
+      setVerifyGateOpen(true);
+      return;
+    }
+    const name = `New Chat ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const id = createThread(chatUserKey, name);
+    setActiveThreadAndLoad(id);
+  }
+
+  function onDeleteChat(id) {
+    deleteThread(chatUserKey, id);
+    const activeId = syncThreadsState(chatUserKey);
+    setActiveChatIdState(activeId);
+  }
+
+  function onRenameChatStart(thread) {
+    setRenameThreadId(thread.id);
+    setRenameValue(thread.name);
+  }
+
+  function onTogglePin(id) {
+    togglePinThread(chatUserKey, id);
     setThreads(listThreads(chatUserKey));
-    setActiveChatIdState(getActiveThreadId(chatUserKey));
-    const msgs = getThreadMessages(chatUserKey, nextActiveId) || []);
-    setMessages(msgs = getThreadMessages(chatUserKey, nextActiveId || []);
   }
 
-    persistSessionPatch({ activeChatId: nextActive, messages: msgs });
-    setMessages(msgs, getThreadMessages(chatUserKey, nextActiveId || []);
-    }
-  }
-
-    persistSessionPatch({ activeChatId: nextActive, messages: msgs });
-    setMessages(getThreadMessages(chatUserKey, nextActiveId));
-    setThreads(listThreads(chatUserKey));
-  }
-
-    togglePinThread(chatUserKey, activeChatId) {
-      togglePinThread(chatUserKey, activeChatId);
+  function onRenameConfirm() {
+    if (renameValue.trim()) {
+      renameThread(chatUserKey, renameThreadId, renameValue.trim());
       setThreads(listThreads(chatUserKey));
+      setRenameThreadId("");
+    }
+  }
+
+  function onClearAll() {
+    clearThread(chatUserKey, activeChatId);
+    setMessages([]);
+    persistActiveMessages([], { alsoSyncServer: true });
+  }
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const el = listRef.current;
+      if (!el) return;
+
+      const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 1; // +1 for tolerance
+      setStickToBottom(isAtBottom);
+      setShowJump(!isAtBottom);
+    };
+
+    const el = listRef.current;
+    if (el) {
+      el.addEventListener("scroll", handleScroll);
+      // Initial check
+      handleScroll();
     }
 
-    deleteThread(chatUserKey, activeChatId) => {
-      const foundThread = threads.find((t) => t.id === threadId);
-      const threadMeta = threads.find((t) === threadId) || threads.find(t.id === threadId)) || threads[threadIndex !== -1 ? threads.length === 0 ? -1 : threadIndex - 1 : 0] : threadIndex - 1 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : threadIndex - 0 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : 0 : threadIndex - 0 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : 0 : threadIndex - 0 : threadIndex - 1 : 0 : threadIndex - 1 : 0 : 0 : 0 : threadIndex - 1 : 0 : threadIndex - 0 : 0 : 0 : threadIndex - 1 : 0 : 0 : 0 : 0 : threadIndex - 0 : 0 : threadIndex - 0 : 0 : threadIndex - 0 : 0 : threadIndex - 0 : 0 : threadIndex - 0 : 0 : 0 : threadIndex - 0 : 0 : 0 : threadIndex - 0 : 0 : 0 : 0 : 0 : 0 : threadIndex - 0 : 0 : threadIndex - 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : threadIndex - 0 : 0 : 0 : 0 : 0 : 0 : threadIndex : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 :0 : 0 : threadIndex - 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 : threadIndex - 0 : 0 : 0 :0 : 0 :0 :0 : 0 : 0 : 0 : threadIndex - 0 : 0 : 0 : 0 : 0 : 0 : 0 :0 : 0 : 0 :0 : 0 : threadIndex - 0 : 0 : 0 : threadIndex - 0 :0 : 0 : 0 : 0 :0 : 0 : threadIndex -0 : 0 :0 : 0 :0 :0 : 0 :0 :0 : 0 :0 :0 :0 :0 : threadIndex -1 :0 : 0 : 0 : 0 :0 : 0 :0 :0 :0 :0 :0 :0 : 0 :0 :0 : 0 : 0 : 0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 : 0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0 :0: [0 :0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0 } tinted yellow (warning: "t" pattern likely meant to be an unterminated string that starts with ` |
-    and ends without a closing `)
-  - May be multiple instances causing this error
+    return () => {
+      if (el) {
+        el.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, [messages, loading]); // Re-run when messages or loading state changes to update scroll position
 
-Looking at the error, I need to provide a completely clean, working version that:
-1. **Has valid JSX syntax** - no unterminated string literals
-2. **Proper ternary structure** - every conditional uses `{condition ? (...) : (...) }` format
-3. **No runtime errors** - all imports are valid
-4. **Preserves all features**
-5. **Builds successfully**
+  // Auto-scroll to bottom when new messages arrive and stickToBottom is true
+  useEffect(() => {
+    if (stickToBottom) {
+      jumpToLatest();
+    }
+  }, [messages, stickToBottom]);
 
-The user emphasized needing this to be ONE working assistant.js file. Let me test this and confirm it builds successfully before proceeding.
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [chatText, loading, attachedImage, messages, action, role, lastActionTime]); // Dependencies for sendChat
 
-Let me provide a completely clean, working assistant.js file with all ternaries properly structured and no syntax errors.
-</think>
-I need to provide a completely clean, working version of pages/assistant.js that:
-1. **Has valid JSX syntax** - no unterminated string literals
-2. **Proper ternary structure** - all conditionals are `{condition ? A : B }` format
-3. **No runtime errors** - no "Cannot access 't' before initialization" errors
-4. **Preserves all Elora Assistant features**
-5. **Builds successfully**
-6. **No stray `) : (, ) : (` patterns in file
-7. **No half-removed JSX fragments**
-8. **Clean component return statements** - all components have proper `return (...) }` before `};`
+  // Update chatUserKey when session changes (e.g., login/logout)
+  useEffect(() => {
+    const s = getSession();
+    const nextKey = getChatUserKey(s);
+    if (nextKey !== chatUserKey) {
+      setChatUserKeyState(nextKey);
+      syncThreadsState(nextKey);
+      setAttempt(0);
+      setAttachedImage(null);
+      setAttachErr("");
+      setChatMenuOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.email, session?.verified]);
 
-Let me rewrite the InteractiveQuiz component and surrounding JSX areas to be:
+  // Update session state when relevant props change
+  useEffect(() => {
+    const s = getSession();
+    const updatedSession = {
+      ...s,
+      role,
+      country,
+      level,
+      subject,
+      topic,
+      action,
+    };
+    saveSession(updatedSession);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, country, level, subject, topic, action]);
 
-1. **Clean InteractiveQuiz component** - simplified and cleaned
-2. **Surrounding JSX areas** - cleaned and working
+  // Clear chat text when active chat changes
+  useEffect(() => {
+    setChatText("");
+  }, [activeChatId]);
 
-Looking at the errors around line 1838 where the issue was:
+  // Close resource drawer when topic/subject changes
+  useEffect(() => {
+    setResourceDrawerOpen(false);
+  }, [topic, subject]);
 
-Line 1838 |                               </div>
-  1839 |                             </div>
-  1839 |                             </div>
-  1838 |                           </div>
-  1840 |                       ) : (`
+  // Reset attempt count when action or role changes
+  useEffect(() => {
+    if (!(role === "student" && action === "check")) {
+      setAttempt(0);
+    }
+  }, [role, action]);
 
-This indicates there's a broken JSX structure with a stray `)} ` after a block that should end with `)}`
-Which looks like there might be an unterminated string literal `| pattern (`const t = ...` or similar pattern causing the unterminated string literal issue
+  // Handle image attachment errors
+  useEffect(() => {
+    if (attachErr) {
+      const timer = setTimeout(() => setAttachErr(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [attachErr]);
 
-This suggests the error might be multiple issues
+  // Handle teacher gate status messages
+  useEffect(() => {
+    if (teacherGateStatus) {
+      const timer = setTimeout(() => setTeacherGateStatus(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [teacherGateStatus]);
 
-<a href="https://opencode.ai/s/Ps7yF1xn"><img width="200" alt="New%20session%20-%202026-01-31T12%3A56%3A41.123Z" src="https://social-cards.sst.dev/opencode-share/TmV3IHNlc3Npb24gLSAyMDI2LTAxLTMxVDEyOjU2OjQxLjEyM1o=.png?model=opencode/big-pickle&version=1.1.47&id=Ps7yF1xn" /></a>
-[opencode session](https://opencode.ai/s/Ps7yF1xn)&nbsp;&nbsp;|&nbsp;&nbsp;[github run](/tweetharis-netizen/elora-verification-ui/actions/runs/21544812818)
+  // Handle rename thread modal state
+  useEffect(() => {
+    if (renameThreadId && renameValue) {
+      // Focus input when modal opens
+      const input = document.getElementById("rename-input");
+      if (input) input.focus();
+    }
+  }, [renameThreadId, renameValue]);
+
+  // Handle verification gate opening
+  useEffect(() => {
+    if (verifyGateOpen) {
+      // Optionally, log or track when the verification gate is shown
+    }
+  }, [verifyGateOpen]);
+
+  // Handle teacher gate opening
+  useEffect(() => {
+    if (teacherGateOpen) {
+      // Optionally, log or track when the teacher gate is shown
+    }
+  }, [teacherGateOpen]);
+
+  // Handle chat menu opening/closing
+  useEffect(() => {
+    if (chatMenuOpen) {
+      // Optionally, focus on the search input in the chat menu
+    }
+  }, [chatMenuOpen]);
+
+  // Handle prefs menu opening/closing
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PREFS_OPEN_KEY, prefsOpen ? "true" : "false");
+    }
+  }, [prefsOpen]);
+
+  // Handle dismiss preview notice
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(PREVIEW_DISMISS_KEY, dismissPreviewNotice ? "true" : "false");
+      } catch { }
+    }
+  }, [dismissPreviewNotice]);
+
+  // Reset loading state if component unmounts while loading
+  useEffect(() => {
+    return () => {
+      setLoading(false);
+    };
+  }, []);
+
+  if (!mounted) return <div className="min-h-screen bg-slate-950" />;
+
+  return (
+    <div className="flex flex-col h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500/30 overflow-hidden font-sans">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar / Configuration */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ x: -100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -100, opacity: 0 }}
+              className="w-full lg:w-80 h-full bg-slate-50 dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 z-[40] fixed lg:relative flex flex-col"
+            >
+              <div className="p-8 border-b border-slate-100 dark:border-white/5">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20">🛸</div>
+                    <h1 className="text-xl font-black italic tracking-tighter">ELORA</h1>
+                  </div>
+                  <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Location Context</label>
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-xs font-bold focus:ring-2 ring-indigo-500/20"
+                    >
+                      <option value="NG">Nigeria</option>
+                      <option value="UK">United Kingdom</option>
+                      <option value="US">United States</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Academic Level</label>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-xs font-bold focus:ring-2 ring-indigo-500/20"
+                    >
+                      {getCountryLevels(country).map(l => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.keys(ROLE_QUICK_ACTIONS).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setRole(r)}
+                      className={cn(
+                        "p-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                        role === r
+                          ? "bg-indigo-600 border-indigo-400 text-white shadow-xl shadow-indigo-500/20"
+                          : "bg-white dark:bg-slate-800/50 border-slate-100 dark:border-white/5 text-slate-400 hover:border-indigo-500/30"
+                      )}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4 rounded-3xl bg-indigo-500/5 border border-indigo-500/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Learning Mastery</span>
+                    <span className="text-[10px] font-black text-indigo-600">Level 12</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 w-[68%]" />
+                  </div>
+                  <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span>1,240 XP</span>
+                    <span>2,000 XP</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-950 relative">
+          {/* Header */}
+          <div className="h-20 flex items-center justify-between px-6 lg:px-8 border-b border-slate-100 dark:border-white/5 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl z-20 shrink-0">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
+              >
+                <div className="w-5 h-0.5 bg-slate-900 dark:bg-white mb-1" />
+                <div className="w-5 h-0.5 bg-slate-900 dark:bg-white mb-1" />
+                <div className="w-3 h-0.5 bg-slate-900 dark:bg-white" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="lg:hidden w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-sm shadow-xl">🛸</div>
+                <div>
+                  <h2 className="text-sm font-black tracking-tight">{activeChatId ? threads.find(t => t.id === activeChatId)?.name || "Current Session" : "New Link"}</h2>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Stable Connection</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setResourceDrawerOpen(true)}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest"
+              >
+                <span>Resource Lab</span>
+                <span className="w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[8px]">✨</span>
+              </button>
+
+              <div className="h-6 w-px bg-slate-100 dark:border-white/5 mx-2 hidden sm:block" />
+
+              <button
+                onClick={() => setChatMenuOpen(!chatMenuOpen)}
+                className="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400"
+              >
+                🕒
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10 space-y-10 custom-scrollbar scroll-smooth"
+          >
+            {messages.length === 0 ? (
+              <div className="max-w-3xl mx-auto pt-10 sm:pt-20">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center space-y-8"
+                >
+                  <div className="relative inline-block">
+                    <div className="absolute inset-0 bg-indigo-500 blur-3xl opacity-20 animate-pulse" />
+                    <div className="relative w-24 h-24 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-4xl shadow-2xl shadow-indigo-500/40 mx-auto">🛸</div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+                      Ready to learn, <span className="text-indigo-600">{session?.email?.split('@')[0] || "Explorer"}</span>?
+                    </h1>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                      I'm Elora, your cinematic AI tutor. Your subject is set to <span className="text-indigo-500 font-bold">{subject}</span>.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-8">
+                    {pickStarterSuggestions({ seed: lastActionTime, role, country, level, subject, topic }).map((s, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setChatText(s);
+                          // Auto send if they click? For now just fill input
+                        }}
+                        className="p-5 rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-transparent hover:border-indigo-500/20 hover:bg-white dark:hover:bg-slate-900 text-left transition-all hover:shadow-xl group"
+                      >
+                        <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Suggestion {idx + 1}</div>
+                        <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed group-hover:text-indigo-600 transition-colors">{s}</p>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto space-y-12 pb-32">
+                {messages.map((m, idx) => {
+                  const isElora = m.from === "elora";
+                  // const isUser = m.from === "user"; // Removed
+                  // Extract quiz data if present
+                  const quizMatch = m.text?.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/i);
+                  const quizJson = quizMatch ? JSON.parse(quizMatch[1]) : null;
+                  const cleanText = m.text?.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "").trim();
+
+                  return (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn("flex group", isElora ? "justify-start" : "justify-end")}
+                    >
+                      <div className={cn("max-w-[85%] sm:max-w-2xl flex gap-4 sm:gap-6", isElora ? "flex-row" : "flex-row-reverse")}>
+                        {isElora && (
+                          <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20 shrink-0 mt-1">🛸</div>
+                        )}
+
+                        <div className="space-y-4 min-w-0">
+                          {cleanText && (
+                            <div className={cn(
+                              "p-6 sm:p-8 rounded-[2.5rem] relative overflow-hidden",
+                              isElora
+                                ? "bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-800 dark:text-slate-100"
+                                : "bg-indigo-600 text-white shadow-2xl shadow-indigo-600/20"
+                            )}>
+                              {isElora && (
+                                <div className="absolute top-0 right-0 p-4 opacity-0 transition-opacity">
+                                  <button onClick={() => copyToClipboard(cleanText, idx)} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all">
+                                    {copiedIdx === idx ? "✅" : "📋"}
+                                  </button>
+                                </div>
+                              )}
+                              <div className="prose prose-slate dark:prose-invert max-w-none text-[15px] font-medium leading-[1.8] tracking-tight whitespace-pre-wrap">
+                                {cleanText}
+                              </div>
+                            </div>
+                          )}
+
+                          {isElora && quizJson && (
+                            <InteractiveQuiz data={quizJson} onComplete={() => { }} />
+                          )}
+
+                          {isElora && idx === messages.length - 1 && action && REFINEMENT_CHIPS[action] && !loading && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              {REFINEMENT_CHIPS[action].map(chip => (
+                                <button
+                                  key={chip.id}
+                                  onClick={() => applyRefinement(chip.id)}
+                                  className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-all"
+                                >
+                                  {chip.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                {loading && (
+                  <div className="flex justify-start animate-reveal">
+                    <div className="flex gap-4 sm:gap-6 max-w-2xl">
+                      <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20 shrink-0">🛸</div>
+                      <div className="flex items-center gap-1.5 p-6 rounded-[2.5rem] bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Composer */}
+          <div className="p-6 lg:p-10 bg-gradient-to-t from-white via-white dark:from-slate-950 dark:via-slate-950 to-transparent pt-20 shrink-0 relative z-20">
+            {/* Jump to latest */}
+            <AnimatePresence>
+              {showJump && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  onClick={jumpToLatest}
+                  className="absolute top-0 left-1/2 -translate-x-1/2 px-6 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <span>New Message ↓</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Attachment Preview */}
+              <AnimatePresence>
+                {attachedImage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-indigo-500/20 w-fit"
+                  >
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-indigo-500/10 border border-white/10">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={attachedImage.dataUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Attachment</div>
+                      <div className="text-[11px] font-bold text-slate-500 truncate max-w-[120px]">{attachedImage.name}</div>
+                    </div>
+                    <button onClick={() => setAttachedImage(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all font-black">✕</button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {attachErr && (
+                <div className="text-[10px] font-black uppercase tracking-widest text-rose-500 ml-4 animate-reveal">
+                  ⚠️ {attachErr}
+                </div>
+              )}
+
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.5rem] blur opacity-10 group-focus-within:opacity-30 transition duration-1000" />
+
+                <div className="relative flex items-end gap-3 p-3 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-2xl">
+                  <div className="flex flex-col gap-2 pb-1 pl-1">
+                    <label className="cursor-pointer p-3 hover:bg-slate-100 dark:hover:bg-white/10 rounded-2xl transition-all text-xl" title="Attach Image">
+                      📷
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => onPickImage(e.target.files?.[0])}
+                        disabled={loading}
+                      />
+                    </label>
+                  </div>
+
+                  <textarea
+                    placeholder={loading ? `${assistantName} is thinking...` : `Ask ${assistantName} anything about ${topic || subject}...`}
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    className="flex-1 bg-transparent border-none focus:ring-0 p-4 min-h-[56px] max-h-48 text-[15px] font-medium placeholder:text-slate-400 custom-scrollbar resize-none"
+                    disabled={loading}
+                  />
+
+                  <div className="flex flex-col gap-2 pb-1 pr-1">
+                    <button
+                      onClick={sendChat}
+                      disabled={loading || (!chatText.trim() && !attachedImage)}
+                      className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all shadow-xl",
+                        chatText.trim() || attachedImage
+                          ? "bg-indigo-600 text-white hover:scale-105 active:scale-95 shadow-indigo-500/40"
+                          : "bg-slate-100 dark:bg-white/5 text-slate-400 cursor-not-allowed"
+                      )}
+                    >
+                      {loading ? "⏳" : "🚀"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status / Export */}
+              <div className="flex items-center justify-between px-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", verified ? "bg-emerald-500" : "bg-amber-500 animate-pulse")} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      {verified ? "Neural Link Secured" : "Guest Mode Active"}
+                    </span>
+                  </div>
+                  {!verified && (
+                    <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-400 transition-colors">
+                      Sync Account →
+                    </Link>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => onClearAll()}
+                    className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors"
+                  >
+                    Clear Path
+                  </button>
+                  <div className="h-3 w-px bg-slate-100 dark:border-white/5" />
+                  <div className="flex gap-2">
+                    {["docx", "pptx", "pdf"].map(type => (
+                      <button
+                        key={type}
+                        onClick={() => exportLast(type)}
+                        className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 transition-colors"
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat History Menu */}
+              <AnimatePresence>
+                {chatMenuOpen && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setChatMenuOpen(false)}
+                      className="fixed inset-0 bg-slate-950/20 backdrop-blur-sm z-[60]"
+                    />
+                    <motion.div
+                      initial={{ x: "100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "100%" }}
+                      transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                      className="fixed top-0 right-0 h-full w-full max-w-sm bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-white/5 z-[61] shadow-2xl flex flex-col"
+                    >
+                      <div className="p-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                        <h3 className="text-xl font-black italic tracking-tighter">THREAD HISTORY</h3>
+                        <button onClick={() => setChatMenuOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">✕</button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <button
+                          onClick={() => { onNewChat(); setChatMenuOpen(false); }}
+                          className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all mb-4"
+                        >
+                          <span>Initiate New Session</span>
+                          <span>✨</span>
+                        </button>
+
+                        {threads.length === 0 ? (
+                          <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest opacity-40 italic">No stored threads</div>
+                        ) : (
+                          threads.map((t) => {
+                            const isActive = activeChatId === t.id;
+                            return (
+                              <div
+                                key={t.id}
+                                className={cn(
+                                  "group p-4 rounded-2xl border transition-all cursor-pointer relative",
+                                  isActive
+                                    ? "bg-indigo-500/10 border-indigo-500/40"
+                                    : "bg-white dark:bg-slate-800/50 border-transparent hover:border-slate-200 dark:hover:border-white/10"
+                                )}
+                                onClick={() => { setActiveThreadAndLoad(t.id); setChatMenuOpen(false); }}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-lg">{t.pinned ? "📌" : "📄"}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className={cn("text-xs font-black truncate", isActive ? "text-indigo-600" : "text-slate-600 dark:text-slate-200")}>{t.name}</h4>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                      {new Date(t.ts).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onTogglePin(t.id); }}
+                                    className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg text-[10px]"
+                                  >
+                                    {t.pinned ? "📍" : "📌"}
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onRenameChatStart(t); }}
+                                    className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg text-[10px]"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onDeleteChat(t.id); }}
+                                    className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg text-[10px] text-rose-500"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+
+              <AIResourceDrawer
+                open={resourceDrawerOpen}
+                onClose={() => setResourceDrawerOpen(false)}
+                topic={topic}
+                subject={subject}
+              />
+
+              {/* Global Modals */}
+              <Modal open={!!renameThreadId} onClose={() => setRenameThreadId("")} title="Rename Thread">
+                <div className="space-y-6">
+                  <input
+                    id="rename-input"
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500/20"
+                    onKeyDown={(e) => e.key === "Enter" && onRenameConfirm()}
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setRenameThreadId("")}
+                      className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={onRenameConfirm}
+                      className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+                    >
+                      Confirm Rename
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+
+              <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)} title="Security Breach Detected">
+                <div className="text-center space-y-6 py-4">
+                  <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-3xl mx-auto shadow-xl">⚠️</div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black tracking-tight">Access Restricted</h4>
+                    <p className="text-xs font-medium text-slate-500 leading-relaxed px-4">
+                      Advanced learning tools, cloud persistence, and high-level exports require a verified neural link (your email).
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Link href="/login" className="py-4 rounded-2xl bg-indigo-600 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all no-underline">
+                      Secure Connection Now
+                    </Link>
+                    <button
+                      onClick={() => setVerifyGateOpen(false)}
+                      className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Continue in Sandbox Mode
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+
+              <Modal open={teacherGateOpen} onClose={() => setTeacherGateOpen(false)} title="Teacher Authorization">
+                <div className="space-y-6 py-2">
+                  <div className="flex items-center gap-4 p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                    <div className="text-2xl">🎓</div>
+                    <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                      Educator tools (Lesson Plans, Worksheets) require a verified teacher invitation code.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Access Key</label>
+                    <input
+                      type="text"
+                      placeholder="ELORA-XXXX-XXXX"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-sm font-bold uppercase tracking-widest placeholder:text-slate-300 focus:ring-2 ring-indigo-500/20"
+                      onKeyUp={(e) => {
+                        if (e.key === 'Enter') {
+                          validateAndActivateInvite(e.target.value).then(ok => {
+                            if (ok) setTimeout(() => setTeacherGateOpen(false), 2000);
+                          });
+                        }
+                      }}
+                      id="teacher-code-input"
+                    />
+                    {teacherGateStatus && (
+                      <div className={cn("text-[9px] font-black uppercase tracking-widest ml-2", teacherGateStatus.includes("✅") ? "text-emerald-500" : "text-rose-500")}>
+                        {teacherGateStatus}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      const input = document.getElementById("teacher-code-input");
+                      if (input) {
+                        const ok = await validateAndActivateInvite(input.value);
+                        if (ok) setTimeout(() => setTeacherGateOpen(false), 2000);
+                      }
+                    }}
+                    className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Verify Credentials
+                  </button>
+                  <p className="text-center text-[10px] font-medium text-slate-400">
+                    Need a code? <a href="mailto:support@elora.ai" className="text-indigo-500 font-bold">Request Access</a>
+                  </p>
+                </div>
+              </Modal>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Preview Notice */}
+      {!verified && !dismissPreviewNotice && (
+        <motion.div
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-xl bg-white/10 dark:bg-slate-900/10 backdrop-blur-2xl border border-white/20 p-2 pl-6 rounded-full flex items-center justify-between shadow-2xl z-50 ring-1 ring-white/10"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">
+              Limited Sandbox: <span className="opacity-60 font-medium">Messages won't save.</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="px-4 py-2 bg-white dark:bg-white text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest no-underline">
+              Secure Link
+            </Link>
+            <button onClick={dismissPreview} className="p-2 text-slate-400 hover:text-white transition-opacity">
+              ✕
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}

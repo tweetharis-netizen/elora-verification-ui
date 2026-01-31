@@ -28,6 +28,7 @@ import {
   upsertThreadMessages,
 } from "../lib/chatThreads";
 import { getRecommendations } from "../lib/videoLibrary";
+import { motion } from "framer-motion";
 
 const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
 const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];

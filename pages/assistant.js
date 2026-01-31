@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import { motion } from "framer-motion";
 import Modal from "../components/Modal";
 import {
   activateTeacher,
@@ -128,53 +129,52 @@ const STARTER_SUGGESTION_POOLS = {
     const safeTopic = topic || "a tricky topic your class is currently on";
 
     return [
-      `Draft a ${safeLevel} ${safeSubject} lesson on “${safeTopic}” using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
-      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on “${safeTopic}”, with printable prompts.`,
-      `Generate a quick formative check for “${safeTopic}”: 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
-      `Write teacher feedback comments for 3 common student errors on “${safeTopic}” (one sentence each) plus a targeted next step for improvement.`,
-      `Build a rubric for ${safeSubject} work on “${safeTopic}” (4 bands) with concrete descriptors and a sample “Band 3” exemplar answer.`,
-      `Differentiate “${safeTopic}” for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
-      `Make a mini-quiz (8 questions) on “${safeTopic}” aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
-      `Turn “${safeTopic}” into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
+      `Draft a ${safeLevel} ${safeSubject} lesson on "${safeTopic}" using I Do / We Do / You Do, including key questions to ask and common misconceptions to watch for.`,
+      `Create a 10-minute Do Now + 25-minute main task + 5-minute exit ticket for ${safeLevel} ${safeSubject} on "${safeTopic}", with printable prompts.`,
+      `Generate a quick formative check for "${safeTopic}": 6 questions (2 easy, 2 medium, 2 stretch) with answers and what each question diagnoses.`,
+      `Write teacher feedback comments for 3 common student errors on "${safeTopic}" (one sentence each) plus a targeted next step for improvement.`,
+      `Build a rubric for ${safeSubject} work on "${safeTopic}" (4 bands) with concrete descriptors and a sample "Band 3" exemplar answer.`,
+      `Differentiate "${safeTopic}" for 3 groups (support / core / challenge): provide 3 tasks per group and a short teacher script for transitions.`,
+      `Make a mini-quiz (8 questions) on "${safeTopic}" aligned to ${safeLevel} ${safeSubject} in ${safeCountry}, with a mark scheme and reteach plan based on results.`,
+      `Turn "${safeTopic}" into a worked example set: 1 fully-worked example + 3 gradually harder practice questions + a self-check answer key.`,
     ];
   },
   parent: ({ country, level, subject, topic }) => {
     const safeCountry = country || "our country";
-    const safeLevel = level || "my child’s level";
+    const safeLevel = level || "my child's level";
     const safeSubject = subject || "schoolwork";
-    const safeTopic = topic || "what they’re learning this week";
+    const safeTopic = topic || "what they're learning this week";
 
     return [
-      `Explain “${safeTopic}” in plain parent-friendly language, then give me a 2-minute “car ride explanation” I can say to my child at ${safeLevel}.`,
-      `Give me 3 at-home mini-activities to support ${safeSubject} on “${safeTopic}” (10 minutes each, no printing, uses common household items).`,
-      `Write 6 gentle conversation starters about “${safeTopic}” that feel supportive (not like a test) — good for dinner or bedtime chats.`,
-      `Create a simple checklist I can use to help with ${safeSubject} homework on “${safeTopic}” without taking over (what to ask, what not to say).`,
-      `Draft a calm “frustration reset” script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
-      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to “${safeTopic}” with specific steps.`,
-      `Give me 5 praise phrases that reward effort and strategy during “${safeTopic}” practice (and 3 follow-up questions that encourage thinking).`,
-      `Turn “${safeTopic}” into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
+      `Explain "${safeTopic}" in plain parent-friendly language, then give me a 2-minute "car ride explanation" I can say to my child at ${safeLevel}.`,
+      `Give me 3 at-home mini-activities to support ${safeSubject} on "${safeTopic}" (10 minutes each, no printing, uses common household items).`,
+      `Write 6 gentle conversation starters about "${safeTopic}" that feel supportive (not like a test) — good for dinner or bedtime chats.`,
+      `Create a simple checklist I can use to help with ${safeSubject} homework on "${safeTopic}" without taking over (what to ask, what not to say).`,
+      `Draft a calm "frustration reset" script for when homework gets tense, plus 3 options to step back while still keeping progress moving.`,
+      `Make a 1-week routine for ${safeLevel} (${safeCountry}) to build confidence in ${safeSubject}: 3 short sessions tied to "${safeTopic}" with specific steps.`,
+      `Give me 5 praise phrases that reward effort and strategy during "${safeTopic}" practice (and 3 follow-up questions that encourage thinking).`,
+      `Turn "${safeTopic}" into a quick real-life example I can use at home, then give me 3 questions to check understanding in a low-pressure way.`,
     ];
   },
   student: ({ level, subject, topic }) => {
     const safeLevel = level || "my level";
     const safeSubject = subject || "my subject";
-    const safeTopic = topic || "a topic I’m stuck on";
+    const safeTopic = topic || "a topic I'm stuck on";
 
     return [
-      `Teach me “${safeTopic}” for ${safeSubject} at ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers).`,
-      `Make me a 20-minute study sprint for “${safeTopic}”: warm-up → 2 focused drills → 1 mixed question → quick recap.`,
-      `Give me 6 practice questions on “${safeTopic}” at ${safeLevel} and mark them one-by-one after I answer each (no spoilers).`,
-      `I’ll paste my working for “${safeTopic}”. First highlight what I did correctly, then show the first wrong step and how to fix it.`,
-      `Help me revise “${safeTopic}” for an exam: 5-bullet summary, 3 “must know” rules, and 3 exam-style questions with a marking guide.`,
-      `Create a 7-day spaced revision plan for “${safeTopic}” with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
-      `Explain my mistake: I’ll paste a wrong answer about “${safeTopic}” — tell me the misconception and give 2 similar questions to practice.`,
-      `Make a “teach-back” script so I can explain “${safeTopic}” to a friend in 60 seconds, then quiz me with 3 short questions.`,
+      `Teach me "${safeTopic}" for ${safeSubject} at ${safeLevel} in 4 short steps, then ask me 2 quick check questions (wait for my answers).`,
+      `Make me a 20-minute study sprint for "${safeTopic}": warm-up → 2 focused drills → 1 mixed question → quick recap.`,
+      `Give me 6 practice questions on "${safeTopic}" at ${safeLevel} and mark them one-by-one after I answer each (no spoilers).`,
+      `I'll paste my working for "${safeTopic}". First highlight what I did correctly, then show the first wrong step and how to fix it.`,
+      `Help me revise "${safeTopic}" for an exam: 5-bullet summary, 3 "must know" rules, and 3 exam-style questions with a marking guide.`,
+      `Create a 7-day spaced revision plan for "${safeTopic}" with tiny daily tasks (5–10 minutes) and a self-test on day 7.`,
+      `Explain my mistake: I'll paste a wrong answer about "${safeTopic}" — tell me the misconception and give 2 similar questions to practice.`,
+      `Make a "teach-back" script so I can explain "${safeTopic}" to a friend in 60 seconds, then quiz me with 3 short questions.`,
     ];
   },
 };
 
 function stableHashToUint32(input) {
-  // Simple non-crypto hash for deterministic UI randomness
   const s = String(input || "");
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -422,7 +422,6 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     setScore(s);
     setSubmitted(true);
 
-    // Sync to Session (Global Classroom)
     const currentSession = getSession();
     const submission = {
       id: `sub_${Date.now()}`,
@@ -502,24 +501,34 @@ const InteractiveQuiz = ({ data, onComplete }) => {
           <button
             onClick={handleFinish}
             disabled={answeredCount < totalQuestions}
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
-              <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
-              </div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                Session Result: {score} / {totalQuestions}
-              </div>
-              <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
-                <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
-              </div>
-              <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
-                Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
-              </p>
-            </motion.div>
-          )}
+            className="mt-10 w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            Grade My Progress →
+          </button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl"
+          >
+            <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+              Session Result: {score} / {totalQuestions}
+            </div>
+            <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
+              <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
+            </div>
+            <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
+              Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
+            </p>
+          </motion.div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -586,8 +595,8 @@ export default function AssistantPage() {
   const [topic, setTopic] = useState(() => session?.topic || "");
   const [constraints, setConstraints] = useState("");
   const [action, setAction] = useState(() => session?.action || "explain");
-  const [contextMode, setContextMode] = useState("manual"); // 'manual' or 'auto'
-  const [responseStyle, setResponseStyle] = useState("auto"); // 'fast', 'deep', 'auto'
+  const [contextMode, setContextMode] = useState("manual");
+  const [responseStyle, setResponseStyle] = useState("auto");
   const [customStyleText, setCustomStyleText] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [vision, setVision] = useState("");
@@ -596,7 +605,6 @@ export default function AssistantPage() {
   const [showResourceDrawer, setShowResourceDrawer] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
 
-  // Auto-configure from URL query (e.g. from Dashboard)
   useEffect(() => {
     if (!router.isReady) return;
     const { action: qAction, topic: qTopic } = router.query;
@@ -609,7 +617,6 @@ export default function AssistantPage() {
       }
     }
 
-    // Always check for overrides from URL or Joined Class
     if (router.query.topic) setTopic(router.query.topic);
     if (router.query.level) setLevel(router.query.level);
     if (router.query.subject) setSubject(router.query.subject);
@@ -617,7 +624,6 @@ export default function AssistantPage() {
     if (router.query.vision) setVision(router.query.vision);
     if (router.query.classCode) setClassCode(router.query.classCode);
 
-    // If URL didn't specify, fall back to Joined Class context
     if (session?.joinedClass) {
       if (!router.query.level) setLevel(session.joinedClass.level);
       if (!router.query.country) setCountry(session.joinedClass.country);
@@ -626,14 +632,12 @@ export default function AssistantPage() {
       if (!router.query.classCode) setClassCode(session.joinedClass.code || "");
     }
 
-
     if (qTopic && typeof qTopic === 'string') {
       setTopic(qTopic);
       setTopicForSuggestions(qTopic);
     }
   }, [router.isReady, router.query]);
 
-  // Threaded chat state
   const [chatUserKey, setChatUserKey] = useState(() => getChatUserKey(getSession()));
   const [activeChatId, setActiveChatIdState] = useState(() =>
     getActiveThreadId(getChatUserKey(getSession()))
@@ -649,7 +653,6 @@ export default function AssistantPage() {
 
   const activeMeta = useMemo(
     () => getThreadMeta(chatUserKey, activeChatId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatUserKey, activeChatId, threads]
   );
 
@@ -660,43 +663,20 @@ export default function AssistantPage() {
   const [attempt, setAttempt] = useState(0);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
 
-  // Context awareness from URL
-  useEffect(() => {
-    if (!router.isReady) return;
-    const { action, topic, class: className, subject, level } = router.query;
-
-    if (action === 'lesson_plan' && className) {
-      const contextPrompt = `Help me plan a ${subject || ''} lesson for Grade ${level || className} on "${topic || 'a new topic'}". Let's start with objectives and a 10-minute hook.`;
-      setChatText(contextPrompt);
-      // Automatically send if specific action is requested
-      if (topic) {
-        // We could trigger sendMessage here if we wanted fully hands-free
-      }
-    } else if (action === 'find_videos' && topic) {
-      setChatText(`I need to find high-quality educational videos for my class on the topic: "${topic}".`);
-    }
-  }, [router.isReady, router.query]);
   const [topicForSuggestions, setTopicForSuggestions] = useState(() => String(session?.topic || ""));
   const starterSaltRef = useRef("ssr");
 
-  // Hydration safety: only set the salt on the client
   useEffect(() => {
     starterSaltRef.current = `${Date.now()}-${Math.random()}`;
     setMounted(true);
   }, []);
 
-  // Debounce topic so suggestions don't "flicker" while the user is typing.
   useEffect(() => {
     const t = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
     return () => clearTimeout(t);
   }, [topic]);
 
   const starterSeed = useMemo(() => {
-    // Stable for small UI changes, but changes when:
-    // - page reloads (salt)
-    // - user switches chat thread (activeChatId)
-    // - user changes key settings (role/country/level/subject)
-    // - topic changes after debounce
     return [
       "starter-v2",
       starterSaltRef.current,
@@ -757,7 +737,6 @@ export default function AssistantPage() {
     [threads, canManageChats]
   );
 
-  // Close chat menu on outside click
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -770,7 +749,6 @@ export default function AssistantPage() {
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Preferences panel open/close persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -786,7 +764,6 @@ export default function AssistantPage() {
     } catch { }
   }, [prefsOpen]);
 
-  // Preview notice persistence
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -808,31 +785,28 @@ export default function AssistantPage() {
   }, [verified]);
 
   useEffect(() => {
-    // When country changes: ensure level is valid for that country.
     const allowed = getCountryLevels(country);
     if (!allowed.includes(level)) {
       setLevel(allowed[0] || "Primary 1");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
-  // Session events
+  function onSessionEvent() {
+    const s = getSession();
+    setSession(s);
+    setRole(s?.role || "student");
+    setCountry(s?.country || "Singapore");
+
+    const allowed = getCountryLevels(s?.country || "Singapore");
+    const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
+    setLevel(nextLevel);
+
+    setSubject(s?.subject || "General");
+    setTopic(s?.topic || "");
+    setAction(s?.action || "explain");
+  }
+
   useEffect(() => {
-    function onSessionEvent() {
-      const s = getSession();
-      setSession(s);
-      setRole(s?.role || "student");
-      setCountry(s?.country || "Singapore");
-
-      const allowed = getCountryLevels(s?.country || "Singapore");
-      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
-      setLevel(nextLevel);
-
-      setSubject(s?.subject || "General");
-      setTopic(s?.topic || "");
-      setAction(s?.action || "explain");
-    }
-
     if (typeof window !== "undefined") {
       window.addEventListener("elora:session", onSessionEvent);
     }
@@ -894,27 +868,15 @@ export default function AssistantPage() {
       setCopiedIdx(idx);
       window.setTimeout(() => setCopiedIdx(-1), 900);
     } catch {
-      // no-op
     }
   }
 
   async function persistSessionPatch(patch) {
     try {
-      // Note: Endpoint /api/session/set expects a token, not a patch.
-      // Persisting UI state via localStorage (getSession/saveSession) instead.
-      /*
-      await fetch("/api/session/set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      */
     } catch {
-      // ignore
     }
   }
 
-  // Server chat endpoints store ONE chat; we keep using them only as a simple sync of active thread
   async function saveServerChatIfVerified(currentSession, nextMessages) {
     try {
       if (!currentSession?.verified) return;
@@ -924,7 +886,6 @@ export default function AssistantPage() {
         body: JSON.stringify({ messages: nextMessages }),
       });
     } catch {
-      // ignore
     }
   }
 
@@ -933,7 +894,6 @@ export default function AssistantPage() {
       if (!currentSession?.verified) return;
       await fetch("/api/chat/clear", { method: "POST" });
     } catch {
-      // ignore
     }
   }
 
@@ -953,7 +913,6 @@ export default function AssistantPage() {
     return nextActive;
   }
 
-  // Init: refresh verification, then load threads for correct identity (guest vs verified)
   useEffect(() => {
     let mounted = true;
 
@@ -977,10 +936,8 @@ export default function AssistantPage() {
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When verification/email changes, switch identity (guest chats stay separate from verified)
   useEffect(() => {
     const s = getSession();
     const nextKey = getChatUserKey(s);
@@ -992,7 +949,6 @@ export default function AssistantPage() {
     setAttachedImage(null);
     setAttachErr("");
     setChatMenuOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verified, session?.email]);
 
   useEffect(() => {
@@ -1004,10 +960,8 @@ export default function AssistantPage() {
       topic,
       action,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, country, level, subject, topic, action]);
 
-  // Session Heartbeat for activeMinutes tracking
   useEffect(() => {
     const timer = setInterval(() => {
       const s = getSession();
@@ -1015,7 +969,7 @@ export default function AssistantPage() {
       s.usage.activeMinutes = (Number(s.usage.activeMinutes) || 0) + 1;
       s.usage.lastActive = new Date().toISOString();
       saveSession(s);
-    }, 60000); // Every 1 minute
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
@@ -1037,34 +991,28 @@ export default function AssistantPage() {
   function persistActiveMessages(nextMessages, { alsoSyncServer = true } = {}) {
     setMessages(nextMessages);
 
-    // NO-MEMORY RULE for unverified users: Do not persist to storage or server.
     if (!verified) return;
 
     upsertThreadMessages(chatUserKey, activeChatId, nextMessages);
     setThreads(listThreads(chatUserKey));
 
-    // Track usage on every message sent (only if Elora or User)
     const isActuallyNew = nextMessages.length > messages.length;
     if (isActuallyNew) {
       const s = getSession();
       if (!s.usage) s.usage = { messagesSent: 0, subjects: [], streak: 0 };
       s.usage.messagesSent = (Number(s.usage.messagesSent) || 0) + 1;
 
-      // Update subjects explored
       if (subject && !Array.isArray(s.usage.subjects)) s.usage.subjects = [];
       if (subject && !s.usage.subjects.includes(subject)) {
         s.usage.subjects.push(subject);
       }
 
-      // Update session log (limited to last 50 for storage size)
       if (!Array.isArray(s.usage.sessionLog)) s.usage.sessionLog = [];
       const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
       s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
 
-      // Update last active
       s.usage.lastActive = new Date().toISOString();
 
-      // Update streak
       s.usage.streak = Math.max(Number(s.usage.streak) || 0, 1);
 
       saveSession(s);
@@ -1119,10 +1067,10 @@ export default function AssistantPage() {
         searchMode,
         customStyleText,
         attempt: attemptNext,
-        sentiment, // NEW
-        timeSpent, // NEW
-        vision, // PHASE 4
-        classCode, // PHASE 4
+        sentiment,
+        timeSpent,
+        vision,
+        classCode,
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         teacherRules: currentSession.classroom?.teacherRules || ""
@@ -1150,7 +1098,6 @@ export default function AssistantPage() {
 
       const outRaw = data?.reply || data?.text || data?.answer || "";
       if (!outRaw) {
-        // Fallback if the engine returns empty but OK
         const next = [...base, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
@@ -1171,7 +1118,7 @@ export default function AssistantPage() {
       console.error("AI Assistant Error:", err);
       const next = [
         ...messages,
-        { from: "elora", text: `⚠️ System Error: ${err.message || "Connection failed"}. This usually happens if the backend server is busy. Please try again in 5 seconds.`, ts: Date.now() },
+        { from: "elora", text: `⚠️ System Error: ${err.message || "Connection failed"}. This usually happens if backend server is busy. Please try again in 5 seconds.`, ts: Date.now() },
       ];
       persistActiveMessages(next, { alsoSyncServer: true });
     } finally {
@@ -1185,7 +1132,7 @@ export default function AssistantPage() {
     const trimmed = String(chatText || "").trim();
     if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
-    setLoading(true); // Pre-emptive lock
+    setLoading(true);
     setAttachErr("");
 
     const inferred = inferActionFromMessage(trimmed);
@@ -1197,12 +1144,10 @@ export default function AssistantPage() {
 
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
 
-    // Use functional update to ensure we have the absolute latest messages
     setMessages(prev => {
       const next = [...prev, userMsg];
       persistActiveMessages(next, { alsoSyncServer: true });
 
-      // Delay the actual call slightly to ensure state has settled
       setTimeout(() => {
         callElora({ messageOverride: trimmed, baseMessages: next });
       }, 0);
@@ -1288,27 +1233,27 @@ export default function AssistantPage() {
   async function applyRefinement(chipId) {
     const map = {
       simpler: "Make it simpler and more beginner-friendly.",
-      example: "Add one clear example that matches the topic.",
-      steps: "Show the steps clearly (short).",
+      example: "Add one clear example that matches topic.",
+      steps: "Show steps clearly (short).",
       check: "Give one quick check question at the end.",
       diff: "Add differentiation: easier + harder extension.",
       timing: "Add a simple timeline with approximate minutes.",
       resources: "Add a short list of materials/resources.",
-      easier: "Make it easier while keeping the same topic.",
+      easier: "Make it easier while keeping same topic.",
       harder: "Make it harder and add a challenge question.",
-      answers: "Add a teacher answer key after the questions.",
+      answers: "Add a teacher answer key after questions.",
       rubric: "Add a short marking guide/rubric.",
       shorter: "Make it shorter and more direct.",
       markscheme: "Include a clear marking scheme.",
-      variants: "Add two variants (A/B) with the same skills tested.",
-      outline: "Tighten the slide outline into clear sections.",
-      hooks: "Add 1-2 engaging hooks or questions for the start.",
+      variants: "Add two variants (A/B) with same skills tested.",
+      outline: "Tighten slide outline into clear sections.",
+      hooks: "Add 1-2 engaging hooks or questions for start.",
       examples: "Add more examples that students can relate to.",
       notes: "Add short teacher notes for each section.",
-      "more-steps": "Add more steps and explain the reasoning clearly.",
+      "more-steps": "Add more steps and explain reasoning clearly.",
     };
 
-    const refinement = map[chipId] || "Improve the answer.";
+    const refinement = map[chipId] || "Improve answer.";
 
     const userMsg = { from: "user", text: refinement, ts: Date.now() };
     const nextMessages = [...messages, userMsg];
@@ -1378,7 +1323,7 @@ export default function AssistantPage() {
       setAttachErr(
         code === "image_too_large"
           ? "That image is too large to send. Try a closer crop."
-          : "Couldn’t attach that image. Try again."
+          : "Couldn't attach that image. Try again."
       );
     }
   }
@@ -1460,7 +1405,6 @@ export default function AssistantPage() {
 
       <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
         <div className="elora-container pt-4 lg:pt-8 pb-32 lg:pb-12">
-          {/* Mobile Header - Compact */}
           <div className="lg:hidden flex items-center justify-between px-6 py-4 mb-4 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-3xl mx-4 sticky top-4 z-40">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-indigo-600 grid place-items-center text-white font-black text-xs shrink-0">E</div>
@@ -1488,12 +1432,10 @@ export default function AssistantPage() {
 
           <div className={cn("grid gap-8", prefsOpen ? "lg:grid-cols-[400px,1fr]" : "lg:grid-cols-1")}>
 
-            {/* LEFT - Preferences Panel (Dynamic Drawer on Mobile) */}
             <div className={cn(
               "z-[60] fixed lg:sticky top-0 lg:top-[calc(var(--elora-nav-offset)+1rem)] left-0 w-full lg:w-auto h-full lg:h-fit transition-all duration-500 lg:duration-300",
               prefsOpen ? "translate-x-0 opacity-100" : "-translate-x-full lg:hidden opacity-0"
             )}>
-              {/* Overlay for mobile tap-to-close */}
               <div
                 className="lg:hidden absolute inset-0 bg-slate-950/40 backdrop-blur-sm -z-10"
                 onClick={() => setPrefsOpen(false)}
@@ -1514,7 +1456,6 @@ export default function AssistantPage() {
                   </button>
                 </div>
 
-                {/* Smart Setup Toggle */}
                 <div className="p-1 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
                   <div className="flex p-1 gap-1">
                     <button
@@ -1533,7 +1474,6 @@ export default function AssistantPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Mode & Response Section */}
                   <div className="space-y-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Response Goal</div>
                     <div className="grid grid-cols-3 gap-2">
@@ -1556,7 +1496,6 @@ export default function AssistantPage() {
 
                   {contextMode === "manual" && (
                     <div className="space-y-6 animate-reveal">
-                      {/* Context Section */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Context</div>
@@ -1580,7 +1519,6 @@ export default function AssistantPage() {
                         </div>
                       </div>
 
-                      {/* Level Section */}
                       <div className="space-y-3">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Education Level</div>
                         <select
@@ -1592,7 +1530,6 @@ export default function AssistantPage() {
                         </select>
                       </div>
 
-                      {/* Subject & Topic */}
                       <div className="space-y-4">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Learning Area</div>
                         <div className="grid gap-3">
@@ -1622,7 +1559,6 @@ export default function AssistantPage() {
                     </div>
                   )}
 
-                  {/* Quick Actions */}
                   <div className="space-y-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Action Plan</div>
                     <div className="grid grid-cols-1 gap-2">
@@ -1667,7 +1603,6 @@ export default function AssistantPage() {
                     Reset Current Conversation
                   </button>
 
-                  {/* Mastery Tracker Mockup */}
                   <div className="p-5 rounded-[2rem] bg-slate-900 border border-white/5 shadow-2xl overflow-hidden relative group">
                     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">📈</div>
                     <div className="relative z-10">
@@ -1699,9 +1634,7 @@ export default function AssistantPage() {
               </div>
             </div>
 
-            {/* RIGHT - Chat Area */}
             <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[96dvh] lg:h-[calc(100dvh-60px)] w-full max-w-[1600px] mx-auto">
-              {/* Desktop Toolbar */}
               <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-[var(--font-brand)]">
@@ -1723,10 +1656,8 @@ export default function AssistantPage() {
                 </div>
               </div>
 
-              {/* Chat Thread Area */}
               <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 lg:p-6 flex-1 flex flex-col min-h-0 relative">
 
-                {/* Chat History Header */}
                 <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
                   {canManageChats ? (
                     <div className="relative shrink min-w-0" ref={chatMenuRef}>
@@ -1743,343 +1674,528 @@ export default function AssistantPage() {
                       {chatMenuOpen && (
                         <div className="absolute z-50 mt-2 w-[320px] max-w-[calc(100vw-4rem)] rounded-3xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-2xl overflow-hidden backdrop-blur-xl animate-reveal">
                           <div className="p-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Conversations</span>
-                            <button onClick={onNewChat} className="text-[10px] font-black text-indigo-500 hover:text-indigo-600">+ NEW</button>
-                          </div>
-                          <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
-                            {threads.map(t => (
-                              <div key={t.id} className={cn("group flex items-center rounded-2xl p-1", t.id === activeChatId ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
-                                <button onClick={() => setActiveThreadAndLoad(t.id)} className="flex-1 text-left px-3 py-2 text-xs font-bold truncate">
-                                  <div className="min-w-0">
-                                    <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate">
-                                      {t.title || "New Chat"}
-                                    </div>
-                                    <div className="text-[9px] font-medium text-slate-500">
-                                      {t.messages?.length || 0} messages
-                                    </div>
-                                  </div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Conversations</div>
+                            <div className="flex gap-2">
+                              <LockedFeatureOverlay isVerified={verified}>
+                                <button
+                                  type="button"
+                                  onClick={onNewChat}
+                                  className="h-7 px-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black hover:bg-indigo-700 transition-colors"
+                                >
+                                  + New
                                 </button>
-                                <button onClick={() => onDeleteChat(t.id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500">✕</button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Preview Mode
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-1">
-                    <button onClick={onTogglePin} className="p-2 text-slate-400 hover:text-amber-500 transition-colors">★</button>
-                    <button onClick={onOpenRename} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors">✎</button>
-                    <button onClick={onNewChat} title="New Chat" className="w-8 h-8 rounded-full bg-indigo-500 text-white grid place-items-center shadow-lg shadow-indigo-500/20 hover:scale-110 transition-transform">+</button>
-                  </div>
-                </div>
-
-                {/* Messages Container */}
-                <div
-                  ref={listRef}
-                  className="flex-1 min-h-[60vh] max-h-[calc(100vh-200px)] overflow-y-auto px-6 space-y-6 scroll-smooth pb-32"
-                  onScroll={() => {
-                    const el = listRef.current;
-                    if (!el) return;
-                    const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 40;
-                    setStickToBottom(atBottom);
-                    setShowJump(!atBottom);
-                  }}
-                >
-                  {messages.length === 0 && !loading && (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                      <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-500 text-3xl grid place-items-center mb-6 animate-float">👋</div>
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 font-[var(--font-brand)]">Hello! I'm Elora.</h3>
-                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 max-w-xs">
-                        I'm your personalized {role} assistant. How can I help you today?
-                      </p>
-                      <div className="mt-8 grid grid-cols-1 gap-2 w-full max-w-sm">
-                        {mounted && starterPrompts.map((p, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setChatText(p)}
-                            className="text-left p-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-indigo-500/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all text-xs font-bold"
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {messages.map((m, idx) => {
-                    const isUser = m.from === "user";
-                    const isSystem = m.from === "system";
-
-                    // Parse for interactive quiz data
-                    let quizData = null;
-                    let display = m.text || "";
-                    if (!isUser) {
-                      const match = display.match(/<quiz_?data>([\s\S]*?)<\/quiz_?data>/im);
-                      if (match) {
-                        try {
-                          let rawJson = match[1].trim();
-                          // Strip markdown wrappers if AI includes them
-                          rawJson = rawJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
-                          quizData = JSON.parse(rawJson);
-                          display = display.replace(match[0], "").trim();
-                        } catch (e) {
-                          console.error("Quiz parse error", e);
-                        }
-                      }
-                    }
-
-                    display = cleanAssistantText(display);
-                    return (
-                      <div key={idx} className={cn("flex w-full group animate-reveal mb-8 px-1 sm:px-4", isUser ? "justify-end" : "justify-start")}>
-                        <div className={cn(
-                          "relative p-5 sm:p-6 shadow-2xl transition-all duration-500 w-full max-w-[98%] sm:max-w-[95%] border",
-                          isUser
-                            ? "bg-indigo-600 text-white rounded-[2.5rem] rounded-tr-none shadow-indigo-500/30 origin-right border-white/10"
-                            : "elora-glass dark:elora-glass-dark text-slate-800 dark:text-slate-100 rounded-[2.5rem] rounded-tl-none origin-left border-slate-200/50 dark:border-white/5"
-                        )}>
-                          <div className="font-bold flex items-center gap-3 mb-4">
-                            <div className={cn("w-3 h-3 rounded-full", isUser ? "bg-indigo-300 shadow-[0_0_8px_white]" : "bg-indigo-500")} />
-                            <span className="text-[13px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
-                              {isUser ? "You" : "Elora"}
-                            </span>
-                          </div>
-
-                          {/* Improved rendering for structured content (quizzes, lessons) */}
-                          <div className={cn(
-                            "whitespace-pre-wrap font-medium break-words leading-relaxed text-[15px]",
-                            !isUser && "elora-markdown-view"
-                          )}>
-                            {display ? (display || "").split('\n').map((line, i) => {
-                              // Basic markdown-like handling for bolding and lists
-                              let content = line;
-
-                              // Check for bold **text**
-                              if (content.includes('**')) {
-                                const parts = content.split('**');
-                                return <p key={i} className="mb-1">{parts.map((p, j) => j % 2 === 1 ? <b key={j} className="text-indigo-600 dark:text-indigo-400 font-black">{p}</b> : p)}</p>;
-                              }
-
-                              // Check for list items
-                              if (content.trim().startsWith('- ') || content.trim().startsWith('* ') || /^\d+\./.test(content.trim())) {
-                                return <div key={i} className="pl-4 mb-2 relative"><span className="absolute left-0 text-indigo-500">•</span> {content.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '')}</div>;
-                              }
-
-                              return <p key={i} className={line.trim() ? "mb-2" : "h-2"}>{line}</p>;
-                            }) : null}
-
-                            {quizData && (
-                              <InteractiveQuiz
-                                data={quizData}
-                                onComplete={(score, total) => {
-                                  // In a real app, this would hit an API to update stats
-                                  console.log(`Quiz complete: ${score}/${total}`);
-                                }}
-                              />
-                            )}
-                          </div>
-
-                          {!isUser && (
-                            <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/5 pt-3">
+                              </LockedFeatureOverlay>
                               <button
-                                onClick={() => copyToClipboard(display, idx)}
-                                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-500 hover:text-indigo-500 transition-colors"
+                                type="button"
+                                onClick={() => setChatMenuOpen(false)}
+                                className="w-7 h-7 rounded-xl border border-slate-200 dark:border-white/5 text-slate-400 hover:text-red-500 transition-colors"
                               >
-                                {copiedIdx === idx ? "✓ Copied" : "Copy"}
+                                ✕
                               </button>
-                              <div className="flex-1" />
-                              <div className="flex gap-1">
-                                {refinementChips.slice(0, 3).map(chip => (
+                            </div>
+                          </div>
+
+                          {pinnedThreads.length > 0 && (
+                            <div className="p-3 border-b border-slate-100 dark:border-white/5">
+                              <div className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2">Pinned</div>
+                              <div className="space-y-2">
+                                {pinnedThreads.map((t) => (
                                   <button
-                                    key={chip.id}
-                                    onClick={() => applyRefinement(chip.id)}
-                                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all text-slate-400 hover:text-indigo-500"
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setActiveThreadAndLoad(t.id)}
+                                    className={cn(
+                                      "w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all group",
+                                      t.id === activeChatId
+                                        ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
+                                        : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
+                                    )}
                                   >
-                                    {chip.label}
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate">{t.title}</span>
+                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveThreadAndLoad(t.id);
+                                            onOpenRename();
+                                          }}
+                                          className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
+                                        >
+                                          ✏️
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveThreadAndLoad(t.id);
+                                            onTogglePin();
+                                          }}
+                                          className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
+                                        >
+                                          {t.pinned ? "📌" : "📍"}
+                                        </button>
+                                      </div>
+                                    </div>
                                   </button>
                                 ))}
                               </div>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    );
-                  })}
 
-                  {loading && (
-                    <div className="flex justify-start pr-12 animate-reveal">
-                      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 rounded-3xl rounded-tl-none p-5 shadow-sm">
-                        <div className="flex gap-1.5">
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-2 h-2 bg-indigo-500/60 rounded-full animate-bounce" />
+                          <div className="p-3">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Recent</div>
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {recentThreads.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => setActiveThreadAndLoad(t.id)}
+                                  className={cn(
+                                    "w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all group",
+                                    t.id === activeChatId
+                                      ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
+                                      : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="truncate">{t.title}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveThreadAndLoad(t.id);
+                                          onOpenRename();
+                                        }}
+                                        className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveThreadAndLoad(t.id);
+                                          onTogglePin();
+                                        }}
+                                        className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
+                                      >
+                                        {t.pinned ? "📌" : "📍"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs font-medium text-slate-500 px-3 py-2">
+                      <Link href="/verify" className="text-indigo-600 hover:underline">Verify email</Link> to manage conversations
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {canManageChats && (
+                      <div className="flex items-center gap-1">
+                        <LockedFeatureOverlay isVerified={verified}>
+                          <button
+                            type="button"
+                            onClick={onTogglePin}
+                            className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                            title={activeMeta?.pinned ? "Unpin conversation" : "Pin conversation"}
+                          >
+                            <span className="text-lg">{activeMeta?.pinned ? "📌" : "📍"}</span>
+                          </button>
+                        </LockedFeatureOverlay>
+                      </div>
+                    )}
+                    <div className="h-4 w-px bg-slate-200 dark:bg-white/10" />
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      {messages.filter(m => m?.from !== "system").length} messages
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-2" ref={listRef} onScroll={() => {
+                  const el = listRef.current;
+                  if (!el) return;
+                  const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
+                  setStickToBottom(isAtBottom);
+                  setShowJump(!isAtBottom && messages.length > 3);
+                }}>
+                  <div className="space-y-4 pb-4">
+                    {messages.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">👋</div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Start a conversation</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                          Ask me anything about your learning journey. I'm here to help with explanations, practice, and guidance.
+                        </p>
+                      </div>
+                    ) : (
+                      messages.map((msg, idx) => (
+                        <div key={msg.ts || idx} className={cn("group animate-reveal", msg.from === "elora" ? "items-start" : "items-end")}>
+                          <div className={cn("max-w-[80%] rounded-3xl p-4 shadow-xl relative", 
+                            msg.from === "elora" 
+                              ? "bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-500/10 dark:to-slate-900 border border-indigo-100 dark:border-indigo-500/20 text-slate-800 dark:text-white" 
+                              : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border border-indigo-500 ml-auto"
+                          )}>
+                            {msg.from === "elora" && (
+                              <div className="absolute -top-2 -left-2 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs font-black text-white">E</div>
+                            )}
+                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                              {msg.from === "elora" && attachedImage && (
+                                <div className="mb-3">
+                                  <img src={attachedImage.dataUrl} alt="Attached" className="rounded-xl max-w-full" />
+                                </div>
+                              )}
+                              <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {msg.text}
+                              </div>
+                              
+                              {msg.from === "elora" && msg.text.includes("<quiz_data>") && (
+                                <div className="mt-4">
+                                  {(() => {
+                                    try {
+                                      const quizMatch = msg.text.match(/<quiz_data>([\s\S]*?)<\/quiz_data>/);
+                                      const quizData = quizMatch ? JSON.parse(quizMatch[1]) : null;
+                                      return quizData ? <InteractiveQuiz data={quizData} onComplete={(score, total) => {
+                                        const resultMsg = { from: "elora", text: `📊 Quiz completed! Score: ${score}/${total}. Keep up the great work!`, ts: Date.now() };
+                                        setMessages(prev => [...prev, resultMsg]);
+                                      }} /> : null;
+                                    } catch {
+                                      return null;
+                                    }
+                                  })()}
+                                </div>
+                              )}
+
+                              {msg.from === "elora" && (
+                                <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-slate-200/20 dark:border-white/5">
+                                  <div className="flex items-center gap-2">
+                                    <LockedFeatureOverlay isVerified={verified}>
+                                      <button
+                                        type="button"
+                                        onClick={() => exportLast("pdf")}
+                                        className="text-[8px] px-2 py-1 bg-white/20 dark:bg-white/5 rounded-lg hover:bg-white/30 transition-colors"
+                                      >
+                                        PDF
+                                      </button>
+                                    </LockedFeatureOverlay>
+                                    <LockedFeatureOverlay isVerified={verified}>
+                                      <button
+                                        type="button"
+                                        onClick={() => exportLast("docx")}
+                                        className="text-[8px] px-2 py-1 bg-white/20 dark:bg-white/5 rounded-lg hover:bg-white/30 transition-colors"
+                                      >
+                                        DOCX
+                                      </button>
+                                    </LockedFeatureOverlay>
+                                    <LockedFeatureOverlay isVerified={verified}>
+                                      <button
+                                        type="button"
+                                        onClick={() => exportLast("pptx")}
+                                        className="text-[8px] px-2 py-1 bg-white/20 dark:bg-white/5 rounded-lg hover:bg-white/30 transition-colors"
+                                      >
+                                        PPTX
+                                      </button>
+                                    </LockedFeatureOverlay>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(msg.text, idx)}
+                                    className={cn(
+                                      "text-[8px] px-2 py-1 bg-white/20 dark:bg-white/5 rounded-lg transition-all",
+                                      copiedIdx === idx ? "bg-emerald-500 text-white" : "hover:bg-white/30"
+                                    )}
+                                  >
+                                    {copiedIdx === idx ? "✓ Copied" : "📋 Copy"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {msg.from === "user" && (
+                              <div className="text-[8px] opacity-60 text-right mt-1">
+                                {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+
+                    {loading && (
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm animate-pulse">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="ml-2">Elora is thinking...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {showJump && (
+                    <button
+                      type="button"
+                      onClick={jumpToLatest}
+                      className="fixed bottom-24 right-8 p-3 bg-indigo-600 text-white rounded-full shadow-xl hover:scale-110 transition-all z-30"
+                    >
+                      ↓
+                    </button>
+                  )}
+                </div>
+
+                {hasEloraAnswer && !loading && (
+                  <div className="mt-4 p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-3">Refine Response</div>
+                    <div className="flex flex-wrap gap-2">
+                      {refinementChips.map((chip) => (
+                        <LockedFeatureOverlay key={chip.id} isVerified={verified}>
+                          <button
+                            type="button"
+                            onClick={() => applyRefinement(chip.id)}
+                            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all"
+                          >
+                            {chip.label}
+                          </button>
+                        </LockedFeatureOverlay>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-3">
+                  {attachErr && (
+                    <div className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
+                      {attachErr}
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <textarea
+                          value={chatText}
+                          onChange={(e) => setChatText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              sendChat();
+                            }
+                          }}
+                          placeholder={teacherOnlyBlocked ? "This action requires teacher verification" : "Ask me anything..."}
+                          disabled={teacherOnlyBlocked}
+                          className={cn(
+                            "w-full h-12 resize-none rounded-2xl border-2 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium placeholder:text-slate-400 focus:outline-none transition-all",
+                            teacherOnlyBlocked
+                              ? "border-rose-200 dark:border-rose-800 text-slate-400 cursor-not-allowed"
+                              : "border-slate-200 dark:border-white/5 text-slate-900 dark:text-white focus:border-indigo-500/50"
+                          )}
+                          rows={1}
+                        />
+                        {chatText.length > 0 && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">
+                            {chatText.length}
+                          </div>
+                        )}
+                      </div>
+
+                      <LockedFeatureOverlay isVerified={verified}>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="h-12 px-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center"
+                          title="Attach image"
+                        >
+                          📎
+                        </button>
+                      </LockedFeatureOverlay>
+
+                      <LockedFeatureOverlay isVerified={verified}>
+                        <button
+                          type="button"
+                          onClick={sendChat}
+                          disabled={!chatText.trim() && !attachedImage || loading || teacherOnlyBlocked}
+                          className={cn(
+                            "h-12 px-6 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all",
+                            loading || teacherOnlyBlocked
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-indigo-700 active:scale-95 shadow-xl shadow-indigo-500/20"
+                          )}
+                        >
+                          {loading ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Sending...
+                            </div>
+                          ) : (
+                            "Send"
+                          )}
+                        </button>
+                      </LockedFeatureOverlay>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) onPickImage(file);
+                      }}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {!verified && !dismissPreviewNotice && (
+                    <div className="relative group">
+                      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm rounded-2xl" />
+                      <div className="relative p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">🚀</div>
+                          <div className="flex-1">
+                            <div className="text-sm font-black text-amber-800 dark:text-amber-200 mb-1">Preview Mode</div>
+                            <p className="text-xs text-amber-600 dark:text-amber-300 leading-relaxed">
+                              You're using Elora in preview mode. <Link href="/verify" className="underline font-bold">Verify your email</Link> to unlock full features including exports, conversation management, and more.
+                            </p>
+                          </div>
+                          <button
+                            onClick={dismissPreview}
+                            className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-800 text-amber-600 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-700 transition-colors flex items-center justify-center text-xs"
+                          >
+                            ✕
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
-
-                {showJump && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                    <button onClick={jumpToLatest} className="bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-transform flex items-center gap-2">
-                      <span>New Message Below</span>
-                      <span className="text-lg">↓</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Composer - Floating Island */}
-              <div className="mt-auto p-4 lg:p-6 sticky bottom-0 z-[100] pointer-events-none">
-                <div className="max-w-5xl mx-auto w-full pointer-events-auto">
-                  {/* Tiny toolbar above input */}
-                  <div className="flex items-center gap-2 px-4 py-2 mb-2 overflow-x-auto scrollbar-hide">
-                    <div className="flex gap-1 shrink-0">
-                      {["pdf", "docx", "pptx"].map(fmt => (
-                        <button
-                          key={fmt}
-                          onClick={() => exportLast(fmt)}
-                          className={cn(
-                            "text-[8px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-xl border transition-all",
-                            messages.some(m => m.from === 'elora')
-                              ? "bg-emerald-500/5 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
-                              : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-transparent opacity-50 backdrop-blur-md"
-                          )}
-                        >
-                          {fmt}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 shrink-0" />
-                    {searchMode && <span className="bg-emerald-500/10 text-emerald-600 text-[8px] font-black uppercase tracking-widest px-2 py-1.5 rounded-xl border border-emerald-500/20 shrink-0 animation-pulse">🌐 Web Active</span>}
-                    <div className="flex-1" />
-                    {attachErr && <span className="text-[8px] font-black text-red-500 shrink-0">{attachErr}</span>}
-                  </div>
-
-                  <div className="relative group p-1.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] flex items-end gap-2 ring-1 ring-indigo-500/5 focus-within:ring-indigo-500/20 transition-all">
-                    <button onClick={() => fileInputRef.current?.click()} className="p-4 text-slate-400 hover:text-indigo-600 transition-colors" title="Attach file">
-                      <span className="text-xl">📎</span>
-                    </button>
-
-                    <textarea
-                      value={chatText}
-                      onChange={(e) => setChatText(e.target.value)}
-                      placeholder={contextMode === 'auto' ? "Ask Elora anything..." : `Discussing ${topic || subject}...`}
-                      rows={1}
-                      className="flex-1 bg-transparent border-none px-1 py-4 text-[16px] font-medium focus:ring-0 outline-none resize-none min-h-[44px] max-h-[200px] scrollbar-hide dark:text-white placeholder:text-slate-500"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          sendChat();
-                        }
-                      }}
-                    />
-
-                    <button
-                      disabled={loading || (!chatText.trim() && !attachedImage)}
-                      onClick={sendChat}
-                      className="h-12 w-12 flex items-center justify-center rounded-[1.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 disabled:opacity-30 transition-all"
-                    >
-                      <span className="text-xl">➔</span>
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-center gap-4 px-4 opacity-50">
-                    <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Elora Genesis v1.4</div>
-                    <div className="h-1 w-1 rounded-full bg-slate-400" />
-                    <div className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Shaik Haris Era</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
+
+        <AIResourceDrawer 
+          open={showResourceDrawer} 
+          onClose={() => setShowResourceDrawer(false)} 
+          topic={topic} 
+          subject={subject} 
+        />
+
+        <Modal open={verifyGateOpen} onClose={() => setVerifyGateOpen(false)}>
+          <div className="text-center p-8 max-w-sm">
+            <div className="text-4xl mb-4">🔐</div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Verify Your Email</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+              This feature requires email verification. It's quick and unlocks all of Elora's capabilities.
+            </p>
+            <div className="space-y-3">
+              <Link
+                href="/verify"
+                className="block w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+              >
+                Verify Email →
+              </Link>
+              <button
+                type="button"
+                onClick={() => setVerifyGateOpen(false)}
+                className="w-full py-3 text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal open={teacherGateOpen} onClose={() => setTeacherGateOpen(false)}>
+          <div className="text-center p-8 max-w-sm">
+            <div className="text-4xl mb-4">👨‍🏫</div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Teacher Access Required</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+              This feature is designed for educators. Enter your teacher invite code or verify your educator account.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={teacherGateCode}
+                onChange={(e) => setTeacherGateCode(e.target.value)}
+                placeholder="Enter teacher code"
+                className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+              />
+              {teacherGateStatus && (
+                <div className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
+                  {teacherGateStatus}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (validateAndActivateInvite(teacherGateCode)) {
+                      setTeacherGateOpen(false);
+                      setTeacherGateCode("");
+                      setTeacherGateStatus("");
+                    }
+                  }}
+                  className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                >
+                  Activate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeacherGateOpen(false)}
+                  className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal open={renameOpen} onClose={() => setRenameOpen(false)}>
+          <div className="text-center p-8 max-w-sm">
+            <div className="text-4xl mb-4">✏️</div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Rename Conversation</h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder="Conversation title"
+                className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    renameThread(chatUserKey, activeChatId, renameValue);
+                    setThreads(listThreads(chatUserKey));
+                    setRenameOpen(false);
+                    setRenameValue("");
+                  }}
+                  className="py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRenameOpen(false)}
+                  className="py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
       </div>
-
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-        const file = e.target.files?.[0];
-        if (file) onPickImage(file);
-        e.target.value = "";
-      }} />
-
-      {/* Modals */}
-      <Modal open={renameOpen} title="Rename chat" onClose={() => setRenameOpen(false)}>
-        <div className="space-y-4 p-2">
-          <p className="text-sm font-medium text-slate-500">Give this conversation a clear name.</p>
-          <input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50"
-            placeholder="e.g., Algebra Review"
-            autoFocus
-          />
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={() => {
-                renameThread(chatUserKey, activeChatId, renameValue);
-                setThreads(listThreads(chatUserKey));
-                setRenameOpen(false);
-              }}
-              className="flex-1 h-12 rounded-2xl bg-indigo-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95"
-            >
-              Save Changes
-            </button>
-            <button onClick={() => setRenameOpen(false)} className="h-12 px-6 rounded-2xl border border-slate-200 dark:border-white/10 font-bold text-sm">Cancel</button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={verifyGateOpen} title="Unlock Elora Assistant" onClose={() => setVerifyGateOpen(false)}>
-        <div className="space-y-6 text-center py-4">
-          <div className="w-20 h-20 bg-indigo-500/10 rounded-[2rem] grid place-items-center mx-auto text-4xl mb-2">💎</div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-black">Full Access Required</h3>
-            <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">Verified Educator accounts gain access to lesson planning, worksheet generation, and unlimited thread exports.</p>
-          </div>
-          <div className="flex flex-col gap-2 pt-4">
-            <button onClick={() => router.push("/verify")} className="h-12 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Verify My Email</button>
-            <button onClick={() => { storeGuest(true); setSession(getSession()); setVerifyGateOpen(false); }} className="h-10 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Continue as Guest</button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={teacherGateOpen} title="Teacher Verification" onClose={() => setTeacherGateOpen(false)}>
-        <div className="space-y-6 p-2">
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
-            <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Advanced educator tools are currently in a closed pilot.</p>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Invite Code</label>
-            <input
-              value={teacherGateCode}
-              onChange={(e) => setTeacherGateCode(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-black outline-none focus:ring-2 focus:ring-indigo-500/50"
-              placeholder="PRO-XXXX-XXXX"
-            />
-            {teacherGateStatus && <p className="text-[10px] font-bold text-indigo-500 ml-1">{teacherGateStatus}</p>}
-          </div>
-          <button
-            onClick={async () => {
-              const ok = await validateAndActivateInvite(teacherGateCode);
-              if (ok) setTeacherGateOpen(false);
-            }}
-            className="w-full h-12 rounded-2xl bg-indigo-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
-          >
-            Enable Pro Tools
-          </button>
-        </div>
-      </Modal>
-      <AIResourceDrawer
-        open={showResourceDrawer}
-        onClose={() => setShowResourceDrawer(false)}
-        topic={topic}
-        subject={subject}
-      />
     </>
   );
 }

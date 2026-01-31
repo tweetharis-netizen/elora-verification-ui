@@ -185,10 +185,10 @@ function stableHashToUint32(input) {
 }
 
 function mulberry32(seed) {
-  let t = seed >>> 0;
+  let state = seed >>> 0;
   return () => {
-    t += 0x6d2b79f5;
-    let x = t;
+    state += 0x6d2b79f5;
+    let x = state;
     x = Math.imul(x ^ (x >>> 15), x | 1);
     x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
@@ -256,53 +256,53 @@ function stripInternalTags(text) {
 }
 
 function cleanAssistantText(text) {
-  let t = stripInternalTags(text || "");
-  t = t.replace(/```[\s\S]*?```/g, "");
-  t = t.replace(/`+/g, "");
-  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-  t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
-  t = t.replace(/\*([^*]+)\*/g, "$1");
-  t = t.replace(/__([^_]+)__/g, "$1");
-  t = t.replace(/_([^_]+)_/g, "$1");
-  t = t.replace(/^\s*>\s?/gm, "");
-  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-  t = t.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
-  t = t.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "");
-  t = t.replace(/\n{3,}/g, "\n\n").trim();
-  return t;
+  let cleanedText = stripInternalTags(text || "");
+  cleanedText = cleanedText.replace(/```[\s\S]*?```/g, "");
+  cleanedText = cleanedText.replace(/`+/g, "");
+  cleanedText = cleanedText.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+  cleanedText = cleanedText.replace(/\*\*([^*]+)\*\*/g, "$1");
+  cleanedText = cleanedText.replace(/\*([^*]+)\*/g, "$1");
+  cleanedText = cleanedText.replace(/__([^_]+)__/g, "$1");
+  cleanedText = cleanedText.replace(/_([^_]+)_/g, "$1");
+  cleanedText = cleanedText.replace(/^\s*>\s?/gm, "");
+  cleanedText = cleanedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  cleanedText = cleanedText.replace(/^\s*([-*_])\1\1+\s*$/gm, "");
+  cleanedText = cleanedText.replace(/<quiz_data>[\s\S]*?<\/quiz_data>/gi, "");
+  cleanedText = cleanedText.replace(/\n{3,}/g, "\n\n").trim();
+  return cleanedText;
 }
 
 function inferActionFromMessage(text) {
-  const t = String(text || "").toLowerCase();
-  if (!t.trim()) return null;
+  const messageText = String(text || "").toLowerCase();
+  if (!messageText.trim()) return null;
 
   if (
-    t.includes("check my answer") ||
-    t.includes("is this correct") ||
-    t.includes("is it correct") ||
-    t.includes("am i correct") ||
-    t.includes("did i get it right") ||
-    t.includes("right or wrong") ||
-    t.includes("correct or not") ||
-    /\bmy answer\b/.test(t) ||
-    /\banswer\s*:\s*/.test(t) ||
-    /\b=\s*-?\d/.test(t)
+    messageText.includes("check my answer") ||
+    messageText.includes("is this correct") ||
+    messageText.includes("is it correct") ||
+    messageText.includes("am i correct") ||
+    messageText.includes("did i get it right") ||
+    messageText.includes("right or wrong") ||
+    messageText.includes("correct or not") ||
+    /\bmy answer\b/.test(messageText) ||
+    /\banswer\s*:\s*/.test(messageText) ||
+    /\b=\s*-?\d/.test(messageText)
   ) {
     return "check";
   }
 
-  if (t.includes("lesson plan")) return "lesson";
-  if (t.includes("worksheet")) return "worksheet";
-  if (t.includes("assessment") || t.includes("test") || t.includes("quiz")) return "assessment";
-  if (t.includes("slides") || t.includes("powerpoint")) return "slides";
+  if (messageText.includes("lesson plan")) return "lesson";
+  if (messageText.includes("worksheet")) return "worksheet";
+  if (messageText.includes("assessment") || messageText.includes("test") || messageText.includes("quiz")) return "assessment";
+  if (messageText.includes("slides") || messageText.includes("powerpoint")) return "slides";
 
   return null;
 }
 
 function getCountryLevels(country) {
-  const c = String(country || "").toLowerCase();
+  const countryStr = String(country || "").toLowerCase();
 
-  if (c.includes("singapore")) {
+  if (countryStr.includes("singapore")) {
     return [
       "Primary School",
       "Secondary School",
@@ -312,7 +312,7 @@ function getCountryLevels(country) {
     ];
   }
 
-  if (c.includes("united states") || c === "us" || c.includes("usa")) {
+  if (countryStr.includes("united states") || countryStr === "us" || countryStr.includes("usa")) {
     return [
       "Elementary School",
       "Middle School",
@@ -321,7 +321,7 @@ function getCountryLevels(country) {
     ];
   }
 
-  if (c.includes("united kingdom") || c.includes("uk") || c.includes("britain") || c.includes("england")) {
+  if (countryStr.includes("united kingdom") || countryStr.includes("uk") || countryStr.includes("britain") || countryStr.includes("england")) {
     return [
       "Primary School",
       "Secondary School",
@@ -330,7 +330,7 @@ function getCountryLevels(country) {
     ];
   }
 
-  if (c.includes("australia")) {
+  if (countryStr.includes("australia")) {
     return [
       "Primary School",
       "Secondary School",
@@ -338,7 +338,7 @@ function getCountryLevels(country) {
     ];
   }
 
-  if (c.includes("malaysia")) {
+  if (countryStr.includes("malaysia")) {
     return [
       "Primary School (Standard 1-6)",
       "Secondary School (Form 1-5)",
@@ -407,7 +407,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
   const progressPercent = (answeredCount / totalQuestions) * 100;
 
   const handleFinish = () => {
-    let s = 0;
+    let correctCount = 0;
     const submissionDetails = data.questions.map(q => ({
       question: q.question,
       studentAnswer: answers[q.id],
@@ -416,10 +416,10 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     }));
 
     data.questions.forEach(q => {
-      if (answers[q.id] === q.answer) s++;
+      if (answers[q.id] === q.answer) correctCount++;
     });
 
-    setScore(s);
+    setScore(correctCount);
     setSubmitted(true);
 
     const currentSession = getSession();
@@ -427,7 +427,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
       id: `sub_${Date.now()}`,
       studentName: currentSession.email?.split('@')[0] || "Guest Student",
       quizTitle: data.title || "Quick Knowledge Check",
-      score: s,
+      score: correctCount,
       total: totalQuestions,
       details: submissionDetails,
       timestamp: new Date().toISOString()
@@ -438,7 +438,7 @@ const InteractiveQuiz = ({ data, onComplete }) => {
     currentSession.classroom.submissions = [submission, ...currentSession.classroom.submissions];
     saveSession(currentSession);
 
-    if (onComplete) onComplete(s, totalQuestions);
+    if (onComplete) onComplete(correctCount, totalQuestions);
   };
 
   return (
@@ -533,11 +533,11 @@ const InteractiveQuiz = ({ data, onComplete }) => {
 };
 
 const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
-  const [recs, setRecs] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
 
   useEffect(() => {
     if (open) {
-      setRecs(getRecommendations(subject, topic));
+      setRecommendations(getRecommendations(subject, topic));
     }
   }, [open, topic, subject]);
 
@@ -553,16 +553,16 @@ const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
         <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {recs.length === 0 && <p className="text-center text-xs text-slate-500 py-10">No specific resources found for this topic yet.</p>}
-        {recs.map(v => (
-          <a key={v.id} href={v.url} target="_blank" rel="noreferrer" className="block group">
+        {recommendations.length === 0 && <p className="text-center text-xs text-slate-500 py-10">No specific resources found for this topic yet.</p>}
+        {recommendations.map(video => (
+          <a key={video.id} href={video.url} target="_blank" rel="noreferrer" className="block group">
             <div className="relative aspect-video rounded-xl overflow-hidden mb-2">
-              <Image src={v.thumbnail} alt={v.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+              <Image src={video.thumbnail} alt={video.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
               <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[8px] font-bold text-white rounded">FREE</div>
             </div>
-            <h4 className="text-[11px] font-black leading-tight text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">{v.title}</h4>
-            <div className="text-[9px] font-medium text-slate-500 mt-1">{v.channel} • {v.views} views</div>
+            <h4 className="text-[11px] font-black leading-tight text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">{video.title}</h4>
+            <div className="text-[9px] font-medium text-slate-500 mt-1">{video.channel} • {video.views} views</div>
           </a>
         ))}
       </div>
@@ -608,13 +608,13 @@ export default function AssistantPage() {
   // Auto-configure from URL query (e.g. from Dashboard)
   useEffect(() => {
     if (!router.isReady) return;
-    const { action: qAction, topic: qTopic } = router.query;
+    const { action: queryAction, topic: queryTopic } = router.query;
 
-    if (qAction && typeof qAction === 'string') {
-      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === qAction) ||
-        ROLE_QUICK_ACTIONS.student.find(x => x.id === qAction);
+    if (queryAction && typeof queryAction === 'string') {
+      const known = ROLE_QUICK_ACTIONS.educator.find(x => x.id === queryAction) ||
+        ROLE_QUICK_ACTIONS.student.find(x => x.id === queryAction);
       if (known) {
-        setAction(qAction);
+        setAction(queryAction);
       }
     }
 
@@ -635,9 +635,8 @@ export default function AssistantPage() {
       if (!router.query.classCode) setClassCode(session.joinedClass.code || "");
     }
 
-    if (qTopic && typeof qTopic === 'string') {
-      setTopic(qTopic);
-      setTopicForSuggestions(qTopic);
+    if (queryTopic && typeof queryTopic === 'string') {
+      setTopic(queryTopic);
     }
   }, [router.isReady, router.query, session?.joinedClass]);
 
@@ -657,7 +656,6 @@ export default function AssistantPage() {
 
   const activeMeta = useMemo(
     () => getThreadMeta(chatUserKey, activeChatId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatUserKey, activeChatId, threads]
   );
 
@@ -679,8 +677,8 @@ export default function AssistantPage() {
 
   // Debounce topic so suggestions don't "flicker" while user is typing.
   useEffect(() => {
-    const t = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
-    return () => clearTimeout(t);
+    const timeoutId = setTimeout(() => setTopicForSuggestions(String(topic || "")), 450);
+    return () => clearTimeout(timeoutId);
   }, [topic]);
 
   const starterSeed = useMemo(() => {
@@ -753,13 +751,13 @@ export default function AssistantPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    function onDown(e) {
+    function handleMouseDown(event) {
       if (!chatMenuRef.current) return;
-      if (!chatMenuRef.current.contains(e.target)) setChatMenuOpen(false);
+      if (!chatMenuRef.current.contains(event.target)) setChatMenuOpen(false);
     }
 
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => window.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
   // Preferences panel open/close persistence
@@ -805,32 +803,31 @@ export default function AssistantPage() {
     if (!allowed.includes(level)) {
       setLevel(allowed[0] || "Primary 1");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
   // Session events
   useEffect(() => {
-    function onSessionEvent() {
-      const s = getSession();
-      setSession(s);
-      setRole(s?.role || "student");
-      setCountry(s?.country || "Singapore");
+    function handleSessionEvent() {
+      const currentSession = getSession();
+      setSession(currentSession);
+      setRole(currentSession?.role || "student");
+      setCountry(currentSession?.country || "Singapore");
 
-      const allowed = getCountryLevels(s?.country || "Singapore");
-      const nextLevel = allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1";
+      const allowed = getCountryLevels(currentSession?.country || "Singapore");
+      const nextLevel = allowed.includes(currentSession?.level) ? currentSession.level : allowed[0] || "Primary 1";
       setLevel(nextLevel);
 
-      setSubject(s?.subject || "General");
-      setTopic(s?.topic || "");
-      setAction(s?.action || "explain");
+      setSubject(currentSession?.subject || "General");
+      setTopic(currentSession?.topic || "");
+      setAction(currentSession?.action || "explain");
     }
 
     if (typeof window !== "undefined") {
-      window.addEventListener("elora:session", onSessionEvent);
+      window.addEventListener("elora:session", handleSessionEvent);
     }
     return () => {
       if (typeof window !== "undefined") {
-        window.removeEventListener("elora:session", onSessionEvent);
+        window.removeEventListener("elora:session", handleSessionEvent);
       }
     };
   }, []);
@@ -842,15 +839,15 @@ export default function AssistantPage() {
   }, [role, action]);
 
   useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    if (stickToBottom) el.scrollTop = el.scrollHeight;
+    const element = listRef.current;
+    if (!element) return;
+    if (stickToBottom) element.scrollTop = element.scrollHeight;
   }, [messages, loading, stickToBottom]);
 
   function jumpToLatest() {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    const element = listRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
     setStickToBottom(true);
     setShowJump(false);
   }
@@ -872,15 +869,15 @@ export default function AssistantPage() {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(value);
       } else {
-        const ta = document.createElement("textarea");
-        ta.value = value;
-        ta.setAttribute("readonly", "true");
-        ta.style.position = "fixed";
-        ta.style.top = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
         document.execCommand("copy");
-        document.body.removeChild(ta);
+        document.body.removeChild(textarea);
       }
 
       setCopiedIdx(idx);
@@ -894,13 +891,6 @@ export default function AssistantPage() {
     try {
       // Note: Endpoint /api/session/set expects a token, not a patch.
       // Persisting UI state via localStorage (getSession/saveSession) instead.
-      /*
-      await fetch("/api/session/set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      */
     } catch {
       // ignore
     }
@@ -947,35 +937,34 @@ export default function AssistantPage() {
 
   // Init: refresh verification, then load threads for correct identity (guest vs verified)
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
     (async () => {
       await refreshVerifiedFromServer();
-      if (!mounted) return;
+      if (!isMounted) return;
 
-      const s = getSession();
-      setSession(s);
-      setRole(s?.role || "student");
+      const currentSession = getSession();
+      setSession(currentSession);
+      setRole(currentSession?.role || "student");
 
-      const allowed = getCountryLevels(s?.country || "Singapore");
-      setLevel(allowed.includes(s?.level) ? s.level : allowed[0] || "Primary 1");
+      const allowed = getCountryLevels(currentSession?.country || "Singapore");
+      setLevel(allowed.includes(currentSession?.level) ? currentSession.level : allowed[0] || "Primary 1");
 
-      const userKey = getChatUserKey(s);
+      const userKey = getChatUserKey(currentSession);
       setChatUserKey(userKey);
 
       syncThreadsState(userKey);
     })();
 
     return () => {
-      mounted = false;
+      isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When verification/email changes, switch identity (guest chats stay separate from verified)
   useEffect(() => {
-    const s = getSession();
-    const nextKey = getChatUserKey(s);
+    const currentSession = getSession();
+    const nextKey = getChatUserKey(currentSession);
     if (nextKey === chatUserKey) return;
 
     setChatUserKey(nextKey);
@@ -984,7 +973,6 @@ export default function AssistantPage() {
     setAttachedImage(null);
     setAttachErr("");
     setChatMenuOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verified, session?.email]);
 
   useEffect(() => {
@@ -996,17 +984,16 @@ export default function AssistantPage() {
       topic,
       action,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, country, level, subject, topic, action]);
 
   // Session Heartbeat for activeMinutes tracking
   useEffect(() => {
     const timer = setInterval(() => {
-      const s = getSession();
-      if (!s.usage) s.usage = { activeMinutes: 0 };
-      s.usage.activeMinutes = (Number(s.usage.activeMinutes) || 0) + 1;
-      s.usage.lastActive = new Date().toISOString();
-      saveSession(s);
+      const currentSession = getSession();
+      if (!currentSession.usage) currentSession.usage = { activeMinutes: 0 };
+      currentSession.usage.activeMinutes = (Number(currentSession.usage.activeMinutes) || 0) + 1;
+      currentSession.usage.lastActive = new Date().toISOString();
+      saveSession(currentSession);
     }, 60000); // Every 1 minute
 
     return () => clearInterval(timer);
@@ -1038,28 +1025,28 @@ export default function AssistantPage() {
     // Track usage on every message sent (only if Elora or User)
     const isActuallyNew = nextMessages.length > messages.length;
     if (isActuallyNew) {
-      const s = getSession();
-      if (!s.usage) s.usage = { messagesSent: 0, subjects: [], streak: 0 };
-      s.usage.messagesSent = (Number(s.usage.messagesSent) || 0) + 1;
+      const currentSession = getSession();
+      if (!currentSession.usage) currentSession.usage = { messagesSent: 0, subjects: [], streak: 0 };
+      currentSession.usage.messagesSent = (Number(currentSession.usage.messagesSent) || 0) + 1;
 
       // Update subjects explored
-      if (subject && !Array.isArray(s.usage.subjects)) s.usage.subjects = [];
-      if (subject && !s.usage.subjects.includes(subject)) {
-        s.usage.subjects.push(subject);
+      if (subject && !Array.isArray(currentSession.usage.subjects)) currentSession.usage.subjects = [];
+      if (subject && !currentSession.usage.subjects.includes(subject)) {
+        currentSession.usage.subjects.push(subject);
       }
 
       // Update session log (limited to last 50 for storage size)
-      if (!Array.isArray(s.usage.sessionLog)) s.usage.sessionLog = [];
+      if (!Array.isArray(currentSession.usage.sessionLog)) currentSession.usage.sessionLog = [];
       const logEntry = { ts: new Date().toISOString(), subject: subject || "General", action: action };
-      s.usage.sessionLog = [logEntry, ...s.usage.sessionLog].slice(0, 50);
+      currentSession.usage.sessionLog = [logEntry, ...currentSession.usage.sessionLog].slice(0, 50);
 
       // Update last active
-      s.usage.lastActive = new Date().toISOString();
+      currentSession.usage.lastActive = new Date().toISOString();
 
       // Update streak
-      s.usage.streak = Math.max(Number(s.usage.streak) || 0, 1);
+      currentSession.usage.streak = Math.max(Number(currentSession.usage.streak) || 0, 1);
 
-      saveSession(s);
+      saveSession(currentSession);
     }
 
     persistSessionPatch({ activeChatId, messages: nextMessages });
@@ -1094,9 +1081,8 @@ export default function AssistantPage() {
       const attemptNext =
         role === "student" && action === "check" ? Math.min(3, attempt + 1) : 0;
 
-      const currentSession = getSession();
-      const timeSpent = (Date.now() - lastActionTime) / 1000;
-      const sentiment = (attemptNext > 1 || timeSpent > 60) ? "supportive" : "standard";
+      const currentTimeSpent = (Date.now() - lastActionTime) / 1000;
+      const sentiment = (attemptNext > 1 || currentTimeSpent > 60) ? "supportive" : "standard";
 
       const payload = {
         role,
@@ -1111,30 +1097,30 @@ export default function AssistantPage() {
         searchMode,
         customStyleText,
         attempt: attemptNext,
-        sentiment, // NEW
-        timeSpent, // NEW
-        vision, // PHASE 4
-        classCode, // PHASE 4
+        sentiment,
+        timeSpent: currentTimeSpent,
+        vision,
+        classCode,
         message: userText,
         messages: Array.isArray(baseMessages) ? baseMessages : messages,
         teacherRules: currentSession.classroom?.teacherRules || ""
       };
 
-      const r = await fetch("/api/assistant", {
+      const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const data = await r.json().catch(() => null);
+      const data = await response.json().catch(() => null);
 
-      const base = Array.isArray(baseMessages) ? baseMessages : messages;
+      const baseMsgs = Array.isArray(baseMessages) ? baseMessages : messages;
 
-      if (!r.ok) {
+      if (!response.ok) {
         const err = data?.error || data?.message || "Request failed.";
         if (String(err).toLowerCase().includes("verify")) setVerifyGateOpen(true);
 
-        const next = [...base, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
+        const next = [...baseMsgs, { from: "elora", text: `Error: ${String(err)}`, ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
         return;
@@ -1143,18 +1129,18 @@ export default function AssistantPage() {
       const outRaw = data?.reply || data?.text || data?.answer || "";
       if (!outRaw) {
         // Fallback if engine returns empty but OK
-        const next = [...base, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
+        const next = [...baseMsgs, { from: "elora", text: "I'm sorry, I couldn't generate a response. Please try rephrasing.", ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: true });
         setLoading(false);
         return;
       }
       const out = cleanAssistantText(outRaw);
-      const next = [...base, { from: "elora", text: out, ts: Date.now() }];
+      const next = [...baseMsgs, { from: "elora", text: out, ts: Date.now() }];
 
       persistActiveMessages(next, { alsoSyncServer: true });
 
       if (role === "student" && action === "check") {
-        setAttempt((a) => a + 1);
+        setAttempt((currentAttempt) => currentAttempt + 1);
       }
 
       setAttachedImage(null);
@@ -1177,7 +1163,7 @@ export default function AssistantPage() {
     const trimmed = String(chatText || "").trim();
     if ((!trimmed && !attachedImage?.dataUrl) || loading) return;
 
-    setLoading(true); // Pre-emptive lock
+    setLoading(true);
     setAttachErr("");
 
     const inferred = inferActionFromMessage(trimmed);
@@ -1189,12 +1175,12 @@ export default function AssistantPage() {
 
     const userMsg = { from: "user", text: trimmed || "(image)", ts: Date.now() };
 
-    // Use functional update to ensure we have the absolute latest messages
-    setMessages(prev => {
-      const next = [...prev, userMsg];
+    // Use functional update to ensure we have absolute latest messages
+    setMessages((prevMessages) => {
+      const next = [...prevMessages, userMsg];
       persistActiveMessages(next, { alsoSyncServer: true });
 
-      // Delay the actual call slightly to ensure state has settled
+      // Delay actual call slightly to ensure state has settled
       setTimeout(() => {
         callElora({ messageOverride: trimmed, baseMessages: next });
       }, 0);
@@ -1231,21 +1217,21 @@ export default function AssistantPage() {
       const content = cleanAssistantText(last.text);
       const title = type === "pptx" ? "Elora Slides" : type === "docx" ? "Elora Notes" : "Elora Export";
 
-      const r = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content }),
       });
 
-      const ct = String(r.headers.get("content-type") || "");
-      if (!r.ok || ct.includes("application/json")) {
-        let err = `Export failed (HTTP ${r.status}).`;
-        let data = null;
+      const contentType = String(response.headers.get("content-type") || "");
+      if (!response.ok || contentType.includes("application/json")) {
+        let err = `Export failed (HTTP ${response.status}).`;
+        let responseData = null;
         try {
-          data = await r.json();
+          responseData = await response.json();
         } catch { }
-        const code = String(data?.error || data?.message || "").trim();
-        if (r.status === 403 || code === "not_verified") {
+        const code = String(responseData?.error || responseData?.message || "").trim();
+        if (response.status === 403 || code === "not_verified") {
           setVerifyGateOpen(true);
           err = "Export blocked: verify your email to unlock exports.";
         } else if (code) {
@@ -1256,7 +1242,7 @@ export default function AssistantPage() {
         return;
       }
 
-      const blob = await r.blob();
+      const blob = await response.blob();
       if (!blob || blob.size === 0) {
         const next = [...messages, { from: "elora", text: "Export failed: empty file returned.", ts: Date.now() }];
         persistActiveMessages(next, { alsoSyncServer: false });
@@ -1264,12 +1250,12 @@ export default function AssistantPage() {
       }
 
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = type === "pptx" ? "elora.pptx" : type === "docx" ? "elora.docx" : "elora.pdf";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
     } catch {
       const next = [...messages, { from: "elora", text: "Export failed due to a network error. Try again.", ts: Date.now() }];
@@ -1278,7 +1264,7 @@ export default function AssistantPage() {
   }
 
   async function applyRefinement(chipId) {
-    const map = {
+    const refinementMap = {
       simpler: "Make it simpler and more beginner-friendly.",
       example: "Add one clear example that matches topic.",
       steps: "Show steps clearly (short).",
@@ -1300,13 +1286,13 @@ export default function AssistantPage() {
       "more-steps": "Add more steps and explain reasoning clearly.",
     };
 
-    const refinement = map[chipId] || "Improve answer.";
+    const refinementText = refinementMap[chipId] || "Improve answer.";
 
-    const userMsg = { from: "user", text: refinement, ts: Date.now() };
+    const userMsg = { from: "user", text: refinementText, ts: Date.now() };
     const nextMessages = [...messages, userMsg];
 
     persistActiveMessages(nextMessages, { alsoSyncServer: true });
-    await callElora({ messageOverride: refinement, baseMessages: nextMessages });
+    await callElora({ messageOverride: refinementText, baseMessages: nextMessages });
   }
 
   async function validateAndActivateInvite(code) {
@@ -1323,15 +1309,15 @@ export default function AssistantPage() {
     }
 
     try {
-      const act = await activateTeacher(trimmed);
-      if (!act?.ok) {
+      const activationResult = await activateTeacher(trimmed);
+      if (!activationResult?.ok) {
         setTeacherGateStatus("Invalid code.");
         return false;
       }
 
       await refreshVerifiedFromServer();
-      const s = getSession();
-      setSession(s);
+      const currentSession = getSession();
+      setSession(currentSession);
 
       if (isTeacher()) {
         setTeacherGateStatus("Teacher role active ✅");
@@ -1363,12 +1349,12 @@ export default function AssistantPage() {
     }
 
     try {
-      const out = await compressImageToDataUrl(file);
-      setAttachedImage(out);
-    } catch (e) {
-      const code = String(e?.message || "");
+      const processedImage = await compressImageToDataUrl(file);
+      setAttachedImage(processedImage);
+    } catch (error) {
+      const errorCode = String(error?.message || "");
       setAttachErr(
-        code === "image_too_large"
+        errorCode === "image_too_large"
           ? "That image is too large to send. Try a closer crop."
           : "Couldn't attach that image. Try again."
       );
@@ -1418,12 +1404,12 @@ export default function AssistantPage() {
     const threadId = String(id || "").trim();
     if (!threadId) return;
 
-    const meta = threads.find((t) => t.id === threadId);
-    const label = meta?.title ? `"${meta.title}"` : "this chat";
+    const threadMeta = threads.find((t) => t.id === threadId);
+    const label = threadMeta?.title ? `"${threadMeta.title}"` : "this chat";
 
     if (typeof window !== "undefined") {
-      const ok = window.confirm(`Delete ${label}? This cannot be undone.`);
-      if (!ok) return;
+      const confirmed = window.confirm(`Delete ${label}? This cannot be undone.`);
+      if (!confirmed) return;
     }
 
     deleteThread(chatUserKey, threadId);
@@ -1528,18 +1514,18 @@ export default function AssistantPage() {
                   <div className="space-y-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Response Goal</div>
                     <div className="grid grid-cols-3 gap-2">
-                      {["Fast", "Deep", "Auto"].map(m => (
+                      {["Fast", "Deep", "Auto"].map(mode => (
                         <button
-                          key={m}
-                          onClick={() => setResponseStyle(m.toLowerCase())}
+                          key={mode}
+                          onClick={() => setResponseStyle(mode.toLowerCase())}
                           className={cn(
                             "py-2 px-1 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
-                            responseStyle === m.toLowerCase()
+                            responseStyle === mode.toLowerCase()
                               ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-md scale-[1.05] z-10"
                               : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 hover:border-indigo-500/30"
                           )}
                         >
-                          {m}
+                          {mode}
                         </button>
                       ))}
                     </div>
@@ -1565,7 +1551,7 @@ export default function AssistantPage() {
                               onChange={(e) => setCountry(e.target.value)}
                               className="w-full h-full bg-transparent border-none px-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-0 outline-none cursor-pointer"
                             >
-                              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                              {COUNTRIES.map((countryOption) => <option key={countryOption} value={countryOption}>{countryOption}</option>)}
                             </select>
                           </div>
                         </div>
@@ -1578,7 +1564,7 @@ export default function AssistantPage() {
                           onChange={(e) => setLevel(e.target.value)}
                           className="w-full h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 px-4 text-sm font-bold text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer shadow-sm"
                         >
-                          {countryLevels.map((lv) => <option key={lv} value={lv}>{lv}</option>)}
+                          {countryLevels.map((levelOption) => <option key={levelOption} value={levelOption}>{levelOption}</option>)}
                         </select>
                       </div>
 
@@ -1590,7 +1576,7 @@ export default function AssistantPage() {
                             onChange={(e) => setSubject(e.target.value)}
                             className="w-full h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer"
                           >
-                            {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                            {SUBJECTS.map((subjectOption) => <option key={subjectOption} value={subjectOption}>{subjectOption}</option>)}
                           </select>
                           <input
                             value={topic}
@@ -1614,25 +1600,25 @@ export default function AssistantPage() {
                   <div className="space-y-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Action Plan</div>
                     <div className="grid grid-cols-1 gap-2">
-                      {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((a) => {
-                        const active = action === a.id;
+                      {(ROLE_QUICK_ACTIONS[role] || ROLE_QUICK_ACTIONS.student).map((actionOption) => {
+                        const isActive = action === actionOption.id;
                         return (
                           <button
-                            key={a.id}
+                            key={actionOption.id}
                             type="button"
-                            onClick={() => setAction(a.id)}
+                            onClick={() => setAction(actionOption.id)}
                             className={cn(
                               "relative group rounded-2xl border p-4 text-left transition-all duration-300",
-                              active
+                              isActive
                                 ? "border-indigo-500/60 bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 scale-[1.02] z-10"
                                 : "border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-white/10"
                             )}
                           >
-                            <div className="text-sm font-black mb-1">{a.label}</div>
-                            <div className={cn("text-[10px] font-medium leading-tight", active ? "text-indigo-100/80" : "text-slate-500")}>
-                              {a.hint}
+                            <div className="text-sm font-black mb-1">{actionOption.label}</div>
+                            <div className={cn("text-[10px] font-medium leading-tight", isActive ? "text-indigo-100/80" : "text-slate-500")}>
+                              {actionOption.hint}
                             </div>
-                            {active && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-white/40">✨</div>}
+                            {isActive && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-white/40">✨</div>}
                           </button>
                         );
                       })}
@@ -1686,50 +1672,51 @@ export default function AssistantPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* RIGHT - Chat Area */}
-            <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[96dvh] lg:h-[calc(100dvh-60px)] w-full max-w-[1600px] mx-auto">
-              {/* Desktop Toolbar */}
-              <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
-                <div>
+          {/* RIGHT - Chat Area */}
+          <div className="lg:rounded-[3rem] border-y lg:border border-slate-200/60 dark:border-white/10 bg-white/80 dark:bg-slate-950/20 shadow-2xl p-0 lg:p-4 flex flex-col h-[96dvh] lg:h-[calc(100dvh-60px)] w-full max-w-[1600px] mx-auto">
+            {/* Desktop Toolbar */}
+            <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-4 mb-4 border-b border-slate-200/30 dark:border-white/5">
+              <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-[var(--font-brand)]">
                     Elora
                     <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold tracking-widest uppercase">Assistant</span>
                   </h2>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {!prefsOpen && (
-                    <button
-                      type="button"
-                      onClick={() => setPrefsOpen(true)}
-                      className="h-11 px-5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
-                    >
-                      Settings
-                    </button>
-                  )}
-                </div>
               </div>
 
-              {/* Chat Thread Area */}
-              <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 lg:p-6 flex-1 flex flex-col min-h-0 relative">
+              <div className="flex items-center gap-3">
+                {!prefsOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setPrefsOpen(true)}
+                    className="h-11 px-5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all"
+                  >
+                    Settings
+                  </button>
+                )}
+              </div>
+            </div>
 
-                {/* Chat History Header */}
-                <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
-                  {canManageChats ? (
-                    <div className="relative shrink min-w-0" ref={chatMenuRef}>
-                      <button
-                        type="button"
-                        onClick={() => setChatMenuOpen((v) => !v)}
-                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black text-slate-800 dark:text-white hover:bg-white dark:hover:bg-white/5 transition-colors border border-transparent min-w-0"
-                      >
-                        <span className="text-amber-500 shrink-0">{activeMeta?.pinned ? "★" : "☆"}</span>
-                        <span className="truncate">{activeMeta?.title || "New chat"}</span>
-                        <span className="text-slate-400 shrink-0 text-[10px]">▼</span>
-                      </button>
+            {/* Chat Thread Area */}
+            <div className="mt-2 rounded-[2rem] border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-slate-950/40 p-3 lg:p-6 flex-1 flex flex-col min-h-0 relative">
 
-                      {chatMenuOpen && (
-                        <div className="absolute z-50 mt-2 w-[320px] max-w-[calc(100vw-4rem)] rounded-3xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-2xl overflow-hidden backdrop-blur-xl animate-reveal">
+              {/* Chat History Header */}
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-200 dark:border-white/5 mb-4">
+                {canManageChats ? (
+                  <div className="relative shrink min-w-0" ref={chatMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setChatMenuOpen((currentValue) => !currentValue)}
+                      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black text-slate-800 dark:text-white hover:bg-white dark:hover:bg-white/5 transition-colors border border-transparent min-w-0"
+                    >
+                      <span className="text-amber-500 shrink-0">{activeMeta?.pinned ? "★" : "☆"}</span>
+                      <span className="truncate">{activeMeta?.title || "New chat"}</span>
+                      <span className="text-slate-400 shrink-0 text-[10px]">▼</span>
+                    </button>
+
+                    {chatMenuOpen && (
+                      <div className="absolute z-50 mt-2 w-[320px] max-w-[calc(100vw-4rem)] rounded-3xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 shadow-2xl overflow-hidden backdrop-blur-xl animate-reveal">
                           <div className="p-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Conversations</div>
                             <div className="flex gap-2">
@@ -1757,26 +1744,26 @@ export default function AssistantPage() {
                             <div className="p-3 border-b border-slate-100 dark:border-white/5">
                               <div className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2">Pinned</div>
                               <div className="space-y-2">
-                                {pinnedThreads.map((t) => (
+                                {pinnedThreads.map((thread) => (
                                   <button
-                                    key={t.id}
+                                    key={thread.id}
                                     type="button"
-                                    onClick={() => setActiveThreadAndLoad(t.id)}
+                                    onClick={() => setActiveThreadAndLoad(thread.id)}
                                     className={cn(
                                       "w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all group",
-                                      t.id === activeChatId
+                                      thread.id === activeChatId
                                         ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
                                         : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
                                     )}
                                   >
                                     <div className="flex items-center justify-between">
-                                      <span className="truncate">{t.title}</span>
+                                      <span className="truncate">{thread.title}</span>
                                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                           type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveThreadAndLoad(t.id);
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setActiveThreadAndLoad(thread.id);
                                             onOpenRename();
                                           }}
                                           className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
@@ -1785,14 +1772,14 @@ export default function AssistantPage() {
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveThreadAndLoad(t.id);
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setActiveThreadAndLoad(thread.id);
                                             onTogglePin();
                                           }}
                                           className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
                                         >
-                                          {t.pinned ? "📌" : "📍"}
+                                          {thread.pinned ? "📌" : "📍"}
                                         </button>
                                       </div>
                                     </div>
@@ -1805,26 +1792,26 @@ export default function AssistantPage() {
                           <div className="p-3">
                             <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Recent</div>
                             <div className="space-y-2 max-h-48 overflow-y-auto">
-                              {recentThreads.map((t) => (
+                              {recentThreads.map((thread) => (
                                 <button
-                                  key={t.id}
+                                  key={thread.id}
                                   type="button"
-                                  onClick={() => setActiveThreadAndLoad(t.id)}
+                                  onClick={() => setActiveThreadAndLoad(thread.id)}
                                   className={cn(
                                     "w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all group",
-                                    t.id === activeChatId
+                                    thread.id === activeChatId
                                       ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
                                         : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"
                                     )}
                                   >
                                     <div className="flex items-center justify-between">
-                                      <span className="truncate">{t.title}</span>
+                                      <span className="truncate">{thread.title}</span>
                                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                           type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveThreadAndLoad(t.id);
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setActiveThreadAndLoad(thread.id);
                                             onOpenRename();
                                           }}
                                           className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-indigo-500 transition-colors"
@@ -1833,14 +1820,14 @@ export default function AssistantPage() {
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveThreadAndLoad(t.id);
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setActiveThreadAndLoad(thread.id);
                                             onTogglePin();
                                           }}
                                           className="w-5 h-5 rounded border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-[8px] hover:text-amber-500 transition-colors"
                                         >
-                                          {t.pinned ? "📌" : "📍"}
+                                          {thread.pinned ? "📌" : "📍"}
                                         </button>
                                       </div>
                                     </div>
@@ -1882,9 +1869,9 @@ export default function AssistantPage() {
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-2" ref={listRef} onScroll={() => {
-                  const el = listRef.current;
-                  if (!el) return;
-                  const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
+                  const element = listRef.current;
+                  if (!element) return;
+                  const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
                   setStickToBottom(isAtBottom);
                   setShowJump(!isAtBottom && messages.length > 3);
                 }}>
@@ -1927,7 +1914,7 @@ export default function AssistantPage() {
                                       const quizData = quizMatch ? JSON.parse(quizMatch[1]) : null;
                                       return quizData ? <InteractiveQuiz data={quizData} onComplete={(score, total) => {
                                         const resultMsg = { from: "elora", text: `📊 Quiz completed! Score: ${score}/${total}. Keep up the great work!`, ts: Date.now() };
-                                        setMessages(prev => [...prev, resultMsg]);
+                                        setMessages((prevMessages) => [...prevMessages, resultMsg]);
                                       }} /> : null;
                                     } catch {
                                       return null;
@@ -1967,7 +1954,7 @@ export default function AssistantPage() {
                                       </button>
                                     </LockedFeatureOverlay>
                                   </div>
-                                  </div>
+                                </div>
                                   <button
                                     type="button"
                                     onClick={() => copyToClipboard(msg.text, idx)}
@@ -2146,6 +2133,7 @@ export default function AssistantPage() {
             </div>
           </div>
 
+          {/* Mobile Resource Drawer */}
           <AIResourceDrawer 
             open={showResourceDrawer} 
             onClose={() => setShowResourceDrawer(false)} 
@@ -2163,8 +2151,8 @@ export default function AssistantPage() {
               </p>
               <div className="space-y-3">
                 <Link
-                  href="/verify"
-                  className="block w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                    href="/verify"
+                    className="block w-full py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-colors"
                 >
                   Verify Email →
                 </Link>

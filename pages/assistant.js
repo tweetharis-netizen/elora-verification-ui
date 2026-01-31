@@ -643,7 +643,7 @@ export default function AssistantPage() {
 
   // UI State
   const [mounted, setMounted] = useState(false);
-  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(-1);
   const [stickToBottom, setStickToBottom] = useState(true);
@@ -679,7 +679,7 @@ export default function AssistantPage() {
     setMounted(true);
     if (typeof window !== "undefined") {
       const open = window.localStorage.getItem(PREFS_OPEN_KEY) !== "false";
-      setPrefsOpen(open);
+      setSidebarOpen(open);
     }
   }, []);
 
@@ -688,7 +688,7 @@ export default function AssistantPage() {
 
     try {
       const dismissed = window.localStorage.getItem(PREVIEW_DISMISS_KEY) === "true";
-      setDismissPreviewNotice(disMissed);
+      setDismissPreviewNotice(dismissed);
     } catch {
       setDismissPreviewNotice(false);
     }
@@ -1449,13 +1449,6 @@ export default function AssistantPage() {
     }
   }, [chatMenuOpen]);
 
-  // Handle prefs menu opening/closing
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PREFS_OPEN_KEY, prefsOpen ? "true" : "false");
-    }
-  }, [prefsOpen]);
-
   // Handle dismiss preview notice
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -1492,7 +1485,15 @@ export default function AssistantPage() {
                     <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20">🛸</div>
                     <h1 className="text-xl font-black italic tracking-tighter">ELORA</h1>
                   </div>
-                  <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-white">✕</button>
+                  <button
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      try { window.localStorage.setItem(PREFS_OPEN_KEY, "false"); } catch { }
+                    }}
+                    className="lg:hidden p-2 text-slate-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
                 </div>
 
                 <div className="space-y-6">
@@ -1566,7 +1567,11 @@ export default function AssistantPage() {
           <div className="h-20 flex items-center justify-between px-6 lg:px-8 border-b border-slate-100 dark:border-white/5 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl z-20 shrink-0">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={() => {
+                  const next = !sidebarOpen;
+                  setSidebarOpen(next);
+                  try { window.localStorage.setItem(PREFS_OPEN_KEY, String(next)); } catch { }
+                }}
                 className="lg:hidden p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
               >
                 <div className="w-5 h-0.5 bg-slate-900 dark:bg-white mb-1" />

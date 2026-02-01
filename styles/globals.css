@@ -4,6 +4,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Premium Design System */
+@import './design-system.css';
+
+/* Skeleton Loading Animation */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--bg-secondary) 0px,
+      var(--bg-tertiary) 40px,
+      var(--bg-secondary) 80px);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.4s ease-in-out infinite;
+}
+
 /* ---------- Elora Premium Typography ---------- */
 :root {
   --font-inter: var(--elora-font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;

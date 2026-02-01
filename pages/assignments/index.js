@@ -1,578 +1,219 @@
-import Head from "next/head";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { getSession, saveSession } from "@/lib/session";
-import { motion } from "framer-motion";
+// pages/assignments/index.js
+// Assignments list page with create wizard
 
-const ASSIGNMENT_TYPES = [
-  { id: "quiz", label: "Quiz", icon: "🎯", description: "Auto-graded questions" },
-  { id: "worksheet", label: "Worksheet", icon: "📝", description: "Practice problems" },
-  { id: "essay", label: "Essay", icon: "📄", description: "Written response" },
-  { id: "project", label: "Project", icon: "🚀", description: "Creative work" }
-];
-
-const DIFFICULTY_LEVELS = [
-  { id: "beginner", label: "Beginner", color: "emerald" },
-  { id: "intermediate", label: "Intermediate", color: "amber" },
-  { id: "advanced", label: "Advanced", color: "rose" }
-];
-
-function AssignmentCard({ assignment, onView, onEdit, onDelete, userRole }) {
-  const difficulty = DIFFICULTY_LEVELS.find(d => d.id === assignment.difficulty) || DIFFICULTY_LEVELS[1];
-  const type = ASSIGNMENT_TYPES.find(t => t.id === assignment.type) || ASSIGNMENT_TYPES[0];
-  
-  const dueDate = new Date(assignment.dueDate);
-  const now = new Date();
-  const isOverdue = dueDate < now;
-  const daysUntil = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-white/10 p-6 shadow-xl hover:shadow-2xl transition-all"
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-2xl">{type.icon}</span>
-            <div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">{assignment.title}</h3>
-              <div className="flex items-center gap-2 text-xs">
-                <span className={`px-2 py-1 bg-${difficulty.color}-100 dark:bg-${difficulty.color}-500/20 text-${difficulty.color}-700 dark:text-${difficulty.color}-300 rounded-lg font-black`}>
-                  {difficulty.label}
-                </span>
-                <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg font-black">
-                  {type.label}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2">
-            {assignment.description}
-          </p>
-          
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-1">
-              <span>📅</span>
-              <span className={isOverdue ? "text-red-500 font-black" : ""}>
-                {isOverdue ? "Overdue" : daysUntil === 0 ? "Due today" : daysUntil === 1 ? "Due tomorrow" : `Due in ${daysUntil} days`}
-              </span>
-            </div>
-            {assignment.submittedCount !== undefined && (
-              <div className="flex items-center gap-1">
-                <span>📊</span>
-                <span>{assignment.submittedCount}/{assignment.totalStudents} submitted</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {userRole === 'educator' && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => onEdit(assignment)}
-              className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:text-indigo-500 transition-colors"
-            >
-              ✎
-            </button>
-            <button
-              onClick={() => onDelete(assignment.id)}
-              className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Student-specific actions */}
-      {userRole === 'student' && (
-        <div className="flex gap-3 mt-4">
-          {assignment.completed ? (
-            <button
-              onClick={() => onView(assignment)}
-              className="flex-1 py-2 bg-emerald-600 text-white rounded-2xl text-xs font-black hover:bg-emerald-700 transition-colors"
-            >
-              View Feedback
-            </button>
-          ) : (
-            <button
-              onClick={() => onView(assignment)}
-              className="flex-1 py-2 bg-indigo-600 text-white rounded-2xl text-xs font-black hover:bg-indigo-700 transition-colors"
-            >
-              Start Assignment
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Educator-specific actions */}
-      {userRole === 'educator' && (
-        <div className="flex gap-3 mt-4">
-          <Link
-            href={`/grades?assignmentId=${assignment.id}`}
-            className="flex-1 py-2 text-center border-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-black hover:bg-indigo-50 transition-colors"
-          >
-            View Submissions
-          </Link>
-          <button
-            onClick={() => onView(assignment)}
-            className="flex-1 py-2 bg-indigo-600 text-white rounded-2xl text-xs font-black hover:bg-indigo-700 transition-colors"
-          >
-            Edit Assignment
-          </button>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-function CreateAssignmentModal({ open, onClose, onSave, classData }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    type: "quiz",
-    difficulty: "intermediate",
-    dueDate: "",
-    points: 100,
-    aiGenerated: true
-  });
-  const [isCreating, setIsCreating] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.title || !formData.dueDate) return;
-    
-    setIsCreating(true);
-    
-    // Simulate AI generation if requested
-    if (formData.aiGenerated) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    
-    setTimeout(() => {
-      const newAssignment = {
-        id: `assignment_${Date.now()}`,
-        ...formData,
-        classId: classData?.id || null,
-        className: classData?.name || "General",
-        createdAt: new Date().toISOString(),
-        submittedCount: 0,
-        totalStudents: classData?.studentCount || 0
-      };
-      onSave(newAssignment);
-      setFormData({
-        title: "",
-        description: "",
-        type: "quiz", 
-        difficulty: "intermediate",
-        dueDate: "",
-        points: 100,
-        aiGenerated: true
-      });
-      setIsCreating(false);
-      onClose();
-    }, formData.aiGenerated ? 2000 : 1000);
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl p-6"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">Create New Assignment</h3>
-            {classData && (
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                For: {classData.name} ({classData.studentCount} students)
-              </p>
-            )}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:text-red-500">
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Assignment Title</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none"
-                placeholder="e.g., Chapter 5 Quiz: Fractions"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Type</label>
-              <div className="grid grid-cols-2 gap-2">
-                {ASSIGNMENT_TYPES.map(type => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: type.id })}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
-                      formData.type === type.id
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20"
-                        : "border-slate-200 dark:border-white/10 hover:border-indigo-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{type.icon}</span>
-                      <div>
-                        <div className="text-sm font-black">{type.label}</div>
-                        <div className="text-xs text-slate-500">{type.description}</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full h-32 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none resize-none"
-              placeholder="Detailed instructions for students..."
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Difficulty</label>
-              <select
-                value={formData.difficulty}
-                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              >
-                {DIFFICULTY_LEVELS.map(level => (
-                  <option key={level.id} value={level.id}>{level.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Due Date</label>
-              <input
-                type="datetime-local"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Points</label>
-              <input
-                type="number"
-                value={formData.points}
-                onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 100 })}
-                className="w-full h-12 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none"
-                min="1"
-                max="1000"
-              />
-            </div>
-          </div>
-
-          {/* AI Generation Option */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-fuchsia-500/10 border-2 border-dashed border-indigo-500/30">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🤖</span>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white">AI-Generated Questions</h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Let Elora create quiz questions based on your class topic
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.aiGenerated}
-                  onChange={(e) => setFormData({ ...formData, aiGenerated: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-              </label>
-            </div>
-            
-            {formData.aiGenerated && (
-              <div className="mt-3 p-3 bg-white dark:bg-slate-800 rounded-xl">
-                <p className="text-xs text-slate-600 dark:text-slate-300">
-                  🎯 Elora will generate 5 questions that align with {classData?.subject || "your subject"} curriculum standards
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-12 rounded-2xl border-2 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isCreating}
-              className="flex-1 h-12 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {isCreating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {formData.aiGenerated ? "Generating..." : "Creating..."}
-                </>
-              ) : (
-                "Create Assignment"
-              )}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-}
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+import Link from 'next/link';
+import Navigation from '../../components/Navigation';
+import AssignmentWizard from '../../components/assignments/AssignmentWizard';
+import { EmptyAssignments } from '../../components/ui/EmptyStates';
+import { createAssignment, getUserAssignments } from '../../lib/firestore/assignments';
+import { getUserClasses } from '../../lib/firestore/classes';
+import { useApp } from '../../lib/contexts/AppContext';
+import { useNotifications } from '../../lib/contexts/NotificationContext';
 
 export default function AssignmentsPage() {
-  const router = useRouter();
-  const [session, setSession] = useState(null);
-  const [assignments, setAssignments] = useState([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [mounted, setMounted] = useState(false);
+    const { user } = useApp();
+    const notify = useNotifications();
+    const [assignments, setAssignments] = useState([]);
+    const [classes, setClasses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showWizard, setShowWizard] = useState(false);
+    const [filter, setFilter] = useState('all'); // all, published, draft
 
-  useEffect(() => {
-    setMounted(true);
-    const currentSession = getSession();
-    setSession(currentSession);
-    
-    // Get class ID from query
-    const classId = router.query.classId;
-    
-    // Load classes and assignments
-    if (currentSession?.classroom?.classes) {
-      const classes = currentSession.classroom.classes;
-      const targetClass = classId ? classes.find(c => c.id === classId) : classes[0];
-      setSelectedClass(targetClass);
-      
-      // Load assignments for this class
-      if (currentSession.classroom.assignments) {
-        const classAssignments = currentSession.classroom.assignments.filter(
-          a => !classId || a.classId === classId
+    useEffect(() => {
+        loadData();
+    }, [user]);
+
+    const loadData = async () => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            const [assignmentsData, classesData] = await Promise.all([
+                getUserAssignments(user.uid),
+                getUserClasses(user.uid),
+            ]);
+            setAssignments(assignmentsData);
+            setClasses(classesData);
+        } catch (error) {
+            console.error('Failed to load data:', error);
+            notify.error('Failed to load assignments');
+        }
+        setLoading(false);
+    };
+
+    const handleCreateAssignment = async (data) => {
+        try {
+            await createAssignment({ ...data, teacherId: user.uid });
+            notify.success('Assignment created successfully!');
+            setShowWizard(false);
+            loadData();
+        } catch (error) {
+            console.error('Failed to create assignment:', error);
+            notify.error('Failed to create assignment');
+        }
+    };
+
+    const filteredAssignments = assignments.filter(a => {
+        if (filter === 'all') return true;
+        if (filter === 'published') return a.status === 'published';
+        if (filter === 'draft') return a.status === 'draft';
+        return true;
+    });
+
+    if (loading) {
+        return (
+            <>
+                <Navigation />
+                <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="skeleton h-32 rounded-2xl" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </>
         );
-        setAssignments(classAssignments);
-      } else {
-        // Demo assignments
-        const demoAssignments = [
-          {
-            id: "assignment_1",
-            title: "Chapter 5 Quiz: Fractions and Decimals",
-            description: "Complete the quiz on converting between fractions and decimals. Show your work for full credit.",
-            type: "quiz",
-            difficulty: "intermediate",
-            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 3 days from now
-            points: 50,
-            classId: classId || "class_1",
-            className: targetClass?.name || "Math Class",
-            createdAt: new Date().toISOString(),
-            submittedCount: 8,
-            totalStudents: targetClass?.studentCount || 24,
-            completed: false
-          },
-          {
-            id: "assignment_2", 
-            title: "Lab Report: Chemical Reactions",
-            description: "Write a detailed lab report on the chemical reactions experiment we conducted in class.",
-            type: "essay",
-            difficulty: "advanced",
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 1 week from now
-            points: 100,
-            classId: classId || "class_1",
-            className: targetClass?.name || "Science Class",
-            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            submittedCount: 5,
-            totalStudents: targetClass?.studentCount || 24,
-            completed: false
-          }
-        ];
-        setAssignments(demoAssignments);
-      }
     }
-  }, [router.query.classId]);
 
-  const handleCreateAssignment = (newAssignment) => {
-    const updatedAssignments = [...assignments, newAssignment];
-    setAssignments(updatedAssignments);
-    
-    // Save to session
-    const currentSession = getSession();
-    if (!currentSession.classroom) currentSession.classroom = {};
-    if (!currentSession.classroom.assignments) currentSession.classroom.assignments = [];
-    currentSession.classroom.assignments = updatedAssignments;
-    saveSession(currentSession);
-  };
+    return (
+        <>
+            <Navigation />
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Assignments</h1>
+                            <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+                                Create and manage your assignments
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowWizard(true)}
+                            className="btn btn-primary group"
+                        >
+                            <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create Assignment
+                        </button>
+                    </div>
 
-  const handleDeleteAssignment = (assignmentId) => {
-    if (!confirm("Are you sure you want to delete this assignment? This action cannot be undone.")) return;
-    
-    const updatedAssignments = assignments.filter(a => a.id !== assignmentId);
-    setAssignments(updatedAssignments);
-    
-    // Update session
-    const currentSession = getSession();
-    if (currentSession?.classroom?.assignments) {
-      currentSession.classroom.assignments = updatedAssignments;
-      saveSession(currentSession);
-    }
-  };
+                    {/* Filter Tabs */}
+                    <div className="flex items-center gap-2 mb-6">
+                        {['all', 'published', 'draft'].map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f
+                                    ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                                    : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+                                    }`}
+                            >
+                                {f.charAt(0).toUpperCase() + f.slice(1)}
+                            </button>
+                        ))}
+                    </div>
 
-  const userRole = session?.role || 'student';
+                    {/* Assignments List */}
+                    {filteredAssignments.length === 0 ? (
+                        <EmptyAssignments onCreate={() => setShowWizard(true)} />
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredAssignments.map((assignment, idx) => {
+                                const isPastDue = new Date() > new Date(assignment.dueDate);
 
-  if (!mounted) return null;
+                                return (
+                                    <motion.div
+                                        key={assignment.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                    >
+                                        <Link href={`/assignments/${assignment.id}`}>
+                                            <div className="group bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700 p-6 hover:shadow-xl hover:shadow-primary-500/10 transition-all cursor-pointer">
+                                                <div className="flex items-start gap-4">
+                                                    {/* Icon */}
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${assignment.status === 'published'
+                                                        ? 'bg-gradient-to-br from-secondary-500 to-tertiary-500 shadow-secondary-500/25'
+                                                        : 'bg-gradient-to-br from-neutral-400 to-neutral-500 shadow-neutral-500/25'
+                                                        }`}>
+                                                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                    </div>
 
-  return (
-    <>
-      <Head>
-        <title>Assignments - Elora</title>
-        <meta name="theme-color" content="#070b16" />
-      </Head>
+                                                    {/* Content */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-4 mb-2">
+                                                            <h3 className="text-lg font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                                                {assignment.title}
+                                                            </h3>
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${assignment.status === 'published'
+                                                                ? 'bg-secondary-100 dark:bg-secondary-900/30 text-secondary-700 dark:text-secondary-300'
+                                                                : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300'
+                                                                }`}>
+                                                                {assignment.status}
+                                                            </span>
+                                                        </div>
 
-      <div className="elora-page min-h-screen bg-slate-50/50 dark:bg-slate-950/20">
-        <div className="elora-container pt-8 pb-16">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">
-                {selectedClass ? `${selectedClass.name} - Assignments` : "All Assignments"}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300">
-                {assignments.length} {assignments.length === 1 ? 'assignment' : 'assignments'} • {selectedClass?.studentCount || 0} students
-              </p>
+                                                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">
+                                                            {assignment.description}
+                                                        </p>
+
+                                                        {/* Meta Info */}
+                                                        <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                                <span className={isPastDue ? 'text-error font-semibold' : ''}>
+                                                                    Due: {format(new Date(assignment.dueDate), 'MMM dd, h:mm a')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                                                </svg>
+                                                                <span>{assignment.points} points</span>
+                                                            </div>
+                                                            {assignment.className && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                                    </svg>
+                                                                    <span>{assignment.className}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             </div>
-            
-            {userRole === 'educator' && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-500/20"
-              >
-                <span className="text-xl">+</span>
-                Create Assignment
-              </button>
+
+            {/* Assignment Wizard Modal */}
+            {showWizard && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-modal-backdrop flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <AssignmentWizard
+                            onSave={handleCreateAssignment}
+                            onCancel={() => setShowWizard(false)}
+                            classData={classes[0]} // TODO: Let user select class
+                        />
+                    </div>
+                </div>
             )}
-          </div>
-
-          {/* Class Filter for Educators */}
-          {userRole === 'educator' && (
-            <div className="mb-8 flex gap-4">
-              <Link
-                href="/classes"
-                className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 rounded-2xl text-sm font-black"
-              >
-                ← Back to Classes
-              </Link>
-            </div>
-          )}
-
-          {/* Assignments Grid */}
-          {assignments.length > 0 ? (
-            <div className="grid gap-6 lg:grid-cols-2">
-              {assignments.map((assignment) => (
-                <AssignmentCard
-                  key={assignment.id}
-                  assignment={assignment}
-                  userRole={userRole}
-                  onView={(assignment) => {
-                    if (userRole === 'student') {
-                      router.push(`/assignments/${assignment.id}/complete`);
-                    } else {
-                      router.push(`/assignments/${assignment.id}/edit`);
-                    }
-                  }}
-                  onEdit={(assignment) => {
-                    router.push(`/assignments/${assignment.id}/edit`);
-                  }}
-                  onDelete={handleDeleteAssignment}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 rounded-3xl bg-indigo-100 dark:bg-indigo-500/10 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">📋</span>
-              </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-4">
-                {userRole === 'educator' ? 'No Assignments Created' : 'No Assignments Assigned'}
-              </h3>
-              <p className="text-slate-600 dark:text-slate-300 mb-8 max-w-md mx-auto">
-                {userRole === 'educator' 
-                  ? 'Create your first assignment to start engaging your students with AI-powered learning activities.'
-                  : 'Your teacher hasn\'t assigned any work yet. Check back soon for new assignments.'
-                }
-              </p>
-              {userRole === 'educator' && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-colors"
-                >
-                  Create First Assignment
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* AI Helper Section */}
-          {userRole === 'educator' && (
-            <div className="mt-16 bg-gradient-to-r from-indigo-500 to-fuchsia-600 rounded-3xl p-8 text-white text-center">
-              <h3 className="text-2xl font-black mb-4">AI Assignment Generator</h3>
-              <p className="mb-6 opacity-90 max-w-2xl mx-auto">
-                Save hours of preparation time. Elora can generate differentiated questions, 
-                create rubrics, and adapt content to your students' learning levels automatically.
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Link
-                  href="/assistant"
-                  className="px-6 py-3 bg-white text-indigo-600 rounded-2xl font-black hover:bg-slate-50 transition-colors"
-                >
-                  Try AI Assistant
-                </Link>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-indigo-700 text-white rounded-2xl font-black hover:bg-indigo-800 transition-colors"
-                >
-                  Generate with AI
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <CreateAssignmentModal
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSave={handleCreateAssignment}
-        classData={selectedClass}
-      />
-    </>
-  );
+        </>
+    );
 }

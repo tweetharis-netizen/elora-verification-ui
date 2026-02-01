@@ -112,12 +112,20 @@ function inferActionFromMessage(message, fallbackAction) {
     t.includes("am i correct") ||
     t.includes("did i get it right") ||
     t.includes("right or wrong") ||
+    t.includes("validate") ||
     /\bmy answer\b/.test(t) ||
     /\banswer\s*:\s*/.test(t) ||
     /\b=\s*-?\d/.test(t)
   ) {
     return "check";
   }
+
+  if (t.includes("lesson plan") || t.includes("plan a lesson") || t.includes("curriculum")) return "lesson";
+  if (t.includes("worksheet") || t.includes("practice sheet")) return "worksheet";
+  if (t.includes("assessment") || t.includes("test") || t.includes("quiz") || t.includes("exam")) return "assessment";
+  if (t.includes("slides") || t.includes("powerpoint") || t.includes("presentation")) return "slides";
+  if (t.includes("study plan") || t.includes("how to study") || t.includes("revision")) return "study";
+  if (t.includes("explain") || t.includes("what is") || t.includes("how does")) return "explain";
 
   return String(fallbackAction || "explain");
 }
@@ -423,7 +431,8 @@ function systemPrompt({ role, country, level, subject, topic, action, attempt, h
       : role === "parent"
         ? "You are Elora, a warm, practical helper for parents supporting learning at home."
         : [
-          "You are Elora, a multi-modal tutor for students.",
+          "You are Elora, a Cinematic, High-Perception AI Learning Assistant.",
+          "1. Adopt a world-class tutor persona: professional, encouraging, and highly adaptive.",
           sentiment === "supportive"
             ? "CRITICAL: Student seems frustrated or stuck. Shift to a GENTLE, COACHING tone. Use encouraging phrases, break things down more than usual, and offer a short 'brain break' if they want."
             : "Keep a steady, professional, and encouraging tutor persona."
@@ -634,15 +643,16 @@ export default async function handler(req, res) {
     let { ok, data } = await callOpenRouter({
       apiKey,
       messages: [
-        { role: "system", content: sys },
+        { role: "system", content: prompt },
         ...historyMessages,
         { role: "user", content: userContent },
       ],
     });
 
     if (!ok) {
-      const msg = data?.error?.message || data?.error || "AI request failed.";
-      return res.status(500).json({ error: String(msg) });
+      const msg = data?.error?.message || data?.error || JSON.stringify(data) || "AI request failed.";
+      console.error("OpenRouter Error Details:", { status, data });
+      return res.status(500).json({ error: `Elora's neural link is unstable. Details: ${String(msg)}` });
     }
 
     let replyRaw = data?.choices?.[0]?.message?.content || "";
@@ -658,7 +668,7 @@ export default async function handler(req, res) {
     if (role === "student" && action === "check" && attempt > 0 && attempt < 3) {
       if (looksLikeAnswerLeak(reply)) {
         const rewriteSys =
-          sys +
+          prompt +
           `\nRewrite rule:\n- Rewrite your previous reply so it contains NO final numeric answer and NO "the answer is". Keep only hints and next-step guidance.`;
         const rewriteUser = `Rewrite this response to follow the attempt policy strictly (no final answer):\n\n${reply}`;
 
@@ -685,7 +695,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ reply });
-  } catch {
-    return res.status(500).json({ error: "Assistant failed. Try again." });
+  } catch (err) {
+    console.error("API Error in Assistant Handler:", err);
+    return res.status(500).json({ error: "Assistant failed. Details: " + (err.message || "Internal error") });
   }
 }

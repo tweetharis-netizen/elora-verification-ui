@@ -285,20 +285,20 @@ export default function HomePage() {
                   </span>
                 </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={verified ? () => router.push("/dashboard") : goVerify}
-                  className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-slate-800/50 backdrop-blur-xl px-7 py-4 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800 hover:border-white/80 dark:hover:border-indigo-500/50 transition-all duration-500 shadow-2xl shadow-slate-900/5"
-                >
-                  {verified ? (
+                {!verified && (
+                  <motion.button
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    type="button"
+                    onClick={goVerify}
+                    className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-slate-800/50 backdrop-blur-xl px-7 py-4 text-sm font-bold text-slate-800 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800 hover:border-white/80 dark:hover:border-indigo-500/50 transition-all duration-500 shadow-2xl shadow-slate-900/5"
+                  >
                     <span className="flex items-center gap-2">
-                      <span>Open Dashboard</span>
+                      <span>Verify Email</span>
                       <span className="opacity-50 text-xs">→</span>
                     </span>
-                  ) : "Verify Email →"}
-                </motion.button>
+                  </motion.button>
+                )}
               </div>
 
               <motion.div

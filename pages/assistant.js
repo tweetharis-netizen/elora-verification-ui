@@ -34,8 +34,8 @@ function cn(...inputs) {
   return inputs.filter(Boolean).join(" ");
 }
 
-const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Other"];
-const SUBJECTS = ["General", "Math", "Science", "English", "History", "Geography", "Computing"];
+const COUNTRIES = ["Singapore", "United States", "United Kingdom", "Australia", "Malaysia", "Canada", "New Zealand", "India", "Nigeria", "Other"];
+const SUBJECTS = ["General", "Math", "Science", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computing", "Literature", "Economics"];
 
 const ROLE_LABEL = {
   student: "Student",
@@ -1480,47 +1480,83 @@ export default function AssistantPage() {
               className="w-full lg:w-80 h-full bg-slate-50 dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 z-[40] fixed lg:relative flex flex-col"
             >
               <div className="p-8 border-b border-slate-100 dark:border-white/5">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8 group/header">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20">🛸</div>
-                    <h1 className="text-xl font-black italic tracking-tighter">ELORA</h1>
+                    <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-indigo-500/20 group-hover/header:rotate-12 transition-transform duration-500">🛸</div>
+                    <div>
+                      <h1 className="text-xl font-black italic tracking-tighter">ELORA</h1>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
+                        <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500/60">Advanced Neural Link</span>
+                      </div>
+                    </div>
                   </div>
                   <button
                     onClick={() => {
                       setSidebarOpen(false);
                       try { window.localStorage.setItem(PREFS_OPEN_KEY, "false"); } catch { }
                     }}
-                    className="lg:hidden p-2 text-slate-400 hover:text-white"
+                    className="lg:hidden p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
                   >
                     ✕
                   </button>
                 </div>
 
                 <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Location Context</label>
-                    <select
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-xs font-bold focus:ring-2 ring-indigo-500/20"
-                    >
-                      <option value="NG">Nigeria</option>
-                      <option value="UK">United Kingdom</option>
-                      <option value="US">United States</option>
-                    </select>
-                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Personalization</label>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Academic Level</label>
-                    <select
-                      value={level}
-                      onChange={(e) => setLevel(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl p-4 text-xs font-bold focus:ring-2 ring-indigo-500/20"
-                    >
-                      {getCountryLevels(country).map(l => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
+                    <div className="space-y-4 p-4 rounded-3xl bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 shadow-sm">
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">Syllabus Environment</span>
+                        <select
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2.5 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 outline-none"
+                        >
+                          {COUNTRIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">Academic Grade</span>
+                        <select
+                          value={level}
+                          onChange={(e) => setLevel(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2.5 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 outline-none"
+                        >
+                          {getCountryLevels(country).map(l => (
+                            <option key={l} value={l}>{l}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">Target Subject</span>
+                        <select
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2.5 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 outline-none"
+                        >
+                          {SUBJECTS.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">Current Topic</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. Algebra I"
+                          value={topic}
+                          onChange={(e) => setTopic(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2.5 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 outline-none placeholder:text-slate-400"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1543,15 +1579,21 @@ export default function AssistantPage() {
                   ))}
                 </div>
 
-                <div className="p-4 rounded-3xl bg-indigo-500/5 border border-indigo-500/10 space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 space-y-4 backdrop-blur-sm relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 blur-2xl group-hover:bg-white/20 transition-all" />
+                  <div className="flex items-center justify-between relative z-10">
                     <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Learning Mastery</span>
-                    <span className="text-[10px] font-black text-indigo-600">Level 12</span>
+                    <span className="text-[10px] font-black text-indigo-600 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-white/5">Tier 8</span>
                   </div>
-                  <div className="h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 w-[68%]" />
+                  <div className="h-2 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden relative z-10">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: "68%" }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_0_10px_rgba(79,70,229,0.5)]"
+                    />
                   </div>
-                  <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest relative z-10">
                     <span>1,240 XP</span>
                     <span>2,000 XP</span>
                   </div>
@@ -1583,8 +1625,10 @@ export default function AssistantPage() {
                 <div>
                   <h2 className="text-sm font-black tracking-tight">{activeChatId ? threads.find(t => t.id === activeChatId)?.name || "Current Session" : "New Link"}</h2>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Stable Connection</span>
+                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      {loading ? "Neural Analysis..." : `Adapting to ${level} ${subject}`}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -7,9 +7,10 @@ import RubricBuilder from '../RubricBuilder';
 import { generateRubric } from '../../lib/firestore/assignments';
 import { findStandards } from '../../lib/curriculum/standards';
 
-export default function AssignmentWizard({ onSave, onCancel, classData }) {
+export default function AssignmentWizard({ onSave, onCancel, classes = [] }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
+        classId: classes[0]?.id || '',
         title: '',
         description: '',
         dueDate: '',
@@ -53,12 +54,13 @@ export default function AssignmentWizard({ onSave, onCancel, classData }) {
     };
 
     const handleFindStandards = () => {
-        if (!classData) return;
+        const selectedClass = classes.find(c => c.id === formData.classId);
+        if (!selectedClass) return;
 
         const keywords = [formData.topic, ...formData.description.split(' ').filter(w => w.length > 4)];
         const standards = findStandards({
             curriculum: 'US_CommonCore_Math',
-            level: classData.level || 'K',
+            level: selectedClass.level || 'K',
             keywords,
         });
 
@@ -98,10 +100,10 @@ export default function AssignmentWizard({ onSave, onCancel, classData }) {
                         <div
                             key={label}
                             className={`text-center text-xs font-medium ${idx + 1 === step
-                                    ? 'text-primary-600'
-                                    : idx + 1 < step
-                                        ? 'text-secondary-600'
-                                        : 'text-text-tertiary'
+                                ? 'text-primary-600'
+                                : idx + 1 < step
+                                    ? 'text-secondary-600'
+                                    : 'text-text-tertiary'
                                 }`}
                         >
                             {label}
@@ -120,7 +122,28 @@ export default function AssignmentWizard({ onSave, onCancel, classData }) {
                         exit={{ opacity: 0, x: -20 }}
                         className="space-y-6"
                     >
-                        <h2 className="text-2xl font-bold text-text-primary">Basic Information</h2>
+                        <h2 className="text-2xl font-bold text-premium">Basic Information</h2>
+
+                        {classes.length > 0 && (
+                            <div>
+                                <label className="label">Select Class *</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {classes.map((cls) => (
+                                        <button
+                                            key={cls.id}
+                                            onClick={() => updateField('classId', cls.id)}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${formData.classId === cls.id
+                                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                                : 'border-premium bg-premium-card hover:border-primary-300'
+                                                }`}
+                                        >
+                                            <div className="font-bold text-premium truncate">{cls.name}</div>
+                                            <div className="text-xs text-secondary truncate">{cls.subject} • {cls.level}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <label className="label">Assignment Title *</label>
@@ -142,8 +165,8 @@ export default function AssignmentWizard({ onSave, onCancel, classData }) {
                                         key={type}
                                         onClick={() => updateField('type', type)}
                                         className={`p-4 rounded-xl border-2 transition-all ${formData.type === type
-                                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                                                : 'border-border-primary hover:border-primary-300'
+                                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                            : 'border-border-primary hover:border-primary-300'
                                             }`}
                                     >
                                         <div className="text-center">

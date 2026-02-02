@@ -3,8 +3,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { StatsCard, LineChart } from "@/components/dashboard/DashboardUI";
-import { getSession } from "@/lib/session";
+import { StatsCard, LineChart } from "./DashboardUI";
+import { getSession } from "../../lib/session";
 
 export default function StudentModule({
     data,

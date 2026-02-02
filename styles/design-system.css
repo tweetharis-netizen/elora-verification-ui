@@ -599,3 +599,44 @@
     --text-5xl: 2.5rem;
   }
 }
+
+/* Premium Utilities */
+.text-premium {
+  color: var(--text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.bg-premium {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-premium-card {
+  background-color: var(--bg-secondary) !important;
+}
+
+.border-premium {
+  border: var(--border-premium) !important;
+}
+
+.shadow-premium-sm {
+  box-shadow: var(--shadow-premium-sm);
+}
+
+.shadow-premium-md {
+  box-shadow: var(--shadow-premium-md);
+}
+
+.shadow-premium-lg {
+  box-shadow: var(--shadow-premium-lg);
+}
+
+.shadow-premium-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.dark .shadow-premium-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}

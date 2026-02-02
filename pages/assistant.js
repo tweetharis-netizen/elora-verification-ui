@@ -1057,11 +1057,12 @@ export default function AssistantPage() {
     } catch (err) {
       console.error("AI Assistant Error:", err);
       const next = [
-        ...messages,
+        ...base,
         {
           from: "elora",
           error: true,
           type: "recovery",
+          text: `⚠️ System Error: ${err.message || "Connection unstable"}. Please try again.`,
           message: err.message || "Connection unstable",
           ts: Date.now()
         },
@@ -1743,6 +1744,22 @@ export default function AssistantPage() {
                               <div className="prose prose-slate dark:prose-invert max-w-none text-[15px] font-medium leading-[1.8] tracking-tight whitespace-pre-wrap">
                                 {cleanText}
                               </div>
+                            </div>
+                          )}
+
+                          {isElora && m.error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-6 text-red-500 backdrop-blur-md shadow-premium-lg">
+                              <div className="flex items-center gap-3 mb-2 font-black text-[10px] uppercase tracking-widest">
+                                <span>⚠️ System Recovery</span>
+                                <div className="h-px flex-1 bg-red-500/20" />
+                              </div>
+                              <p className="text-sm font-bold mb-4">{m.message || "Something went wrong. Let's try that again."}</p>
+                              <button
+                                onClick={() => sendChat()}
+                                className="px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/30"
+                              >
+                                Retry Connection
+                              </button>
                             </div>
                           )}
 

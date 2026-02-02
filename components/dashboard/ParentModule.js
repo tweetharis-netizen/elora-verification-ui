@@ -2,7 +2,7 @@
 // Modernized Parent Module with Minimalist Premium aesthetic
 
 import { motion } from "framer-motion";
-import { BarChart, StatsCard } from "@/components/dashboard/DashboardUI";
+import { BarChart, StatsCard } from "./DashboardUI";
 
 export default function ParentModule({
     linkedStudentId,

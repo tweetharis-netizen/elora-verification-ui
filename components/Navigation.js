@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../lib/contexts/AppContext';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navigation() {
     const router = useRouter();
@@ -15,10 +16,10 @@ export default function Navigation() {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
+        { name: 'Assistant', href: '/assistant', icon: AssistantIcon },
         { name: 'Classes', href: '/classes', icon: ClassesIcon },
         { name: 'Assignments', href: '/assignments', icon: AssignmentsIcon },
         { name: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
-        { name: 'Assistant', href: '/assistant', icon: AssistantIcon },
     ];
 
     const isActive = (href) => router.pathname.startsWith(href);
@@ -74,6 +75,9 @@ export default function Navigation() {
 
                         {/* Right Side - User Menu */}
                         <div className="flex items-center gap-3">
+                            {/* Theme Toggle */}
+                            <ThemeToggle />
+
                             {/* Notifications */}
                             <button className="hidden md:flex items-center justify-center w-9 h-9 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                                 <svg className="w-5 h-5 text-neutral-600 dark:text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

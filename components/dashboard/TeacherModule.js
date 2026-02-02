@@ -3,15 +3,15 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import TeacherSidebar from "./TeacherSidebar";
-import TeacherOverview from "./TeacherOverview";
-import ClassWizard from "./ClassWizard";
-import TeacherVideoExplorer from "./TeacherVideoExplorer";
-import AssignmentWizard from "./AssignmentWizard";
-import QuizGenerator from "./QuizGenerator";
-import VoiceAssistant from "./VoiceAssistant";
-import { Greeting } from "./DashboardUI";
-import { generateJoinCode } from "../../lib/dashboard-utils";
+import TeacherSidebar from "@/components/dashboard/TeacherSidebar";
+import TeacherOverview from "@/components/dashboard/TeacherOverview";
+import ClassWizard from "@/components/dashboard/ClassWizard";
+import TeacherVideoExplorer from "@/components/dashboard/TeacherVideoExplorer";
+import AssignmentWizard from "@/components/dashboard/AssignmentWizard";
+import QuizGenerator from "@/components/dashboard/QuizGenerator";
+import VoiceAssistant from "@/components/dashboard/VoiceAssistant";
+import { Greeting } from "@/components/dashboard/DashboardUI";
+import { generateJoinCode } from "@/lib/dashboard-utils";
 
 export default function TeacherModule({
     students,

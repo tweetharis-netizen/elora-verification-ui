@@ -8,27 +8,27 @@ import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Core Libs
-import { getSession, saveSession } from "@/lib/session";
-import { generateDemoData, DemoModeBanner } from "@/lib/demoData";
+import { getSession, saveSession } from "../../lib/session";
+import { generateDemoData, DemoModeBanner } from "../../lib/demoData";
 
 // Components
-import ErrorBoundary from "@/components/ErrorBoundary";
-import { NotificationProvider, notify } from "@/components/Notifications";
-import { SubmissionModal } from "@/components/SubmissionModal";
-import { GradingModal } from "@/components/GradingModal";
+import ErrorBoundary from "../../components/ErrorBoundary";
+import { NotificationProvider, notify } from "../../components/Notifications";
+import { SubmissionModal } from "../../components/SubmissionModal";
+import { GradingModal } from "../../components/GradingModal";
 
 // Dashboard Modules & UI
-import StudentModule from "@/components/dashboard/StudentModule";
-import TeacherModule from "@/components/dashboard/TeacherModule";
-import ParentModule from "@/components/dashboard/ParentModule";
-import { PreviewBanner } from "@/components/dashboard/DashboardShared";
+import StudentModule from "../../components/dashboard/StudentModule";
+import TeacherModule from "../../components/dashboard/TeacherModule";
+import ParentModule from "../../components/dashboard/ParentModule";
+import { PreviewBanner } from "../../components/dashboard/DashboardShared";
 
 // Utils
 import {
     deriveStudentStats,
     computeClassMetrics,
     generateJoinCode
-} from "@/lib/dashboard-utils";
+} from "../../lib/dashboard-utils";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -155,8 +155,8 @@ export default function DashboardPage() {
                                         key={role}
                                         onClick={() => setActiveTab(role)}
                                         className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === role
-                                                ? "bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 shadow-premium-md"
-                                                : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                                            ? "bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 shadow-premium-md"
+                                            : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
                                             }`}
                                     >
                                         {role.charAt(0).toUpperCase() + role.slice(1)} View

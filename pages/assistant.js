@@ -1058,9 +1058,15 @@ export default function AssistantPage() {
       console.error("AI Assistant Error:", err);
       const next = [
         ...messages,
-        { from: "elora", text: `⚠️ System Error: ${err.message || "Connection failed"}. This usually happens if the backend server is busy. Please try again in 5 seconds.`, ts: Date.now() },
+        {
+          from: "elora",
+          error: true,
+          type: "recovery",
+          message: err.message || "Connection unstable",
+          ts: Date.now()
+        },
       ];
-      persistActiveMessages(next, { alsoSyncServer: true });
+      persistActiveMessages(next, { alsoSyncServer: false });
     } finally {
       setChatText("");
       setLoading(false);
@@ -1468,7 +1474,7 @@ export default function AssistantPage() {
   if (!mounted) return <div className="min-h-screen bg-slate-950" />;
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500/30 overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-premium text-premium selection:bg-primary-500/30 overflow-hidden font-sans transition-colors duration-500">
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar / Configuration */}
         <AnimatePresence>
@@ -1477,7 +1483,7 @@ export default function AssistantPage() {
               initial={{ x: -100, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -100, opacity: 0 }}
-              className="w-full lg:w-80 h-full bg-slate-50 dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 z-[40] fixed lg:relative flex flex-col"
+              className="w-full lg:w-80 h-full bg-premium-card border-r border-premium z-[40] fixed lg:relative flex flex-col shadow-premium-lg"
             >
               <div className="p-8 border-b border-slate-100 dark:border-white/5">
                 <div className="flex items-center justify-between mb-8 group/header">

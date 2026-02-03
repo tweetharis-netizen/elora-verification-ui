@@ -462,8 +462,8 @@ const InteractiveQuiz = ({ data, onComplete }) => {
           {data.questions.map((q, idx) => (
             <div key={q.id} className="space-y-4 group">
               <div className="flex gap-4">
-                <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-500/20">{idx + 1}</span>
-                <p className="text-[15px] font-bold text-slate-700 dark:text-slate-100 leading-relaxed pt-1">{q.question}</p>
+                <span className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 flex items-center justify-center text-xs font-bold shrink-0 border border-neutral-200 dark:border-neutral-700">{idx + 1}</span>
+                <p className="text-[15px] font-medium text-neutral-800 dark:text-neutral-200 leading-relaxed pt-1">{q.question}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-12">
@@ -478,18 +478,18 @@ const InteractiveQuiz = ({ data, onComplete }) => {
                       disabled={submitted}
                       onClick={() => setAnswers({ ...answers, [q.id]: opt })}
                       className={cn(
-                        "group/opt p-4 rounded-2xl border-2 text-xs font-black transition-all text-left relative overflow-hidden",
+                        "group/opt p-4 rounded-lg border text-sm font-medium transition-all text-left relative overflow-hidden",
                         isSelected
-                          ? "border-indigo-500 bg-indigo-500 text-white shadow-xl scale-[1.02]"
-                          : "border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-indigo-300 hover:bg-indigo-50/50",
-                        isCorrect && "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20",
-                        isWrong && "border-rose-500 bg-rose-500 text-white shadow-lg shadow-rose-500/20"
+                          ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900 shadow-sm"
+                          : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800",
+                        isCorrect && "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-200",
+                        isWrong && "border-rose-500 bg-rose-50 text-rose-900 dark:bg-rose-900/20 dark:text-rose-200"
                       )}
                     >
                       <div className="relative z-10 flex items-center justify-between">
                         <span>{opt}</span>
-                        {isCorrect && <span className="text-xl">✓</span>}
-                        {isWrong && <span className="text-xl">✕</span>}
+                        {isCorrect && <span className="text-lg">✓</span>}
+                        {isWrong && <span className="text-lg">✕</span>}
                       </div>
                     </button>
                   );
@@ -503,24 +503,24 @@ const InteractiveQuiz = ({ data, onComplete }) => {
           <button
             onClick={handleFinish}
             disabled={answeredCount < totalQuestions}
-            className="mt-10 w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all"
+            className="mt-8 w-full py-4 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 rounded-lg font-semibold text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors"
           >
-            Grade My Progress →
+            Grade My Progress
           </button>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 text-center shadow-xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-8 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-center shadow-sm">
             <div className="text-5xl mb-4">{score === totalQuestions ? "🔥" : score > totalQuestions / 2 ? "⭐️" : "💪"}</div>
             <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Synced to Teacher</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">Live Synced to Teacher</span>
             </div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+            <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 uppercase tracking-tight">
               Session Result: {score} / {totalQuestions}
             </div>
-            <div className="mt-2 h-2 bg-slate-100 dark:bg-white/5 rounded-full max-w-[200px] mx-auto overflow-hidden">
-              <div className="h-full bg-indigo-500" style={{ width: `${(score / totalQuestions) * 100}%` }} />
+            <div className="mt-2 h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full max-w-[200px] mx-auto overflow-hidden">
+              <div className="h-full bg-neutral-900 dark:bg-neutral-50" style={{ width: `${(score / totalQuestions) * 100}%` }} />
             </div>
-            <p className="text-xs font-medium text-slate-500 mt-6 max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs font-medium text-neutral-500 mt-6 max-w-sm mx-auto leading-relaxed">
               Analysis: {score === totalQuestions ? "Perfect mastery! You've unlocked a momentum boost." : "Solid effort. Elora has prepared specific review videos in the Resource Lab to help you bridge the gap."}
             </p>
           </motion.div>
@@ -548,28 +548,28 @@ const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-[100]"
+            className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-[100]"
           />
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-950 shadow-[-20px_0_50px_rgba(0,0,0,0.2)] z-[101] flex flex-col border-l border-slate-100 dark:border-white/5"
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-neutral-900 shadow-2xl z-[101] flex flex-col border-l border-neutral-200 dark:border-neutral-800"
           >
-            <div className="p-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white">Resource Lab</h3>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-1">AI Curated for "{topic || subject}"</p>
+                <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Resource Lab</h3>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500 mt-1">AI Curated for "{topic || subject}"</p>
               </div>
-              <button onClick={onClose} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl transition-all font-black text-slate-400">✕</button>
+              <button onClick={onClose} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-neutral-500 hover:text-neutral-900 dark:hover:text-white">✕</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
               {recs.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
                   <div className="text-4xl">🔎</div>
-                  <p className="text-sm font-bold text-slate-400">Expanding the library... check back in a few seconds.</p>
+                  <p className="text-sm font-medium text-neutral-500">Expanding the library... check back in a few seconds.</p>
                 </div>
               ) : (
                 recs.map((rec, idx) => (
@@ -578,34 +578,34 @@ const AIResourceDrawer = ({ open, onClose, topic, subject }) => {
                     href={rec.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="block group p-4 rounded-3xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm hover:shadow-xl"
+                    transition={{ delay: idx * 0.05 }}
+                    className="block group p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-white dark:hover:bg-neutral-800 transition-all shadow-sm hover:shadow-md"
                   >
-                    <div className="aspect-video rounded-2xl overflow-hidden mb-4 relative">
+                    <div className="aspect-video rounded-lg overflow-hidden mb-3 relative">
                       <Image
                         src={rec.thumbnail || `https://images.unsplash.com/photo-1546410531-bb4caa1b4247?auto=format&fit=crop&q=80&w=400`}
                         alt={rec.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-indigo-600/10 group-hover:bg-transparent transition-colors" />
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-900/80 backdrop-blur-md text-[8px] font-black text-white rounded-lg">LIVE</div>
+                      <div className="absolute inset-0 bg-neutral-900/0 group-hover:bg-neutral-900/10 transition-colors" />
+                      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-neutral-900/90 backdrop-blur-sm text-[9px] font-bold text-white rounded">LIVE</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">{rec.type || "VIDEO"}</div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors leading-snug">{rec.title}</h4>
-                      <p className="text-[10px] font-medium text-slate-500 line-clamp-2 mt-2 leading-relaxed">{rec.description}</p>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">{rec.type || "VIDEO"}</div>
+                      <h4 className="text-sm font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors leading-snug">{rec.title}</h4>
+                      <p className="text-xs text-neutral-500 line-clamp-2 mt-1 leading-relaxed">{rec.description}</p>
                     </div>
                   </motion.a>
                 ))
               )}
             </div>
 
-            <div className="p-8 bg-indigo-600 text-white">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Mastery Tip</p>
-              <p className="text-xs font-bold leading-relaxed">Watching visual breakdowns often improves retention by 40%. Try summarizing these in your own words.</p>
+            <div className="p-6 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2">Mastery Tip</p>
+              <p className="text-xs font-medium leading-relaxed">Watching visual breakdowns often improves retention by 40%. Try summarizing these in your own words.</p>
             </div>
           </motion.div>
         </>
@@ -1586,18 +1586,17 @@ export default function AssistantPage() {
                   ))}
                 </div>
 
-                <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 space-y-4 backdrop-blur-sm relative overflow-hidden group">
-                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 blur-2xl group-hover:bg-white/20 transition-all" />
+                <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-4 relative overflow-hidden group shadow-sm">
                   <div className="flex items-center justify-between relative z-10">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Learning Mastery</span>
-                    <span className="text-[10px] font-black text-indigo-600 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-white/5">Tier 8</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Learning Mastery</span>
+                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-600">Tier 8</span>
                   </div>
-                  <div className="h-2 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden relative z-10">
+                  <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden relative z-10">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: "68%" }}
                       transition={{ duration: 1.5, ease: "easeOut" }}
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_0_10px_rgba(79,70,229,0.5)]"
+                      className="h-full bg-indigo-600 dark:bg-indigo-500"
                     />
                   </div>
                   <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest relative z-10">
@@ -1802,7 +1801,7 @@ export default function AssistantPage() {
           </div>
 
           {/* Composer */}
-          <div className="p-6 lg:p-10 bg-gradient-to-t from-white via-white dark:from-slate-950 dark:via-slate-950 to-transparent pt-20 shrink-0 relative z-20">
+          <div className="p-6 lg:p-10 bg-white dark:bg-slate-950 pt-20 shrink-0 relative z-20">
             {/* Jump to latest */}
             <AnimatePresence>
               {showJump && (
@@ -1848,7 +1847,7 @@ export default function AssistantPage() {
               )}
 
               <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.5rem] blur opacity-10 group-focus-within:opacity-30 transition duration-1000" />
+                <div className="absolute -inset-1 rounded-[2.5rem] bg-slate-200 dark:bg-slate-800 blur opacity-10 group-focus-within:opacity-30 transition duration-1000" />
 
                 <div className="relative flex items-end gap-3 p-3 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-2xl">
                   <div className="flex flex-col gap-2 pb-1 pl-1">

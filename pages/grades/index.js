@@ -50,7 +50,7 @@ function ProgressCard({ title, value, maxValue, color, icon, trend }) {
         
         <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div 
-            className={`h-full bg-gradient-to-r from-${color}-400 to-${color}-600 transition-all duration-1000`}
+            className={`h-full bg-${color}-600 transition-all duration-1000`}
             style={{ width: `${Math.min(percentage, 100)}%` }}
           />
         </div>
@@ -527,7 +527,7 @@ export default function GradesPage() {
               </div>
               
               {/* AI Recommendations */}
-              <div className="mt-12 bg-gradient-to-r from-indigo-500 to-fuchsia-600 rounded-3xl p-8 text-white text-center">
+              <div className="mt-12 bg-indigo-600 rounded-3xl p-8 text-white text-center">
                 <h3 className="text-2xl font-black mb-4">Personalized Learning Path</h3>
                 <p className="mb-6 opacity-90 max-w-2xl mx-auto">
                   Based on your progress, Elora recommends focusing on these areas to improve your mastery level.

@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
           <p style="margin:0 0 18px 0;">
             <a href="${confirmUrl}"
                style="display:inline-block;padding:12px 16px;border-radius:999px;
-                      background:linear-gradient(135deg,#7c7bff,#59c2ff);
+                      background:#2563eb;
                       color:white;text-decoration:none;font-weight:800;">
               Verify email
             </a>

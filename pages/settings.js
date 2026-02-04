@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
   const roleRef = useRef(null);
 
-  const canLogout = useMemo(() => hasSession(), [verified, teacher]);
+  const canLogout = useMemo(() => Boolean(verified), [verified]);
 
   useEffect(() => {
     const s = getSession();
@@ -161,9 +161,8 @@ export default function SettingsPage() {
   return (
     <div className="elora-page">
       <div className="elora-container">
-        <div className="elora-card relative overflow-hidden p-6 md:p-8">
+          <div className="elora-card relative overflow-hidden p-6 md:p-8">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -inset-24 bg-gradient-to-br from-indigo-500/15 via-sky-400/10 to-fuchsia-500/15 blur-3xl" />
             <div className="absolute inset-0 elora-grain" />
           </div>
 

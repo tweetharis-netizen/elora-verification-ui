@@ -94,12 +94,7 @@ export default function Navbar() {
     };
   }, []);
 
-  const canLogout = useMemo(
-    () => hasSessionFn(),
-    // best-effort memo; session updates via elora:session events
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session?.verified, session?.teacher, session?.hasSession]
-  );
+  const canLogout = useMemo(() => Boolean(session?.verified), [session?.verified]);
 
   const verified = Boolean(session?.verified);
 
@@ -120,78 +115,70 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto max-w-6xl px-4 pointer-events-auto">
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] px-4 py-2.5 lg:px-5 lg:py-3 transition-all duration-300 hover:border-indigo-500/30 dark:hover:border-indigo-400/30">
-          <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit]">
-            <div className="relative">
-              <div
-                className={clsx(
-                  "absolute -inset-2 rounded-2xl blur-xl opacity-40",
-                  "bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/25 to-sky-400/30",
-                  "dark:from-indigo-400/30 dark:via-fuchsia-400/20 dark:to-sky-300/25",
-                  "group-hover:opacity-60 transition-opacity"
-                )}
-                aria-hidden="true"
-              />
-              <div className="relative flex items-center gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl px-3 py-2 shadow-sm shadow-slate-900/5 dark:shadow-black/20">
-                <div className="w-9 h-9 rounded-2xl grid place-items-center bg-gradient-to-br from-indigo-600 via-indigo-500 to-fuchsia-500 text-white font-bold shadow-md shadow-indigo-500/30">
-                  E
-                </div>
-                <div className="leading-tight">
-                  <div className="font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-700 dark:from-white dark:via-indigo-200 dark:to-fuchsia-200 font-[var(--font-brand)]">
-                    Elora
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm px-4 py-2.5 lg:px-5 lg:py-3 transition-all duration-300">
+            <Link href="/" className="group flex items-center gap-3 no-underline text-[inherit]">
+              <div className="relative">
+                {/* Clean solid background */}
+                <div className="relative flex items-center gap-2 rounded-2xl px-2 py-1">
+                  <div className="w-9 h-9 rounded-xl grid place-items-center bg-indigo-600 text-white font-bold shadow-sm">
+                    E
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">
-                    AI learning assistant
+                  <div className="leading-tight">
+                    <div className="font-bold tracking-tight text-slate-900 dark:text-white font-[var(--font-brand)]">
+                      Elora
+                    </div>
+                    <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">
+                      AI learning assistant
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Link>
+            </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/story", label: "Story" },
-              { href: "/assistant", label: "Assistant" },
-              { href: "/dashboard", label: "Dashboard" },
-              { href: "/help", label: "Help" },
-              { href: "/settings", label: "Settings" },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors"
-                href={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+            {/* Desktop nav */}
+            <nav className="hidden sm:flex items-center gap-2" aria-label="Primary">
+              {[
+                { href: "/", label: "Home" },
+                { href: "/story", label: "Story" },
+                { href: "/assistant", label: "Assistant" },
+                { href: "/dashboard", label: "Dashboard" },
+                { href: "/help", label: "Help" },
+                { href: "/settings", label: "Settings" },
+              ].map((item) => (
+                <Link
+                  key={item.href}
+                  className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  href={item.href}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
 
-          {/* Right controls */}
-          <div className="flex items-center gap-2">
-            {/* Mobile hamburger */}
-            <div className="sm:hidden relative" ref={mobileRef}>
-              <button
-                className="flex items-center gap-2 rounded-xl border border-white/20 dark:border-slate-800/70 bg-white/10 dark:bg-slate-900/70 px-3 py-2 text-sm font-semibold text-white dark:text-slate-200 shadow-sm backdrop-blur-md"
-                type="button"
-                onClick={() => setMobileOpen((v) => !v)}
-                aria-label="Open menu"
-              >
-                <span className={clsx(dotClass, "h-2 w-2 rounded-full")} />
-                Menu
-                <span className="relative block h-3 w-4">
-                  <span className="absolute inset-x-0 top-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
-                  <span className="absolute inset-x-0 top-1.5 h-[2px] rounded-full bg-current" aria-hidden="true" />
-                  <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
-                </span>
-              </button>
+            {/* Right controls */}
+            <div className="flex items-center gap-2">
+              {/* Mobile hamburger */}
+              <div className="sm:hidden relative" ref={mobileRef}>
+                <button
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  type="button"
+                  onClick={() => setMobileOpen((v) => !v)}
+                  aria-label="Open menu"
+                >
+                  <span className={clsx(dotClass, "h-2 w-2 rounded-full")} />
+                  Menu
+                  <span className="relative block h-3 w-4">
+                    <span className="absolute inset-x-0 top-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                    <span className="absolute inset-x-0 top-1.5 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                    <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-current" aria-hidden="true" />
+                  </span>
+                </button>
 
-              {mobileOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-2xl shadow-slate-900/15 dark:shadow-black/40 backdrop-blur-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
-                  <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
-                    Home
-                  </Link>
+                {mobileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl p-2 space-y-1" role="menu" aria-label="Mobile navigation">
+                    <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/" onClick={() => setMobileOpen(false)}>
+                      Home
+                    </Link>
                   <Link className="block rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" href="/story" onClick={() => setMobileOpen(false)}>
                     Story
                   </Link>

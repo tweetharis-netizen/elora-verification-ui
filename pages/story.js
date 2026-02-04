@@ -40,25 +40,6 @@ export default function StoryPage() {
             </Head>
 
             <div className="elora-page min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
-                {/* Ambient Background */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    <motion.div
-                        animate={{
-                            scale: [1, 1.2, 1],
-                            opacity: [0.3, 0.5, 0.3],
-                        }}
-                        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute top-[-10%] right-[-10%] w-[80vw] h-[80vw] rounded-full bg-indigo-500/10 blur-[120px]"
-                    />
-                    <motion.div
-                        animate={{
-                            scale: [1.2, 1, 1.2],
-                            opacity: [0.2, 0.4, 0.2],
-                        }}
-                        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                        className="absolute bottom-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-fuchsia-500/10 blur-[100px]"
-                    />
-                </div>
 
                 <div className="elora-container relative z-10 pt-20 pb-32">
                     {/* Hero Section */}
@@ -75,7 +56,7 @@ export default function StoryPage() {
 
                         <motion.h1 variants={fadeUp} className="text-[clamp(2rem,6vw,4rem)] md:text-[clamp(2.5rem,6vw,5rem)] font-bold tracking-tighter leading-[1.1] md:leading-[1.05] text-slate-950 dark:text-white mb-8">
                             Humanizing Intelligence, <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500">One Conversation</span> at a Time.
+                            <span className="text-indigo-600 dark:text-indigo-400">One Conversation</span> at a Time.
                         </motion.h1>
 
                         <motion.p variants={fadeUp} className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto">
@@ -127,7 +108,6 @@ export default function StoryPage() {
 
                     {/* Founder Section */}
                     <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent blur-3xl opacity-50 -z-10" />
 
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -137,11 +117,8 @@ export default function StoryPage() {
                             className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center"
                         >
                             <div className="relative aspect-square max-w-sm sm:max-w-md mx-auto lg:ml-auto lg:order-2">
-                                <div className="absolute inset-0 rounded-[4rem] bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-sky-400 rotate-6 blur-2xl opacity-20" />
                                 <div className="relative h-full w-full rounded-[3rem] border border-white/20 bg-slate-200 dark:bg-slate-800 overflow-hidden shadow-2xl">
-                                    {/* Placeholder for Founder Image - Using a stylized representation */}
                                     <div className="absolute inset-0 flex items-center justify-center text-[10rem] opacity-20 pointer-events-none">✨</div>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
                                     <div className="absolute bottom-8 left-8 right-8">
                                         <div className="text-white font-bold text-2xl tracking-tight">Shaik Haris</div>
                                         <div className="text-slate-300 text-[10px] font-bold uppercase tracking-[0.2em]">Founder of Elora</div>
@@ -158,13 +135,13 @@ export default function StoryPage() {
                                     <p>
                                         We believe AI should be a partner in curiosity, not a shortcut for laziness. Elora is designed to be the patient, calm mentor that every learner deserves, regardless of their background or access to resources.
                                     </p>
-                                    <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-fuchsia-500">
+                                    <p className="font-bold text-indigo-600 dark:text-indigo-400">
                                         This is just the beginning. Thank you for being part of the journey.
                                     </p>
                                 </div>
 
                                 <div className="flex items-center gap-4 pt-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 grid place-items-center text-white font-bold text-xl shadow-xl shadow-indigo-500/20">SH</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 grid place-items-center text-white font-bold text-xl shadow-xl shadow-indigo-500/20">SH</div>
                                     <div>
                                         <div className="font-bold text-slate-900 dark:text-white leading-none mb-1">Shaik Haris</div>
                                         <div className="text-[10px] text-indigo-500 font-bold tracking-widest uppercase">Redefining Education</div>
@@ -182,7 +159,6 @@ export default function StoryPage() {
                             viewport={{ once: true }}
                             className="mt-32 p-12 rounded-[3.5rem] bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-center relative overflow-hidden shadow-2xl"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 opacity-50" />
                             <div className="relative z-10">
                                 <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to start your journey?</h2>
                                 <p className="text-lg opacity-80 mb-10 max-w-xl mx-auto font-medium">

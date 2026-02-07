@@ -1,0 +1,245 @@
+/* Fonts handled via Next.js Google Fonts in _app.js */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Premium Design System */
+@import './design-system.css';
+
+/* ---------- Elora Minimalist Typography ---------- */
+:root {
+  --font-inter: var(--elora-font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-outfit: var(--elora-font-outfit), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-fraunces: var(--elora-font-serif), serif;
+}
+
+/* ---------- Minimalist Color Palette ---------- */
+:root {
+  /* Grayscale Primary */
+  --elora-primary: #18181b;
+  --elora-primary-hover: #27272a;
+  
+  /* Backgrounds - Clean & Flat */
+  --elora-bg-light: #ffffff;
+  --elora-bg-subtle: #f4f4f5;
+  --elora-bg-dark: #18181b;
+  --elora-bg-dark-subtle: #27272a;
+
+  /* Borders */
+  --elora-border-light: #e4e4e7;
+  --elora-border-dark: #3f3f46;
+}
+
+/* ---------- Skeleton Loading (Subtle Pulse) ---------- */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton {
+  background-color: var(--elora-border-light);
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dark .skeleton {
+  background-color: var(--elora-border-dark);
+}
+
+/* ---------- Clean Card Utilities ---------- */
+/* Replaces Glassmorphism with crisp borders */
+.elora-card {
+  background-color: white;
+  border: 1px solid var(--elora-border-light);
+  border-radius: 4px;
+  box-shadow: none;
+  transition: opacity 150ms ease-out;
+}
+
+.elora-card:hover {
+  border-color: #d4d4d8;
+}
+
+.dark .elora-card {
+  background-color: var(--elora-bg-dark-subtle);
+  border-color: var(--elora-border-dark);
+  box-shadow: none;
+}
+
+.dark .elora-card:hover {
+  border-color: #52525b;
+}
+
+/* Legacy support for existing components using glass classes */
+.elora-glass, .elora-glass-dark, .elora-glass-card {
+  @apply elora-card;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---------- Minimalist Button ---------- */
+.elora-btn-primary {
+  background-color: var(--elora-primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: opacity 150ms ease-out;
+  border: 1px solid transparent;
+}
+
+.elora-btn-primary:hover {
+  background-color: var(--elora-primary-hover);
+}
+
+.elora-btn-secondary {
+  background-color: white;
+  color: #18181b;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--elora-border-light);
+  transition: opacity 150ms ease-out;
+}
+
+.elora-btn-secondary:hover {
+  background-color: var(--elora-bg-subtle);
+  border-color: var(--elora-border-light);
+}
+
+.dark .elora-btn-secondary {
+  background-color: transparent;
+  color: white;
+  border-color: var(--elora-border-dark);
+}
+
+.dark .elora-btn-secondary:hover {
+  background-color: var(--elora-bg-dark-subtle);
+  border-color: #a1a1aa;
+}
+
+/* Remove flashy animations */
+.animate-pulse-glow, .animate-float-delayed, .animate-gradient-x {
+  animation: none !important;
+}
+
+.elora-h1 {
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.elora-muted {
+  color: var(--text-secondary);
+}
+
+.elora-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: opacity 150ms ease-out;
+}
+.elora-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.elora-btn-danger {
+  background-color: #18181b;
+  color: white;
+  border-color: #18181b;
+}
+.elora-btn-danger:hover:not(:disabled) {
+  background-color: #27272a;
+}
+
+.elora-input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--elora-border-light);
+  border-radius: 4px;
+  transition: opacity 150ms ease-out;
+}
+.elora-input:focus {
+  outline: 2px solid var(--elora-primary);
+  outline-offset: 2px;
+  border-color: var(--elora-primary);
+}
+.dark .elora-input:focus {
+  outline-color: #fafafa;
+}
+
+.elora-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--elora-border-light);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+.elora-chip[data-variant="good"] {
+  color: var(--color-secondary-700);
+  border-color: var(--color-secondary-200);
+  background: var(--color-secondary-50);
+}
+.dark .elora-chip[data-variant="good"] {
+  color: var(--color-neutral-300);
+  border-color: var(--color-neutral-700);
+  background: var(--color-neutral-900);
+}
+.elora-chip[data-variant="warn"] {
+  color: var(--color-neutral-800);
+  border-color: var(--color-neutral-300);
+  background: var(--color-neutral-100);
+}
+.dark .elora-chip[data-variant="warn"] {
+  color: var(--color-neutral-200);
+  border-color: var(--color-neutral-600);
+  background: var(--color-neutral-900);
+}
+
+.elora-toast {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--elora-border-light);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.elora-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--elora-border-light);
+}
+.dark .elora-divider {
+  background: var(--elora-border-dark);
+}
+
+.elora-segmented {
+  display: inline-flex;
+  border: 1px solid var(--elora-border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.elora-segmented > button {
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+}
+.elora-segmented > button.active {
+  color: white;
+  background: var(--elora-primary);
+}

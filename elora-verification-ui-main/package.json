@@ -1,0 +1,42 @@
+{
+  "name": "elora-verification-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.14",
+    "bad-words": "^3.0.4",
+    "date-fns": "^2.30.0",
+    "docx": "^8.5.0",
+    "firebase": "^12.7.0",
+    "framer-motion": "^10.17.0",
+    "googleapis": "^126.0.0",
+    "next": "13.5.6",
+    "nodemailer": "^6.10.0",
+    "openai": "^6.17.0",
+    "pdfkit": "^0.15.2",
+    "postcss": "^8.4.24",
+    "pptxgenjs": "^3.12.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-error-boundary": "^6.1.0",
+    "react-hot-toast": "^2.6.0",
+    "react-markdown": "^9.0.1",
+    "recharts": "^2.9.0",
+    "remark-gfm": "^4.0.0",
+    "tailwindcss": "^3.3.2"
+  },
+  "devDependencies": {
+    "eslint": "8.50.0",
+    "eslint-config-next": "13.5.6"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

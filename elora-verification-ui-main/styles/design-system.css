@@ -1,0 +1,446 @@
+/* ============================================================================
+   ELORA DESIGN SYSTEM - Ultimate EdTech Platform
+   Professional, Clean, Minimalist Design System
+   ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+   SPACING SYSTEM - 8-Point Grid
+   ---------------------------------------------------------------------------- */
+:root {
+  --spacing-0: 0px;
+  --spacing-1: 8px;
+  --spacing-2: 16px;
+  --spacing-3: 24px;
+  --spacing-4: 24px;
+  --spacing-5: 24px;
+  --spacing-6: 24px;
+  --spacing-7: 24px;
+  --spacing-8: 24px;
+  --spacing-9: 24px;
+  --spacing-10: 24px;
+
+  /* Half steps for fine-tuning */
+  --spacing-0-5: 8px;
+  --spacing-1-5: 16px;
+  --spacing-2-5: 24px;
+  --spacing-3-5: 24px;
+
+  /* ----------------------------------------------------------------------------
+     COLOR PALETTE - Professional & Clean
+     ---------------------------------------------------------------------------- */
+
+  /* Grayscale Palette Only */
+  --color-primary-50: #fafafa;
+  --color-primary-100: #f4f4f5;
+  --color-primary-200: #e4e4e7;
+  --color-primary-300: #d4d4d8;
+  --color-primary-400: #a1a1aa;
+  --color-primary-500: #71717a;
+  --color-primary-600: #52525b;
+  --color-primary-700: #3f3f46;
+  --color-primary-800: #27272a;
+  --color-primary-900: #18181b;
+
+  --color-secondary-50: #fafafa;
+  --color-secondary-100: #f4f4f5;
+  --color-secondary-200: #e4e4e7;
+  --color-secondary-300: #d4d4d8;
+  --color-secondary-400: #a1a1aa;
+  --color-secondary-500: #71717a;
+  --color-secondary-600: #52525b;
+  --color-secondary-700: #3f3f46;
+  --color-secondary-800: #27272a;
+  --color-secondary-900: #18181b;
+
+  --color-tertiary-50: #fafafa;
+  --color-tertiary-100: #f4f4f5;
+  --color-tertiary-200: #e4e4e7;
+  --color-tertiary-300: #d4d4d8;
+  --color-tertiary-400: #a1a1aa;
+  --color-tertiary-500: #71717a;
+  --color-tertiary-600: #52525b;
+  --color-tertiary-700: #3f3f46;
+  --color-tertiary-800: #27272a;
+  --color-tertiary-900: #18181b;
+
+  /* Neutrals - High Contrast for Readability */
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f4f4f5;
+  --color-neutral-200: #e4e4e7;
+  --color-neutral-300: #d4d4d8;
+  --color-neutral-400: #a1a1aa;
+  --color-neutral-500: #71717a;
+  --color-neutral-600: #52525b;
+  --color-neutral-700: #3f3f46;
+  --color-neutral-800: #27272a;
+  --color-neutral-900: #18181b;
+
+  /* Semantic Colors (Grayscale) */
+  --color-success: var(--color-neutral-700);
+  --color-warning: var(--color-neutral-700);
+  --color-error: var(--color-neutral-800);
+  --color-info: var(--color-neutral-700);
+
+  /* ----------------------------------------------------------------------------
+     LIGHT MODE COLORS
+     ---------------------------------------------------------------------------- */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+  --bg-hover: #f4f4f5;
+  --bg-active: #e4e4e7;
+
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-tertiary: #71717a;
+  --text-disabled: #a1a1aa;
+  --text-on-primary: #ffffff;
+
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --border-focus: var(--color-neutral-900);
+
+  /* Glass/Card Variables - Flattened for Professionalism */
+  --glass-bg: #ffffff;
+  --glass-border: #e4e4e7;
+  --glass-shadow: none;
+
+  /* Precision Borders & Shadows */
+  --border-subtle: 1px solid var(--border-primary);
+  --border-premium: 1px solid var(--border-primary);
+  
+  /* Clean Shadows - Less Bloom, More Depth */
+  --shadow-premium-sm: none;
+  --shadow-premium-md: none;
+  --shadow-premium-lg: none;
+
+  /* ----------------------------------------------------------------------------
+     TYPOGRAPHY SCALE
+     ---------------------------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-display: 'Inter', sans-serif; /* Unified font for cleaner look */
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+
+  /* Font Weights */
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* ----------------------------------------------------------------------------
+     BORDERS & RADIUS - Slightly reduced for professional feel
+     ---------------------------------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-full: 4px;
+
+  --border-width: 1px;
+  --border-width-thick: 2px;
+
+  /* ----------------------------------------------------------------------------
+     SHADOWS
+     ---------------------------------------------------------------------------- */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+  --shadow-inner: none;
+
+  /* Removed Glow Effects - Keeping it matte */
+  --glow-primary: none;
+  --glow-secondary: none;
+  --glow-tertiary: none;
+
+  /* ----------------------------------------------------------------------------
+     TRANSITIONS - Snappy
+     ---------------------------------------------------------------------------- */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 150ms ease-out;
+  --transition-slow: 150ms ease-out;
+  
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* ----------------------------------------------------------------------------
+     Z-INDEX SCALE
+     ---------------------------------------------------------------------------- */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+  --z-notification: 1700;
+}
+
+/* ----------------------------------------------------------------------------
+   DARK MODE OVERRIDES
+   ---------------------------------------------------------------------------- */
+:root.dark {
+  --bg-primary: #18181b;
+  --bg-secondary: #27272a;
+  --bg-tertiary: #3f3f46;
+  --bg-hover: #27272a;
+  --bg-active: #3f3f46;
+
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --text-disabled: #71717a;
+
+  --border-primary: #3f3f46;
+  --border-secondary: #52525b;
+
+  --glass-bg: #18181b;
+  --glass-border: #3f3f46;
+  --glass-shadow: none;
+
+  --border-subtle: 1px solid #3f3f46;
+  --border-premium: 1px solid #3f3f46;
+  
+  --shadow-premium-sm: none;
+  --shadow-premium-md: none;
+  --shadow-premium-lg: none;
+}
+
+/* ----------------------------------------------------------------------------
+   CLEAN CARD UTILITIES (Replaces Glassmorphism)
+   ---------------------------------------------------------------------------- */
+.glass, .glass-heavy, .glass-light {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.dark .glass, .dark .glass-heavy, .dark .glass-light {
+  background: var(--bg-secondary);
+}
+
+/* ----------------------------------------------------------------------------
+   SOLID COLOR UTILITIES (Replaces Gradients)
+   ---------------------------------------------------------------------------- */
+.gradient-primary {
+  background: var(--color-primary-600);
+}
+
+.gradient-secondary {
+  background: var(--color-secondary-600);
+}
+
+.gradient-tertiary {
+  background: var(--color-tertiary-600);
+}
+
+.gradient-rainbow {
+  background: var(--color-neutral-900);
+}
+
+.dark .gradient-rainbow {
+  background: var(--color-neutral-100);
+}
+
+/* ----------------------------------------------------------------------------
+   ANIMATIONS - Minimalist
+   ---------------------------------------------------------------------------- */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Removed flashy animations (shimmer, pulse-glow) */
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}
+
+.animate-shimmer {
+  /* Disabled shimmer */
+  background: var(--bg-tertiary);
+}
+
+.animate-pulse-glow {
+  animation: none;
+}
+
+/* ----------------------------------------------------------------------------
+   FOCUS MANAGEMENT
+   ---------------------------------------------------------------------------- */
+*:focus-visible {
+  outline: 2px solid var(--color-primary-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ----------------------------------------------------------------------------
+   SKELETON LOADING - Solid Pulse
+   ---------------------------------------------------------------------------- */
+.skeleton {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg-hover);
+  animation: pulse-opacity 1.5s ease-in-out infinite;
+}
+
+/* ----------------------------------------------------------------------------
+   BUTTON SYSTEM
+   ---------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 150ms ease-out;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary-600);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-700);
+}
+
+.btn-secondary {
+  background: var(--color-secondary-600);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-secondary-700);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--color-primary-500);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   CARD SYSTEM
+   ---------------------------------------------------------------------------- */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-md);
+}
+
+/* ----------------------------------------------------------------------------
+   INPUT SYSTEM
+   ---------------------------------------------------------------------------- */
+.input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary-600);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+}
+
+.dark .input:focus {
+  box-shadow: 0 0 0 2px var(--color-primary-900);
+}
+.label {
+  display: block;
+  margin-bottom: var(--spacing-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}

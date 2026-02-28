@@ -1,7 +1,18 @@
+// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, Cell, ResponsiveContainer } from 'recharts';
-import { CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield, Sparkles, ArrowRight, Menu, X } from 'lucide-react';
+import { CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield, Sparkles, Menu, X } from 'lucide-react';
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import Signup from './Signup';
+import Login from './Login';
+import DashboardPage from './pages/DashboardPage';
+import StudentDashboard from './pages/StudentDashboard';
+import ParentDashboard from './pages/ParentDashboard';
+import VerifyPage from './pages/VerifyPage';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// ─── Homepage components ──────────────────────────────────────────────────────
 
 const ComingSoonBar = () => {
   const messages = [
@@ -44,19 +55,21 @@ const Header = () => {
     <header className="absolute top-0 left-0 right-0 z-50 border-b border-white/10 bg-elora-400/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2 cursor-pointer">
-          <div className="w-8 h-8 bg-elora-100 rounded flex items-center justify-center text-white font-serif italic font-bold text-lg shadow-sm">E</div>
-          <span className="text-white font-medium text-lg tracking-tight">Elora</span>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-elora-100 rounded flex items-center justify-center text-white font-serif italic font-bold text-lg shadow-sm">E</div>
+            <span className="text-white font-medium text-lg tracking-tight">Elora</span>
+          </Link>
         </div>
-        
+
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/80">
           <a href="#" className="hover:text-white transition-colors">Platform</a>
           <a href="#" className="hover:text-white transition-colors">Solutions</a>
           <a href="#" className="hover:text-white transition-colors">Resources</a>
           <a href="#" className="hover:text-white transition-colors">Pricing</a>
         </nav>
-        
+
         <div className="hidden md:flex items-center gap-4">
-          <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</a>
+          <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
           <button className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow">
             Book a demo
           </button>
@@ -66,7 +79,7 @@ const Header = () => {
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
-      
+
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-elora-400 border-b border-white/10 px-6 py-4 space-y-4">
@@ -75,7 +88,7 @@ const Header = () => {
           <a href="#" className="block text-white/80 hover:text-white font-medium">Resources</a>
           <a href="#" className="block text-white/80 hover:text-white font-medium">Pricing</a>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
-            <a href="#" className="block text-white/80 hover:text-white font-medium text-center">Log in</a>
+            <Link to="/login" className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
             <button className="w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium">
               Book a demo
             </button>
@@ -94,7 +107,7 @@ const Hero = () => {
         <div>
           <ComingSoonBar />
           <h1 className="text-5xl md:text-7xl font-sans font-medium tracking-tight leading-[1.05] mb-6">
-            The intelligent <br/>
+            The intelligent <br />
             <span className="font-serif italic text-elora-100">platform</span> for education
           </h1>
           <p className="text-lg text-white/70 mb-8 max-w-md leading-relaxed">
@@ -104,102 +117,100 @@ const Hero = () => {
             <button className="bg-elora-100 hover:bg-elora-200 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
               Book a demo
             </button>
-            <button className="bg-transparent hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
+            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
               Start for free
-            </button>
+            </Link>
           </div>
         </div>
-        
+
         {/* Hero Tiles Cluster */}
         <div className="relative h-[500px] w-full hidden lg:block perspective-1000">
-           {/* Tile 1: Leaderboard */}
-           <motion.div 
-             initial={{ opacity: 0, y: 20, rotateX: 10 }}
-             animate={{ opacity: 1, y: 0, rotateX: 0 }}
-             transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-             className="absolute top-10 right-10 w-64 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-20 hover:-translate-y-2 transition-transform duration-300"
-           >
-             <div className="flex items-center justify-between mb-4 pb-3 border-b border-elora-400/10">
-               <h3 className="font-semibold text-sm">Class 3E Leaderboard</h3>
-               <span className="text-[10px] uppercase tracking-wider bg-accent-green/20 text-accent-green px-2 py-1 rounded font-bold">Live</span>
-             </div>
-             <div className="space-y-3">
-               {[
-                 { name: 'Alex M.', score: '2,450 XP', rank: 1 },
-                 { name: 'Priya K.', score: '2,310 XP', rank: 2 },
-                 { name: 'Sam T.', score: '2,100 XP', rank: 3 },
-               ].map((student, i) => (
-                 <div key={i} className="flex items-center justify-between text-sm">
-                   <div className="flex items-center gap-3">
-                     <span className="text-elora-100 font-mono text-xs font-medium w-4">{student.rank}</span>
-                     <span className="font-medium">{student.name}</span>
-                   </div>
-                   <span className="text-elora-200 font-mono text-xs bg-elora-100/10 px-2 py-1 rounded">{student.score}</span>
-                 </div>
-               ))}
-             </div>
-           </motion.div>
+          {/* Tile 1: Leaderboard */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, rotateX: 10 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            className="absolute top-10 right-10 w-64 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-20 hover:-translate-y-2 transition-transform duration-300"
+          >
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-elora-400/10">
+              <h3 className="font-semibold text-sm">Class 3E Leaderboard</h3>
+              <span className="text-[10px] uppercase tracking-wider bg-accent-green/20 text-accent-green px-2 py-1 rounded font-bold">Live</span>
+            </div>
+            <div className="space-y-3">
+              {[
+                { name: 'Alex M.', score: '2,450 XP', rank: 1 },
+                { name: 'Priya K.', score: '2,310 XP', rank: 2 },
+                { name: 'Sam T.', score: '2,100 XP', rank: 3 },
+              ].map((student, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="text-elora-100 font-mono text-xs font-medium w-4">{student.rank}</span>
+                    <span className="font-medium">{student.name}</span>
+                  </div>
+                  <span className="text-elora-200 font-mono text-xs bg-elora-100/10 px-2 py-1 rounded">{student.score}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-           {/* Tile 2: Assignments */}
-           <motion.div 
-             initial={{ opacity: 0, y: 20, rotateX: 10 }}
-             animate={{ opacity: 1, y: 0, rotateX: 0 }}
-             transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-             className="absolute top-48 left-0 w-72 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-30 hover:-translate-y-2 transition-transform duration-300"
-           >
-             <div className="flex items-center justify-between mb-4 pb-3 border-b border-elora-400/10">
-               <h3 className="font-semibold text-sm">Active Assignments</h3>
-               <BookOpen className="w-4 h-4 text-elora-100" />
-             </div>
-             <div className="space-y-3">
-               <div className="flex items-start gap-3 p-3 rounded-lg bg-elora-100/5 border border-elora-100/20">
-                 <CheckCircle2 className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
-                 <div>
-                   <p className="text-sm font-medium">Biology Quiz</p>
-                   <p className="text-xs text-elora-200 mt-1">24/30 submitted</p>
-                 </div>
-               </div>
-               <div className="flex items-start gap-3 p-3 rounded-lg border border-elora-400/10">
-                 <Clock className="w-4 h-4 text-accent-orange mt-0.5 shrink-0" />
-                 <div>
-                   <p className="text-sm font-medium">History Essay</p>
-                   <p className="text-xs text-elora-200 mt-1">Due in 2 days</p>
-                 </div>
-               </div>
-             </div>
-           </motion.div>
+          {/* Tile 2: Assignments */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, rotateX: 10 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+            className="absolute top-48 left-0 w-72 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-30 hover:-translate-y-2 transition-transform duration-300"
+          >
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-elora-400/10">
+              <h3 className="font-semibold text-sm">Active Assignments</h3>
+              <BookOpen className="w-4 h-4 text-elora-100" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-elora-100/5 border border-elora-100/20">
+                <CheckCircle2 className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Biology Quiz</p>
+                  <p className="text-xs text-elora-200 mt-1">24/30 submitted</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-elora-400/10">
+                <Clock className="w-4 h-4 text-accent-orange mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">History Essay</p>
+                  <p className="text-xs text-elora-200 mt-1">Due in 2 days</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-           {/* Tile 3: Chart */}
-           <motion.div 
-             initial={{ opacity: 0, y: 20, rotateX: 10 }}
-             animate={{ opacity: 1, y: 0, rotateX: 0 }}
-             transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-             className="absolute bottom-4 right-24 w-80 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-10 hover:-translate-y-2 transition-transform duration-300"
-           >
-             <div className="flex items-center justify-between mb-6">
-               <h3 className="font-semibold text-sm">Weekly Engagement</h3>
-               <span className="text-[10px] font-bold uppercase tracking-wider text-accent-green bg-accent-green/10 px-2 py-1 rounded">+12% vs last week</span>
-             </div>
-             <div className="h-32 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { day: 'M', val: 40 },
-                    { day: 'T', val: 65 },
-                    { day: 'W', val: 85 },
-                    { day: 'T', val: 55 },
-                    { day: 'F', val: 90 },
-                  ]}>
-                    <Bar dataKey="val" radius={[4, 4, 0, 0]}>
-                      {
-                        [40, 65, 85, 55, 90].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 2 ? 'var(--color-accent-pink)' : 'var(--color-elora-100)'} />
-                        ))
-                      }
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-             </div>
-           </motion.div>
+          {/* Tile 3: Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, rotateX: 10 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+            className="absolute bottom-4 right-24 w-80 bg-white rounded-xl border border-elora-400/10 shadow-2xl p-5 text-elora-400 z-10 hover:-translate-y-2 transition-transform duration-300"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-semibold text-sm">Weekly Engagement</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-accent-green bg-accent-green/10 px-2 py-1 rounded">+12% vs last week</span>
+            </div>
+            <div className="h-32 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { day: 'M', val: 40 },
+                  { day: 'T', val: 65 },
+                  { day: 'W', val: 85 },
+                  { day: 'T', val: 55 },
+                  { day: 'F', val: 90 },
+                ]}>
+                  <Bar dataKey="val" radius={[4, 4, 0, 0]}>
+                    {[40, 65, 85, 55, 90].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 2 ? 'var(--color-accent-pink)' : 'var(--color-elora-100)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -219,10 +230,10 @@ const FeatureSection = () => {
             Transform fragmented tools into a unified educational experience. Elora brings everything together securely.
           </p>
         </div>
-        
+
         <div className="grid md:grid-cols-3 gap-8">
           {/* Feature Card 1 */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -234,8 +245,6 @@ const FeatureSection = () => {
             </div>
             <h3 className="text-2xl font-medium mb-3">Classes dashboard</h3>
             <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Manage all your classes from a single, organized view with real-time status updates.</p>
-            
-            {/* Mini UI Tile */}
             <div className="bg-white rounded-xl border border-white/20 p-4 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold text-elora-400">Math 101</span>
@@ -248,7 +257,7 @@ const FeatureSection = () => {
           </motion.div>
 
           {/* Feature Card 2 */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -260,8 +269,6 @@ const FeatureSection = () => {
             </div>
             <h3 className="text-2xl font-medium mb-3">Lesson storyboard</h3>
             <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Plan and visualize your curriculum with intuitive drag-and-drop building blocks.</p>
-            
-            {/* Mini UI Tile */}
             <div className="bg-white rounded-xl border border-white/20 p-3 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 space-y-2">
               <div className="bg-elora-100/10 border border-elora-100/20 p-2 rounded flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-elora-100/30"></div>
@@ -275,7 +282,7 @@ const FeatureSection = () => {
           </motion.div>
 
           {/* Feature Card 3 */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -287,8 +294,6 @@ const FeatureSection = () => {
             </div>
             <h3 className="text-2xl font-medium mb-3">Analytics overview</h3>
             <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Track student performance and identify areas for improvement instantly.</p>
-            
-            {/* Mini UI Tile */}
             <div className="bg-white rounded-xl border border-white/20 p-4 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 flex items-end gap-2 h-24">
               <div className="w-full bg-elora-100/20 rounded-t-sm h-1/3"></div>
               <div className="w-full bg-elora-100/40 rounded-t-sm h-2/3"></div>
@@ -329,11 +334,10 @@ const ProductUISection = () => {
               See how it works
             </button>
           </div>
-          
-          {/* UI Tiles Stack */}
+
           <div className="relative h-[450px] w-full perspective-1000">
             {/* Chat Tile */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: 20, rotateY: -10 }}
               whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
               viewport={{ once: true, margin: "-100px" }}
@@ -360,7 +364,7 @@ const ProductUISection = () => {
             </motion.div>
 
             {/* Status Tile */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: -20, rotateY: 10 }}
               whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
               viewport={{ once: true, margin: "-100px" }}
@@ -405,7 +409,7 @@ const LogoStrip = () => {
         </p>
         <div className="flex flex-wrap justify-center gap-10 md:gap-20 opacity-80">
           {[1, 2, 3, 4, 5].map((i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -441,9 +445,9 @@ const FinalCTA = () => {
             <span className="font-serif italic text-accent-pink">school's workflow?</span>
           </h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
-            <button className="w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-xl">
+            <Link to="/signup" className="block text-center w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-xl">
               Get started for free
-            </button>
+            </Link>
             <button className="w-full sm:w-auto bg-transparent border border-white/20 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5">
               Talk to sales
             </button>
@@ -510,7 +514,7 @@ const Footer = () => {
   );
 };
 
-export default function App() {
+const Home = () => {
   return (
     <div className="min-h-screen bg-elora-400 selection:bg-elora-100 selection:text-white">
       <Header />
@@ -523,5 +527,51 @@ export default function App() {
       </main>
       <Footer />
     </div>
+  );
+};
+
+// ─── App / Router ─────────────────────────────────────────────────────────────
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<Home />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/verify" element={<VerifyPage />} />
+
+      {/* Protected dashboard routes – ProtectedRoute redirects to /verify if not verified */}
+      <Route
+        path="/dashboard/teacher"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/student"
+        element={
+          <ProtectedRoute>
+            <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/parent"
+        element={
+          <ProtectedRoute>
+            <ParentDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Legacy /dashboard → teacher dashboard (backward compat) */}
+      <Route path="/dashboard" element={<Navigate to="/dashboard/teacher" replace />} />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

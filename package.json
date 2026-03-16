@@ -9,6 +9,7 @@
     "dev:all": "concurrently --kill-others --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
     "start": "npm run dev:all",
     "build": "vite build",
+    "vercel-build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

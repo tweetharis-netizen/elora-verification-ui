@@ -68,7 +68,7 @@ export async function getClassSupportSuggestion(
     insights: TeacherInsight[]
 ): Promise<ClassSuggestion> {
     try {
-        const response = await fetch('http://localhost:4000/api/elora/suggestions/class', {
+        const response = await fetch('/api/elora/suggestions/class', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

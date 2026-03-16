@@ -14,7 +14,7 @@ export async function getStudentSuggestion(
     recentPerformance: any
 ): Promise<StudentSuggestion> {
     try {
-        const response = await fetch('http://localhost:4000/api/elora/suggestions/student', {
+        const response = await fetch('/api/elora/suggestions/student', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

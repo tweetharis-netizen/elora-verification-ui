@@ -46,7 +46,9 @@ export class RedirectError extends Error {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:4000/api';
+// In production (Vercel), /api/* is handled by the serverless function on the
+// same domain. In local dev, Vite's proxy forwards /api/* to localhost:4000.
+const API_BASE = '/api';
 
 // ── Shared interfaces ─────────────────────────────────────────────────────────
 

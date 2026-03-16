@@ -34,8 +34,8 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API Error:', errorText);
-      return res.status(500).json({ error: 'Failed to communicate with Gemini API.' });
+      console.error("Gemini API Error:", errorText);
+      return res.status(500).json({ error: 'Failed to communicate with Gemini API.', details: errorText });
     }
 
     const data = await response.json();

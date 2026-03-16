@@ -21,5 +21,7 @@ export async function askElora(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "No suggestion generated.";
+  
+  // The backend now returns { text: "..." } from Groq
+  return data.text ?? "No suggestion generated.";
 }

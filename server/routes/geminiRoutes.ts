@@ -14,7 +14,7 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'A valid "prompt" string is required in the request body.' });
     }
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',

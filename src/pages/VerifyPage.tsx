@@ -29,16 +29,14 @@ const DASHBOARD_PATHS: Record<UserRole, string> = {
 export default function VerifyPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { mockVerify } = useAuth();
+    const { login } = useAuth();
 
-    // Role may be pre-filled from signup (passed via navigate state).
-    // If not, default to 'teacher' so the page is always usable.
+    // Role may be pre-filled from login page (passed via navigate state).
     const prefilledRole = (location.state as { role?: UserRole } | null)?.role ?? 'teacher';
     const [selectedRole, setSelectedRole] = useState<UserRole>(prefilledRole);
 
     const handleVerify = () => {
-        // MOCK: no real code check. Just mark as verified and route by role.
-        mockVerify(selectedRole);
+        login(selectedRole);
         navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
     };
 

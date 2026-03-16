@@ -1,18 +1,27 @@
 // src/Login.tsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { UserRole } from './auth/AuthContext';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth, UserRole } from './auth/AuthContext';
 
-// After "login", the user goes to /verify with their chosen role pre-filled.
-// VerifyPage reads location.state.role and routes to the correct dashboard on verify.
+const DASHBOARD_PATHS: Record<UserRole, string> = {
+    teacher: '/dashboard/teacher',
+    student: '/dashboard/student',
+    parent: '/dashboard/parent',
+};
+
+// After "login", we directly sign in as the matching demo user and navigate
+// to the correct dashboard (no real verification step needed for demo accounts).
 export default function Login() {
     const navigate = useNavigate();
-    const [selectedRole, setSelectedRole] = useState<UserRole>('teacher');
+    const { login } = useAuth();
+    const location = useLocation();
+    const prefilledRole = (location.state as { role?: UserRole } | null)?.role ?? 'teacher';
+    const [selectedRole, setSelectedRole] = useState<UserRole>(prefilledRole);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Pass the chosen role via router state so VerifyPage pre-fills it.
-        navigate('/verify', { state: { role: selectedRole } });
+        login(selectedRole);
+        navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
     };
 
     return (

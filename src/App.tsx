@@ -2,15 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, Cell, ResponsiveContainer } from 'recharts';
-import { CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield, Sparkles, Menu, X } from 'lucide-react';
+import { CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield, Sparkles, Menu, X, ChevronRight } from 'lucide-react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import Signup from './Signup';
 import Login from './Login';
-import DashboardPage from './pages/DashboardPage';
-import StudentDashboard from './pages/StudentDashboard';
-import ParentDashboard from './pages/ParentDashboard';
+import TeacherDashboardPage from './pages/TeacherDashboardPage';
+import StudentDashboardPage from './pages/StudentDashboardPage';
+import ParentDashboardPage from './pages/ParentDashboardPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import StudentGamePage from './pages/StudentGamePage';
 
 // ─── Homepage components ──────────────────────────────────────────────────────
 
@@ -211,6 +212,68 @@ const Hero = () => {
               </ResponsiveContainer>
             </div>
           </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const RoleSelectionSection = () => {
+  return (
+    <section id="role-selection" className="bg-elora-300 text-white py-32 border-b border-white/10 relative overflow-hidden">
+      <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
+      <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
+        <h2 className="text-3xl md:text-5xl font-sans font-medium mb-6 tracking-tight">Explore as any role</h2>
+        <p className="text-white/70 mb-12 max-w-2xl mx-auto text-lg leading-relaxed">Select a dashboard below to test the end-to-end experience with our demo profiles.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {/* Teacher Card */}
+          <Link
+            to="/login"
+            state={{ role: 'teacher' }}
+            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
+          >
+            <div className="w-12 h-12 bg-accent-orange/20 text-accent-orange rounded-xl flex items-center justify-center mb-6 border border-accent-orange/20 group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6" />
+            </div>
+            <h3 className="text-2xl font-medium mb-3 text-white">Teacher</h3>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI GamePacks, manage class sessions, and analyze student engagement.</p>
+            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
+              Try Teacher Flow <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          {/* Student Card */}
+          <Link
+            to="/login"
+            state={{ role: 'student' }}
+            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
+          >
+            <div className="w-12 h-12 bg-accent-green/20 text-accent-green rounded-xl flex items-center justify-center mb-6 border border-accent-green/20 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <h3 className="text-2xl font-medium mb-3 text-white">Student</h3>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">View upcoming tasks, play interactive learning games, and track your streak.</p>
+            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
+              Try Student Flow <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          {/* Parent Card */}
+          <Link
+            to="/login"
+            state={{ role: 'parent' }}
+            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
+          >
+            <div className="w-12 h-12 bg-accent-pink/20 text-accent-pink rounded-xl flex items-center justify-center mb-6 border border-accent-pink/20 group-hover:scale-110 transition-transform">
+              <Shield className="w-6 h-6" />
+            </div>
+            <h3 className="text-2xl font-medium mb-3 text-white">Parent</h3>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Monitor student progress, review assignments, and confirm verified achievements.</p>
+            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
+              Try Parent Flow <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
         </div>
       </div>
     </section>
@@ -520,6 +583,7 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <RoleSelectionSection />
         <FeatureSection />
         <ProductUISection />
         <LogoStrip />
@@ -546,7 +610,7 @@ export default function App() {
         path="/dashboard/teacher"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <TeacherDashboardPage />
           </ProtectedRoute>
         }
       />
@@ -554,7 +618,7 @@ export default function App() {
         path="/dashboard/student"
         element={
           <ProtectedRoute>
-            <StudentDashboard />
+            <StudentDashboardPage />
           </ProtectedRoute>
         }
       />
@@ -562,7 +626,15 @@ export default function App() {
         path="/dashboard/parent"
         element={
           <ProtectedRoute>
-            <ParentDashboard />
+            <ParentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/play/:packId"
+        element={
+          <ProtectedRoute>
+            <StudentGamePage />
           </ProtectedRoute>
         }
       />

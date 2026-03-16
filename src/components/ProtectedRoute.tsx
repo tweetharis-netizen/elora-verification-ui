@@ -16,8 +16,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { isVerified } = useAuth();
 
     if (!isVerified) {
-        // Not verified → send them to /verify (not /login) so they can mock-verify
-        return <Navigate to="/verify" replace />;
+        // Not logged in → send to /login
+        return <Navigate to="/login" replace />;
     }
 
     return <>{children}</>;

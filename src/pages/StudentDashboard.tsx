@@ -1,8 +1,8 @@
-// src/pages/StudentDashboard.tsx
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Home, BookOpen, Gamepad2, Trophy, Settings, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Home, BookOpen, Gamepad2, Trophy, Settings, LogOut, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { getStudentAssignments, StudentAssignment, getStudentGameSessions, GameSession } from '../services/dataService';
 
 const TIPS = [
     "Spacing out your practice over a few days helps your brain remember things much better!",
@@ -16,8 +16,46 @@ const TIPS = [
 
 export default function StudentDashboard() {
     const { logout } = useAuth();
+    const navigate = useNavigate();
     const [activeTipIndex, setActiveTipIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [sessionsError, setSessionsError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchAssignments = async () => {
+            try {
+                setLoading(true);
+                const data = await getStudentAssignments();
+                setAssignments(data.assignments);
+            } catch (err: any) {
+                setError(err.message || 'An error occurred');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAssignments();
+    }, []);
+
+    useEffect(() => {
+        const fetchSessions = async () => {
+            try {
+                setSessionsLoading(true);
+                const data = await getStudentGameSessions();
+                setGameSessions(data.slice(0, 3)); // show last 3
+            } catch (err: any) {
+                setSessionsError(err.message || 'Error fetching game sessions');
+            } finally {
+                setSessionsLoading(false);
+            }
+        };
+        fetchSessions();
+    }, []);
 
     useEffect(() => {
         if (isHovered) return;
@@ -115,29 +153,29 @@ export default function StudentDashboard() {
                         <div className="section-header">
                             <h2 className="text-h2">Assignments to do</h2>
                         </div>
-                        <ul className="assignment-list">
-                            <li className="assignment-item">
-                                <div className="assignment-info">
-                                    <h4 className="text-h3">Fractions Worksheet</h4>
-                                    <p className="text-body">Math • Due Tomorrow</p>
-                                </div>
-                                <span className="status-pill warning">In progress</span>
-                            </li>
-                            <li className="assignment-item">
-                                <div className="assignment-info">
-                                    <h4 className="text-h3">Read Chapter 4</h4>
-                                    <p className="text-body">English • Due Friday</p>
-                                </div>
-                                <span className="status-pill info">To do</span>
-                            </li>
-                            <li className="assignment-item">
-                                <div className="assignment-info">
-                                    <h4 className="text-h3">Science Lab Report</h4>
-                                    <p className="text-body">Science • Due Next Week</p>
-                                </div>
-                                <span className="status-pill success">Completed</span>
-                            </li>
-                        </ul>
+                        {loading ? (
+                            <p className="text-body" style={{ marginTop: '16px' }}>Loading assignments...</p>
+                        ) : error ? (
+                            <p className="text-body" style={{ marginTop: '16px', color: 'red' }}>Error: {error}</p>
+                        ) : assignments.length === 0 ? (
+                            <p className="text-body" style={{ marginTop: '16px' }}>No assignments due! Great job!</p>
+                        ) : (
+                            <ul className="assignment-list">
+                                {assignments.map(assignment => (
+                                    <li key={assignment.id} className="assignment-item">
+                                        <div className="assignment-info">
+                                            <h4 className="text-h3">{assignment.title}</h4>
+                                            <p className="text-body">
+                                                {assignment.className} • Due {new Date(assignment.dueDate).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <span className={`status-pill ${assignment.status || 'info'}`}>
+                                            {assignment.statusLabel || 'ASSIGNED'}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </section>
 
                     {/* Right column: Practice & games */}
@@ -146,24 +184,76 @@ export default function StudentDashboard() {
                             <h2 className="text-h2">Practice &amp; games</h2>
                         </div>
                         <div className="games-grid">
-                            <div className="class-card game-card">
+                            <div className="class-card game-card" style={{ borderTop: '4px solid var(--elora-primary)' }}>
                                 <div className="game-info">
-                                    <h3 className="text-h3">Fractions Quest</h3>
-                                    <p className="text-body">Master your fractions in this epic adventure.</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                        <Sparkles size={16} color="var(--elora-primary)" />
+                                        <h3 className="text-h3" style={{ margin: 0 }}>Fractions Quest</h3>
+                                    </div>
+                                    <p className="text-body" style={{ color: 'var(--elora-text-muted)' }}>Play a demo AI-generated learning game to master fractions.</p>
                                 </div>
-                                <button className="btn-primary">Start</button>
+                                <button
+                                    className="btn-primary"
+                                    onClick={() => navigate('/play/demo-game')}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
+                                >
+                                    <Gamepad2 size={16} /> Play Demo AI Game
+                                </button>
                             </div>
-                            <div className="class-card game-card">
+                            <div className="class-card game-card" style={{ opacity: 0.6, cursor: 'not-allowed' }}>
                                 <div className="game-info">
                                     <h3 className="text-h3">Vocabulary Sprint</h3>
                                     <p className="text-body">Race against the clock to find the right words.</p>
                                 </div>
-                                <button className="btn-primary">Start</button>
+                                <button className="btn-primary" disabled style={{ background: 'var(--elora-border-subtle)', color: 'var(--elora-text-muted)' }}>Locked</button>
                             </div>
                         </div>
                     </section>
 
                 </div>
+
+                {/* Recent game sessions */}
+                <section className="student-recent-sessions stat-card" style={{ marginTop: '24px' }}>
+                    <div className="section-header">
+                        <h2 className="text-h2">Recent game sessions</h2>
+                    </div>
+                    {sessionsLoading ? (
+                        <p className="text-body" style={{ marginTop: '16px' }}>Loading sessions...</p>
+                    ) : sessionsError ? (
+                        <p className="text-body" style={{ marginTop: '16px', color: 'var(--elora-danger)' }}>{sessionsError}</p>
+                    ) : gameSessions.length === 0 ? (
+                        <p className="text-body" style={{ marginTop: '16px', color: 'var(--elora-text-muted)' }}>
+                            No games played yet. Try playing a demo game above!
+                        </p>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                            {gameSessions.map(session => (
+                                <div key={session.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--elora-surface)', padding: '12px 16px', border: '1px solid var(--elora-border-subtle)', borderRadius: 'var(--elora-radius-md)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <h4 className="text-h3" style={{ margin: 0 }}>
+                                            {session.packId === 'demo-game-1' ? 'Fractions Quest' : session.packId}
+                                        </h4>
+                                        <span className="text-body-medium" style={{ color: 'var(--elora-text-muted)' }}>
+                                            {new Date(session.playedAt).toLocaleString()}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <p className="text-label" style={{ marginBottom: '4px', display: 'block' }}>Score</p>
+                                            <p className="text-body-medium">{session.score} / {session.totalQuestions}</p>
+                                        </div>
+                                        <div style={{ textAlign: 'right', minWidth: '60px' }}>
+                                            <p className="text-label" style={{ marginBottom: '4px', display: 'block' }}>Accuracy</p>
+                                            <p className="text-body-medium" style={{ color: session.accuracy >= 0.8 ? 'var(--elora-success)' : session.accuracy >= 0.5 ? 'var(--elora-warning)' : 'var(--elora-danger)' }}>
+                                                {Math.round(session.accuracy * 100)}%
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
 
                 {/* D) Tips strip */}
                 <section

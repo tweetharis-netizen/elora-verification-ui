@@ -1,50 +1,116 @@
 // src/auth/AuthContext.tsx
-// ────────────────────────────────────────────────────────────────────────────
-// MOCK ONLY – no real backend calls are made here.
-// When the real backend is ready, replace mockVerify() with an API call and
-// persist the token/role in localStorage or cookies.
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth layer that maps role selector → demo backend user.
+// CurrentUser is persisted in localStorage so a page refresh keeps you logged in.
+// All API calls read headers from here via dataService.setCurrentUser().
+// ─────────────────────────────────────────────────────────────────────────────
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    ReactNode,
+} from 'react';
+import { setCurrentUser as dsSetCurrentUser } from '../services/dataService';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type UserRole = 'teacher' | 'student' | 'parent';
 
+export interface CurrentUser {
+    id: string;
+    name: string;
+    role: UserRole;
+}
+
+// ── Demo user map ─────────────────────────────────────────────────────────────
+// These IDs match the in-memory DB seeded in server/db.ts.
+
+export const DEMO_USERS: Record<UserRole, CurrentUser> = {
+    teacher: { id: 'teacher_1', name: 'Ms. Harper', role: 'teacher' },
+    student: { id: 'student_1', name: 'Jamie Rivera', role: 'student' },
+    parent: { id: 'parent_1', name: 'Sarah Chen', role: 'parent' },
+};
+
+const LS_KEY = 'elora_current_user';
+
+function loadFromStorage(): CurrentUser | null {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        return raw ? (JSON.parse(raw) as CurrentUser) : null;
+    } catch {
+        return null;
+    }
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
+
 interface AuthState {
-    /** True once the user has completed the (mock) verification step. */
+    /** The currently signed-in user, or null if not logged in. */
+    currentUser: CurrentUser | null;
+    /** True when a user is logged in. Convenience alias for !!currentUser. */
     isVerified: boolean;
-    /** The role the user selected during signup / verification. Null before verification. */
+    /** The current user's role (null when not logged in). */
     role: UserRole | null;
     /**
-     * MOCK: immediately marks the user as verified with the given role.
-     * No actual email / phone check is performed.
+     * Signs in as one of the three demo users matching the given role.
+     * Persists to localStorage and syncs headers to dataService.
+     */
+    login: (role: UserRole) => void;
+    /** Signs out, clears storage and resets dataService headers. */
+    logout: () => void;
+    /**
+     * @deprecated Use login() instead. Kept for backward compatibility
+     * with any call-sites that still use mockVerify().
      */
     mockVerify: (role: UserRole) => void;
-    /** Resets auth state (simulates signing out). */
-    logout: () => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-    const [isVerified, setIsVerified] = useState(false);
-    const [role, setRole] = useState<UserRole | null>(null);
+// ── Provider ──────────────────────────────────────────────────────────────────
 
-    const mockVerify = (selectedRole: UserRole) => {
-        setIsVerified(true);
-        setRole(selectedRole);
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
+        loadFromStorage
+    );
+
+    // On mount (and whenever currentUser changes), push the user into dataService
+    // so all fetch helpers pick up the right headers automatically.
+    useEffect(() => {
+        dsSetCurrentUser(currentUser);
+    }, [currentUser]);
+
+    const login = (role: UserRole) => {
+        const user = DEMO_USERS[role];
+        setCurrentUser(user);
+        localStorage.setItem(LS_KEY, JSON.stringify(user));
     };
 
     const logout = () => {
-        setIsVerified(false);
-        setRole(null);
+        setCurrentUser(null);
+        localStorage.removeItem(LS_KEY);
+    };
+
+    const value: AuthState = {
+        currentUser,
+        isVerified: currentUser !== null,
+        role: currentUser?.role ?? null,
+        login,
+        logout,
+        // backward compat alias
+        mockVerify: login,
     };
 
     return (
-        <AuthContext.Provider value={{ isVerified, role, mockVerify, logout }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
 }
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
 /** Convenience hook – throws if used outside <AuthProvider>. */
 export function useAuth(): AuthState {

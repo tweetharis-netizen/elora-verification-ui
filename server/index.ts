@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables from .env and .env.local
+dotenv.config();
+dotenv.config({ path: path.join(process.cwd(), '.env.local'), override: true });
+
 import { db } from './db.js';
 
 import teacherRoutes from './routes/teacher.routes.js';

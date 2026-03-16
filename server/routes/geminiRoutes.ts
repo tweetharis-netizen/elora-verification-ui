@@ -14,9 +14,10 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'A valid "prompt" string is required in the request body.' });
     }
 
-    // Using v1beta as it frequently supports a wider range of models and resolves 404 issues seen with v1 for some models.
-    const model = 'gemini-1.5-flash';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    // Updated to gemini-2.0-flash as gemini-1.5-flash was returning 404 for this key.
+    const model = 'gemini-2.0-flash';
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+
 
     console.log(`[Gemini] Calling API for model: ${model}`);
 
@@ -69,8 +70,9 @@ const runInternalTest = async () => {
   }
 
   const testPrompt = "Hello Gemini, this is an automated integration test. Please respond with 'Integration Test Successful'.";
-  const model = 'gemini-1.5-flash';
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const model = 'gemini-2.0-flash';
+  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+
 
   console.log(`🚀 [Gemini Test] Running internal integration test for model: ${model}...`);
   

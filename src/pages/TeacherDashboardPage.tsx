@@ -142,7 +142,7 @@ const NavItem = ({
     <a
         href="#"
         onClick={(e) => { e.preventDefault(); onClick?.(); }}
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active
+        className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active
             ? 'bg-teal-800 text-white'
             : 'text-teal-100 hover:bg-teal-800/50 hover:text-white'
             } ${collapsed ? 'justify-center focus:outline-none' : ''}`}
@@ -150,6 +150,11 @@ const NavItem = ({
     >
         <div className="shrink-0">{icon}</div>
         {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+
+        {/* Active Indicator Circle */}
+        {active && !collapsed && (
+            <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+        )}
     </a>
 );
 

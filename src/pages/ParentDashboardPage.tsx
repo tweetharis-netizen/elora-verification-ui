@@ -198,12 +198,17 @@ function SidebarItem({
         <a
             href="#"
             onClick={(e) => { e.preventDefault(); onClick?.(); }}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
+            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
                 } ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? label : undefined}
         >
             <Icon className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+
+            {/* Active Indicator Circle */}
+            {active && !collapsed && (
+                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+            )}
         </a>
     );
 }

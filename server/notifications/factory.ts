@@ -1,4 +1,4 @@
-import { Notification, NotificationRole } from '../db';
+import { Notification, NotificationRole } from '../db.js';
 
 // Helper to generate a semi-random ID for seed purposes
 function generateId(): string {

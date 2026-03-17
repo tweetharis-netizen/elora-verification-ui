@@ -687,7 +687,7 @@ export default function TeacherDashboardPage() {
         unreadCount,
         markOneRead: handleMarkBackendNotificationRead,
         markAllRead: handleMarkAllRead
-    } = useNotifications({ userId: 'T-1', role: 'teacher' });
+    } = useNotifications({ userId: currentUser?.id || 'teacher_1', role: 'teacher' });
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 

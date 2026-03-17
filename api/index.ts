@@ -22,8 +22,10 @@ import assignmentsRoutes from '../server/routes/assignments.routes.js';
 import studentsRoutes from '../server/routes/students.routes.js';
 import parentsRoutes from '../server/routes/parents.routes.js';
 import aiRoutes from '../server/routes/ai.routes.js';
+import notificationRoutes from '../server/routes/notifications.routes.js';
 import eloraRoutes from '../server/routes/elora.routes.js';
 import geminiRoutes from '../server/routes/geminiRoutes.js';
+import { seedTeacherDemoNotifications, seedStudentDemoNotifications, seedParentDemoNotifications } from '../server/demo/seedNotifications.js';
 
 const app = express();
 
@@ -32,12 +34,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Seeding for Vercel demo - explicitly seed some basic data.
+// Simple check to prevent re-seeding if the function stays warm.
+let seeded = false;
+if (!seeded) {
+    seedTeacherDemoNotifications('teacher_1');
+    seedStudentDemoNotifications('student_1');
+    seedParentDemoNotifications('parent_1');
+    seeded = true;
+}
+
 // Mount all routes under their /api/* paths.
 // Note: vercel.json rewrites strip the /api prefix before reaching this
 // function, so we remount them here with their full path prefix.
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/classes', classesRoutes);
 app.use('/api/assignments', assignmentsRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/student', studentsRoutes);
 app.use('/api/parent', parentsRoutes);
 app.use('/api/ai', aiRoutes);

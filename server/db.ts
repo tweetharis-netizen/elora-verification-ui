@@ -117,7 +117,7 @@ import {
     createAssignmentOverdueNotification,
     createTeacherMessageNotification,
     createWeeklyReportNotification
-} from './notifications/factory';
+} from './notifications/factory.js';
 
 // ── Unified Notification model ────────────────────────────────────────────────
 // This is the canonical shape for the new notifications system.

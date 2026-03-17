@@ -367,6 +367,66 @@ export const getTeacherInsights = async (): Promise<TeacherInsight[]> => {
     return response.json();
 };
 
+// ── Notifications API ────────────────────────────────────────────────────────
+
+export type NotificationEventType =
+    | 'submission'
+    | 'needs_attention'
+    | 'general'
+    | 'alert'
+    | 'message';
+
+export interface Notification {
+    id: string;
+    userId: string;
+    role: 'teacher' | 'student' | 'parent';
+    type: NotificationEventType;
+    title: string | null;
+    message: string;
+    context?: {
+        classId?: string;
+        assignmentId?: string;
+        studentId?: string;
+        statusFilter?: string;
+    };
+    isRead: boolean;
+    createdAt: string; // ISO-8601
+}
+
+export const getNotifications = async (
+    userId: string,
+    role: 'teacher' | 'student' | 'parent'
+): Promise<Notification[]> => {
+    const response = await fetch(
+        `${API_BASE}/notifications?userId=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}`,
+        { headers: authHeaders() }
+    );
+    if (!response.ok) throw new Error('Failed to fetch notifications');
+    return response.json();
+};
+
+export const markNotificationRead = async (notificationId: string): Promise<Notification> => {
+    const response = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to mark notification as read');
+    return response.json();
+};
+
+export const markAllNotificationsRead = async (
+    userId: string,
+    role: 'teacher' | 'student' | 'parent'
+): Promise<{ updated: number }> => {
+    const response = await fetch(`${API_BASE}/notifications/mark-all-read`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ userId, role }),
+    });
+    if (!response.ok) throw new Error('Failed to mark all notifications as read');
+    return response.json();
+};
+
 // ── Parent API ────────────────────────────────────────────────────────────────
 
 export const getParentChildren = async (): Promise<ParentChild[]> => {

@@ -30,12 +30,16 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
         model,
         messages: [
           {
+            role: 'system',
+            content: "You are Elora, a concise teaching assistant for teachers.\nAlways respond in very short form: 2–3 sentences or up to 5 short bullet points.\nPrefer concrete, practical suggestions over long explanations.\nYou must also understand direct instruction-style commands from teachers (like assigning work to specific students/classes) and turn them into clear, short, actionable suggestions written to the teacher."
+          },
+          {
             role: 'user',
             content: prompt
           }
         ],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 512,
       }),
     });
 
@@ -51,8 +55,13 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
     const data = await response.json();
     const generatedText = data.choices?.[0]?.message?.content || "";
     
+    let finalOutput = generatedText;
+    if (finalOutput.length > 800) {
+      finalOutput = finalOutput.substring(0, 800) + '...';
+    }
+    
     // Return in a simple consolidated format for the frontend
-    return res.json({ text: generatedText });
+    return res.json({ text: finalOutput });
   } catch (error) {
     console.error('Error calling Groq API:', error);
     return res.status(500).json({ error: 'An unexpected error occurred while communicating with Groq API.' });

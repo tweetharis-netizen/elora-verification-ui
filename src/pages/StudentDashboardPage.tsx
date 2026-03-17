@@ -25,7 +25,9 @@ import {
     Inbox,
     MessageCircle,
     Heart,
-    Target
+    Target,
+    Calendar,
+    Sparkles
 } from 'lucide-react';
 import {
     BarChart,
@@ -41,6 +43,9 @@ import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { useNavigate } from 'react-router-dom';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
+import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
+import { useNotifications } from '../hooks/useNotifications';
+import { getNotificationDefaultDestination } from '../utils/notificationUi';
 
 
 
@@ -54,10 +59,12 @@ interface SidebarItemProps {
 
 // Shared empty-state helper
 const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Inbox size={28} className="text-slate-300" />
-        <p className="text-sm font-semibold text-slate-600">{headline}</p>
-        {detail && <p className="text-xs text-slate-400 max-w-xs">{detail}</p>}
+    <div className="flex flex-col items-center gap-3 py-10 text-center animate-in fade-in duration-700">
+        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200 mb-2">
+            <Inbox size={32} strokeWidth={1.5} />
+        </div>
+        <p className="text-[15px] font-bold text-slate-700 tracking-tight">{headline}</p>
+        {detail && <p className="text-[13px] text-slate-400 max-w-[240px] leading-relaxed font-medium">{detail}</p>}
     </div>
 );
 
@@ -102,15 +109,23 @@ export default function StudentDashboardPage() {
     const [joinError, setJoinError] = useState<string | null>(null);
     const [joiningClass, setJoiningClass] = useState(false);
 
-    // Notifications state
-    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-
     // --- Real Data State ---
     const [assignments, setAssignments] = useState<dataService.StudentAssignment[]>([]);
     const [recentPerformance, setRecentPerformance] = useState<{ scores: { score: number; date: string }[]; weakTopics: string[] } | null>(null);
     const [gameSessions, setGameSessions] = useState<dataService.GameSession[]>([]);
     const [streakData, setStreakData] = useState<dataService.StudentStreak | null>(null);
     const [nudges, setNudges] = useState<dataService.ParentNudge[]>([]);
+
+    // Backend Notification records for this student (from the unified /api/notifications endpoint)
+    const { 
+        notifications: backendNotifications, 
+        markOneRead: handleMarkBackendNotificationRead,
+        markAllRead: handleMarkAllBackendNotificationsRead
+    } = useNotifications({ 
+        userId: currentUser?.id || '', 
+        role: 'student' 
+    });
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -137,6 +152,8 @@ export default function StudentDashboardPage() {
         };
         fetchData();
     }, []);
+
+    // The backend notifications fetch logic is now handled by our shared hook.
 
     useEffect(() => {
         const fetchEloraSuggestion = async () => {
@@ -274,6 +291,8 @@ export default function StudentDashboardPage() {
         }
     };
 
+    // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
+
     const studentName = currentUser?.name || 'Student';
     const studentInitial = studentName.charAt(0).toUpperCase();
 
@@ -321,31 +340,69 @@ export default function StudentDashboardPage() {
         { id: 4, label: 'Average recent score', value: avgRecentScore !== null ? `${avgRecentScore}%` : 'N/A', icon: TrendingUp, color: 'text-[#68507B]' },
     ];
 
+    // ── Relative time helper ──────────────────────────────────────────────────
+    const relativeTime = (iso: string): string => {
+        const diffMs = Date.now() - new Date(iso).getTime();
+        const mins = Math.floor(diffMs / 60_000);
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+    };
+
     // Notification items unification
-    const notifications = [
+    const popoverNotifications: PopoverNotificationItem[] = [
+        // 1. Unread backend Notification records for this student (unified model)
+        ...backendNotifications.map(n => ({
+            id: `backend-${n.id}`,
+            title: n.title ?? (n.type === 'alert' ? 'Alert' : 'Notification'),
+            message: n.message,
+            time: relativeTime(n.createdAt),
+            isRead: n.isRead,
+            type: n.type,
+            original: n
+        })),
+        // 2. Unread ParentNudge items (existing flow – unchanged)
         ...nudges.filter(n => !n.read).map(n => ({
             id: `nudge-${n.id}`,
             title: 'Message from your parent',
             message: n.message,
             time: new Date(n.createdAt).toLocaleDateString(),
+            isRead: false,
             type: 'message' as const,
-            action: () => { 
-                handleMarkNudgeRead(n.id); 
-                setIsNotificationOpen(false); 
-            }
+            original: n
         })),
+        // 3. Overdue assignment alerts (no read tracking yet – unchanged)
         ...overdueAssignments.map(a => ({
             id: `overdue-${a.id}`,
             title: 'Overdue Assignment',
             message: a.title,
             time: a.dueDate ? `Due ${new Date(a.dueDate).toLocaleDateString()}` : 'Now',
+            isRead: true, // No unread dot for assignments
             type: 'alert' as const,
-            action: () => { 
-                navigate(`/play/${(a as any).gamePackId || 'practice-general'}?attemptId=${(a as any).attemptId}`); 
-                setIsNotificationOpen(false); 
-            }
+            original: a
         }))
     ];
+
+    const handleNotificationClick = (item: PopoverNotificationItem) => {
+        if (item.id.startsWith('backend-') && item.original) {
+            handleMarkBackendNotificationRead(item.original.id);
+            // Optional: navigate based on destination if needed
+            // const dest = getNotificationDefaultDestination(item.original);
+        } else if (item.id.startsWith('nudge-') && item.original) {
+            handleMarkNudgeRead(item.original.id);
+        } else if (item.id.startsWith('overdue-') && item.original) {
+            navigate(`/play/${item.original.gamePackId || 'practice-general'}?attemptId=${item.original.attemptId}`);
+        }
+    };
+
+    const handleMarkAllNotificationsRead = () => {
+        handleMarkAllBackendNotificationsRead();
+        // Nudges and assignments don't have a backend "mark all read" yet that we want to trigger here
+    };
+    
+    // Total unread calculation for the badge
+    const notificationsUnreadCount = popoverNotifications.length;
 
 
     // Map assignments to "Upcoming items" for the right column
@@ -521,77 +578,32 @@ export default function StudentDashboardPage() {
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
 
                 {/* HEADER */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-[15px] font-medium text-slate-800 hidden sm:block">
-                            Sec 3 Express – E-Maths
-                        </h2>
-                        {focusChipText && (
-                            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-[#68507B]/10 text-[#68507B] rounded-full text-[12px] font-semibold">
-                                <TrendingUp className="w-3.5 h-3.5" />
-                                Focus: {focusChipText}
-                            </div>
-                        )}
+                <header className="py-4 px-6 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 transition-all">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Student Overview</h1>
+                        <p className="text-[13px] text-slate-500 font-medium">Hi, {studentName.split(' ')[0]}. Here's what's next.</p>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <button className="text-slate-400 hover:text-slate-600" title="Search">
-                            <Search className="w-5 h-5" />
-                        </button>
+                    <div className="flex items-center gap-3">
                         <div className="relative">
-                            <button 
-                                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                                className="text-slate-400 hover:text-slate-600 p-1 relative transition-colors" 
-                                title="Notifications"
-                            >
-                                <Bell className="w-5 h-5" />
-                                {notifications.length > 0 && (
-                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                                )}
-                            </button>
-                            {isNotificationOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="p-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                        <h3 className="text-[14px] font-semibold text-slate-900">Notifications</h3>
-                                        <span className="text-[11px] font-medium px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full">
-                                            {notifications.length} new
-                                        </span>
-                                    </div>
-                                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-                                        {notifications.map(notif => (
-                                            <button 
-                                                key={notif.id}
-                                                onClick={notif.action}
-                                                className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-start gap-3"
-                                            >
-                                                <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'message' ? 'bg-pink-100 text-pink-600' : 'bg-red-100 text-red-600'}`}>
-                                                    {notif.type === 'message' ? <MessageCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-[13px] font-semibold text-slate-900">{notif.title}</h4>
-                                                    <p className="text-[13px] text-slate-600 mt-0.5 line-clamp-2">{notif.message}</p>
-                                                    <p className="text-[11px] text-slate-400 mt-1">{notif.time}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                        {notifications.length === 0 && (
-                                            <div className="p-6 text-center text-slate-500">
-                                                <Bell className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                                                <p className="text-[13px]">You're all caught up!</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                            <NotificationsPopover 
+                                items={popoverNotifications}
+                                unreadCount={notificationsUnreadCount}
+                                onMarkAllRead={handleMarkAllNotificationsRead}
+                                onNotificationClick={handleNotificationClick}
+                                badgeColor="bg-blue-500"
+                                unreadDotColor="bg-[#68507B]"
+                                unreadBgColor="bg-[#68507B]/10"
+                                headerTextColor="text-blue-600"
+                            />
                         </div>
 
-                        <div className="w-px h-6 bg-slate-200 mx-2"></div>
-                        <div className="flex items-center gap-3 cursor-pointer">
+                        <div className="flex items-center gap-3 pl-1 border-l border-slate-100 ml-1">
                             <div className="text-right hidden sm:block">
-                                <div className="text-[13px] font-semibold text-slate-900">{studentName}</div>
-                                <div className="text-[11px] text-slate-500">Student</div>
+                                <div className="text-[12px] font-semibold text-slate-900 leading-none">{studentName}</div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">Year 3 Student</div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-[#68507B] text-white flex items-center justify-center text-sm font-bold">
+                            <div className="w-8 h-8 rounded-full bg-[#68507B]/10 text-[#68507B] flex items-center justify-center font-bold text-xs ring-2 ring-white ring-offset-1">
                                 {studentInitial}
                             </div>
                         </div>
@@ -599,565 +611,412 @@ export default function StudentDashboardPage() {
                 </header>
 
                 {/* SCROLLABLE CANVAS */}
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <main className="flex-1 overflow-y-auto bg-[#FDFBF5]/50 p-6 lg:p-8">
                     <div className="max-w-7xl mx-auto space-y-8">
 
-                        {/* WELCOME & QUICK ACTIONS */}
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                            <div>
-                                <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-                                    Hi, {studentName} <span className="text-2xl">👋</span>
-                                </h1>
-                                <div className="flex flex-wrap items-center gap-2 mt-3">
-                                    {(streakData?.streakWeeks ?? 0) >= 1 && (
-                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-orange-700 border border-orange-200/60 rounded-full text-[13px] font-medium">
-                                            <span>🔥</span>
-                                            {streakData!.streakWeeks}-week streak — keep the momentum!
-                                        </div>
-                                    )}
-
-                                    {(streakData?.streakWeeks === 0 && gameSessions.length === 0) && (
-                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200/60 rounded-full text-[13px] font-medium">
-                                            Complete your first quiz to start seeing your progress.
-                                        </div>
-                                    )}
-
-                                    {streakData && streakData.scoreThisWeek !== null && streakData.scorePriorWeek !== null && (
-                                        <div className={`flex items-center gap-1.5 px-3 py-1 ${streakData.trend === 'up' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : streakData.trend === 'down' ? 'bg-orange-50 text-orange-700 border border-orange-200/60' : 'bg-slate-100 text-slate-600 border border-slate-200/60'} rounded-full text-[13px] font-medium`}>
-                                            <BarChart2 className="w-3.5 h-3.5" />
-                                            Avg score: {streakData.scoreThisWeek}%
-                                            <span className="opacity-75 relative -top-[1px] ml-1">
-                                                {streakData.trend === 'up' ? (
-                                                    `↑ +${streakData.scoreThisWeek - streakData.scorePriorWeek}%`
-                                                ) : streakData.trend === 'down' ? (
-                                                    `↓ ${streakData.scoreThisWeek - streakData.scorePriorWeek}%`
-                                                ) : (
-                                                    '— Flat'
-                                                )}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {gameSessions.length > 0 && (
-                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200/60 rounded-full text-[13px] font-medium">
-                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                            {gameSessions.length} {gameSessions.length === 1 ? 'quiz' : 'quizzes'} completed
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                                <button
-                                    onClick={() => navigate('/play/practice-general')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm"
-                                >
-                                    <Play className="w-4 h-4" />
-                                    Quick Practice
-                                </button>
-                                <button
-                                    onClick={() => setShowJoinClass(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-[#68507B] hover:text-[#68507B] text-slate-700 rounded-lg text-[14px] font-medium transition-colors shadow-sm"
-                                >
-                                    <BookOpen className="w-4 h-4" />
-                                    Join Class
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('assignments')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-[#68507B] hover:text-[#68507B] text-slate-700 rounded-lg text-[14px] font-medium transition-colors shadow-sm"
-                                >
-                                    <ListTodo className="w-4 h-4" />
-                                    View Assignments
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ── ASK ELORA CARD ─────────── */}
-                        {activeTab === 'dashboard' && (
-                            <div className="mb-4 p-4 sm:px-5 sm:py-4 bg-[#F7F5F0] border border-slate-200 rounded-2xl shadow-sm">
-                                {(eloraStatus === 'idle' || eloraStatus === 'loading') && (
-                                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                                        <div className="w-4 h-4 rounded-full border-2 border-[#68507B]/20 border-t-[#68507B] animate-spin"></div>
-                                        Preparing Elora's guidance...
-                                    </div>
-                                )}
-                                {eloraStatus === 'error' && (
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                                                <AlertCircle className="w-4 h-4 text-orange-500" />
-                                                Couldn't load suggestion
-                                            </span>
-                                            <span className="text-sm text-slate-500">Wait a moment and try asking Elora again.</span>
-                                        </div>
-                                        <button onClick={() => fetchEloraSuggestionRef.current?.()} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors">
-                                            Try again
-                                        </button>
-                                    </div>
-                                )}
-                                {eloraStatus === 'success' && eloraSuggestion && (
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                        <div className="flex flex-col sm:flex-row sm:items-center flex-1 gap-1 sm:gap-2">
-                                            <div className="flex items-center gap-1.5 mb-1 sm:mb-0 mr-2 text-[11px] font-medium text-slate-400 shrink-0">
-                                                <Target size={12} className="text-slate-400" />
-                                                <span>Elora's suggestion</span>
+                        {activeTab === 'dashboard' ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                
+                                {/* LEFT COLUMN (Wider) */}
+                                <div className="lg:col-span-2 space-y-8">
+                                    
+                                    {/* MASTERY TREND CHART */}
+                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Mastery Trend</h2>
+                                                <p className="text-[13px] text-slate-500 mt-1">Your performance across recent sessions.</p>
                                             </div>
-                                            <span className="text-[14px] font-medium text-slate-900">
-                                                {eloraSuggestion.title}
-                                            </span>
-                                            <span className="text-[13px] text-slate-500 leading-relaxed sm:ml-auto max-w-sm sm:text-right">
-                                                {eloraSuggestion.body}
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-[#68507B]" />
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Accuracy %</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="h-[240px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={(recentPerformance?.scores || []).map(s => ({
+                                                    date: new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                                                    score: s.score
+                                                })).slice(-7)}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                                    <XAxis 
+                                                        dataKey="date" 
+                                                        axisLine={false} 
+                                                        tickLine={false} 
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
+                                                        dy={10}
+                                                    />
+                                                    <YAxis 
+                                                        axisLine={false} 
+                                                        tickLine={false} 
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
+                                                        domain={[0, 100]}
+                                                        dx={-10}
+                                                    />
+                                                    <Tooltip 
+                                                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}}
+                                                        itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
+                                                        labelStyle={{fontSize: '10px', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em'}}
+                                                    />
+                                                    <Bar 
+                                                        dataKey="score" 
+                                                        fill="#68507B" 
+                                                        radius={[4, 4, 0, 0]} 
+                                                        barSize={32}
+                                                    >
+                                                        {(recentPerformance?.scores || []).slice(-7).map((entry, index) => (
+                                                            <Cell 
+                                                                key={`cell-${index}`} 
+                                                                fill={entry.score >= 80 ? '#10B981' : entry.score >= 60 ? '#68507B' : '#F59E0B'} 
+                                                                fillOpacity={0.9}
+                                                            />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </section>
+
+                                    {/* TODAY'S FOCUS CARD */}
+                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center">
+                                                    <ListTodo size={18} />
+                                                </div>
+                                                <h2 className="font-bold text-slate-900 tracking-tight">Today's Tasks</h2>
+                                            </div>
+                                            <span className="text-[11px] font-bold text-[#68507B] px-2.5 py-1 bg-white border border-[#68507B]/10 rounded-lg shadow-sm">
+                                                {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                                             </span>
                                         </div>
                                         
-                                        <div className="mt-2 sm:mt-0 sm:ml-3 flex items-center gap-2 shrink-0">
-                                            {eloraSuggestion.suggestedPackId && (
-                                                <button
-                                                    onClick={() => navigate(`/play/${eloraSuggestion.suggestedPackId}`)}
-                                                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white text-[13px] font-medium rounded-xl transition-colors shadow-sm"
-                                                >
-                                                    <Play size={13} />
-                                                    Start practice
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    setEloraStatus('loading');
-                                                    fetchEloraSuggestionRef.current?.();
-                                                }}
-                                                className="p-2 border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
-                                                title="Ask again"
-                                            >
-                                                <RotateCcw className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* ── NEXT STEPS STRIP ───────────────────────────── */}
-                        {activeTab === 'dashboard' && (
-                            <NextStepsStrip recs={nextSteps} onNavigate={navigate} />
-                        )}
-
-                        {activeTab === 'dashboard' ? (
-                            <>
-
-                                {/* SUMMARY TILES */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {summaryStats.map(stat => (
-                                        <div key={stat.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
-                                            <div className={`p-3 bg-slate-50 ${stat.color} rounded-lg`}>
-                                                <stat.icon className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[13px] font-medium text-slate-500">{stat.label}</p>
-                                                <p className="text-2xl font-semibold text-slate-900 mt-1">{stat.value}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* TWO COLUMN LAYOUT */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                                    {/* LEFT COLUMN (Wider) */}
-                                    <div className="lg:col-span-2 space-y-8">
-
-                                        {/* PARENT NUDGES STRIP */}
-                                        {nudges.length > 0 && (
-                                            <section>
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Messages from your parent</h2>
-                                                </div>
-                                                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden divide-y divide-slate-100">
-                                                    {nudges.map(nudge => (
-                                                        <div key={nudge.id} className={`p-4 ${!nudge.read ? 'bg-pink-50/30' : 'bg-white'}`}>
-                                                            <div className="flex items-start gap-3">
-                                                                <div className={`p-2 rounded-lg shrink-0 ${!nudge.read ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                                    <MessageCircle className="w-5 h-5" />
+                                        <div className="p-5">
+                                            {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).map(item => (
+                                                        <div 
+                                                            key={item.id} 
+                                                            onClick={() => navigate(`/play/${(item as any).gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId}`)}
+                                                            className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all group cursor-pointer shadow-sm hover:shadow-md"
+                                                        >
+                                                            <div className="w-12 h-12 rounded-xl bg-[#68507B] shadow-lg shadow-[#68507B]/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                                                <Play size={20} fill="currentColor" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="text-[10px] font-bold text-[#68507B] uppercase tracking-widest">{item.className}</span>
                                                                 </div>
-                                                                <div className="flex-1">
-                                                                    <p className={`text-[14px] ${!nudge.read ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
-                                                                        {nudge.message}
-                                                                    </p>
-                                                                    <p className="text-[12px] text-slate-400 mt-1">
-                                                                        {new Date(nudge.createdAt).toLocaleDateString()}
-                                                                    </p>
-                                                                </div>
-                                                                {!nudge.read && (
-                                                                    <button
-                                                                        onClick={() => handleMarkNudgeRead(nudge.id)}
-                                                                        className="text-[12px] font-medium text-[#68507B] hover:text-[#5a456a]"
-                                                                    >
-                                                                        Mark as read
-                                                                    </button>
-                                                                )}
+                                                                <h4 className="text-[15px] font-bold text-slate-900 leading-tight group-hover:text-[#68507B] transition-colors">{item.title}</h4>
+                                                                <p className="text-[12px] text-slate-500 mt-1 flex items-center gap-1.5">
+                                                                    <Clock size={12} /> Due today • Ready to start
+                                                                </p>
+                                                            </div>
+                                                            <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-[#68507B]/10 group-hover:text-[#68507B] transition-all">
+                                                                <ChevronRight size={18} />
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </section>
-                                        )}
-
-                                        {/* MY GAMEPACKS */}
-                                        <section>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">My GamePacks & Practice</h2>
-                                                <div className="flex items-center bg-slate-100 p-1 rounded-lg overflow-x-auto">
-                                                    {['All', 'In progress', 'Completed', 'Recommended'].map(filter => (
-                                                        <button
-                                                            key={filter}
-                                                            onClick={() => setGamePackFilter(filter)}
-                                                            className={`px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors whitespace-nowrap ${gamePackFilter === filter
-                                                                ? 'bg-white text-slate-900 shadow-sm'
-                                                                : 'text-slate-500 hover:text-slate-700'
-                                                                }`}
-                                                        >
-                                                            {filter}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-left border-collapse">
-                                                        <thead>
-                                                            <tr className="border-b border-slate-200 bg-slate-50/50">
-                                                                <th className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">Name / Topic</th>
-                                                                <th className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">Subject</th>
-                                                                <th className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">Last Played</th>
-                                                                <th className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">Progress</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-100">
-                                                            {filteredGamePacks.map(gp => (
-                                                                <tr
-                                                                    key={gp.id}
-                                                                    onClick={() => setSelectedGamePack(gp)}
-                                                                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                                                                >
-                                                                    <td className="px-5 py-4">
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <span className="text-[14px] font-medium text-slate-900 group-hover:text-[#68507B] transition-colors">{gp.title}</span>
-                                                                            <span className="inline-block w-fit px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-md">
-                                                                                {gp.tag}
-                                                                            </span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-5 py-4 text-[14px] text-slate-600">{gp.subject}</td>
-                                                                    <td className="px-5 py-4 text-[14px] text-slate-600 flex items-center gap-1.5">
-                                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                                        {gp.lastPlayed}
-                                                                    </td>
-                                                                    <td className="px-5 py-4">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden w-24">
-                                                                                <div
-                                                                                    className={`h-full rounded-full ${gp.progress === 100 ? 'bg-emerald-500' : 'bg-[#68507B]'}`}
-                                                                                    style={{ width: `${gp.progress}%` }}
-                                                                                ></div>
-                                                                            </div>
-                                                                            <span className="text-[13px] font-medium text-slate-700 w-9">{gp.progress}%</span>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                            {filteredGamePacks.length === 0 && (
-                                                                <tr>
-                                                                    <td colSpan={4} className="px-5 py-8 text-center text-slate-500 text-[14px]">
-                                                                        No sessions recorded yet.
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        {/* PERFORMANCE OVERVIEW */}
-                                        <section>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">My performance overview</h2>
-                                                <span className="text-[13px] text-slate-500">
-                                                    {(streakData?.weeklyScores?.length ?? 0) > 0
-                                                        ? `Last ${(streakData?.weeklyScores?.length ?? 0)} week${(streakData?.weeklyScores?.length ?? 0) !== 1 ? 's' : ''}`
-                                                        : 'No recent data'}
-                                                </span>
-                                            </div>
-
-                                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                                                {(streakData?.weeklyScores?.length ?? 0) > 0 ? (
-                                                    <div className="h-48 w-full">
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <BarChart
-                                                                data={streakData!.weeklyScores.map((s, i) => {
-                                                                    // Determine color based on trend compared to previous week
-                                                                    let fill = '#94A3B8'; // default slate-400
-                                                                    if (i > 0) {
-                                                                        const diff = s.avgAccuracy - streakData!.weeklyScores[i - 1].avgAccuracy;
-                                                                        if (diff > 3) fill = '#10B981'; // green if up
-                                                                        else if (diff < -3) fill = '#F59E0B'; // amber if down
-                                                                    }
-                                                                    return {
-                                                                        name: s.weekLabel.replace('W/C ', ''), // shorter label
-                                                                        score: s.avgAccuracy,
-                                                                        fill
-                                                                    };
-                                                                })}
-                                                                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                                                            >
-                                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                                                <XAxis
-                                                                    dataKey="name"
-                                                                    axisLine={false}
-                                                                    tickLine={false}
-                                                                    tick={{ fontSize: 12, fill: '#64748B' }}
-                                                                    dy={10}
-                                                                />
-                                                                <YAxis
-                                                                    axisLine={false}
-                                                                    tickLine={false}
-                                                                    tick={{ fontSize: 12, fill: '#64748B' }}
-                                                                    domain={[0, 100]}
-                                                                    ticks={[0, 50, 100]}
-                                                                />
-                                                                <Tooltip
-                                                                    cursor={{ fill: '#F1F5F9' }}
-                                                                    contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                                    formatter={(value: any) => [`${value}%`, 'Avg Score']}
-                                                                />
-                                                                <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                                                                    {streakData!.weeklyScores.map((entry, index) => {
-                                                                        // Color logic: if this week is > previous week = green. If < previous = orange. Else gray.
-                                                                        let fillColor = '#CBD5E1'; // light slate for default
-                                                                        if (index > 0) {
-                                                                            const diff = entry.avgAccuracy - streakData!.weeklyScores[index - 1].avgAccuracy;
-                                                                            if (diff >= 3) fillColor = '#34D399'; // emerald-400
-                                                                            else if (diff <= -3) fillColor = '#FBBF24'; // orange-400
-                                                                        } else {
-                                                                            // first week is baseline, color it slate-300
-                                                                            fillColor = '#CBD5E1';
-                                                                        }
-                                                                        return <Cell key={`cell-${index}`} fill={fillColor} />;
-                                                                    })}
-                                                                </Bar>
-                                                            </BarChart>
-                                                        </ResponsiveContainer>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center py-6 text-center">
+                                                    <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4 rotate-3">
+                                                        <CheckCircle2 size={32} />
                                                     </div>
-                                                ) : (
-                                                    <div className="h-48 flex flex-col items-center justify-center text-slate-400">
-                                                        <BarChart2 className="w-12 h-12 text-slate-200 mb-3" />
-                                                        <p className="text-[14px] font-medium text-slate-500">No weekly data yet</p>
-                                                        <p className="text-[13px] mt-1">Complete activities weekly to build a trend.</p>
-                                                    </div>
-                                                )}
-
-                                                <div className="mt-6 pt-6 border-t border-slate-100">
-                                                    <h3 className="text-[14px] font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                                                        <AlertCircle className="w-4 h-4 text-orange-500" />
-                                                        Weak topics to review
-                                                    </h3>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {(recentPerformance?.weakTopics || []).length > 0 ? (
-                                                            recentPerformance!.weakTopics.map((topic, i) => (
-                                                                <span key={i} className="px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200/60 rounded-md text-[13px] font-medium">
-                                                                    {topic}
-                                                                </span>
-                                                            ))
-                                                        ) : (
-                                                            <span className="text-[13px] text-slate-500 italic">No weak topics identified yet. Great job!</span>
-                                                        )}
-                                                    </div>
+                                                    <p className="text-lg font-bold text-slate-900">You're all set!</p>
+                                                    <p className="text-sm text-slate-500 mt-1 max-w-[240px]">No tasks due today. Use this time to sharpen your skills with a practice session.</p>
+                                                    <button 
+                                                        onClick={() => navigate('/play/practice-general')}
+                                                        className="mt-6 px-6 py-2.5 bg-[#68507B] text-white text-sm font-bold rounded-xl shadow-lg shadow-[#68507B]/20 hover:bg-[#5a456a] hover:-translate-y-0.5 transition-all"
+                                                    >
+                                                        Start Practice Session
+                                                    </button>
                                                 </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* PERSONALIZED NEXT STEPS */}
+                                    <section className="space-y-4">
+                                        <div className="flex items-center gap-2 pl-1">
+                                            <Zap className="w-4 h-4 text-[#68507B]" />
+                                            <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase tracking-widest">Recommended Path</h2>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {nextSteps.map(rec => {
+                                                const isRetry = rec.icon === 'retry';
+                                                const isImprove = rec.icon === 'improve';
+                                                
+                                                return (
+                                                    <button 
+                                                        key={rec.id}
+                                                        onClick={() => navigate(rec.href)}
+                                                        className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all hover:shadow-lg hover:-translate-y-1 group relative overflow-hidden ${
+                                                            isRetry ? 'bg-orange-50/50 border-orange-100 hover:bg-orange-50' :
+                                                            isImprove ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50' :
+                                                            'bg-violet-50/50 border-violet-100 hover:bg-violet-50'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                                                            isRetry ? 'bg-orange-100 text-orange-600' :
+                                                            isImprove ? 'bg-emerald-100 text-emerald-600' :
+                                                            'bg-violet-100 text-violet-600'
+                                                        }`}>
+                                                            {rec.icon === 'retry' ? <RotateCcw size={18} /> : rec.icon === 'start' ? <Play size={18} fill="currentColor" /> : <Zap size={18} fill="currentColor" />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 pr-4">
+                                                            <h4 className="text-[14px] font-bold text-slate-900 leading-tight mb-1 group-hover:text-slate-900">{rec.label}</h4>
+                                                            <p className="text-[12px] text-slate-600 leading-relaxed font-medium line-clamp-2">{rec.detail}</p>
+                                                        </div>
+                                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                                    </button>
+                                                );
+                                            })}
+                                            {nextSteps.length === 0 && (
+                                                <div className="col-span-2 p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                                                    <p className="text-sm text-slate-400 italic">Complete more sessions to unlock personalized path cards.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* UPCOMING ASSIGNMENTS */}
+                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                                                    <Calendar size={18} />
+                                                </div>
+                                                <h2 className="font-bold text-slate-900 tracking-tight">Full Schedule</h2>
                                             </div>
-                                        </section>
+                                            <button 
+                                                onClick={() => setActiveTab('assignments')}
+                                                className="text-[11px] font-bold text-[#68507B] hover:text-[#5a456a] transition-colors flex items-center gap-1"
+                                            >
+                                                VIEW ALL <ChevronRight size={12} />
+                                            </button>
+                                        </div>
 
-                                    </div>
-
-                                    {/* RIGHT COLUMN (Narrower) */}
-                                    <div className="space-y-8">
-
-                                        {/* UPCOMING ASSIGNMENTS */}
-                                        <section>
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 mb-4">Upcoming assignments & quizzes</h2>
-                                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                                <div className="divide-y divide-slate-100">
-                                                    {upcomingItems.map(item => {
-                                                        let statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-                                                        let icon = <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-
-                                                        if (item.status === 'Due soon') {
-                                                            statusColor = 'bg-orange-50 text-orange-700 border-orange-200/60';
-                                                            icon = <Clock className="w-4 h-4 text-orange-500" />;
-                                                        } else if (item.status === 'Overdue') {
-                                                            statusColor = 'bg-red-50 text-red-700 border-red-200/60';
-                                                            icon = <AlertCircle className="w-4 h-4 text-red-500" />;
-                                                        }
-
-                                                        return (
-                                                            <div
-                                                                key={item.id}
-                                                                className="p-4 hover:bg-slate-50 transition-colors cursor-pointer"
-                                                                onClick={() => navigate(`/play/${(item as any).gamePackId || 'practice-general'}${(item as any).attemptId ? `?attemptId=${(item as any).attemptId}` : ''}`)}
-                                                            >
-                                                                <div className="flex justify-between items-start gap-3">
-                                                                    <div>
-                                                                        <h3 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h3>
-                                                                        <p className="text-[13px] text-slate-500 mt-1">{item.subjectClass}</p>
-                                                                        <div className="flex items-center gap-1.5 mt-2.5">
-                                                                            {icon}
-                                                                            <span className="text-[12px] font-medium text-slate-600">{item.dueDate}</span>
-                                                                        </div>
+                                        <div className="divide-y divide-slate-50">
+                                            {upcomingItems.map(item => {
+                                                const isOverdue = item.status === 'Overdue';
+                                                const isSoon = item.status === 'Due soon';
+                                                
+                                                return (
+                                                    <div 
+                                                        key={item.id}
+                                                        onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId || ''}`)}
+                                                        className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                    >
+                                                        <div className="flex justify-between items-center gap-6">
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="text-[15px] font-bold text-slate-900 leading-tight group-hover:text-[#68507B] transition-colors line-clamp-1">{item.title}</h3>
+                                                                <div className="flex items-center gap-3 mt-2">
+                                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{item.subjectClass}</span>
+                                                                    <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`} />
+                                                                        <span className={`text-[12px] font-semibold ${isOverdue ? 'text-red-600' : 'text-slate-500'}`}>
+                                                                            {item.dueDate}
+                                                                        </span>
                                                                     </div>
-                                                                    <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border whitespace-nowrap ${statusColor}`}>
-                                                                        {item.status}
-                                                                    </span>
                                                                 </div>
                                                             </div>
-                                                        );
-                                                    })}
-                                                    {upcomingItems.length === 0 && (
-                                                        <SectionEmpty
-                                                            headline="No upcoming assignments"
-                                                            detail="Your teacher's assignments will appear here when they're due."
-                                                        />
-                                                    )}
+                                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-wider whitespace-nowrap shadow-sm ${
+                                                                isOverdue ? 'bg-red-50 text-red-600 border-red-100' : 
+                                                                isSoon ? 'bg-orange-50 text-orange-600 border-orange-100' : 
+                                                                'bg-white text-slate-500 border-slate-100'
+                                                            }`}>
+                                                                {item.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {upcomingItems.length === 0 && (
+                                                <div className="p-12 text-center text-slate-400">
+                                                    <p className="text-sm font-medium italic">Your schedule is looking clear!</p>
                                                 </div>
-                                                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center flex flex-col items-center">
-                                                    <button
-                                                        onClick={() => setActiveTab('assignments')}
-                                                        className="text-[13px] font-medium text-[#68507B] hover:text-[#5a456a] transition-colors mb-2">
-                                                        View all tasks
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* ELORA CARD */}
+                                    {eloraStatus === 'success' && eloraSuggestion && (
+                                        <section className="bg-gradient-to-br from-slate-900 to-[#1a1523] rounded-2xl shadow-xl border border-slate-800 p-8 relative overflow-hidden group">
+                                            {/* Glowing effects */}
+                                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#68507B] rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity duration-1000" />
+                                            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity duration-1000" />
+                                            
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-3 mb-6">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#68507B] to-[#8b6ead] flex items-center justify-center text-white shadow-2xl shadow-[#68507B]/40 ring-1 ring-white/10">
+                                                        <Sparkles size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] block">AI Assistant</span>
+                                                        <span className="text-white font-bold tracking-tight">Elora's Smart Recommendation</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <h3 className="text-2xl font-bold text-white mb-3 leading-tight tracking-tight">{eloraSuggestion.title}</h3>
+                                                <p className="text-[16px] text-slate-300 leading-relaxed max-w-xl mb-8 font-medium">{eloraSuggestion.body}</p>
+                                                
+                                                <div className="flex items-center gap-4">
+                                                    {eloraSuggestion.suggestedPackId && (
+                                                        <button 
+                                                            onClick={() => navigate(`/play/${eloraSuggestion.suggestedPackId}`)}
+                                                            className="px-8 py-3 bg-white text-slate-900 rounded-xl text-[15px] font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition-all shadow-xl active:scale-95"
+                                                        >
+                                                            Start Now
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEloraStatus('loading');
+                                                            fetchEloraSuggestionRef.current?.();
+                                                        }}
+                                                        className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 active:scale-95"
+                                                        title="Get new suggestion"
+                                                    >
+                                                        <RotateCcw size={20} />
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            {/* PATTERN C: Weekly Goal Widget (Optional) */}
-                                            {upcomingItems.length === 0 && (streakData?.streakWeeks ?? 0) >= 1 && (
-                                                <div className="mt-4 bg-gradient-to-br from-[#68507B] to-[#5a456a] rounded-xl shadow-sm p-5 text-white relative overflow-hidden">
-                                                    <div className="relative z-10 flex flex-col items-start">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <span className="text-xl">🔥</span>
-                                                            <h3 className="text-[15px] font-bold tracking-tight">Weekly goal</h3>
-                                                        </div>
-                                                        <p className="text-[13px] text-white/90 leading-relaxed mb-4">
-                                                            You have no assignments due, but you can still keep your <strong>{streakData!.streakWeeks}-week streak</strong> alive!
-                                                        </p>
-                                                        <button
-                                                            onClick={() => setActiveTab('practice')}
-                                                            className="px-4 py-2 bg-white text-[#68507B] rounded-lg text-[13px] font-bold shadow-sm hover:bg-slate-50 transition-colors"
-                                                        >
-                                                            Play a GamePack
-                                                        </button>
-                                                    </div>
-                                                    {/* Decorative circle */}
-                                                    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-                                                </div>
-                                            )}
                                         </section>
+                                    )}
 
-                                        {/* MY CLASSES */}
-                                        <section>
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 mb-4">My classes</h2>
-                                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">
-                                                <div 
-                                                    onClick={() => handleClassClick('Sec 3 Express – E-Maths')}
-                                                    className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-[#68507B]/5 hover:border-[#68507B]/20 hover:shadow-sm transition-all group"
-                                                >
-                                                    <div className="w-10 h-10 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                                        <BookOpen className="w-5 h-5" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <h4 className="text-[14px] font-semibold text-slate-900 group-hover:text-[#68507B] transition-colors">Sec 3 Express – E-Maths</h4>
-                                                        <p className="text-[13px] text-slate-500">Mr. Tan • 35 students</p>
-                                                    </div>
-                                                    {pendingAssignments.filter(a => a.className === 'Sec 3 Express – E-Maths').length > 0 && (
-                                                        <div className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200/60 rounded-md text-[11px] font-semibold shadow-sm">
-                                                            {pendingAssignments.filter(a => a.className === 'Sec 3 Express – E-Maths').length} assignment{pendingAssignments.filter(a => a.className === 'Sec 3 Express – E-Maths').length !== 1 ? 's' : ''} due
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div 
-                                                    onClick={() => handleClassClick('Sec 3 Express – Biology')}
-                                                    className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-emerald-50/50 hover:border-emerald-200 hover:shadow-sm transition-all group"
-                                                >
-                                                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                                        <BookOpen className="w-5 h-5" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <h4 className="text-[14px] font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">Sec 3 Express – Biology</h4>
-                                                        <p className="text-[13px] text-slate-500">Ms. Lee • 32 students</p>
-                                                    </div>
-                                                    {pendingAssignments.filter(a => a.className === 'Sec 3 Express – Biology').length > 0 && (
-                                                        <div className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200/60 rounded-md text-[11px] font-semibold shadow-sm">
-                                                            {pendingAssignments.filter(a => a.className === 'Sec 3 Express – Biology').length} assignment{pendingAssignments.filter(a => a.className === 'Sec 3 Express – Biology').length !== 1 ? 's' : ''} due
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        {/* COACH'S NOTES */}
-                                        <section>
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 mb-4">Coach's notes</h2>
-                                            <div className="bg-[#F7F5F0] border border-slate-200 rounded-xl shadow-sm p-5 relative overflow-hidden">
-                                                <div className="relative z-10 space-y-3">
-                                                    {(recentPerformance?.weakTopics?.length ?? 0) > 0 ? (
-                                                        recentPerformance!.weakTopics.slice(0, 2).map((topic, i) => (
-                                                            <button
-                                                                key={i}
-                                                                onClick={() => navigate('/play/practice-general')}
-                                                                className="flex items-start gap-3 text-left w-full group p-3 bg-[#68507B]/5 rounded-lg border border-[#68507B]/10 hover:bg-[#68507B]/10 transition-colors"
-                                                            >
-                                                                <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-sm text-[#68507B] group-hover:scale-105 transition-transform">
-                                                                    <Target className="w-4 h-4" />
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <h4 className="text-[14px] font-semibold text-slate-900 group-hover:text-[#68507B] transition-colors">
-                                                                        Review: {topic}
-                                                                    </h4>
-                                                                    <p className="text-[13px] text-slate-600 mt-0.5 leading-relaxed">
-                                                                        You've been getting this wrong recently. Tap to practise now.
-                                                                    </p>
-                                                                </div>
-                                                                <ChevronRight className="w-4 h-4 text-slate-400 self-center" />
-                                                            </button>
-                                                        ))
-                                                    ) : (
-                                                        <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                                                            <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-sm text-emerald-500">
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="text-[14px] font-semibold text-slate-900">Looking great!</h4>
-                                                                <p className="text-[13px] text-slate-700 mt-0.5 leading-relaxed">
-                                                                    No weak areas detected yet. Keep completing assignments to get personalised tips here.
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                    </div>
                                 </div>
-                            </>
+
+                                {/* RIGHT COLUMN (Narrower) */}
+                                <div className="space-y-8">
+                                    
+                                    {/* PROGRESS SNAPSHOT */}
+                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden sticky top-8">
+                                        <div className="p-5 border-b border-slate-50">
+                                            <h2 className="text-[15px] font-bold text-slate-900 tracking-tight">Performance Snapshot</h2>
+                                        </div>
+                                        
+                                        <div className="p-6 space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shadow-sm">
+                                                        <Zap size={24} fill="currentColor" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Growth Streak</p>
+                                                        <p className="text-2xl font-bold text-slate-900 leading-none mt-1">{streakData?.streakWeeks || 0} Weeks</p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-orange-50 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border border-orange-100 animate-pulse">🔥</div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shadow-sm">
+                                                        <TrendingUp size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Overall Accuracy</p>
+                                                        <p className="text-2xl font-bold text-slate-900 leading-none mt-1">{avgRecentScore !== null ? `${avgRecentScore}%` : 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className={`px-2 py-1 rounded-lg text-[10px] font-extrabold shadow-sm border ${streakData?.trend === 'up' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                                                    {streakData?.trend === 'up' ? 'LEVEL UP' : 'STABLE'}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-sm">
+                                                        <CheckCircle2 size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tasks Done</p>
+                                                        <p className="text-2xl font-bold text-slate-900 leading-none mt-1">{completedAssignments.length}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 pt-6 border-t border-slate-50">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">Focus Areas</p>
+                                                    <Target size={14} className="text-[#68507B]" />
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {(recentPerformance?.weakTopics || []).slice(0, 4).map((topic, i) => (
+                                                        <span key={topic} className="px-3 py-1.5 bg-[#68507B]/5 text-[#68507B] rounded-xl text-[12px] font-bold border border-[#68507B]/10 hover:bg-[#68507B]/10 transition-colors cursor-default">
+                                                            {topic}
+                                                        </span>
+                                                    ))}
+                                                    {(recentPerformance?.weakTopics || []).length === 0 && (
+                                                        <p className="text-[13px] text-slate-400 italic font-medium">Looking great! Keep it up.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* SUPPORT & NUDGES */}
+                                            <div className="mt-2 pt-6 border-t border-slate-50">
+                                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Messages & Tips</h3>
+                                                <div className="space-y-4">
+                                                    {nudges.filter(n => !n.read).slice(0, 1).map(nudge => (
+                                                        <div key={nudge.id} className="p-4 bg-pink-50/50 border border-pink-100 rounded-2xl relative group">
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <div className="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-pink-500">
+                                                                    <Heart size={14} fill="currentColor" />
+                                                                </div>
+                                                                <p className="text-[12px] font-bold text-pink-700">From Parent</p>
+                                                            </div>
+                                                            <p className="text-[13px] text-slate-700 leading-snug italic">"{nudge.message}"</p>
+                                                            <button 
+                                                                onClick={() => handleMarkNudgeRead(nudge.id)}
+                                                                className="absolute top-3 right-3 text-pink-300 hover:text-pink-500 transition-colors"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    
+                                                    {recentPerformance?.weakTopics?.[0] && (
+                                                        <div className="p-4 bg-[#68507B]/5 border border-[#68507B]/10 rounded-2xl group hover:border-[#68507B]/30 transition-all">
+                                                            <p className="text-[11px] font-bold text-[#68507B] uppercase tracking-widest mb-2">Coach's Focus</p>
+                                                            <p className="text-[13px] text-slate-700 leading-snug">Boost your performance by reviewing <strong>{recentPerformance.weakTopics[0]}</strong>.</p>
+                                                            <button 
+                                                                onClick={() => navigate('/play/practice-general')}
+                                                                className="mt-3 text-[12px] font-bold text-[#68507B] flex items-center gap-1 group-hover:gap-2 transition-all"
+                                                            >
+                                                                Start practice session <ChevronRight size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                </div>
+                            </div>
                         ) : (
-                            <div className="space-y-6" id="assignments-section">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-[20px] font-semibold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700" id="assignments-section">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
+                                        <p className="text-[13px] text-slate-500 mt-0.5">Manage your active and completed coursework.</p>
+                                    </div>
                                     {activeClassFilter && (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[13px] text-slate-500 font-medium">Filtered by:</span>
-                                            <span className="px-3 py-1 bg-[#68507B]/10 text-[#68507B] rounded-full text-[13px] font-semibold border border-[#68507B]/20 flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
-                                                <BookOpen className="w-4 h-4" />
+                                            <span className="text-[12px] text-slate-400 font-semibold uppercase tracking-wider">Filtered By:</span>
+                                            <span className="px-3 py-1.5 bg-[#68507B] text-white rounded-xl text-[12px] font-bold border border-[#68507B] flex items-center gap-2 shadow-sm">
+                                                <BookOpen className="w-3.5 h-3.5" />
                                                 {activeClassFilter}
-                                                <button onClick={() => setActiveClassFilter(null)} className="ml-1 p-0.5 hover:bg-[#68507B]/20 rounded-full transition-colors flex items-center justify-center">
+                                                <button 
+                                                    onClick={() => setActiveClassFilter(null)} 
+                                                    className="ml-1 p-0.5 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+                                                    title="Clear filter"
+                                                >
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
                                             </span>
@@ -1165,100 +1024,124 @@ export default function StudentDashboardPage() {
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                                     {/* TO-DO LIST */}
-                                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-[500px]">
-                                        <div className="p-4 border-b border-slate-100 bg-slate-50 shrink-0">
-                                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                                                <ListTodo className="w-5 h-5 text-[#68507B]" />
-                                                To-Do List
-                                            </h3>
+                                    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px]">
+                                        <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center">
+                                                    <ListTodo size={18} />
+                                                </div>
+                                                <h3 className="font-bold text-slate-900">To-Do List</h3>
+                                            </div>
+                                            <span className="px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-[11px] font-bold text-[#68507B]">
+                                                {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length} Tasks
+                                            </span>
                                         </div>
-                                        <div className="divide-y divide-slate-100 overflow-y-auto flex-1 p-2">
+                                        
+                                        <div className="overflow-y-auto flex-1 p-3 space-y-3 custom-scrollbar">
                                             {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).map(item => {
-                                                let statusColor = 'bg-slate-50 text-slate-700 border-slate-200/60';
-                                                let icon = <Clock className="w-4 h-4 text-slate-500" />;
-
-                                                if (item.status === 'warning') {
-                                                    statusColor = 'bg-orange-50 text-orange-700 border-orange-200/60';
-                                                    icon = <Clock className="w-4 h-4 text-orange-500" />;
-                                                } else if (item.status === 'danger') {
-                                                    statusColor = 'bg-red-50 text-red-700 border-red-200/60';
-                                                    icon = <AlertCircle className="w-4 h-4 text-red-500" />;
-                                                }
-
+                                                const isOverdue = item.status === 'danger';
+                                                const isSoon = item.status === 'warning';
+                                                
                                                 return (
-                                                    <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer rounded-xl mb-2 border border-transparent hover:border-slate-200">
-                                                        <div className="flex justify-between items-start gap-3">
-                                                            <div>
-                                                                <h4 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h4>
-                                                                <p className="text-[13px] text-slate-500 mt-1">{item.className}</p>
-                                                                <div className="flex items-center gap-1.5 mt-2.5">
-                                                                    {icon}
-                                                                    <span className="text-[12px] font-medium text-slate-600">{item.statusLabel || `Due ${new Date(item.dueDate).toLocaleDateString()}`}</span>
+                                                    <div 
+                                                        key={item.id} 
+                                                        onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${item.attemptId}`)}
+                                                        className="p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                                                    >
+                                                        <div className="flex justify-between items-start gap-4">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-[10px] font-bold text-[#68507B] uppercase tracking-widest">{item.className}</span>
+                                                                </div>
+                                                                <h4 className="text-[15px] font-bold text-slate-900 leading-tight group-hover:text-[#68507B] transition-colors">{item.title}</h4>
+                                                                
+                                                                <div className="flex items-center gap-3 mt-3">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`} />
+                                                                        <span className={`text-[12px] font-semibold ${isOverdue ? 'text-red-600' : 'text-slate-500'}`}>
+                                                                            {item.statusLabel || `Due ${new Date(item.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                                                                        </span>
+                                                                    </div>
+                                                                    {isOverdue && (
+                                                                        <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded border border-red-100 uppercase tracking-tighter">
+                                                                            Action Required
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
-                                                            <div className="flex flex-col items-end gap-2">
-                                                                <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border whitespace-nowrap ${statusColor}`}>
-                                                                    {item.status === 'danger' ? 'Overdue' : item.status === 'warning' ? 'Due soon' : 'In Progress'}
+                                                            
+                                                            <div className="flex flex-col items-end gap-3 shrink-0">
+                                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wide ${
+                                                                    isOverdue ? 'bg-red-50 text-red-600 border-red-100' : 
+                                                                    isSoon ? 'bg-orange-50 text-orange-600 border-orange-100' : 
+                                                                    'bg-slate-50 text-slate-500 border-slate-100'
+                                                                }`}>
+                                                                    {isOverdue ? 'Overdue' : isSoon ? 'Due soon' : 'Active'}
                                                                 </span>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${item.attemptId}`);
-                                                                    }}
-                                                                    className="px-3 py-1.5 bg-[#68507B] text-white rounded-lg text-[12px] font-medium hover:bg-[#5a456a] transition-colors"
-                                                                >
-                                                                    Start
-                                                                </button>
+                                                                <div className="w-8 h-8 rounded-full bg-[#68507B] text-white flex items-center justify-center shadow-lg shadow-[#68507B]/20 group-hover:scale-110 transition-transform">
+                                                                    <Play size={14} fill="currentColor" />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
+                                            
                                             {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="p-8 text-center text-slate-500 text-[14px] flex flex-col items-center justify-center h-full">
-                                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50/30 rounded-xl border border-dashed border-slate-200 m-2">
+                                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-50">
                                                         <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                                                     </div>
-                                                    <p className="font-medium text-slate-900 text-lg">You're all caught up!</p>
-                                                    <p className="mt-1">{activeClassFilter ? `No pending assignments for ${activeClassFilter}.` : 'No pending assignments.'}</p>
+                                                    <p className="font-bold text-slate-900 text-lg">All caught up!</p>
+                                                    <p className="text-slate-500 text-sm mt-1 max-w-[200px]">You've completed all your assignments. Great job!</p>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* HISTORY */}
-                                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-[500px]">
-                                        <div className="p-4 border-b border-slate-100 bg-slate-50 shrink-0">
-                                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                                Completed & History
-                                            </h3>
+                                    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px]">
+                                        <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                                    <CheckCircle2 size={18} />
+                                                </div>
+                                                <h3 className="font-bold text-slate-900">Completed</h3>
+                                            </div>
+                                            <span className="text-[12px] font-bold text-slate-400">
+                                                Archive
+                                            </span>
                                         </div>
-                                        <div className="divide-y divide-slate-100 overflow-y-auto flex-1 p-2">
+                                        
+                                        <div className="overflow-y-auto flex-1 p-3 space-y-3 custom-scrollbar">
                                             {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).map(item => (
-                                                <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors w-full rounded-xl mb-2 border border-transparent hover:border-slate-200">
-                                                    <div className="flex justify-between items-start gap-3">
-                                                        <div>
-                                                            <h4 className="text-[14px] font-semibold text-slate-700 leading-tight">{item.title}</h4>
-                                                            <p className="text-[13px] text-slate-500 mt-1">{item.className}</p>
-                                                            <div className="flex items-center gap-2 mt-2">
-                                                                <span className="px-2.5 py-1 text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md text-[11px] font-semibold whitespace-nowrap">
-                                                                    Score: {item.bestScore !== null && item.bestScore !== undefined ? `${item.bestScore}%` : 'Completed'}
-                                                                </span>
-                                                            </div>
+                                                <div key={item.id} className="p-4 bg-white hover:bg-slate-50 border border-slate-50 rounded-xl transition-all group">
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{item.className}</span>
+                                                            <h4 className="text-[14px] font-semibold text-slate-600 leading-tight mt-1">{item.title}</h4>
+                                                            <p className="text-[11px] text-slate-400 mt-2 font-medium">Completed on {new Date(item.dueDate).toLocaleDateString()}</p>
                                                         </div>
-                                                        <div className="flex flex-col items-end gap-2">
-                                                            {/* Review feature for past assignments requires backend changes (like returning gameSessionId or fetching a session by attemptId). For now, it's disabled. */}
+                                                        <div className="flex flex-col items-end gap-2 shrink-0">
+                                                            <div className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-[12px] font-bold">
+                                                                {item.bestScore !== null && item.bestScore !== undefined ? `${item.bestScore}%` : 'PASS'}
+                                                            </div>
+                                                            <div className="flex gap-1">
+                                                                {[1, 2, 3].map(star => (
+                                                                    <div key={star} className={`w-2 h-2 rounded-full ${star <= (item.bestScore || 0) / 33 ? 'bg-yellow-400' : 'bg-slate-200'}`} />
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
+                                            
                                             {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="p-8 text-center text-slate-500 text-[14px] flex flex-col items-center justify-center h-full">
-                                                    <Clock className="w-12 h-12 text-slate-200 mb-3" />
-                                                    {activeClassFilter ? `No completed assignments for ${activeClassFilter} yet.` : 'No completed assignments yet.'}
+                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 italic">
+                                                    <Clock className="w-12 h-12 text-slate-100 mb-3" />
+                                                    <p className="text-sm">No completed assignments yet.</p>
                                                 </div>
                                             )}
                                         </div>
@@ -1515,14 +1398,19 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick }: SidebarI
                     onClick();
                 }
             }}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active
-                ? 'bg-white/10 text-white'
-                : 'text-white/70 hover:bg-white/5 hover:text-white'
-                } ${collapsed ? 'justify-center' : ''}`}
+            className={`group relative flex items-center gap-3 px-3.5 py-3 rounded-xl text-[14px] font-bold transition-all duration-200 ${
+                active
+                    ? 'bg-white text-[#68507B] shadow-lg shadow-black/10'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                } ${collapsed ? 'justify-center px-2' : ''}`}
             title={collapsed ? label : undefined}
         >
-            <Icon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+            <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-[#68507B]' : 'text-current'}`} />
+            {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
+            
+            {active && !collapsed && (
+                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#68507B]/40" />
+            )}
         </a>
     );
 }

@@ -32,6 +32,9 @@ import {
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
+import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
+import { useNotifications } from '../hooks/useNotifications';
+import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { getClassSupportSuggestion, type ClassSuggestion } from '../services/classSuggestionService';
 import { askElora } from '../services/askElora';
 import { RoleQuizGame } from '../components/RoleQuizGame';
@@ -624,53 +627,15 @@ interface DisplayClass {
     weakTopics: string[];
 }
 
-type NotificationType = 'submission' | 'needs_attention' | 'general';
-interface NotificationItem {
-    id: string;
-    type: NotificationType;
-    message: string;
-    timestamp: string;
-    studentName?: string;
-    assignmentTitle?: string;
-    className?: string;
-    statusFilter?: string;
-    isRead?: boolean;
-}
-
-const mockNotifications: NotificationItem[] = [
-    {
-        id: 'n1',
-        type: 'needs_attention',
-        message: 'Aisyah just finished Algebra Quiz 1. Scores suggest she might need a bit more support.',
-        timestamp: '5m',
-        studentName: 'Aisyah',
-        className: 'Math 101',
-        statusFilter: 'needs_attention',
-        isRead: false
-    },
-    {
-        id: 'n2',
-        type: 'submission',
-        message: 'New Physics Lab Report submission from Bobby – ready to review.',
-        timestamp: '1h',
-        className: 'Physics 202',
-        statusFilter: 'completed',
-        isRead: false
-    },
-    {
-        id: 'n3',
-        type: 'general',
-        message: 'You have 3 new assignments ready for grading.',
-        timestamp: '2h',
-        isRead: false
-    }
-];
+// The canonical Notification shape now comes from the backend (via dataService).
+// The local-only NotificationItem + mockNotifications have been removed.
+type NotificationItem = dataService.Notification;
 
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function TeacherDashboardPage() {
-    const { isVerified, logout } = useAuth();
+    const { isVerified, logout, currentUser } = useAuth();
 
 
     // ── Real data state ──
@@ -716,6 +681,16 @@ export default function TeacherDashboardPage() {
     // Ref so the "Ask again" button can call fetchEloraSuggestion defined inside useEffect.
     const fetchEloraSuggestionRef = React.useRef<((data?: dataService.TeacherInsight[]) => Promise<void>) | null>(null);
 
+    // Use the unified notifications hook
+    const {
+        notifications,
+        unreadCount,
+        markOneRead: handleMarkBackendNotificationRead,
+        markAllRead: handleMarkAllRead
+    } = useNotifications({ userId: 'T-1', role: 'teacher' });
+
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
     const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
     const [assignmentResults, setAssignmentResults] = useState<dataService.TeacherAssignmentResults | null>(null);
     const [loadingResults, setLoadingResults] = useState(false);
@@ -726,10 +701,6 @@ export default function TeacherDashboardPage() {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [classFilter, setClassFilter] = useState<string>('all');
     const [highlightAssignments, setHighlightAssignments] = useState(false);
-
-    // ── Notifications State ──
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notifications, setNotifications] = useState(mockNotifications);
 
     const handleDrillDown = ({ statusFilter, classFilter }: { statusFilter?: string; classFilter?: string }) => {
         if (statusFilter) setStatusFilter(statusFilter);
@@ -742,37 +713,38 @@ export default function TeacherDashboardPage() {
         }
     };
 
-    const markAllNotificationsRead = () => {
-        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-        setTimeout(() => {
-            setNotifications([]);
-        }, 250);
-    };
+    const handleNotificationClick = async (item: PopoverNotificationItem) => {
+        if (!item.original) return;
 
-    const handleNotificationClick = (notification: NotificationItem) => {
-        // Find if we need to drill down
-        if (notification.statusFilter || notification.className) {
-            handleDrillDown({
-                statusFilter: notification.statusFilter,
-                classFilter: notification.className
-            });
-            setIsNotificationsOpen(false); // Only close panel if drilling down
+        // Mark as read in backend
+        if (!item.isRead) {
+            await handleMarkBackendNotificationRead(item.original.id);
         }
 
-        // Mark as read to trigger animation
-        setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n));
+        const dest = getNotificationDefaultDestination(item.original);
+        // Teacher currently only has dashboard/classes tabs, but this prepares for more
+        if (dest === 'classes') {
+            setActiveTab('classes');
+        } else {
+            setActiveTab('dashboard');
+        }
 
-        // Remove after animation completes
-        setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== notification.id));
-        }, 250);
+        // Drill down logic from context
+        const context = item.original.context;
+        if (context) {
+            if (context.statusFilter || context.classId) {
+                handleDrillDown({
+                    statusFilter: context.statusFilter,
+                    classFilter: context.classId // Assuming classId matches className for this demo
+                });
+            }
+        }
     };
 
     // ── UI state ──
     const [filter, setFilter] = useState('This week');
     const [perfTab, setPerfTab] = useState('Classes');
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [showAiPanel, setShowAiPanel] = useState(false);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'classes'>('dashboard');
     const [showCreateClass, setShowCreateClass] = useState(false);
@@ -1430,66 +1402,36 @@ export default function TeacherDashboardPage() {
                                     className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
                                 />
                             </div>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                    className="relative p-2 text-slate-500 hover:bg-white hover:shadow-sm rounded-full transition-all border border-transparent hover:border-[#EAE7DD]"
-                                >
-                                    <Bell size={20} />
-                                    {notifications.some(n => !n.isRead) && (
-                                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-[#FDFBF5]"></span>
-                                    )}
-                                </button>
-
-                                {isNotificationsOpen && (
-                                    <>
-                                        <div
-                                            className="fixed inset-0 z-40"
-                                            onClick={() => setIsNotificationsOpen(false)}
-                                        />
-                                        <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl border border-[#EAE7DD] shadow-xl z-50 overflow-hidden flex flex-col">
-                                            <div className="flex items-center justify-between p-4 border-b border-[#EAE7DD] bg-[#FDFBF5]">
-                                                <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
-                                                {notifications.length > 0 && notifications.some(n => !n.isRead) && (
-                                                    <button
-                                                        onClick={markAllNotificationsRead}
-                                                        className="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors"
-                                                    >
-                                                        Mark all as read
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="max-h-80 overflow-y-auto w-full">
-                                                {notifications.length === 0 ? (
-                                                    <div className="p-4 text-center text-sm text-slate-500">No new notifications</div>
-                                                ) : (
-                                                    <div className="flex flex-col">
-                                                        {notifications.slice(0, 7).map(notification => (
-                                                            <button
-                                                                key={notification.id}
-                                                                onClick={() => handleNotificationClick(notification)}
-                                                                className={`w-full text-left inline-block p-4 border-b border-[#EAE7DD] last:border-0 hover:bg-slate-50 transition-all duration-200 ease-out ${notification.isRead ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0 bg-[#FDFBF5]'}`}
-                                                            >
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <span className="text-sm font-semibold text-slate-900 leading-snug">
-                                                                        {notification.message}
-                                                                    </span>
-                                                                    <span className="text-[11px] font-medium text-slate-400 shrink-0 whitespace-nowrap mt-0.5">{notification.timestamp}</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                        {notifications.length > 7 && (
-                                                            <div className="p-3 text-center text-xs font-semibold text-slate-500 bg-[#FDFBF5] border-t border-[#EAE7DD]">
-                                                                View older activity...
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <NotificationsPopover 
+                                items={
+                                    notifications
+                                        .slice(0, 10)
+                                        .map(n => ({
+                                            id: n.id,
+                                            title: n.title,
+                                            message: n.message,
+                                            time: (() => {
+                                                const diffMs = Date.now() - new Date(n.createdAt).getTime();
+                                                const mins = Math.floor(diffMs / 60_000);
+                                                if (mins < 60) return `${mins}m ago`;
+                                                const hrs = Math.floor(mins / 60);
+                                                if (hrs < 24) return `${hrs}h ago`;
+                                                return `${Math.floor(hrs / 24)}d ago`;
+                                            })(),
+                                            isRead: n.isRead,
+                                            type: n.type,
+                                            original: n
+                                        }))
+                                }
+                                unreadCount={unreadCount}
+                                onMarkAllRead={handleMarkAllRead}
+                                onNotificationClick={handleNotificationClick}
+                                badgeColor="bg-orange-500"
+                                unreadDotColor="bg-orange-500"
+                                unreadBgColor="bg-orange-50/20"
+                                headerTextColor="text-teal-600"
+                                emptyMessage="No new notifications"
+                            />
                             <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
                                 <div className="text-right hidden sm:block">
                                     <div className="text-sm font-semibold text-slate-900">

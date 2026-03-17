@@ -37,8 +37,12 @@ import {
     ResponsiveContainer,
     Cell,
 } from 'recharts';
-import { getDemoGamePack, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge } from '../services/dataService';
+import { useAuth } from '../auth/AuthContext';
+import { getDemoGamePack, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
 import { RoleQuizGame } from '../components/RoleQuizGame';
+import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
+import { useNotifications } from '../hooks/useNotifications';
+import { getNotificationDefaultDestination } from '../utils/notificationUi';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
@@ -558,13 +562,7 @@ function MessageFeed({
                     </div>
                 </div>
             ) : (
-                <div
-                    className="rounded-xl shadow-sm p-5 relative overflow-hidden border"
-                    style={{ background: `linear-gradient(135deg, ${BRAND}08, ${BRAND}15)`, borderColor: `${BRAND}30` }}
-                >
-                    <div className="absolute top-0 right-0 p-4 opacity-5">
-                        <Lightbulb className="w-24 h-24" />
-                    </div>
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 relative overflow-hidden">
                     <div className="relative z-10 space-y-4">
                         {tips.map((tip) => (
                             <div key={tip.id} className="flex items-start gap-3">
@@ -596,46 +594,37 @@ export default function ParentDashboardPage() {
     const [nudgeOpen, setNudgeOpen] = useState(false);
     const [nudgeText, setNudgeText] = useState('');
 
-    const [notificationsOpen, setNotificationsOpen] = useState(false);
-    const [parentNotifications, setParentNotifications] = useState([
-        {
-            id: 'pn1',
-            title: 'Assignment Overdue',
-            message: 'Aqil has an overdue assignment: A-Maths: Surds & Indices Practice.',
-            time: 'Yesterday',
-            type: 'alert',
-            action: () => setActivePage('assignments'),
-            unread: true
-        },
-        {
-            id: 'pn2',
-            title: 'New message from teacher',
-            message: 'Mr Tan Wei (E-Maths) sent a progress update regarding Aqil.',
-            time: '2 hours ago',
-            type: 'message',
-            action: () => setActivePage('messages'),
-            unread: true
-        },
-        {
-            id: 'pn3',
-            title: 'Weekly Report Ready',
-            message: 'Nadia\'s progress report for this week is now available.',
-            time: '2 days ago',
-            type: 'alert',
-            action: () => setActivePage('progress'),
-            unread: false
-        }
-    ]);
+    const { currentUser } = useAuth();
+    const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
 
-    const handleNotificationClick = (notification: any) => {
-        setParentNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, unread: false } : n));
-        setNotificationsOpen(false);
-        if (notification.action) {
-            notification.action();
-        }
+    const {
+        notifications: parentNotifications,
+        unreadCount: notificationsUnreadCount,
+        markAllRead: handleMarkAllRead,
+        markOneRead: handleMarkOneRead
+    } = useNotifications({ userId: parentId, role: 'parent' });
+
+    const handleNotificationClick = async (item: PopoverNotificationItem) => {
+        if (!item.original) return;
+        
+        // Mark as read in backend
+        await handleMarkOneRead(item.original.id);
+        
+        // Use the centralized UI helper for default destination mapping.
+        const dest = getNotificationDefaultDestination(item.original);
+        setActivePage(dest);
     };
 
-    const unreadNotificationsCount = parentNotifications.filter(n => n.unread).length;
+    // Format for the popover
+    const popoverNotifications: PopoverNotificationItem[] = parentNotifications.map(n => ({
+        id: n.id,
+        title: n.title,
+        message: n.message,
+        time: new Date(n.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        type: n.type,
+        isRead: n.isRead,
+        original: n
+    }));
 
     const [reviewGamePack, setReviewGamePack] = useState<GamePack | null>(null);
     const [reviewActivity, setReviewActivity] = useState<any>(null);
@@ -854,82 +843,16 @@ export default function ParentDashboardPage() {
                         <div className="w-px h-6 bg-slate-200 mx-2" />
 
                         <div className="relative">
-                            <button
-                                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                                className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <Bell className="w-5 h-5" />
-                                {unreadNotificationsCount > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-                                )}
-                            </button>
-
-                            {/* NOTIFICATION POPOVER */}
-                            {notificationsOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-slate-200 shadow-lg rounded-xl overflow-hidden z-50">
-                                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                                        <h3 className="text-[14px] font-semibold text-slate-900">Notifications</h3>
-                                        {unreadNotificationsCount > 0 && (
-                                            <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                                {unreadNotificationsCount} text="new"
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100">
-                                        {parentNotifications.length > 0 ? (
-                                            parentNotifications.map((notif) => (
-                                                <button
-                                                    key={notif.id}
-                                                    onClick={() => handleNotificationClick(notif)}
-                                                    className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${notif.unread ? 'bg-blue-50/30' : ''}`}
-                                                >
-                                                    <div className="flex gap-3">
-                                                        <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notif.type === 'message' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                                                            {notif.type === 'message' ? <MessageSquare className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className={`text-[13px] font-medium text-slate-900 ${notif.unread ? 'font-semibold' : ''}`}>
-                                                                {notif.title}
-                                                            </p>
-                                                            <p className="text-[12px] text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">
-                                                                {notif.message}
-                                                            </p>
-                                                            <p className="text-[11px] text-slate-400 mt-1.5">
-                                                                {notif.time}
-                                                            </p>
-                                                        </div>
-                                                        {notif.unread && (
-                                                            <div className="flex-shrink-0 mt-1.5">
-                                                                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            ))
-                                        ) : (
-                                            <div className="p-6 text-center">
-                                                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
-                                                    <Bell className="w-5 h-5 text-slate-400" />
-                                                </div>
-                                                <p className="text-[13px] font-medium text-slate-900">All caught up!</p>
-                                                <p className="text-[12px] text-slate-500 mt-0.5">No new notifications to show.</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {parentNotifications.length > 0 && (
-                                        <div className="p-2 border-t border-slate-100 bg-slate-50/50">
-                                            <button 
-                                                onClick={() => {
-                                                    setParentNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-                                                }}
-                                                className="w-full py-1.5 text-[12px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                                            >
-                                                Mark all as read
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            <NotificationsPopover
+                                items={popoverNotifications}
+                                unreadCount={notificationsUnreadCount}
+                                onMarkAllRead={handleMarkAllRead}
+                                onNotificationClick={handleNotificationClick}
+                                badgeColor="bg-red-500"
+                                unreadDotColor="bg-red-500"
+                                unreadBgColor="bg-red-50/20"
+                                headerTextColor="text-red-500"
+                            />
                         </div>
 
                         <div className="flex items-center gap-3 cursor-pointer">

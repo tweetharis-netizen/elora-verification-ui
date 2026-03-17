@@ -110,6 +110,52 @@ export interface ParentNudge {
     createdAt: string;
 }
 
+import {
+    createStudentSupportNotification,
+    createSubmissionReadyNotification,
+    createGeneralTeacherNotification,
+    createAssignmentOverdueNotification,
+    createTeacherMessageNotification,
+    createWeeklyReportNotification
+} from './notifications/factory';
+
+// ── Unified Notification model ────────────────────────────────────────────────
+// This is the canonical shape for the new notifications system.
+// ParentNudge is kept as-is for backward compat with /api/student/nudges;
+// it can be migrated into this model in a later sprint.
+
+export type NotificationRole = 'teacher' | 'student' | 'parent';
+export type NotificationEventType =
+    | 'submission'
+    | 'needs_attention'
+    | 'general'
+    | 'alert'
+    | 'message';
+
+export interface NotificationContext {
+    classId?: string;
+    assignmentId?: string;
+    studentId?: string;
+    /**
+     * When set, the frontend can use this to pre-filter the assignments section
+     * (e.g. 'completed', 'needs_attention').  Mirrors the statusFilter field
+     * that lives on the legacy TeacherDashboardPage NotificationItem shape.
+     */
+    statusFilter?: string;
+}
+
+export interface Notification {
+    id: string;
+    userId: string;         // the recipient
+    role: NotificationRole; // role of the recipient
+    type: NotificationEventType;
+    title: string | null;
+    message: string;
+    context?: NotificationContext;
+    isRead: boolean;        // false by default
+    createdAt: string;      // ISO-8601
+}
+
 export const users: User[] = [
     { id: "teacher_1", name: "Mr. Davis", email: "teacher@elora.com", role: "teacher", createdAt: new Date().toISOString(), lastActive: "October 12th", greetingSuffix: "Good afternoon" },
     { id: "student_1", name: "Alex Chen", email: "alex@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2450, rank: 1, streak: 5, trend: "up", trendVal: "2" },
@@ -316,6 +362,86 @@ export const assignmentAttempts: AssignmentAttempt[] = [
 
 export const parentNudges: ParentNudge[] = [];
 
+// ── In-memory notifications store ────────────────────────────────────────────
+// Seeded once when the module loads. In a real app this would be a DB table.
+export const notifications: Notification[] = [];
+
+/**
+ * Seeds a small set of initial teacher notifications that mirror the legacy
+ * hardcoded mockNotifications in TeacherDashboardPage.tsx.  Called once on
+ * startup (dev mode only) when the collection is empty.
+ */
+export function seedTeacherNotifications(teacherId: string): void {
+    if (notifications.some(n => n.userId === teacherId && n.role === 'teacher')) {
+        return; // already seeded
+    }
+
+    const now = Date.now();
+    const seed: Notification[] = [
+        createStudentSupportNotification({
+            userId: teacherId,
+            studentName: 'Aisyah',
+            assignmentTitle: 'Algebra Quiz 1',
+            classId: '1',
+            studentId: 'student_1',
+            createdAt: new Date(now - 5 * 60_000).toISOString()
+        }),
+        createSubmissionReadyNotification({
+            userId: teacherId,
+            studentName: 'Bobby',
+            assignmentTitle: 'Physics Lab Report',
+            classId: '2',
+            createdAt: new Date(now - 60 * 60_000).toISOString()
+        }),
+        createGeneralTeacherNotification({
+            userId: teacherId,
+            count: 3,
+            createdAt: new Date(now - 2 * 60 * 60_000).toISOString()
+        })
+    ];
+
+    notifications.push(...seed);
+}
+
+/**
+ * Seeds a small set of initial parent notifications that mirror the legacy
+ * hardcoded parentNotifications in ParentDashboardPage.tsx.
+ */
+export function seedParentNotifications(parentId: string): void {
+    if (notifications.some(n => n.userId === parentId && n.role === 'parent')) {
+        return; // already seeded
+    }
+
+    const now = Date.now();
+    const seed: Notification[] = [
+        createAssignmentOverdueNotification({
+            userId: parentId,
+            studentName: 'Aqil',
+            assignmentTitle: 'Surds & Indices Practice',
+            subject: 'A-Maths',
+            studentId: 'student_1',
+            createdAt: new Date(now - 24 * 60 * 60_000).toISOString()
+        }),
+        createTeacherMessageNotification({
+            userId: parentId,
+            teacherName: 'Mr Tan Wei',
+            subject: 'E-Maths',
+            studentName: 'Aqil',
+            studentId: 'student_1',
+            createdAt: new Date(now - 2 * 60 * 60_000).toISOString()
+        }),
+        createWeeklyReportNotification({
+            userId: parentId,
+            studentName: 'Nadia',
+            studentId: 'student_2',
+            isRead: true,
+            createdAt: new Date(now - 2 * 24 * 60 * 60_000).toISOString()
+        })
+    ];
+
+    notifications.push(...seed);
+}
+
 export const db = {
     users,
     classes,
@@ -326,5 +452,6 @@ export const db = {
     gameSessions,
     enrollments,
     assignmentAttempts,
-    parentNudges
+    parentNudges,
+    notifications,
 };

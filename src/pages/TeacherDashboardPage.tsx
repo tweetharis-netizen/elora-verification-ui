@@ -134,7 +134,7 @@ const StatCard = ({
 }) => (
     <div className="bg-white p-5 rounded-2xl border border-[#EAE7DD] shadow-sm flex flex-col gap-3">
         <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center shrink-0">
                 {icon}
             </div>
             {trend && (
@@ -1399,6 +1399,14 @@ export default function TeacherDashboardPage() {
                     {/* ── Active View Content ── */}
                     {activeTab === 'dashboard' ? (
                         <>
+
+                            {/* "What's New" Strip */}
+                            <div className="mb-6 p-3.2 px-4 bg-white/5 border border-[#EAE7DD] rounded-xl flex items-center gap-3">
+                                <span className="text-[11px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-wider">What's new</span>
+                                <span className="text-[13px] text-slate-600 font-medium italic">
+                                    AI-powered grouping for Classroom Health is now live! See at-risk clusters instantly.
+                                </span>
+                            </div>
 
                             {/* Class Health Strip */}
                             {classHealth && !loading && !insightsLoading && (

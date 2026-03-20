@@ -164,24 +164,28 @@ export default function VerifyPage() {
                             <p className="text-sm text-slate-500 mb-4">Enter your display name and optional assistant name.</p>
 
                             <div className="mb-4">
-                                <label className="block text-xs font-semibold mb-1">What should we call you?</label>
+                                <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-1.5">
+                                    Your Display Name (shown to students)
+                                </label>
                                 <input
                                     value={preferredName}
                                     onChange={(e) => setPreferredName(e.target.value)}
                                     maxLength={30}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
-                                    placeholder="e.g. Haris"
+                                    placeholder="e.g. Mr. Lim, Ms. Sarah"
                                 />
                             </div>
 
                             <div className="mb-4">
-                                <label className="block text-xs font-semibold mb-1">Name your assistant (optional)</label>
+                                <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-1.5">
+                                    AI Assistant Name (optional)
+                                </label>
                                 <input
                                     value={assistantName}
                                     onChange={(e) => setAssistantName(e.target.value)}
                                     maxLength={20}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
-                                    placeholder="e.g. Study Buddy"
+                                    placeholder="e.g. Elora, Botty..."
                                 />
                             </div>
 

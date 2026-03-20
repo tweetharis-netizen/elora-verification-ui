@@ -162,29 +162,38 @@ const StatCard = ({
 
 const StatusBadge = ({ status }: { status: string }) => {
     let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+    let icon = null;
+
+    const lower = status.toLowerCase();
+
     if (
-        status === 'Active' ||
-        status === 'Completed' ||
-        status === 'Scheduled' ||
-        status === 'success' ||
-        status === 'Improving'
+        lower.includes('active') ||
+        lower.includes('completed') ||
+        lower.includes('scheduled') ||
+        lower.includes('success') ||
+        lower.includes('improving')
     ) {
         colorClass = 'bg-teal-50 text-teal-700 border-teal-200';
     } else if (
-        status === 'Needs Attention' ||
-        status === 'Due tomorrow' ||
-        status === 'warning' ||
-        status === 'At risk'
+        lower.includes('attention') ||
+        lower.includes('due tomorrow') ||
+        lower.includes('warning') ||
+        lower.includes('at risk') ||
+        lower.includes('dropping')
     ) {
         colorClass = 'bg-orange-50 text-orange-700 border-orange-200';
-    } else if (status === 'Draft' || status === 'Stable') {
+        if (lower.includes('dropping')) {
+            icon = <TrendingDown size={12} className="shrink-0" />;
+        }
+    } else if (lower.includes('draft') || lower.includes('stable')) {
         colorClass = 'bg-slate-50 text-slate-600 border-slate-200';
     }
 
     return (
         <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colorClass}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${colorClass}`}
         >
+            {icon}
             {status}
         </span>
     );

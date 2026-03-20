@@ -9,9 +9,11 @@ import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
+import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentGamePage from './pages/StudentGamePage';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 
 // ─── Homepage components ──────────────────────────────────────────────────────
 
@@ -49,7 +51,7 @@ const ComingSoonBar = () => {
   );
 };
 
-const Header = () => {
+export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -521,7 +523,7 @@ const FinalCTA = () => {
   );
 };
 
-const Footer = () => {
+export const Footer = () => {
   return (
     <footer className="bg-elora-400 text-white/60 py-16 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
@@ -555,7 +557,7 @@ const Footer = () => {
         <div>
           <h4 className="text-white font-medium mb-5">Company</h4>
           <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+            <li><Link to="/our-story" className="hover:text-white transition-colors">Our Story</Link></li>
             <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Partners</a></li>
@@ -604,6 +606,7 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/verify" element={<VerifyPage />} />
+      <Route path="/our-story" element={<OurStoryPage />} />
 
       {/* Protected dashboard routes – ProtectedRoute redirects to /verify if not verified */}
       <Route

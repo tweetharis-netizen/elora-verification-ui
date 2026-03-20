@@ -1,33 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import {
-    LayoutDashboard,
-    BookOpen,
+import { 
+    LayoutDashboard, 
+    BookOpen, 
+    MessageSquare, 
+    Calendar, 
+    Settings, 
+    LogOut, 
+    ChevronRight, 
+    Bell, 
+    Search, 
+    Zap, 
+    Clock, 
+    CheckCircle2, 
+    Trophy, 
+    ListTodo, 
+    Star, 
+    RotateCcw, 
+    Activity, 
+    TrendingUp, 
+    Target, 
+    Shield, 
+    ExternalLink,
+    Play,
+    Book,
+    Sparkles,
     Gamepad2,
     FileText,
     BarChart2,
-    Settings,
-    Bell,
-    Search,
-    ChevronRight,
-    Play,
-    RotateCcw,
-    ListTodo,
-    TrendingUp,
-    Clock,
     AlertCircle,
-    CheckCircle2,
     X,
     Lightbulb,
     PanelLeftClose,
     PanelLeftOpen,
-    LogOut,
-    Zap,
-    Inbox,
-    MessageCircle,
     Heart,
-    Target,
-    Calendar,
-    Sparkles
+    Inbox,
+    MessageCircle
 } from 'lucide-react';
 import {
     BarChart,
@@ -37,15 +44,20 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell
+    Cell,
+    AreaChart,
+    Area
 } from 'recharts';
+import MotivationBanner from '../components/MotivationBanner';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { useNavigate } from 'react-router-dom';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
+import EloraAssistantCard from '../components/EloraAssistantCard';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
+import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 
 
 
@@ -55,18 +67,10 @@ interface SidebarItemProps {
     active?: boolean;
     collapsed?: boolean;
     onClick?: () => void;
+    className?: string;
 }
 
-// Shared empty-state helper
-const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-3 py-10 text-center animate-in fade-in duration-700">
-        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200 mb-2">
-            <Inbox size={32} strokeWidth={1.5} />
-        </div>
-        <p className="text-[15px] font-bold text-slate-700 tracking-tight">{headline}</p>
-        {detail && <p className="text-[13px] text-slate-400 max-w-[240px] leading-relaxed font-medium">{detail}</p>}
-    </div>
-);
+// Shared empty-state helper is now imported from src/components/ui/SectionStates.tsx
 
 // --- COMPONENTS ---
 
@@ -117,13 +121,13 @@ export default function StudentDashboardPage() {
     const [nudges, setNudges] = useState<dataService.ParentNudge[]>([]);
 
     // Backend Notification records for this student (from the unified /api/notifications endpoint)
-    const { 
-        notifications: backendNotifications, 
+    const {
+        notifications: backendNotifications,
         markOneRead: handleMarkBackendNotificationRead,
         markAllRead: handleMarkAllBackendNotificationsRead
-    } = useNotifications({ 
-        userId: currentUser?.id || '', 
-        role: 'student' 
+    } = useNotifications({
+        userId: currentUser?.id || '',
+        role: 'student'
     });
 
     const [loading, setLoading] = useState(true);
@@ -293,8 +297,8 @@ export default function StudentDashboardPage() {
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
-    const studentName = currentUser?.name || 'Student';
-    const studentInitial = studentName.charAt(0).toUpperCase();
+    const displayName = currentUser?.preferredName ?? currentUser?.name ?? 'Student';
+    const studentInitial = displayName.charAt(0).toUpperCase();
 
     // ── Status normalisation ───────────────────────────────────────────────────
     // The backend returns raw attempt statuses: 'not_started' | 'submitted' | 'in_progress'.
@@ -400,9 +404,9 @@ export default function StudentDashboardPage() {
         handleMarkAllBackendNotificationsRead();
         // Nudges and assignments don't have a backend "mark all read" yet that we want to trigger here
     };
-    
-    // Total unread calculation for the badge
-    const notificationsUnreadCount = popoverNotifications.length;
+
+     // Total unread calculation for the badge
+     const notificationsUnreadCount = popoverNotifications.filter(n => !n.isRead).length;
 
 
     // Map assignments to "Upcoming items" for the right column
@@ -562,6 +566,7 @@ export default function StudentDashboardPage() {
                             <PanelLeftOpen className="w-5 h-5" />
                         </button>
                     )}
+                    <div className="h-px bg-white/10 my-2 mx-3" />
                     <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} />
                     <button
                         onClick={logout}
@@ -575,114 +580,78 @@ export default function StudentDashboardPage() {
             </aside>
 
             {/* MAIN CONTENT */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
-                {/* HEADER */}
-                <header className="py-4 px-6 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 transition-all">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Student Overview</h1>
-                        <p className="text-[13px] text-slate-500 font-medium">Hi, {studentName.split(' ')[0]}. Here's what's next.</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <NotificationsPopover 
+                    {/* HEADER */}
+                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
+                        <div>
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Student Dashboard
+                            </div>
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                {loading ? 'Loading…' : `Good day, ${displayName}`}
+                            </h1>
+                            <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Student</p>
+                        </div>
+                        <div className="flex items-center gap-4 lg:gap-6">
+                            <div className="relative hidden md:block">
+                                <Search
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    size={16}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Search classes…"
+                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
+                                />
+                            </div>
+                            <NotificationsPopover
                                 items={popoverNotifications}
                                 unreadCount={notificationsUnreadCount}
                                 onMarkAllRead={handleMarkAllNotificationsRead}
                                 onNotificationClick={handleNotificationClick}
-                                badgeColor="bg-blue-500"
-                                unreadDotColor="bg-[#68507B]"
-                                unreadBgColor="bg-[#68507B]/10"
-                                headerTextColor="text-blue-600"
+                                badgeColor="bg-orange-500"
+                                unreadDotColor="bg-orange-500"
+                                unreadBgColor="bg-orange-50/20"
+                                headerTextColor="text-teal-600"
                             />
-                        </div>
-
-                        <div className="flex items-center gap-3 pl-1 border-l border-slate-100 ml-1">
-                            <div className="text-right hidden sm:block">
-                                <div className="text-[12px] font-semibold text-slate-900 leading-none">{studentName}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">Year 3 Student</div>
+                            <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-sm font-semibold text-slate-900">
+                                        {displayName}
+                                    </div>
+                                    <div className="text-xs text-slate-500 font-medium">Student</div>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm">
+                                    {studentInitial}
+                                </div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-[#68507B]/10 text-[#68507B] flex items-center justify-center font-bold text-xs ring-2 ring-white ring-offset-1">
-                                {studentInitial}
-                            </div>
                         </div>
-                    </div>
-                </header>
-
-                {/* SCROLLABLE CANVAS */}
-                <main className="flex-1 overflow-y-auto bg-[#FDFBF5]/50 p-6 lg:p-8">
+                    </header>
                     <div className="max-w-7xl mx-auto space-y-8">
 
                         {activeTab === 'dashboard' ? (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                
+
                                 {/* LEFT COLUMN (Wider) */}
                                 <div className="lg:col-span-2 space-y-8">
-                                    
-                                    {/* MASTERY TREND CHART */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div>
-                                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Mastery Trend</h2>
-                                                <p className="text-[13px] text-slate-500 mt-1">Your performance across recent sessions.</p>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-[#68507B]" />
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Accuracy %</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="h-[240px] w-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={(recentPerformance?.scores || []).map(s => ({
-                                                    date: new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-                                                    score: s.score
-                                                })).slice(-7)}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                                                    <XAxis 
-                                                        dataKey="date" 
-                                                        axisLine={false} 
-                                                        tickLine={false} 
-                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
-                                                        dy={10}
-                                                    />
-                                                    <YAxis 
-                                                        axisLine={false} 
-                                                        tickLine={false} 
-                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
-                                                        domain={[0, 100]}
-                                                        dx={-10}
-                                                    />
-                                                    <Tooltip 
-                                                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}}
-                                                        itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
-                                                        labelStyle={{fontSize: '10px', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em'}}
-                                                    />
-                                                    <Bar 
-                                                        dataKey="score" 
-                                                        fill="#68507B" 
-                                                        radius={[4, 4, 0, 0]} 
-                                                        barSize={32}
-                                                    >
-                                                        {(recentPerformance?.scores || []).slice(-7).map((entry, index) => (
-                                                            <Cell 
-                                                                key={`cell-${index}`} 
-                                                                fill={entry.score >= 80 ? '#10B981' : entry.score >= 60 ? '#68507B' : '#F59E0B'} 
-                                                                fillOpacity={0.9}
-                                                            />
-                                                        ))}
-                                                    </Bar>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </section>
+
+                                    {/* MOTIVATION BANNER */}
+                                    <MotivationBanner
+                                        streakWeeks={streakData?.streakWeeks || 0}
+                                        levelLabel={`Level ${Math.floor((streakData?.totalActiveDays || 0) / 5) + 1}`}
+                                        xpEstimate={`${(streakData?.totalActiveDays || 0) * 105} XP`}
+                                        motivationalMessage={
+                                            (streakData?.streakWeeks || 0) > 2
+                                                ? "You're on fire! " + (streakData?.streakWeeks) + " weeks is an incredible achievement."
+                                                : "Your learning journey is picking up speed. Great work today!"
+                                        }
+                                    />
 
                                     {/* TODAY'S FOCUS CARD */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="w-8 h-8 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center">
                                                     <ListTodo size={18} />
@@ -693,13 +662,13 @@ export default function StudentDashboardPage() {
                                                 {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                                             </span>
                                         </div>
-                                        
+
                                         <div className="p-5">
                                             {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).length > 0 ? (
                                                 <div className="space-y-4">
                                                     {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).map(item => (
-                                                        <div 
-                                                            key={item.id} 
+                                                        <div
+                                                            key={item.id}
                                                             onClick={() => navigate(`/play/${(item as any).gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId}`)}
                                                             className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all group cursor-pointer shadow-sm hover:shadow-md"
                                                         >
@@ -728,7 +697,7 @@ export default function StudentDashboardPage() {
                                                     </div>
                                                     <p className="text-lg font-bold text-slate-900">You're all set!</p>
                                                     <p className="text-sm text-slate-500 mt-1 max-w-[240px]">No tasks due today. Use this time to sharpen your skills with a practice session.</p>
-                                                    <button 
+                                                    <button
                                                         onClick={() => navigate('/play/practice-general')}
                                                         className="mt-6 px-6 py-2.5 bg-[#68507B] text-white text-sm font-bold rounded-xl shadow-lg shadow-[#68507B]/20 hover:bg-[#5a456a] hover:-translate-y-0.5 transition-all"
                                                     >
@@ -749,9 +718,9 @@ export default function StudentDashboardPage() {
                                             {nextSteps.map(rec => {
                                                 const isRetry = rec.icon === 'retry';
                                                 const isImprove = rec.icon === 'improve';
-                                                
+
                                                 return (
-                                                    <button 
+                                                    <button
                                                         key={rec.id}
                                                         onClick={() => navigate(rec.href)}
                                                         className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all hover:shadow-lg hover:-translate-y-1 group relative overflow-hidden ${
@@ -783,16 +752,76 @@ export default function StudentDashboardPage() {
                                         </div>
                                     </section>
 
-                                    {/* UPCOMING ASSIGNMENTS */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                    {/* MASTERY TREND CHART */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Mastery Trend</h2>
+                                                <p className="text-[13px] text-slate-500 mt-1">Your performance across recent sessions.</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-[#68507B]" />
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Accuracy %</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-[240px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={(recentPerformance?.scores || []).map(s => ({
+                                                    date: new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                                                    score: s.score
+                                                })).slice(-7)}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}}
+                                                        dy={10}
+                                                    />
+                                                    <YAxis
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}}
+                                                        domain={[0, 100]}
+                                                        dx={-10}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}}
+                                                        itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
+                                                        labelStyle={{fontSize: '10px', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em'}}
+                                                    />
+                                                    <Bar
+                                                        dataKey="score"
+                                                        fill="#68507B"
+                                                        radius={[4, 4, 0, 0]}
+                                                        barSize={32}
+                                                    >
+                                                        {(recentPerformance?.scores || []).slice(-7).map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.score >= 80 ? '#10B981' : entry.score >= 60 ? '#68507B' : '#F59E0B'}
+                                                                fillOpacity={0.9}
+                                                            />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </section>
+
+                                     {/* UPCOMING ASSIGNMENTS */}
+                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
                                                     <Calendar size={18} />
                                                 </div>
                                                 <h2 className="font-bold text-slate-900 tracking-tight">Full Schedule</h2>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={() => setActiveTab('assignments')}
                                                 className="text-[11px] font-bold text-[#68507B] hover:text-[#5a456a] transition-colors flex items-center gap-1"
                                             >
@@ -844,59 +873,43 @@ export default function StudentDashboardPage() {
                                         </div>
                                     </section>
 
-                                    {/* ELORA CARD */}
-                                    {eloraStatus === 'success' && eloraSuggestion && (
-                                        <section className="bg-gradient-to-br from-slate-900 to-[#1a1523] rounded-2xl shadow-xl border border-slate-800 p-8 relative overflow-hidden group">
-                                            {/* Glowing effects */}
-                                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#68507B] rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity duration-1000" />
-                                            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity duration-1000" />
-                                            
-                                            <div className="relative z-10">
-                                                <div className="flex items-center gap-3 mb-6">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#68507B] to-[#8b6ead] flex items-center justify-center text-white shadow-2xl shadow-[#68507B]/40 ring-1 ring-white/10">
-                                                        <Sparkles size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] block">AI Assistant</span>
-                                                        <span className="text-white font-bold tracking-tight">Elora's Smart Recommendation</span>
-                                                    </div>
-                                                </div>
-                                                
-                                                <h3 className="text-2xl font-bold text-white mb-3 leading-tight tracking-tight">{eloraSuggestion.title}</h3>
-                                                <p className="text-[16px] text-slate-300 leading-relaxed max-w-xl mb-8 font-medium">{eloraSuggestion.body}</p>
-                                                
-                                                <div className="flex items-center gap-4">
-                                                    {eloraSuggestion.suggestedPackId && (
-                                                        <button 
-                                                            onClick={() => navigate(`/play/${eloraSuggestion.suggestedPackId}`)}
-                                                            className="px-8 py-3 bg-white text-slate-900 rounded-xl text-[15px] font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition-all shadow-xl active:scale-95"
-                                                        >
-                                                            Start Now
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => {
-                                                            setEloraStatus('loading');
-                                                            fetchEloraSuggestionRef.current?.();
-                                                        }}
-                                                        className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 active:scale-95"
-                                                        title="Get new suggestion"
-                                                    >
-                                                        <RotateCcw size={20} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </section>
-                                    )}
+
 
                                 </div>
 
-                                {/* RIGHT COLUMN (Narrower) */}
-                                <div className="space-y-8">
-                                    
-                                    {/* PROGRESS SNAPSHOT */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden sticky top-8">
-                                        <div className="p-5 border-b border-slate-50">
+                                 {/* RIGHT COLUMN (Narrower) */}
+                                 <div className="space-y-8">
+                                     <EloraAssistantCard
+                                         role="student"
+                                         assistantName={currentUser?.assistantName}
+                                         title="Smart study suggestions"
+                                         description="Elora analyzes your recent performance to give a focused practice idea."
+                                         suggestedPrompts={[
+                                             'What should I practice tonight to improve accuracy?',
+                                             'Show me 5 quick algebra questions',
+                                             'How do I reduce careless mistakes?'
+                                         ]}
+                                         accentClasses={{
+                                             chipBg: 'bg-[#68507B]/10',
+                                             buttonBg: 'bg-[#68507B]',
+                                             iconBg: 'bg-[#EAE7DD]',
+                                             text: 'text-[#68507B]',
+                                         }}
+                                         status={eloraStatus}
+                                         suggestion={eloraSuggestion ? {
+                                             kind: 'lesson_idea',
+                                             title: eloraSuggestion.title,
+                                             body: eloraSuggestion.body,
+                                             suggestedTargets: eloraSuggestion.suggestedTargets,
+                                             suggestedPackId: eloraSuggestion.suggestedPackId,
+                                         } : null}
+                                         error={eloraError}
+                                         onRefresh={() => fetchEloraSuggestionRef.current?.()}
+                                     />
+
+                                     {/* PROGRESS SNAPSHOT */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden sticky top-8">
+                                        <div className="p-5 border-b border-[#EAE7DD]">
                                             <h2 className="text-[15px] font-bold text-slate-900 tracking-tight">Performance Snapshot</h2>
                                         </div>
                                         
@@ -1153,8 +1166,8 @@ export default function StudentDashboardPage() {
                         {/* Bottom padding */}
                         <div className="h-8"></div>
                     </div>
-                </main>
-            </div >
+                </div>
+            </main>
 
             {/* DETAIL MODAL */}
             {
@@ -1319,7 +1332,7 @@ export default function StudentDashboardPage() {
                 );
             })()}
 
-        </div >
+        </div>
     );
 }
 
@@ -1388,7 +1401,7 @@ function NextStepsStrip({ recs, onNavigate }: { recs: Rec[]; onNavigate: (href: 
     );
 }
 
-function SidebarItem({ icon: Icon, label, active, collapsed, onClick }: SidebarItemProps) {
+function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className }: SidebarItemProps) {
     return (
         <a
             href="#"
@@ -1402,7 +1415,7 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick }: SidebarI
                 active
                     ? 'bg-white text-[#68507B] shadow-lg shadow-black/10'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
-                } ${collapsed ? 'justify-center px-2' : ''}`}
+                } ${collapsed ? 'justify-center px-2' : ''} ${className || ''}`}
             title={collapsed ? label : undefined}
         >
             <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-[#68507B]' : 'text-current'}`} />

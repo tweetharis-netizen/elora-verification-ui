@@ -27,17 +27,19 @@ import {
     CheckCircle2,
     Send,
     Inbox,
-    RefreshCw
+    RefreshCw,
+    Heart,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { getClassSupportSuggestion, type ClassSuggestion } from '../services/classSuggestionService';
-import { askElora } from '../services/askElora';
 import { RoleQuizGame } from '../components/RoleQuizGame';
+import EloraAssistantCard, { EloraAssistantSuggestion } from '../components/EloraAssistantCard';
+import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -81,48 +83,7 @@ const DevShortcut = () => {
 };
 
 // ── Shared state-display helpers ────────────────────────────────────────────────
-
-/** Animated skeleton rows shown while a section is loading. */
-const SectionSkeleton = ({ rows = 3 }: { rows?: number }) => (
-    <div className="space-y-3 py-2">
-        {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="animate-pulse flex gap-3 items-center">
-                <div className="w-8 h-8 bg-slate-200 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-slate-200 rounded w-2/3" />
-                    <div className="h-2.5 bg-slate-100 rounded w-full" />
-                </div>
-            </div>
-        ))}
-    </div>
-);
-
-/** Compact error card with an optional retry action. */
-const SectionError = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm">
-        <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-            <p className="text-red-700 leading-relaxed">{message}</p>
-        </div>
-        {onRetry && (
-            <button
-                onClick={onRetry}
-                className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 shrink-0 ml-2"
-            >
-                <RefreshCw size={12} /> Retry
-            </button>
-        )}
-    </div>
-);
-
-/** Generic empty state with an icon and two lines of copy. */
-const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Inbox size={28} className="text-slate-300" />
-        <p className="text-sm font-semibold text-slate-600">{headline}</p>
-        {detail && <p className="text-xs text-slate-400 max-w-xs">{detail}</p>}
-    </div>
-);
+// Now imported from src/components/ui/SectionStates.tsx
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -132,12 +93,14 @@ const NavItem = ({
     active = false,
     onClick,
     collapsed = false,
+    className = "",
 }: {
     icon: React.ReactNode;
     label: string;
     active?: boolean;
     onClick?: () => void;
     collapsed?: boolean;
+    className?: string;
 }) => (
     <a
         href="#"
@@ -145,7 +108,7 @@ const NavItem = ({
         className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active
             ? 'bg-teal-800 text-white'
             : 'text-teal-100 hover:bg-teal-800/50 hover:text-white'
-            } ${collapsed ? 'justify-center focus:outline-none' : ''}`}
+            } ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
         title={collapsed ? label : undefined}
     >
         <div className="shrink-0">{icon}</div>
@@ -496,12 +459,9 @@ const NeedsAttentionCard = ({
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
                 <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)] shrink-0" />
-                <h2 className="text-sm font-semibold tracking-tight text-slate-800">Needs attention</h2>
-                {hasInsights && (
-                    <span className="ml-auto text-[10px] font-bold bg-orange-100 text-orange-700 rounded-full px-2 py-0.5">
-                        {insights.length}
-                    </span>
-                )}
+                <h2 className="text-sm font-semibold tracking-tight text-slate-800">
+                    Needs Attention {hasInsights && <span className="text-slate-400 font-normal ml-0.5">· {insights.length}</span>}
+                </h2>
             </div>
 
             {/* Body */}
@@ -522,11 +482,13 @@ const NeedsAttentionCard = ({
                         {error}
                     </div>
                 ) : !hasInsights ? (
-                    // All-clear state
-                    <div className="flex flex-col items-center gap-2 py-4 text-center">
-                        <CheckCircle2 size={28} className="text-teal-500" />
-                        <p className="text-sm font-semibold text-slate-700">All clear for now 👍</p>
-                        <p className="text-xs text-slate-500">No urgent items across your classes.</p>
+                    // Celebratory empty state
+                    <div className="flex flex-col items-center gap-2 py-6 text-center bg-teal-50/30 rounded-2xl border border-teal-100/50 shadow-inner">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-1 shadow-sm border border-teal-100">
+                            <CheckCircle2 size={28} className="text-teal-500" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-800 tracking-tight">You’re all caught up 🎉</p>
+                        <p className="text-xs text-slate-500 max-w-[180px] leading-relaxed">No students need attention right now.</p>
                     </div>
                 ) : (
                     insights.map((insight) => {
@@ -640,7 +602,9 @@ type NotificationItem = dataService.Notification;
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function TeacherDashboardPage() {
+    const navigate = useNavigate();
     const { isVerified, logout, currentUser } = useAuth();
+    const displayName = currentUser?.preferredName ?? currentUser?.name ?? 'Teacher';
 
 
     // ── Real data state ──
@@ -662,26 +626,6 @@ export default function TeacherDashboardPage() {
     const [eloraSuggestion, setEloraSuggestion] = useState<ClassSuggestion | null>(null);
     const [eloraError, setEloraError] = useState<string | null>(null);
 
-    // ── Custom Ask Elora State ──
-    const [eloraPrompt, setEloraPrompt] = useState('');
-    const [eloraCustomAnswer, setEloraCustomAnswer] = useState<string | null>(null);
-    const [isAskingElora, setIsAskingElora] = useState(false);
-    const [askEloraError, setAskEloraError] = useState<string | null>(null);
-
-    const handleCustomAsk = async () => {
-        if (!eloraPrompt.trim()) return;
-        setIsAskingElora(true);
-        setAskEloraError(null);
-        setEloraCustomAnswer(null);
-        try {
-            const answer = await askElora(eloraPrompt);
-            setEloraCustomAnswer(answer);
-        } catch (err: unknown) {
-            setAskEloraError(err instanceof Error ? err.message : 'Failed to get an answer from Elora.');
-        } finally {
-            setIsAskingElora(false);
-        }
-    };
 
     // Ref so the "Ask again" button can call fetchEloraSuggestion defined inside useEffect.
     const fetchEloraSuggestionRef = React.useRef<((data?: dataService.TeacherInsight[]) => Promise<void>) | null>(null);
@@ -1383,17 +1327,18 @@ export default function TeacherDashboardPage() {
 
             {/* ── Main Content ── */}
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
                     {/* Top Header */}
-                    <header className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-[#EAE7DD] mb-8 gap-4">
+                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
                         <div>
-                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                Today
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Teacher Dashboard
                             </div>
-                            <h1 className="text-2xl lg:text-[26px] font-semibold text-slate-900 tracking-tight">
-                                {loading ? 'Loading…' : `Good day, ${teacherName}`}
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                {loading ? 'Loading…' : `Good day, ${displayName}`}
                             </h1>
+                            <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Teacher</p>
                         </div>
                         <div className="flex items-center gap-4 lg:gap-6">
                             <div className="relative hidden md:block">
@@ -1457,7 +1402,7 @@ export default function TeacherDashboardPage() {
 
                             {/* Class Health Strip */}
                             {classHealth && !loading && !insightsLoading && (
-                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
                                     <div className="flex flex-col flex-1 gap-1 sm:flex-row sm:items-center">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="text-[14px] font-medium text-slate-900">
@@ -1498,175 +1443,6 @@ export default function TeacherDashboardPage() {
                                 </div>
                             )}
 
-                            {/* ── Ask Elora Card ─────────────────────────────────────────────────── */}
-                            {/* Shown once insights have at least started loading (not during the very
-                                first full-page skeleton). Hides when tab switches away. */}
-                            {!loading && (
-                                <div className="mb-4 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm" id="ask-elora-card">
-                                    {/* ── idle (should flash by quickly) ── */}
-                                    {eloraStatus === 'idle' && (
-                                        <p className="text-[13px] text-slate-400">Preparing a suggestion…</p>
-                                    )}
-
-                                    {/* ── loading skeleton ── */}
-                                    {eloraStatus === 'loading' && (
-                                        <div className="flex items-center gap-3">
-                                            {/* Sparkle pulse */}
-                                            <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center">
-                                                <Sparkles size={14} className="text-teal-400 animate-pulse" />
-                                            </div>
-                                            <div className="flex-1 space-y-2 animate-pulse">
-                                                <div className="h-3 bg-slate-200 rounded w-2/5" />
-                                                <div className="h-2.5 bg-slate-100 rounded w-4/5" />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* ── error state ── */}
-                                    {eloraStatus === 'error' && (
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <AlertCircle size={15} className="text-orange-400 shrink-0" />
-                                                <p className="text-[13px] text-slate-500 leading-relaxed">
-                                                    Elora couldn't prepare a suggestion right now. Try again in a moment.
-                                                </p>
-                                            </div>
-                                            <button
-                                                id="ask-elora-retry-btn"
-                                                onClick={() => fetchEloraSuggestionRef.current?.()}
-                                                className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 shrink-0"
-                                            >
-                                                <RefreshCw size={13} />
-                                                Retry
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* ── success state ── */}
-                                    {eloraStatus === 'success' && eloraSuggestion && (() => {
-                                        const kindIcon: Record<ClassSuggestion['kind'], React.ReactNode> = {
-                                            practice_task: <Gamepad2 size={13} className="text-teal-500" />,
-                                            parent_message: <Send size={13} className="text-violet-500" />,
-                                            lesson_idea: <BookOpen size={13} className="text-sky-500" />,
-                                        };
-                                        const targetLabel =
-                                            eloraSuggestion.suggestedTargets.length === 1
-                                                ? eloraSuggestion.suggestedTargets[0]
-                                                : eloraSuggestion.suggestedTargets.slice(0, 2).join(', ') +
-                                                  (eloraSuggestion.suggestedTargets.length > 2
-                                                      ? ` +${eloraSuggestion.suggestedTargets.length - 2}`
-                                                      : '');
-
-                                        return (
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                                {/* Icon */}
-                                                <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center">
-                                                    <Sparkles size={14} className="text-teal-500" />
-                                                </div>
-
-                                                {/* Body */}
-                                                <div className="flex-1 min-w-0">
-                                                    {/* Label */}
-                                                    <p className="text-[11px] font-medium text-slate-400 mb-0.5 flex items-center gap-1">
-                                                        {kindIcon[eloraSuggestion.kind]}
-                                                        Elora's suggestion
-                                                    </p>
-                                                    {/* Title */}
-                                                    <p className="text-[14px] font-medium text-slate-900 leading-snug">
-                                                        {eloraSuggestion.title}
-                                                    </p>
-                                                    {/* Body + targets */}
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed mt-0.5">
-                                                        {eloraSuggestion.body}
-                                                        {eloraSuggestion.suggestedTargets.length > 0 &&
-                                                            eloraSuggestion.suggestedTargets[0] !== 'whole class' && (
-                                                                <span className="ml-1 text-slate-400">
-                                                                    {' '}For:{' '}
-                                                                    <span className="font-medium text-slate-600">{targetLabel}</span>.
-                                                                </span>
-                                                            )}
-                                                    </p>
-                                                </div>
-
-                                                {/* CTA */}
-                                                <button
-                                                    id="ask-elora-refresh-btn"
-                                                    onClick={() => fetchEloraSuggestionRef.current?.()}
-                                                    className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 shrink-0"
-                                                    aria-label="Ask Elora for another suggestion"
-                                                >
-                                                    <RefreshCw size={13} />
-                                                    Ask again
-                                                </button>
-                                            </div>
-                                        );
-                                    })()}
-                                    
-                                    {/* ── Custom Ask Elora Prompt ── */}
-                                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={eloraPrompt}
-                                                onChange={(e) => setEloraPrompt(e.target.value)}
-                                                placeholder="Ask Elora a specific question..."
-                                                disabled={isAskingElora}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') handleCustomAsk();
-                                                }}
-                                                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 disabled:opacity-60"
-                                            />
-                                            <button
-                                                onClick={handleCustomAsk}
-                                                disabled={!eloraPrompt.trim() || isAskingElora}
-                                                className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-60 transition-colors shrink-0"
-                                            >
-                                                {isAskingElora ? 'Asking...' : 'Ask'}
-                                            </button>
-                                        </div>
-                                        {askEloraError && (
-                                            <p className="text-[13px] text-red-600 mt-1">{askEloraError}</p>
-                                        )}
-                                        {eloraCustomAnswer && (
-                                            <div className="mt-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                                {eloraCustomAnswer}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Quick Actions */}
-                            <div className="flex flex-wrap gap-3 mb-8">
-                                <button
-                                    onClick={() => setShowAiPanel(!showAiPanel)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
-                                >
-                                    <Sparkles size={16} /> Create AI GamePack
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <Plus size={16} /> Create Assignment
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <FileText size={16} /> Assign Quiz
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <MonitorPlay size={16} /> View Class
-                                </button>
-                            </div>
-
-                            {/* AI Game Panel (toggled) */}
-                            {showAiPanel && (
-                                <AiGamePanel
-                                    onClose={() => setShowAiPanel(false)}
-                                    onReview={(pack) => {
-                                        setReviewGamePack(pack);
-                                        setReviewQuestionIndex(0);
-                                    }}
-                                    onAssign={handleAssignClick}
-                                />
-                            )}
-
                             {/* Error banner */}
                             {error && (
                                 <div className="mb-6">
@@ -1677,7 +1453,7 @@ export default function TeacherDashboardPage() {
                                 </div>
                             )}
 
-                            {/* Stats Strip */}
+                            {/* Stats Strip (prioritized above-the-fold) */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
                                 <StatCard
                                     icon={<BookOpen className="text-teal-600" size={20} />}
@@ -1702,17 +1478,169 @@ export default function TeacherDashboardPage() {
                                 />
                             </div>
 
-                            {/* Two-column layout */}
-                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                            {/* Two-column layout (reorganized: time-sensitive left, reference right) */}
+                            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 mb-8">
 
-                                {/* ── Left column (wider) ── */}
+                                {/* ── Left column (wider): Time-sensitive items ── */}
                                 <div className="xl:col-span-2 flex flex-col gap-8">
 
-                                    {/* My Classes table
-                  NOTE: GamePack history is not yet stored in backend; this table
-                  shows real classes from /api/classes until a GamePack history
-                  endpoint is available. Replace GAMEPACKS mock below with that
-                  endpoint once ready. */}
+                                    {/* Upcoming Assignments */}
+                                    <section
+                                        ref={assignmentsSectionRef}
+                                        className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
+                                                Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
+                                            </h2>
+                                            <button className="text-teal-600 hover:text-teal-700 p-1">
+                                                <MoreHorizontal size={20} />
+                                            </button>
+                                        </div>
+
+                                        {/* Slim Filter Bar */}
+                                        <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
+                                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
+
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                            >
+                                                <option value="all">All Statuses</option>
+                                                <option value="needs_attention">Needs Attention</option>
+                                                <option value="on_track">On Track</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
+
+                                            <select
+                                                value={classFilter}
+                                                onChange={(e) => setClassFilter(e.target.value)}
+                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                            >
+                                                <option value="all">All Classes</option>
+                                                {availableClasses.map(cls => (
+                                                    <option key={cls} value={cls}>{cls}</option>
+                                                ))}
+                                            </select>
+
+                                            {(statusFilter !== 'all' || classFilter !== 'all') && (
+                                                <button
+                                                    onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
+                                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
+                                                >
+                                                    Clear filters
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {loading ? (
+                                            <SectionSkeleton rows={2} />
+                                        ) : upcomingAssignments.length === 0 ? (
+                                            <SectionEmpty
+                                                headline="No upcoming assignments"
+                                                detail="Assignments you create will appear here for quick access."
+                                            />
+                                        ) : filteredAssignments.length === 0 ? (
+                                            <SectionEmpty
+                                                headline="No assignments match filters"
+                                                detail="Try clearing your filters to see more."
+                                            />
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {filteredAssignments.map((item) => {
+                                                    const statusLower = item.status.toLowerCase();
+                                                    const borderColor = 
+                                                        (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
+                                                        (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
+                                                        'border-l-teal-500';
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className={`p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
+                                                            onClick={() => handleViewAssignment(item.id)}
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <h3 className="text-sm font-semibold text-slate-900">
+                                                                    {item.title}
+                                                                </h3>
+                                                                <StatusBadge status={item.status} />
+                                                            </div>
+                                                            <p className="text-xs text-slate-600 mb-3">{item.class}</p>
+                                                            <div className="flex items-center justify-between text-xs">
+                                                                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                                                    <Clock size={14} /> {item.due}
+                                                                </div>
+                                                                {item.total > 0 && (
+                                                                    <div className="font-semibold text-slate-700">
+                                                                        {item.submitted}/{item.total}{' '}
+                                                                        <span className="text-slate-400 font-normal">
+                                                                            submitted
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
+                                            View all assignments
+                                        </button>
+                                    </section>
+
+                                    {/* ── Needs Attention (live data) ── */}
+                                    <NeedsAttentionCard
+                                        insights={insights.slice(0, 5)}
+                                        loading={insightsLoading}
+                                        error={insightsError}
+                                        onInsightClick={(insight) => {
+                                            if (insight.assignmentId) {
+                                                handleViewAssignment(insight.assignmentId);
+                                            }
+                                        }}
+                                        onAssignPractice={handleTargetedPracticeClick}
+                                        onDrillDown={handleDrillDown}
+                                    />
+
+                                </div>
+
+                                 {/* ── Right column (narrower): Reference items ── */}
+                                 <div className="xl:col-span-2 flex flex-col gap-8">
+ 
+                                     {!loading && (
+                                         <EloraAssistantCard
+                                             role="teacher"
+                                             assistantName={currentUser?.assistantName}
+                                             title="Get a classroom-ready action plan"
+                                             description="Elora suggests targeted teaching moves based on your class health and insight data."
+                                             suggestedPrompts={[
+                                                 'How can I support students struggling with fractions?',
+                                                 'Suggest a quick formative check-in activity',
+                                                 'What reinforcement should I give today?'
+                                             ]}
+                                             accentClasses={{
+                                                 chipBg: 'bg-teal-50',
+                                                 buttonBg: 'bg-teal-600',
+                                                 iconBg: 'bg-teal-50',
+                                                 text: 'text-teal-700',
+                                             }}
+                                             status={eloraStatus}
+                                             suggestion={eloraSuggestion ? {
+                                                 kind: eloraSuggestion.kind,
+                                                 title: eloraSuggestion.title,
+                                                 body: eloraSuggestion.body,
+                                                 suggestedTargets: eloraSuggestion.suggestedTargets,
+                                             } : null}
+                                             error={eloraError}
+                                             onRefresh={() => fetchEloraSuggestionRef.current?.()}
+                                         />
+                                     )}
+ 
+                                     {/* My Classes table */}
                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
                                         <div className="p-5 lg:p-6 border-b border-[#EAE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                             <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
@@ -1871,127 +1799,43 @@ export default function TeacherDashboardPage() {
                                             </div>
                                         )}
                                     </section>
-                                </div>
 
-                                {/* ── Right column (narrower) ── */}
-                                <div className="flex flex-col gap-8">
-
-                                    {/* Upcoming Assignments */}
-                                    <section
-                                        ref={assignmentsSectionRef}
-                                        className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                Upcoming Assignments
-                                            </h2>
-                                            <button className="text-teal-600 hover:text-teal-700 p-1">
-                                                <MoreHorizontal size={20} />
-                                            </button>
-                                        </div>
-
-                                        {/* Slim Filter Bar */}
-                                        <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
-                                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
-
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Statuses</option>
-                                                <option value="needs_attention">Needs Attention</option>
-                                                <option value="on_track">On Track</option>
-                                                <option value="completed">Completed</option>
-                                            </select>
-
-                                            <select
-                                                value={classFilter}
-                                                onChange={(e) => setClassFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Classes</option>
-                                                {availableClasses.map(cls => (
-                                                    <option key={cls} value={cls}>{cls}</option>
-                                                ))}
-                                            </select>
-
-                                            {(statusFilter !== 'all' || classFilter !== 'all') && (
-                                                <button
-                                                    onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
-                                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
-                                                >
-                                                    Clear filters
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {loading ? (
-                                            <SectionSkeleton rows={2} />
-                                        ) : upcomingAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No upcoming assignments"
-                                                detail="Assignments you create will appear here for quick access."
-                                            />
-                                        ) : filteredAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No assignments match filters"
-                                                detail="Try clearing your filters to see more."
-                                            />
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {filteredAssignments.map((item) => (
-                                                    <div
-                                                        key={item.id}
-                                                        className="p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] cursor-pointer hover:border-teal-300 transition-colors"
-                                                        onClick={() => handleViewAssignment(item.id)}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <h3 className="text-sm font-semibold text-slate-900">
-                                                                {item.title}
-                                                            </h3>
-                                                            <StatusBadge status={item.status} />
-                                                        </div>
-                                                        <p className="text-xs text-slate-600 mb-3">{item.class}</p>
-                                                        <div className="flex items-center justify-between text-xs">
-                                                            <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                                                                <Clock size={14} /> {item.due}
-                                                            </div>
-                                                            {item.total > 0 && (
-                                                                <div className="font-semibold text-slate-700">
-                                                                    {item.submitted}/{item.total}{' '}
-                                                                    <span className="text-slate-400 font-normal">
-                                                                        submitted
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
-                                            View all assignments
-                                        </button>
-                                    </section>
-
-                                    {/* ── Needs Attention (live data) ── */}
-                                    <NeedsAttentionCard
-                                        insights={insights.slice(0, 5)}
-                                        loading={insightsLoading}
-                                        error={insightsError}
-                                        onInsightClick={(insight) => {
-                                            if (insight.assignmentId) {
-                                                handleViewAssignment(insight.assignmentId);
-                                            }
-                                        }}
-                                        onAssignPractice={handleTargetedPracticeClick}
-                                        onDrillDown={handleDrillDown}
-                                    />
 
                                 </div>
                             </div>
+
+
+
+                            {/* Quick Actions (below fold) */}
+                            <div className="flex flex-wrap gap-3 mb-8">
+                                <button
+                                    onClick={() => setShowAiPanel(!showAiPanel)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
+                                >
+                                    <Sparkles size={16} /> Create AI GamePack
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <Plus size={16} /> Create Assignment
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <FileText size={16} /> Assign Quiz
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <MonitorPlay size={16} /> View Class
+                                </button>
+                            </div>
+
+                            {/* AI Game Panel (toggled) */}
+                            {showAiPanel && (
+                                <AiGamePanel
+                                    onClose={() => setShowAiPanel(false)}
+                                    onReview={(pack) => {
+                                        setReviewGamePack(pack);
+                                        setReviewQuestionIndex(0);
+                                    }}
+                                    onAssign={handleAssignClick}
+                                />
+                            )}
                         </>) : activeTab === 'classes' ? (
                             <div className="flex flex-col gap-6">
                                 <div className="flex items-center justify-between mb-2">

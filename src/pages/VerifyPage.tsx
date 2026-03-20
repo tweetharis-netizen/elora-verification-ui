@@ -35,9 +35,52 @@ export default function VerifyPage() {
     const prefilledRole = (location.state as { role?: UserRole } | null)?.role ?? 'teacher';
     const [selectedRole, setSelectedRole] = useState<UserRole>(prefilledRole);
 
+    const [showPersonalize, setShowPersonalize] = useState(false);
+    const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
+    const [preferredName, setPreferredName] = useState('');
+    const [assistantName, setAssistantName] = useState('');
+    const [nameError, setNameError] = useState('');
+
+    const openPersonalize = (role: UserRole) => {
+        setPendingRole(role);
+        setPreferredName('');
+        setAssistantName('');
+        setNameError('');
+        setShowPersonalize(true);
+    };
+
     const handleVerify = () => {
-        login(selectedRole);
-        navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
+        openPersonalize(selectedRole);
+    };
+
+    const finalizeAndContinue = (rollForward: boolean) => {
+        if (!pendingRole) return;
+
+        if (rollForward) {
+            const trimmedPref = preferredName.trim();
+            if (!trimmedPref) {
+                setNameError('Please provide a name to proceed.');
+                return;
+            }
+            if (trimmedPref.length > 30) {
+                setNameError('Name must be 30 characters or fewer.');
+                return;
+            }
+            const trimmedAssistant = assistantName.trim();
+            if (trimmedAssistant.length > 20) {
+                setNameError('Assistant name must be 20 characters or fewer.');
+                return;
+            }
+            login(pendingRole, {
+                preferredName: trimmedPref,
+                assistantName: trimmedAssistant || undefined,
+            });
+        } else {
+            login(pendingRole);
+        }
+
+        setShowPersonalize(false);
+        navigate(DASHBOARD_PATHS[pendingRole], { replace: true });
     };
 
     return (
@@ -113,6 +156,54 @@ export default function VerifyPage() {
                         Resend link
                     </button>
                 </p>
+
+                {showPersonalize && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 relative">
+                            <h3 className="text-lg font-semibold text-slate-900 mb-2">Personalize your experience</h3>
+                            <p className="text-sm text-slate-500 mb-4">Enter your display name and optional assistant name.</p>
+
+                            <div className="mb-4">
+                                <label className="block text-xs font-semibold mb-1">What should we call you?</label>
+                                <input
+                                    value={preferredName}
+                                    onChange={(e) => setPreferredName(e.target.value)}
+                                    maxLength={30}
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
+                                    placeholder="e.g. Haris"
+                                />
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-xs font-semibold mb-1">Name your assistant (optional)</label>
+                                <input
+                                    value={assistantName}
+                                    onChange={(e) => setAssistantName(e.target.value)}
+                                    maxLength={20}
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
+                                    placeholder="e.g. Study Buddy"
+                                />
+                            </div>
+
+                            {nameError && <p className="text-sm text-red-600 mb-3">{nameError}</p>}
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => finalizeAndContinue(true)}
+                                    className="flex-1 bg-elora-400 text-white rounded-lg px-3 py-2 hover:bg-elora-300 transition"
+                                >
+                                    Save and continue
+                                </button>
+                                <button
+                                    onClick={() => finalizeAndContinue(false)}
+                                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 transition"
+                                >
+                                    Skip for now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </main>
     );

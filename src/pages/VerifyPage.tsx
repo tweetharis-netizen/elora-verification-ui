@@ -165,7 +165,7 @@ export default function VerifyPage() {
 
                             <div className="mb-4">
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-1.5">
-                                    Your Display Name (shown to students)
+                                    Your name
                                 </label>
                                 <input
                                     value={preferredName}
@@ -174,19 +174,21 @@ export default function VerifyPage() {
                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
                                     placeholder="e.g. Mr. Lim, Ms. Sarah"
                                 />
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">How Elora should address you.</p>
                             </div>
 
                             <div className="mb-4">
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-1.5">
-                                    AI Assistant Name (optional)
+                                    Name for your AI assistant
                                 </label>
                                 <input
                                     value={assistantName}
                                     onChange={(e) => setAssistantName(e.target.value)}
                                     maxLength={20}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
-                                    placeholder="e.g. Elora, Botty..."
+                                    placeholder="e.g. Elora, Study Guide, Coach."
                                 />
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">Optional. For example: Elora, Study Guide, Coach.</p>
                             </div>
 
                             {nameError && <p className="text-sm text-red-600 mb-3">{nameError}</p>}

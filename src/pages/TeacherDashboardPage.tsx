@@ -1410,11 +1410,17 @@ export default function TeacherDashboardPage() {
                         <>
 
                             {/* "What's New" Strip */}
-                            <div className="mb-6 p-3.2 px-4 bg-white/5 border border-[#EAE7DD] rounded-xl flex items-center gap-3">
-                                <span className="text-[11px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-wider">What's new</span>
-                                <span className="text-[13px] text-slate-600 font-medium italic">
-                                    AI-powered grouping for Classroom Health is now live! See at-risk clusters instantly.
+                            <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">What's new</span>
+                                <span className="text-sm text-slate-600 font-medium">
+                                    New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
                                 </span>
+                                <Link 
+                                    to="/our-story" 
+                                    className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
+                                >
+                                    View details
+                                </Link>
                             </div>
 
                             {/* Class Health Strip */}

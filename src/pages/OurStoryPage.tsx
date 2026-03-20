@@ -227,6 +227,25 @@ const OurStoryPage = () => {
                 </motion.div>
               ))}
             </div>
+
+            {/* EARLY TESTER SHOWCASE */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="flex justify-center mt-12 md:mt-16"
+            >
+              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm group hover:border-white/20 transition-colors cursor-default">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-pink/20 to-accent-orange/20 border border-white/10 flex items-center justify-center text-[9px] font-bold text-white/40">
+                  AK
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-white/60">Adila Khan</span>
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest font-bold">Early Tester</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </section>
 

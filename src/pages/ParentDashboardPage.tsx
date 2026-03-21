@@ -1035,7 +1035,16 @@ export default function ParentDashboardPage() {
                             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                                 {`Good day, ${parentName}`}
                             </h1>
-                            <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Parent</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                                <p className="text-[13px] text-slate-500 font-medium">You are signed in as Parent</p>
+                                {isDemo && (
+                                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
+                                        <span className="text-[#DB844A] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                        <span>Struggling Class (Sec 3 Mathematics)</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-4 lg:gap-6">
                             <div className="relative hidden md:block">
@@ -1084,21 +1093,6 @@ export default function ParentDashboardPage() {
 
                     <div className="max-w-7xl mx-auto space-y-8">
 
-                        {/* PAGE TITLE + CHILD SELECTOR (mobile) */}
-                        {isDemo && activePage === 'overview' && (
-                            <div className="mb-6 space-y-4">
-                                <div className="px-5 py-3 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
-                                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
-                                        Elora gives you a calm weekly view of your child’s learning — no jargon, just clarity.
-                                    </p>
-                                </div>
-                                
-                                <div className="px-5 py-3 bg-blue-50/50 border border-blue-100 rounded-2xl">
-                                    <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-0.5">Scenario</p>
-                                    <p className="text-sm text-blue-900 font-medium">Struggling Class (Sec 3 Mathematics)</p>
-                                </div>
-                            </div>
-                        )}
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                             <div>
                                 <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">

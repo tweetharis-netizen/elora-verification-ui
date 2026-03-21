@@ -657,13 +657,13 @@ export default function StudentDashboardPage() {
                             
                                 {isDemo && (
                                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg w-fit">
+                                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
                                             <span className="text-[#68507B] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
                                             <span className="w-1 h-1 rounded-full bg-slate-300" />
                                             <span>Struggling Class (Sec 3 Mathematics)</span>
                                         </div>
                                         {focusChipText && (
-                                            <div className="flex items-center gap-2 text-[11px] font-medium text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg w-fit">
+                                            <div className="flex items-center gap-2 text-[11px] font-medium text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-lg w-fit">
                                                 <span className="text-orange-700 font-bold uppercase tracking-widest text-[9px]">Struggling with</span>
                                                 <span className="w-1 h-1 rounded-full bg-orange-300" />
                                                 <span>{focusChipText}</span>

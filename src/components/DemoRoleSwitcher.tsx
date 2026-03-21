@@ -1,7 +1,7 @@
 // src/components/DemoRoleSwitcher.tsx
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Users, User, Heart } from 'lucide-react';
+import { Users, User, Heart, Home } from 'lucide-react';
 
 export const DemoRoleSwitcher = () => {
     const { pathname } = useLocation();
@@ -41,6 +41,14 @@ export const DemoRoleSwitcher = () => {
                         </NavLink>
                     );
                 })}
+                <div className="w-px h-8 bg-slate-200 mx-1.5 self-center" />
+                <NavLink
+                    to="/"
+                    className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                >
+                    <Home size={15} className="text-slate-400" />
+                    <span>Return to Home</span>
+                </NavLink>
             </div>
         </div>
     );

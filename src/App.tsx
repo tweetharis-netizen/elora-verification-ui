@@ -123,6 +123,13 @@ const Hero = () => {
             <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
               Start for free
             </Link>
+            <Link
+              to="/teacher/demo"
+              className="flex items-center gap-2 text-accent-yellow font-semibold text-sm hover:underline underline-offset-2 transition-all"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-yellow inline-block animate-pulse" />
+              Try a live demo
+            </Link>
           </div>
         </div>
 
@@ -608,15 +615,15 @@ export default function App() {
       <Route path="/verify" element={<VerifyPage />} />
       <Route path="/our-story" element={<OurStoryPage />} />
 
-      {/* Protected dashboard routes – ProtectedRoute redirects to /verify if not verified */}
-      <Route
-        path="/dashboard/teacher"
-        element={
-          <ProtectedRoute>
-            <TeacherDashboardPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Demo routes – no auth required */}
+      <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
+      <Route path="/student/demo" element={<StudentDashboardPage />} />
+      <Route path="/parent/demo" element={<ParentDashboardPage />} />
+      <Route path="/dashboard/teacher" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage />
+        </ProtectedRoute>
+      } />
       <Route
         path="/dashboard/student"
         element={

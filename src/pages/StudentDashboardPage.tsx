@@ -59,6 +59,15 @@ import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
+import { useDemoMode } from '../hooks/useDemoMode';
+import { DemoBanner } from '../components/DemoBanner';
+import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { 
+    demoStudentData, 
+    demoStudentStreak, 
+    demoGameSessions, 
+    demoStudentNudges 
+} from '../demo/demoStudentScenarioA';
 
 
 
@@ -78,6 +87,7 @@ interface SidebarItemProps {
 export default function StudentDashboardPage() {
     const { currentUser, logout } = useAuth();
     const navigate = useNavigate();
+    const isDemo = useDemoMode();
 
     const [gamePackFilter, setGamePackFilter] = useState('All');
 
@@ -148,6 +158,15 @@ export default function StudentDashboardPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
+                if (isDemo) {
+                    setAssignments(demoStudentData.assignments);
+                    setRecentPerformance(demoStudentData.recentPerformance);
+                    setStreakData(demoStudentStreak);
+                    setGameSessions(demoGameSessions);
+                    setNudges(demoStudentNudges);
+                    setLoading(false);
+                    return;
+                }
                 const [studentData, sessions, streak, nudgesData] = await Promise.all([
                     dataService.getStudentAssignments(),
                     dataService.getStudentGameSessions(),
@@ -308,7 +327,7 @@ export default function StudentDashboardPage() {
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
-    const displayName = currentUser?.preferredName ?? currentUser?.name ?? 'Student';
+    const displayName = isDemo ? 'Jordan' : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
     const studentInitial = displayName.charAt(0).toUpperCase();
 
     // ── Status normalisation ───────────────────────────────────────────────────
@@ -539,7 +558,14 @@ export default function StudentDashboardPage() {
     );
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            {isDemo && (
+                <>
+                    <DemoBanner />
+                    <DemoRoleSwitcher />
+                </>
+            )}
+            <div className="flex flex-1 overflow-hidden">
 
             {/* SIDEBAR */}
             <aside className={`bg-[#68507B] text-white flex flex-col hidden md:flex shrink-0 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
@@ -1364,6 +1390,7 @@ export default function StudentDashboardPage() {
                 );
             })()}
 
+            </div>
         </div>
     );
 }

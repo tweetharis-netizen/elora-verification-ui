@@ -131,6 +131,7 @@ export interface GameQuestion {
     correctIndex: number;
     difficulty: 'easy' | 'medium' | 'hard';
     topic: string;
+    explanation?: string;
 }
 
 export interface GamePack {

@@ -49,6 +49,13 @@ import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
+import { useDemoMode } from '../hooks/useDemoMode';
+import { DemoBanner } from '../components/DemoBanner';
+import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { 
+    demoChildren, 
+    demoChildSummary 
+} from '../demo/demoParentScenarioA';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
@@ -635,6 +642,7 @@ function MessageFeed({
 
 export default function ParentDashboardPage() {
     const navigate = useNavigate();
+    const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activePage, setActivePage] = useState('overview');
     
@@ -711,6 +719,21 @@ export default function ParentDashboardPage() {
         console.log('[ParentDashboard] Calling loadChildren...');
         setIsLoading(true);
         setLoadError(null);
+
+        if (isDemo) {
+            const mapped = demoChildren.map((c: any, i: number) => ({
+                id: c.id,
+                name: c.name,
+                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
+            }));
+            setChildrenList(mapped);
+            if (mapped.length > 0) {
+                setActiveChildId(mapped[0].id);
+            }
+            setIsLoading(false);
+            return;
+        }
+
         getParentChildren().then(list => {
             console.log('[ParentDashboard] Children received:', list.length);
             const mapped = list.map((c, i) => ({
@@ -730,7 +753,7 @@ export default function ParentDashboardPage() {
             setLoadError('Could not load children. Please try again.');
             setIsLoading(false);
         });
-    }, []);
+    }, [isDemo]);
 
     // 1. ADD MOUNT EFFECT
     React.useEffect(() => {
@@ -757,6 +780,14 @@ export default function ParentDashboardPage() {
         console.log('[ParentDashboard] Fetching summary for child:', activeChildId);
         setIsLoading(true);
         setLoadError(null);
+
+        if (isDemo) {
+            setSummaryData(demoChildSummary);
+            setLastUpdated('Just now');
+            setIsLoading(false);
+            return;
+        }
+
         getParentChildSummary(activeChildId).then(data => {
             console.log('[ParentDashboard] Summary received for:', activeChildId);
             setSummaryData(data);
@@ -765,7 +796,7 @@ export default function ParentDashboardPage() {
             console.error('[ParentDashboard] Error loading summary:', err);
             setLoadError('Could not load data for this student. Please try again.');
         }).finally(() => setIsLoading(false));
-    }, [activeChildId]);
+    }, [activeChildId, isDemo]);
 
     // Debug logging for the "Human"
     console.log('[ParentDashboard] Render state:', {
@@ -831,7 +862,7 @@ export default function ParentDashboardPage() {
         ];
     }, [activeChildId, activeChild?.name, weakTopics]);
 
-    const parentName = currentUser?.preferredName ?? currentUser?.name ?? 'Parent';
+    const parentName = isDemo ? 'Mr. Lee' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
     const parentInitials = parentName
         .split(' ')
         .map((word) => word.charAt(0).toUpperCase())
@@ -911,7 +942,14 @@ export default function ParentDashboardPage() {
     }
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            {isDemo && (
+                <>
+                    <DemoBanner />
+                    <DemoRoleSwitcher />
+                </>
+            )}
+            <div className="flex flex-1 overflow-hidden">
 
             {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
             <aside
@@ -1453,6 +1491,7 @@ export default function ParentDashboardPage() {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

@@ -171,7 +171,7 @@ export default function VerifyPage() {
                                     value={preferredName}
                                     onChange={(e) => setPreferredName(e.target.value)}
                                     maxLength={30}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200 text-slate-900 placeholder:text-slate-400"
                                     placeholder="e.g. Mr. Lim, Ms. Sarah"
                                 />
                                 <p className="mt-1 text-[11px] text-slate-500 font-medium">How Elora should address you.</p>
@@ -179,16 +179,16 @@ export default function VerifyPage() {
 
                             <div className="mb-4">
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-1.5">
-                                    Name for your AI assistant
+                                    Assistant name (optional)
                                 </label>
                                 <input
                                     value={assistantName}
                                     onChange={(e) => setAssistantName(e.target.value)}
                                     maxLength={20}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200"
-                                    placeholder="e.g. Elora, Study Guide, Coach."
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-elora-200 text-slate-900 placeholder:text-slate-400"
+                                    placeholder="e.g. Elora, Coach, Study Guide"
                                 />
-                                <p className="mt-1 text-[11px] text-slate-500 font-medium">Optional. For example: Elora, Study Guide, Coach.</p>
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">What you’d like to call your AI assistant (for example: Elora, Coach, Study Guide).</p>
                             </div>
 
                             {nameError && <p className="text-sm text-red-600 mb-3">{nameError}</p>}

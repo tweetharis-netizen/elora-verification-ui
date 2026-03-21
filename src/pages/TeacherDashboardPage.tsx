@@ -29,6 +29,8 @@ import {
     Inbox,
     RefreshCw,
     Heart,
+    GraduationCap,
+    UserPlus,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -40,6 +42,7 @@ import { getClassSupportSuggestion, type ClassSuggestion } from '../services/cla
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import EloraAssistantCard, { EloraAssistantSuggestion } from '../components/EloraAssistantCard';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -491,14 +494,10 @@ const NeedsAttentionCard = ({
                         {error}
                     </div>
                 ) : !hasInsights ? (
-                    // Celebratory empty state
-                    <div className="flex flex-col items-center gap-2 py-6 text-center bg-teal-50/30 rounded-2xl border border-teal-100/50 shadow-inner">
-                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-1 shadow-sm border border-teal-100">
-                            <CheckCircle2 size={28} className="text-teal-500" />
-                        </div>
-                        <p className="text-sm font-bold text-slate-800 tracking-tight">You’re all caught up 🎉</p>
-                        <p className="text-xs text-slate-500 max-w-[180px] leading-relaxed">No students need attention right now.</p>
-                    </div>
+                    <SectionEmpty
+                        headline="You’re all caught up 🎉"
+                        detail="No students need attention right now."
+                    />
                 ) : (
                     insights.map((insight) => {
                         const meta = insightMeta[insight.type];
@@ -709,6 +708,16 @@ export default function TeacherDashboardPage() {
     const [newClassName, setNewClassName] = useState('');
     const [createClassError, setCreateClassError] = useState<string | null>(null);
     const [creatingClass, setCreatingClass] = useState(false);
+
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_teacher_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
 
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1408,6 +1417,15 @@ export default function TeacherDashboardPage() {
                     {/* ── Active View Content ── */}
                     {activeTab === 'dashboard' ? (
                         <>
+
+                            {/* ── Welcome to Elora strip (new-user onboarding) ── */}
+                            <DashboardTour 
+                                role="teacher"
+                                isVisible={!welcomeDismissed}
+                                onAction1={() => setShowAiPanel(true)}
+                                onAction2={() => navigate('/invite')}
+                                onDismiss={handleDismissWelcome}
+                            />
 
                             {/* "What's New" Strip */}
                             <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">

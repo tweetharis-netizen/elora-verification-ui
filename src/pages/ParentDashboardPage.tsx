@@ -48,6 +48,7 @@ import { NotificationsPopover, PopoverNotificationItem } from '../components/Not
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
@@ -245,7 +246,7 @@ function ProgressSection({
                 ) : subjectScores.length === 0 ? (
                     <SectionEmpty
                         headline="No progress data yet"
-                        detail={`${childName} will appear here once they complete their first subject assessment.`}
+                        detail={`${childName}'s progress will appear here once they complete their first assessment.`}
                     />
                 ) : (
                     <>
@@ -370,8 +371,8 @@ function ActivityList({
                         <SectionEmpty
                             headline={filter === 'All' ? "No activity yet" : `No recent ${filter}s`}
                             detail={filter === 'All'
-                                ? `${childName}'s sessions and sessions will appear here once they start learning.`
-                                : `No items matching this filter were found for ${childName}.`}
+                                ? `Recent activity for ${childName} will appear here once they start their learning sessions.`
+                                : `No ${filter.toLowerCase()}s were found for ${childName} in the recent period.`}
                         />
                     </div>
                 ) : (
@@ -464,7 +465,7 @@ function UpcomingList({
                     <div className="p-8">
                         <SectionEmpty
                             headline="No upcoming assignments"
-                            detail={`Assignments set by ${childName}'s teachers will appear here.`}
+                            detail={`Any assignments or tasks created for ${childName} will show up here.`}
                         />
                     </div>
                 ) : (
@@ -588,7 +589,7 @@ function MessageFeed({
                                         <div className="p-8">
                                             <SectionEmpty
                                                 headline="No messages yet"
-                                                detail={`Updates and feedback for ${childName} from teachers will appear here.`}
+                                                detail={`Any messages or feedback for ${childName} from their teachers will appear here.`}
                                             />
                                         </div>
                                     )}
@@ -618,7 +619,7 @@ function MessageFeed({
                                 ) : (
                                     <SectionEmpty
                                         headline="No tips for today"
-                                        detail="Check back later for personalized insights to help you support your child's learning journey."
+                                        detail="Check back later for personalized insights on how to support your child's learning."
                                     />
                                 )}
                             </div>
@@ -636,6 +637,16 @@ export default function ParentDashboardPage() {
     const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activePage, setActivePage] = useState('overview');
+    
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_parent_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
     const [activeChildId, setActiveChildId] = useState<string | null>(null);
     const [perfTab, setPerfTab] = useState('Subjects');
 
@@ -1102,6 +1113,16 @@ export default function ParentDashboardPage() {
                                     {/* ── OVERVIEW ──────────────────────────────────────────────── */}
                                     {activePage === 'overview' && (
                                         <>
+                                            <DashboardTour 
+                                                role="parent"
+                                                isVisible={!welcomeDismissed}
+                                                onAction1={() => {
+                                                    const card = document.getElementById('elora-assistant-card');
+                                                    card?.scrollIntoView({ behavior: 'smooth' });
+                                                }}
+                                                onAction2={() => setActivePage('progress')}
+                                                onDismiss={handleDismissWelcome}
+                                            />
                                             {/* TODAY AT A GLANCE – SUMMARY TILES */}
                                             <div>
                                                 <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -1164,16 +1185,17 @@ export default function ParentDashboardPage() {
                                                         childName={activeChild?.name}
                                                     />
                                                 </div>
-                                                <div className="space-y-8 lg:mt-10">
+                                                <div className="space-y-8 lg:mt-10" id="elora-assistant-card">
                                                     <EloraAssistantCard
                                                         role="parent"
                                                         assistantName={currentUser?.assistantName}
-                                                        title={`Ask Elora about ${activeChild?.name || 'your child'}'s progress`}
-                                                        description="Get a clear explanation of where your child is doing well and what to focus on next."
+                                                        title={`Ask Elora about ${activeChild?.name || 'your child'}'s learning`}
+                                                        description="Get a clear explanation of how they're doing and what to focus on next."
                                                         suggestedPrompts={[
                                                             'What should we focus on this week?',
                                                             'Explain today\'s weak topics in simple terms.',
                                                             `How can I support ${activeChild?.name || 'my child'} before the next test?`,
+                                                            `Is ${activeChild?.name || 'my child'} on track in math and English?`,
                                                         ]}
                                                         accentClasses={{
                                                             chipBg: 'bg-orange-50',

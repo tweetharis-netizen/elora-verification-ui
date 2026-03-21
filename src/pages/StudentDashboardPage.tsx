@@ -58,6 +58,7 @@ import { NotificationsPopover, PopoverNotificationItem } from '../components/Not
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
 
 
 
@@ -84,6 +85,16 @@ export default function StudentDashboardPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments'>('dashboard');
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
+
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_student_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
 
     const handleClassClick = (className: string) => {
         setActiveClassFilter(className);
@@ -630,6 +641,15 @@ export default function StudentDashboardPage() {
                         </div>
                     </header>
                     <div className="max-w-7xl mx-auto space-y-8">
+                        {activeTab === 'dashboard' && (
+                            <DashboardTour 
+                                role="student"
+                                isVisible={!welcomeDismissed}
+                                onAction1={() => navigate('/play/practice-general')}
+                                onAction2={() => setShowJoinClass(true)}
+                                onDismiss={handleDismissWelcome}
+                            />
+                        )}
 
                         {activeTab === 'dashboard' ? (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -745,8 +765,11 @@ export default function StudentDashboardPage() {
                                                 );
                                             })}
                                             {nextSteps.length === 0 && (
-                                                <div className="col-span-2 p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
-                                                    <p className="text-sm text-slate-400 italic">Complete more sessions to unlock personalized path cards.</p>
+                                                <div className="col-span-2">
+                                                    <SectionEmpty
+                                                        headline="No recommendations yet"
+                                                        detail="Complete more sessions to unlock personalized path cards."
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -866,8 +889,11 @@ export default function StudentDashboardPage() {
                                                 );
                                             })}
                                             {upcomingItems.length === 0 && (
-                                                <div className="p-12 text-center text-slate-400">
-                                                    <p className="text-sm font-medium italic">Your schedule is looking clear!</p>
+                                                <div className="p-8">
+                                                    <SectionEmpty
+                                                        headline="Schedule looking clear!"
+                                                        detail="No upcoming assignments or quizzes for now."
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -966,7 +992,12 @@ export default function StudentDashboardPage() {
                                                         </span>
                                                     ))}
                                                     {(recentPerformance?.weakTopics || []).length === 0 && (
-                                                        <p className="text-[13px] text-slate-400 italic font-medium">Looking great! Keep it up.</p>
+                                                        <div className="w-full">
+                                                            <SectionEmpty
+                                                                headline="No weak topics"
+                                                                detail="Looking great! Keep it up to maintain your performance."
+                                                            />
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -1103,12 +1134,11 @@ export default function StudentDashboardPage() {
                                             })}
                                             
                                             {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50/30 rounded-xl border border-dashed border-slate-200 m-2">
-                                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-50">
-                                                        <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                                                    </div>
-                                                    <p className="font-bold text-slate-900 text-lg">All caught up!</p>
-                                                    <p className="text-slate-500 text-sm mt-1 max-w-[200px]">You've completed all your assignments. Great job!</p>
+                                                <div className="p-8">
+                                                    <SectionEmpty
+                                                        headline="All caught up!"
+                                                        detail="You've completed all your assignments. Great job!"
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -1152,9 +1182,11 @@ export default function StudentDashboardPage() {
                                             ))}
                                             
                                             {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 italic">
-                                                    <Clock className="w-12 h-12 text-slate-100 mb-3" />
-                                                    <p className="text-sm">No completed assignments yet.</p>
+                                                <div className="p-12">
+                                                    <SectionEmpty
+                                                        headline="No history yet"
+                                                        detail="Completed assignments will appear here for your review."
+                                                    />
                                                 </div>
                                             )}
                                         </div>

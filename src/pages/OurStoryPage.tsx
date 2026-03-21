@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { 
-  Sparkles, 
-  Target, 
-  Shield, 
+import {
+  Sparkles,
+  Target,
+  Shield,
   Heart,
   Zap,
   CheckCircle2,
@@ -27,12 +27,12 @@ const OurStoryPage = () => {
   return (
     <div className="min-h-screen bg-elora-400 text-white selection:bg-elora-100 selection:text-white">
       <Header />
-      
+
       <main className="pt-20">
         {/* TOP BREADCRUMB */}
         <div className="max-w-7xl mx-auto px-6 pt-12">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="inline-flex items-center text-white/40 hover:text-white/80 transition-colors text-xs font-bold uppercase tracking-widest gap-2 group"
           >
             <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
@@ -44,7 +44,7 @@ const OurStoryPage = () => {
         <section className="relative py-16 md:py-24 overflow-hidden">
           <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
           <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
@@ -77,7 +77,7 @@ const OurStoryPage = () => {
                 Most current tools focus on data capture, not human clarity. Between overwhelming interfaces and silent portals, the connection between school and home is often lost.
               </p>
             </div>
-            
+
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 {
@@ -99,7 +99,7 @@ const OurStoryPage = () => {
                   color: 'text-accent-yellow'
                 }
               ].map((item, i) => (
-                <motion.div 
+                <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -126,36 +126,36 @@ const OurStoryPage = () => {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { 
-                  icon: Shield, 
-                  title: 'Trust', 
+                {
+                  icon: Shield,
+                  title: 'Trust',
                   desc: 'Privacy-first architecture ensures student data remains fully protected and private at all times.',
                   color: 'text-accent-green',
                   bg: 'bg-accent-green/10'
                 },
-                { 
-                  icon: Sparkles, 
-                  title: 'Clarity', 
+                {
+                  icon: Sparkles,
+                  title: 'Clarity',
                   desc: 'Turning complex data into clear, honest, and actionable progress reports for every single family.',
                   color: 'text-accent-yellow',
                   bg: 'bg-accent-yellow/10'
                 },
-                { 
-                  icon: Heart, 
-                  title: 'Human-first', 
+                {
+                  icon: Heart,
+                  title: 'Human-first',
                   desc: 'Empowering teachers and families to restore core human connection, not just tools.',
                   color: 'text-accent-pink',
                   bg: 'bg-accent-pink/10'
                 },
-                { 
-                  icon: Zap, 
-                  title: 'Calm', 
+                {
+                  icon: Zap,
+                  title: 'Calm',
                   desc: 'Reducing cognitive load through a decluttered, reassuring, and intentional user experience.',
                   color: 'text-accent-orange',
                   bg: 'bg-accent-orange/10'
                 }
               ].map((pill, i) => (
-                <motion.div 
+                <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -184,7 +184,7 @@ const OurStoryPage = () => {
                 Built for every <span className="font-serif italic text-accent-pink">perspective.</span>
               </h2>
             </div>
-            
+
             <div className="grid md:grid-cols-3 gap-8">
               {[
                 {
@@ -270,10 +270,10 @@ const OurStoryPage = () => {
               <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
                 — Shaik Haris, Founder & CEO of Elora
               </p>
-              
+
               <div className="pt-12">
-                <Link 
-                  to="/" 
+                <Link
+                  to="/"
                   className="inline-flex items-center px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/90 text-sm font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
                 >
                   Return to homepage

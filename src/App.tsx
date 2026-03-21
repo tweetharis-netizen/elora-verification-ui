@@ -246,7 +246,7 @@ const RoleSelectionSection = () => {
               <Users className="w-6 h-6" />
             </div>
             <h3 className="text-2xl font-medium mb-3 text-white">Teacher</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI GamePacks, manage class sessions, and analyze student engagement.</p>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI practice & quizzes, manage class sessions, and analyze student engagement.</p>
             <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
               Try Teacher Flow <ChevronRight className="w-4 h-4" />
             </div>

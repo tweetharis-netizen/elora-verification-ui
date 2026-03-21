@@ -32,23 +32,23 @@ export interface CurrentUser {
 export const DEMO_USERS: Record<UserRole, CurrentUser> = {
     teacher: {
         id: 'teacher_1',
-        name: 'Ms. Harper',
+        name: 'Mr. Michael Lee',
         role: 'teacher',
-        preferredName: 'Harper',
+        preferredName: 'Michael',
         assistantName: 'Elora',
     },
     student: {
         id: 'student_1',
-        name: 'Jamie Rivera',
+        name: 'Jordan Lee',
         role: 'student',
-        preferredName: 'Jamie',
+        preferredName: 'Jordan',
         assistantName: 'Elora',
     },
     parent: {
         id: 'parent_1',
-        name: 'Sarah Chen',
+        name: 'Mr. Lee',
         role: 'parent',
-        preferredName: 'Sarah',
+        preferredName: 'Lee',
         assistantName: 'Elora',
     },
 };
@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setCurrentUser(user);
         localStorage.setItem(LS_KEY, JSON.stringify(user));
+        dsSetCurrentUser(user);
     };
 
     const updateProfile = (data: Partial<CurrentUser>) => {
@@ -129,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = () => {
         setCurrentUser(null);
         localStorage.removeItem(LS_KEY);
+        dsSetCurrentUser(null);
     };
 
     const value: AuthState = {

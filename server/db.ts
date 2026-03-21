@@ -110,6 +110,15 @@ export interface ParentNudge {
     createdAt: string;
 }
 
+export interface TeacherNudge {
+    id: string;
+    teacherId: string;
+    studentId: string;
+    message: string;
+    read: boolean;
+    createdAt: string;
+}
+
 import {
     createStudentSupportNotification,
     createSubmissionReadyNotification,
@@ -157,11 +166,11 @@ export interface Notification {
 }
 
 export const users: User[] = [
-    { id: "teacher_1", name: "Mr. Davis", email: "teacher@elora.com", role: "teacher", createdAt: new Date().toISOString(), lastActive: "October 12th", greetingSuffix: "Good afternoon" },
-    { id: "student_1", name: "Alex Chen", email: "alex@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2450, rank: 1, streak: 5, trend: "up", trendVal: "2" },
+    { id: "teacher_1", name: "Mr. Michael Lee", email: "teacher@elora.com", role: "teacher", createdAt: new Date().toISOString(), lastActive: "October 12th", greetingSuffix: "Good afternoon" },
+    { id: "student_1", name: "Jordan Lee", email: "alex@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2450, rank: 1, streak: 5, trend: "up", trendVal: "2" },
     { id: "student_2", name: "Jordan Smith", email: "jordan@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Yesterday", score: 2310, rank: 2, trend: "neutral" },
     { id: "student_3", name: "Priya Patel", email: "priya@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2180, rank: 3, trend: "down", trendVal: "1" },
-    { id: "parent_1", name: "Mrs. Chen", email: "parent@elora.com", role: "parent", createdAt: new Date().toISOString(), lastActive: "Today", childrenIds: ["student_1"] }
+    { id: "parent_1", name: "Mr. Lee", email: "parent@elora.com", role: "parent", createdAt: new Date().toISOString(), lastActive: "Today", childrenIds: ["student_1", "demo-student-jordan"] }
 ];
 
 export const classes: Classroom[] = [
@@ -361,6 +370,7 @@ export const assignmentAttempts: AssignmentAttempt[] = [
 ];
 
 export const parentNudges: ParentNudge[] = [];
+export const teacherNudges: TeacherNudge[] = [];
 
 // ── In-memory notifications store ────────────────────────────────────────────
 // Seeded once when the module loads. In a real app this would be a DB table.
@@ -453,5 +463,6 @@ export const db = {
     enrollments,
     assignmentAttempts,
     parentNudges,
+    teacherNudges,
     notifications,
 };

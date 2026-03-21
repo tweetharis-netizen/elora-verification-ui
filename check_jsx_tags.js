@@ -1,0 +1,11 @@
+const fs = require('fs');
+const code = fs.readFileSync('src/pages/StudentDashboardPage.tsx', 'utf8');
+const openDiv = (code.match(/<div[\s>]/g) || []).length;
+const closeDiv = (code.match(/<\/div>/g) || []).length;
+const openMain = (code.match(/<main[\s>]/g) || []).length;
+const closeMain = (code.match(/<\/main>/g) || []).length;
+const openHeader = (code.match(/<header[\s>]/g) || []).length;
+const closeHeader = (code.match(/<\/header>/g) || []).length;
+console.log('div open', openDiv, 'div close', closeDiv);
+console.log('main open', openMain, 'main close', closeMain);
+console.log('header open', openHeader, 'header close', closeHeader);

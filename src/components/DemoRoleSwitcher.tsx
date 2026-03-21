@@ -10,17 +10,19 @@ export const DemoRoleSwitcher = () => {
     const isActive = (path: string) => pathname.startsWith(path);
 
     const roles = [
-        { name: 'Teacher', path: '/teacher/demo', icon: Users },
-        { name: 'Student', path: '/student/demo', icon: User },
-        { name: 'Parent', path: '/parent/demo', icon: Heart },
+        { id: 'teacher', name: 'Teacher view — Ms. Tan', path: '/teacher/demo', icon: Users },
+        { id: 'student', name: 'Student view — Jordan', path: '/student/demo', icon: User },
+        { id: 'parent', name: 'Parent view — Mr. Lee', path: '/parent/demo', icon: Heart },
     ];
 
     return (
-        <div className="bg-[#FAF8F4] border-b border-[#E8E4DA] py-3 px-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Switch Role:
+        <div className="bg-[#FAF8F4] border-b border-[#E8E4DA] py-3 px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#68507B] animate-pulse" />
+                <span>Demo Experience Role Switcher</span>
             </div>
-            <div className="flex bg-white border border-[#E8E4DA] p-1 rounded-xl shadow-sm">
+            
+            <div className="flex bg-white border border-[#E8E4DA] p-1.5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                 {roles.map((role) => {
                     const Icon = role.icon;
                     const active = isActive(role.path);
@@ -28,13 +30,13 @@ export const DemoRoleSwitcher = () => {
                         <NavLink
                             key={role.name}
                             to={role.path}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-300 ${
                                 active
-                                    ? 'bg-[#68507B] text-white shadow-md'
-                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                                    ? 'bg-[#68507B] text-white shadow-lg shadow-[#68507B]/20 scale-[1.02]'
+                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                             }`}
                         >
-                            <Icon size={14} className={active ? 'text-white' : 'text-slate-400'} />
+                            <Icon size={15} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'} />
                             <span>{role.name}</span>
                         </NavLink>
                     );

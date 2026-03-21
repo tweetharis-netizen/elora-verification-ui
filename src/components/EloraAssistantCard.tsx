@@ -37,6 +37,8 @@ export interface EloraAssistantCardProps {
     error?: string | null;
     onRefresh?: () => Promise<void> | void;
     emptyStateText?: string;
+    defaultExpanded?: boolean;
+    isDemo?: boolean;
 }
 
 export const EloraAssistantCard = ({
@@ -52,19 +54,24 @@ export const EloraAssistantCard = ({
     error,
     onRefresh,
     emptyStateText,
+    defaultExpanded = false,
+    isDemo = false,
 }: EloraAssistantCardProps) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [localStatus, setLocalStatus] = useState<AskEloraStatus>('idle');
-    const [localSuggestion, setLocalSuggestion] = useState<EloraAssistantSuggestion | null>(null);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [localStatus, setLocalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(isDemo ? 'success' : 'idle');
+    const [localSuggestion, setLocalSuggestion] = useState<any>(null);
+
+    // Skip loading skeletons for this card in demo mode.
+    // effectiveStatus will be 'success' if isDemo is true, unless it's explicitly 'error'.
+    const effectiveStatus = isDemo ? (status === 'error' ? 'error' : 'success') : (status ?? localStatus);
     const [localError, setLocalError] = useState<string | null>(null);
     const [customPrompt, setCustomPrompt] = useState('');
     const [customAnswer, setCustomAnswer] = useState<string | null>(null);
     const [isAsking, setIsAsking] = useState(false);
     const [askError, setAskError] = useState<string | null>(null);
 
-    const effectiveStatus = status ?? localStatus;
     const effectiveSuggestion = suggestion ?? localSuggestion;
-    const effectiveError = error ?? localError;
+    const effectiveError = error ?? (isDemo ? null : localError);
 
     const assistantLabel = assistantName?.trim() ? assistantName.trim() : 'Elora';
     
@@ -73,6 +80,13 @@ export const EloraAssistantCard = ({
     const getInitialPlaceholder = (roleParam: Role): EloraAssistantSuggestion => {
         const assistant = assistantLabel;
         if (roleParam === 'teacher') {
+            if (isDemo) {
+                return {
+                    kind: 'lesson_idea',
+                    title: `${assistant} suggestion: Target factorisation`,
+                    body: `3 students are struggling with factorisation. I've prepared a targeted practice game focusing on 'Difference of Two Squares'. Would you like to assign it?`,
+                };
+            }
             return {
                 kind: 'practice_task',
                 title: `${assistant} tip: Coach a class activity`,

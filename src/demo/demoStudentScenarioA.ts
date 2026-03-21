@@ -1,5 +1,5 @@
 // src/demo/demoStudentScenarioA.ts
-// ── Scenario A: "The Struggling Class" ───────────────────────────────────────
+// ── Scenario A: "Struggling Class" ───────────────────────────────────────
 // Static demo data for the Student dashboard demo mode.
 // Represents "Jordan Lee".
 

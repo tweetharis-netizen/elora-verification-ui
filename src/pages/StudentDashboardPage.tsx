@@ -612,7 +612,7 @@ export default function StudentDashboardPage() {
                 <nav className="flex-1 px-4 py-4 space-y-1 overflow-hidden">
                     <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'dashboard'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
                     <SidebarItem icon={BookOpen} label="My Classes" collapsed={!isSidebarOpen} />
-                    <SidebarItem icon={Gamepad2} label="My GamePacks" collapsed={!isSidebarOpen} />
+                    <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} />
                     <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} />
                     <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} />
                 </nav>
@@ -655,13 +655,22 @@ export default function StudentDashboardPage() {
                             </h1>
                             <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Student</p>
                             
-                            {isDemo && (
-                                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg w-fit mt-2">
-                                    <span className="text-[#68507B] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                    <span>Struggling Class (Sec 3 Mathematics)</span>
-                                </div>
-                            )}
+                                {isDemo && (
+                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg w-fit">
+                                            <span className="text-[#68507B] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                            <span>Struggling Class (Sec 3 Mathematics)</span>
+                                        </div>
+                                        {focusChipText && (
+                                            <div className="flex items-center gap-2 text-[11px] font-medium text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg w-fit">
+                                                <span className="text-orange-700 font-bold uppercase tracking-widest text-[9px]">Struggling with</span>
+                                                <span className="w-1 h-1 rounded-full bg-orange-300" />
+                                                <span>{focusChipText}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                         </div>
                         <div className="flex items-center gap-4 lg:gap-6">
                             <div className="relative hidden md:block">
@@ -721,9 +730,11 @@ export default function StudentDashboardPage() {
                                         levelLabel={`Level ${Math.floor((streakData?.totalActiveDays || 0) / 5) + 1}`}
                                         xpEstimate={`${(streakData?.totalActiveDays || 0) * 105} XP`}
                                         motivationalMessage={
-                                            (streakData?.streakWeeks || 0) > 2
-                                                ? "You're on fire! " + (streakData?.streakWeeks) + " weeks is an incredible achievement."
-                                                : "Your learning journey is picking up speed. Great work today!"
+                                            (streakData?.streakWeeks || 0) > 0
+                                                ? ((streakData?.streakWeeks || 0) > 2
+                                                    ? "You're on fire! " + (streakData?.streakWeeks) + " weeks is an incredible achievement."
+                                                    : "Your learning journey is picking up speed. Great work today!")
+                                                : "You're behind, but one session can change that — let's go, Jordan."
                                         }
                                     />
 

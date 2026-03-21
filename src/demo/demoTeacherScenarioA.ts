@@ -1,5 +1,5 @@
 // src/demo/demoTeacherScenarioA.ts
-// ── Scenario A: "The Struggling Class" ───────────────────────────────────────
+// ── Scenario A: "Struggling Class" ───────────────────────────────────────
 // Static demo data for the Teacher dashboard demo mode.
 // Nothing here calls any API – it is purely declarative.
 
@@ -72,6 +72,7 @@ export const demoInsights: dataService.TeacherInsight[] = [
         className: DEMO_CLASS_NAME,
         topicTag: 'Algebra – Factorisation',
         studentName: 'Jordan Lee',
+        studentId: 'demo-student-jordan',
         detail:
             'Jordan attempted Algebra Quiz 1 but scored 28% – consistently struggling with factorisation.',
         assignmentTitle: 'Algebra Quiz 1',
@@ -83,6 +84,7 @@ export const demoInsights: dataService.TeacherInsight[] = [
         className: DEMO_CLASS_NAME,
         topicTag: 'Algebra – Factorisation',
         studentName: 'Priya Nair',
+        studentId: 'demo-student-priya',
         detail: 'Priya has not submitted Algebra Quiz 1 and missed two sessions this week.',
         assignmentTitle: 'Algebra Quiz 1',
         assignmentId: 'demo-asgn-1',
@@ -101,4 +103,4 @@ export const demoInsights: dataService.TeacherInsight[] = [
 
 // ── Teacher profile ───────────────────────────────────────────────────────────
 
-export const demoTeacherName = 'Ms. Tan';
+export const demoTeacherName = 'Mr. Michael Lee';

@@ -41,7 +41,7 @@ import {
     Cell,
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
-import { getDemoGamePack, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
+import { getDemoGamePack, getGamePackById, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
 import EloraAssistantCard from '../components/EloraAssistantCard';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
@@ -226,7 +226,7 @@ function ProgressSection({
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {['Subjects', 'Topics', 'GamePacks'].map((tab) => (
+                    {['Subjects', 'Topics', 'Practice & quizzes'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
@@ -348,9 +348,9 @@ function ActivityList({
     return (
         <section>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Recent Activity & GamePacks</h2>
+                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Recent activity & practice</h2>
                 <div className="flex items-center bg-slate-100 p-1 rounded-lg overflow-x-auto">
-                    {['All', 'GamePack', 'Assignment'].map((f) => (
+                    {['All', 'Practice', 'Assignment'].map((f) => (
                         <button
                             key={f}
                             onClick={() => onFilterChange(f)}
@@ -673,8 +673,15 @@ export default function ParentDashboardPage() {
     const [nudgeText, setNudgeText] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-    const { currentUser } = useAuth();
+    const { currentUser, login } = useAuth();
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
+
+    // Ensure demo user is "logged in" for backend headers
+    React.useEffect(() => {
+        if (isDemo && currentUser?.id !== 'parent_1' && typeof login === 'function') {
+            login('parent');
+        }
+    }, [isDemo, currentUser, login]);
 
     const {
         notifications: parentNotifications,
@@ -870,10 +877,10 @@ export default function ParentDashboardPage() {
         .join('');
 
     const handleActivityClick = async (activity: any) => {
-        if (activity.type === 'GamePack' && activity.status === 'Completed') {
+        if (activity.type === 'quiz' && activity.status === 'at_risk') {
             try {
                 // Fetch demo pack to show in review mode
-                const pack = await getDemoGamePack();
+                const pack = await getGamePackById('algebra-basics');
                 setReviewGamePack(pack);
                 setReviewActivity(activity);
                 setReviewQuestionIndex(0);
@@ -883,6 +890,8 @@ export default function ParentDashboardPage() {
         }
     };
 
+    const [showNudgeSuccess, setShowNudgeSuccess] = useState(false);
+
     const handleSendNudge = async () => {
         if (!activeChildId || !nudgeText.trim()) return;
         setIsSendingNudge(true);
@@ -890,7 +899,10 @@ export default function ParentDashboardPage() {
             await sendParentNudge(activeChildId, nudgeText.trim());
             setNudgeOpen(false);
             setNudgeText('');
-            // Optional: alert('Nudge sent successfully!');
+            if (isDemo) {
+                setShowNudgeSuccess(true);
+                setTimeout(() => setShowNudgeSuccess(false), 3000);
+            }
         } catch (error) {
             console.error("Failed to send nudge", error);
             alert("Failed to send nudge. Please try again.");
@@ -949,6 +961,7 @@ export default function ParentDashboardPage() {
                     <DemoRoleSwitcher />
                 </>
             )}
+
             <div className="flex flex-1 overflow-hidden">
 
             {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
@@ -1072,10 +1085,29 @@ export default function ParentDashboardPage() {
                     <div className="max-w-7xl mx-auto space-y-8">
 
                         {/* PAGE TITLE + CHILD SELECTOR (mobile) */}
+                        {isDemo && activePage === 'overview' && (
+                            <div className="mb-6 space-y-4">
+                                <div className="px-5 py-3 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
+                                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                        Elora gives you a calm weekly view of your child’s learning — no jargon, just clarity.
+                                    </p>
+                                </div>
+                                
+                                <div className="px-5 py-3 bg-blue-50/50 border border-blue-100 rounded-2xl">
+                                    <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-0.5">Scenario</p>
+                                    <p className="text-sm text-blue-900 font-medium">Struggling Class (Sec 3 Mathematics)</p>
+                                </div>
+                            </div>
+                        )}
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                             <div>
                                 <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">
                                     {activePage === 'overview' && `Hi, ${parentName}`}
+                                    {activePage === 'overview' && showNudgeSuccess && (
+                                        <span className="text-sm font-medium text-teal-600 animate-in fade-in slide-in-from-left-2 duration-300 ml-3">
+                                            ✓ Message sent to {activeChild?.name}!
+                                        </span>
+                                    )}
                                     {activePage === 'progress' && 'Progress & Reports'}
                                     {activePage === 'assignments' && 'Assignments & Quizzes'}
                                     {activePage === 'messages' && 'Messages & Tips'}

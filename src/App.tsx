@@ -74,7 +74,7 @@ export const Header = () => {
         <div className="hidden md:flex items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
           <Link to="/teacher/demo" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
-            Try a demo
+            Try a live demo
           </Link>
         </div>
 
@@ -93,7 +93,7 @@ export const Header = () => {
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
             <Link to="/login" className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
             <Link to="/teacher/demo" className="block w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium text-center">
-              Try a demo
+              Try a live demo
             </Link>
           </div>
         </div>
@@ -118,7 +118,7 @@ const Hero = () => {
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link to="/teacher/demo" className="bg-elora-100 hover:bg-elora-200 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
-              Try a demo
+              Try a live demo
             </Link>
             <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
               Start for free

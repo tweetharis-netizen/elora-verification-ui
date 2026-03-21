@@ -38,6 +38,7 @@ import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { getClassSupportSuggestion, type ClassSuggestion } from '../services/classSuggestionService';
 import { askElora } from '../services/askElora';
 import { RoleQuizGame } from '../components/RoleQuizGame';
+import { EloraLogo } from '../components/EloraLogo';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -1328,11 +1329,8 @@ export default function TeacherDashboardPage() {
             >
                 {/* Logo & Close toggle */}
                 <div className={`h-20 flex items-center border-b border-teal-800/50 px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                    <Link to="/" className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center font-serif italic font-bold text-white shadow-sm shrink-0">
-                            E
-                        </div>
-                        {isSidebarOpen && <span className="text-xl font-bold tracking-wide text-white whitespace-nowrap">Elora</span>}
+                    <Link to="/" className="flex items-center text-teal-50 hover:text-white transition-colors overflow-hidden">
+                        <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
                     </Link>
                     {isSidebarOpen && (
                         <button

@@ -43,6 +43,8 @@ import { RoleQuizGame } from '../components/RoleQuizGame';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
+import { EloraLogo } from '../components/EloraLogo';
+import { Link } from 'react-router-dom';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
@@ -772,10 +774,9 @@ export default function ParentDashboardPage() {
             >
                 {/* Logo + close toggle */}
                 <div className={`p-6 flex items-center border-b border-white/10 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">E</div>
-                        {isSidebarOpen && <span className="text-xl font-bold tracking-tight whitespace-nowrap">Elora</span>}
-                    </div>
+                    <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
+                        <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
+                    </Link>
                     {isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(false)}

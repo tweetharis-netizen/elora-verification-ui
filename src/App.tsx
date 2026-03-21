@@ -12,6 +12,7 @@ import ParentDashboardPage from './pages/ParentDashboardPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentGamePage from './pages/StudentGamePage';
+import { EloraLogo } from './components/EloraLogo';
 
 // ─── Homepage components ──────────────────────────────────────────────────────
 
@@ -55,10 +56,9 @@ const Header = () => {
   return (
     <header className="absolute top-0 left-0 right-0 z-50 border-b border-white/10 bg-elora-400/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-elora-100 rounded flex items-center justify-center text-white font-serif italic font-bold text-lg shadow-sm">E</div>
-            <span className="text-white font-medium text-lg tracking-tight">Elora</span>
+        <div className="flex items-center gap-2 cursor-pointer text-white">
+          <Link to="/" className="flex items-center hover:opacity-90 transition-opacity">
+            <EloraLogo className="w-8 h-8" withWordmark={true} />
           </Link>
         </div>
 
@@ -563,9 +563,8 @@ const Footer = () => {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs">
-        <div className="flex items-center gap-2 mb-4 md:mb-0">
-          <div className="w-6 h-6 bg-elora-100 rounded flex items-center justify-center text-white font-serif italic font-bold">E</div>
-          <span className="text-white font-medium text-sm">Elora</span>
+        <div className="flex items-center text-white mb-4 md:mb-0">
+          <EloraLogo className="w-6 h-6" withWordmark={true} />
         </div>
         <div className="flex items-center gap-6">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

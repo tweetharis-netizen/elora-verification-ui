@@ -1,6 +1,6 @@
-// src/Dashboard.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { EloraLogo } from './components/EloraLogo';
 
 interface DashboardProps {
     isAuthenticated: boolean;
@@ -29,9 +29,8 @@ export default function Dashboard({ isAuthenticated }: DashboardProps) {
     return (
         <div className="min-h-screen w-full bg-gray-50 flex flex-col">
             <header className="bg-elora-400 text-white py-4 px-6 flex justify-between items-center shadow-md">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-elora-100 rounded flex items-center justify-center font-serif italic font-bold">E</div>
-                    <span className="font-medium text-lg">Elora Dashboard</span>
+                <div className="flex items-center gap-2 text-white">
+                    <EloraLogo className="w-8 h-8" withWordmark={true} />
                 </div>
                 <Link to="/" className="text-sm font-medium hover:text-elora-100 transition-colors">Sign Out</Link>
             </header>

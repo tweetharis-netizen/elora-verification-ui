@@ -1,0 +1,19 @@
+<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/xml">
+  <!-- Outer Hexagon -->
+  <path d="M250 50L423.205 150V350L250 450L76.7949 350V150L250 50Z" stroke="#4B0082" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Internal Structural Lines -->
+  <path d="M250 50V180" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+  <path d="M76.7949 150L190 215" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+  <path d="M423.205 150L310 215" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+  
+  <!-- Central Core Cube (The "E" Insight) -->
+  <path d="M190 215V285L250 320L310 285V215L250 180L190 215Z" stroke="#4B0082" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M190 215L250 250L310 215" stroke="#4B0082" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M250 250V320" stroke="#4B0082" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Bottom Support Lines -->
+  <path d="M190 285L76.7949 350" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+  <path d="M310 285L423.205 350" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+  <path d="M250 320V450" stroke="#4B0082" stroke-width="12" stroke-linecap="round"/>
+</svg>

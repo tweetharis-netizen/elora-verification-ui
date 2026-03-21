@@ -41,11 +41,12 @@ import {
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
+import { EloraLogo } from '../components/EloraLogo';
 
 
 
@@ -529,10 +530,9 @@ export default function StudentDashboardPage() {
             {/* SIDEBAR */}
             <aside className={`bg-[#68507B] text-white flex flex-col hidden md:flex shrink-0 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
                 <div className={`p-6 flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">E</div>
-                        {isSidebarOpen && <span className="text-xl font-bold tracking-tight whitespace-nowrap">Elora</span>}
-                    </div>
+                    <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
+                        <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
+                    </Link>
                     {isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(false)}

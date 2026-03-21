@@ -17,7 +17,10 @@ import {
     ChevronRight,
     ChevronUp,
     ArrowRight,
-    AlertCircle
+    AlertCircle,
+    Layers,
+    Check,
+    GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { EloraLogo } from '../components/EloraLogo';
@@ -39,16 +42,30 @@ type ActionChip = {
 
 type Message = {
     id: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     content: string;
     steps?: Step[];
     actions?: ActionChip[];
 };
 
-const SUGGESTED_PROMPTS = [
-    "Who needs my attention before Friday?",
-    "How is Sec 3 doing on Algebra – Factorisation?",
-    "Give me a summary of this week."
+const SUGGESTED_PROMPTS_ALL = [
+    "Who needs attention across all my classes?",
+    "Give me a cross-class summary of this week.",
+    "Explain Algebra – Factorisation in simple terms.",
+    "Draft a message to parents about Algebra Quiz 1 being overdue."
+];
+
+const SUGGESTED_PROMPTS_SPECIFIC = [
+    "Which students need my attention before Friday?",
+    "How is this class doing on factorisation?",
+    "Draft a note to parents about Algebra Quiz 1 being overdue.",
+    "What's one thing I should focus on before our next lesson?"
+];
+
+// Mock classes for the context selector
+const MOCK_CLASSES = [
+    { id: 'demo-class-1', name: 'Sec 3 Mathematics', studentsCount: 32, lastActive: '2 hours ago' },
+    { id: 'demo-class-2', name: 'Sec 4 Physics', studentsCount: 24, lastActive: '1 day ago' },
 ];
 
 const TeacherCopilotPage: React.FC = () => {
@@ -62,12 +79,15 @@ const TeacherCopilotPage: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
+    const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : null);
+    const [isContextPopupOpen, setIsContextPopupOpen] = useState(false);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initial demo state
     useEffect(() => {
         if (isDemo && messages.length === 0) {
+            const contextName = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'All classes';
             setMessages([
                 {
                     id: 'msg-1',
@@ -78,11 +98,12 @@ const TeacherCopilotPage: React.FC = () => {
                     id: 'msg-2',
                     role: 'assistant',
                     steps: [
+                        { id: 's0', text: `Context: ${contextName} — scoping all lookups to this class` },
                         { id: 's1', text: 'Loaded Sec 3 Mathematics insights' },
                         { id: 's2', text: 'Filtered to overdue work and low scores' },
                         { id: 's3', text: 'Ranked by urgency' }
                     ],
-                    content: 'Here are 3 students to prioritise before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.',
+                    content: 'In Sec 3 Mathematics, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.',
                     actions: [
                         { label: 'View these students in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }
                     ]
@@ -90,6 +111,31 @@ const TeacherCopilotPage: React.FC = () => {
             ]);
         }
     }, [isDemo]);
+
+    // Handle context change side effects
+    const handleContextChange = (classId: string | null) => {
+        if (classId === selectedClassId) {
+            setIsContextPopupOpen(false);
+            return;
+        }
+
+        const newClass = MOCK_CLASSES.find(c => c.id === classId);
+        const label = newClass ? newClass.name : 'All classes';
+        
+        setSelectedClassId(classId);
+        setIsContextPopupOpen(false);
+
+        // Add system message
+        const systemMsg: Message = {
+            id: `system-${Date.now()}`,
+            role: 'system',
+            content: `── Context changed to ${label} ──`
+        };
+        setMessages(prev => [...prev, systemMsg]);
+    };
+
+    const currentPrompts = selectedClassId ? SUGGESTED_PROMPTS_SPECIFIC : SUGGESTED_PROMPTS_ALL;
+    const currentClassName = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'All classes';
 
     // Scroll to bottom
     useEffect(() => {
@@ -113,43 +159,127 @@ const TeacherCopilotPage: React.FC = () => {
         // Simulate thinking & response
         setTimeout(() => {
             setIsThinking(false);
-            const lowerQuery = query.toLowerCase();
+            const lowerQuery = query.toLowerCase().trim();
 
-            let assistantMsg: Message;
+            const currentClassNameText = selectedClassId 
+                ? MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'this class'
+                : 'all classes';
 
-            if (lowerQuery.includes('attention before friday')) {
-                assistantMsg = {
-                    id: Date.now().toString() + '-a',
-                    role: 'assistant',
-                    steps: [
-                        { id: 's1', text: 'Loaded Sec 3 Mathematics insights' },
-                        { id: 's2', text: 'Filtered to overdue work and low scores' },
-                        { id: 's3', text: 'Ranked by urgency' }
-                    ],
-                    content: 'Here are 3 students to prioritise before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.',
-                    actions: [
-                        { label: 'View these students in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }
-                    ]
-                };
-            } else if (lowerQuery.includes('factorisation')) {
-                assistantMsg = {
-                    id: Date.now().toString() + '-a',
-                    role: 'assistant',
-                    content: 'Average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are below 50% on this topic. It’s worth one more short practice round on this topic before moving on.',
-                };
-            } else if (lowerQuery.includes('summary of this week') || lowerQuery.includes('summary')) {
-                assistantMsg = {
-                    id: Date.now().toString() + '-a',
-                    role: 'assistant',
-                    content: 'This week, Sec 3 Mathematics is averaging 61%, compared with 68% last week. 0 of 32 assignments have been submitted so far. One area to watch is Algebra - Factorisation, where several students are still below 60%.',
-                };
+            const contextStep = { 
+                id: `ctx-${Date.now()}`, 
+                text: selectedClassId 
+                    ? `Context: ${currentClassNameText} — scoping all lookups to this class.`
+                    : `Context: All classes — aggregating across ${MOCK_CLASSES.map(c => c.name).join(', ')}.`
+            };
+
+            // Intent Detection Helpers
+            const isGreeting = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you|thanks!|thnx|good morning|good afternoon|good evening|howdy)/i.test(q);
+            const isAbout = (q: string) => /what is (elora|copilot|this)|what can you do|how should i use this/i.test(q);
+            const isCommunication = (q: string) => /message|email|note|parent|family|families|tell|say/i.test(q);
+            const isExplanation = (q: string) => /explain|help me understand|what is (?!elora|copilot|this)/i.test(q);
+            const isFeedback = (q: string) => /feedback|comment|what should i say/i.test(q);
+            const isPlanning = (q: string) => /before friday|this week|today|next lesson|next class|focus on/i.test(q);
+            const isAttention = (q: string) => /attention|struggling|help/i.test(q);
+            const isTopic = (q: string) => /factorisation|algebra|topic|performance/i.test(q);
+            const isSummary = (q: string) => /summary|how are we doing|report|weekly/i.test(q);
+
+            let content = "";
+            let steps: Step[] = [];
+            let actions: ActionChip[] = [];
+
+            if (isGreeting(lowerQuery)) {
+                steps = [{ id: 'greet', text: 'Recognised this as a greeting — no class data needed.' }];
+                content = "Hi! I'm best at answering questions about your classes in Elora.\n\nYou can ask things like **“Who needs my attention before Friday?”**, **“How is this class doing on factorisation?”**, **“Explain factorisation simply for Sec 3”**, or **“Draft a message to parents about Algebra Quiz 1 being overdue.”**";
+            } else if (isAbout(lowerQuery)) {
+                steps = [{ id: 'about', text: 'Recognised this as a question about Elora itself — no class data needed.' }];
+                content = "Elora is a platform that helps you see how your students are doing across classes, assignments, and topics. I’m the Copilot built into Elora — I look at your class data and turn it into suggestions, summaries, and drafts, so you can spend more time teaching.\n\nTry asking **“Who needs my attention before Friday?”** or **“Give me a summary of this week.”**";
+            } else if (isCommunication(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'scan-asgn', text: `Searching for relevant assignments in ${currentClassNameText}.` },
+                    { id: 'found-asgn', text: 'Identified Algebra Quiz 1 — 3 days overdue with 0 submissions.' },
+                    { id: 'drafting', text: 'Drafting a calm message based on assignment status.' }
+                ];
+                content = `Here’s a draft message you can send to parents about **Algebra Quiz 1**:\n\n"Hi everyone, I noticed that Algebra Quiz 1 was due a few days ago but hasn't been submitted yet. If your child is struggling with the factorisation topics, please let me know — I'm happy to help them get back on track!"`;
+                actions = [{ label: 'View Assignment', actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
+            } else if (isExplanation(lowerQuery)) {
+                steps = [{ id: 'explain', text: 'Recognised this as a question about the topic Algebra – Factorisation — providing educational context.' }];
+                content = "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the benchmark.";
+                actions = [{ label: 'Open Practice Pack', actionType: 'navigate', destination: '/teacher/practice' }];
+            } else if (isFeedback(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'check-student', text: 'Checking performance data for Jordan Lee.' },
+                    { id: 'load-insight', text: 'Loaded insight: 28% on Algebra Quiz 1, struggling with factorisation.' },
+                    { id: 'construct-feedback', text: 'Constructing constructive, non-judgmental feedback.' }
+                ];
+                content = "For **Jordan Lee**, I suggest this feedback: \"Jordan, I see you've made a start on the factorisation exercises. It's a tricky topic! Let's spend a few minutes next lesson looking at the bracket expansion rules together to help boost your confidence.\"";
+            } else if (isPlanning(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'load-stats', text: `Loading engagement and submission stats for ${currentClassNameText}.` },
+                    { id: 'check-upcoming', text: 'Checking for upcoming deadlines or overdue work.' },
+                    { id: 'prioritize', text: 'Prioritizing Algebra Quiz 1 due to 0% submission rate.' }
+                ];
+                content = `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the benchmark on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
+            } else if (isAttention(lowerQuery)) {
+                const step2Text = selectedClassId 
+                    ? `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).`
+                    : `Scanning all classes — identified 3 priority students in ${MOCK_CLASSES[0].name}.`;
+                
+                steps = [
+                    contextStep,
+                    { id: 's1', text: step2Text },
+                    { id: 's2', text: 'Checked recent sessions for enrolled students — filtered to last 7 days.' },
+                    { id: 's3', text: 'Ranked by urgency: overdue work first, then attendance, then score dips.' }
+                ];
+                
+                content = selectedClassId 
+                    ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
+                    : `Across **all your classes**, here are the students who need attention before Friday:\n\n**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
+                
+                actions = [{ label: 'View in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }];
+            } else if (isTopic(lowerQuery)) {
+                steps = [contextStep];
+                
+                if (selectedClassId) {
+                    steps.push({ id: 'fetch', text: `Fetched performance data for 'Algebra – Factorisation' in ${currentClassNameText}.` });
+                    steps.push({ id: 'analyze', text: 'Analyzed score distribution across the class roster.' });
+                    steps.push({ id: 'result', text: 'Identified 14/28 students below 50% benchmarks.' });
+                } else {
+                    steps.push({ id: 'fetch', text: "Scanning all classes for 'Algebra' performance tags." });
+                    steps.push({ id: 'result', text: `Identified significant dip in ${MOCK_CLASSES[0].name}; other classes stable.` });
+                }
+
+                content = selectedClassId 
+                    ? `In **${currentClassNameText}**, average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are currently below the 50% benchmark. It might be worth assigning one more short practice round.`
+                    : `Across your classes, **Algebra - Factorisation** is a key area for support in Sec 3 Mathematics (61% avg). Your other classes are performing within expected ranges.`;
+            } else if (isSummary(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'agg', text: `Aggregated engagement data across ${selectedClassId ? currentClassNameText : 'all classes'}.` },
+                    { id: 'comp', text: 'Compared current week average (61%) to previous week (68%).' },
+                    { id: 'status', text: 'Checked for recent assignment submissions — none found for Algebra Quiz 1.' }
+                ];
+                content = selectedClassId
+                    ? `In **${currentClassNameText}**, the class is averaging 61% accuracy this week, which is slightly down from last week's 68%. Notably, no students have submitted the Algebra Quiz 1 yet.`
+                    : `Across **all your classes**, engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
             } else {
-                assistantMsg = {
-                    id: Date.now().toString() + '-a',
-                    role: 'assistant',
-                    content: "I'm still learning and can't answer that specific question just yet in this version. Try asking me about who needs attention, how the class is doing on a topic like factorisation, or for a summary of the week."
-                };
+                steps = [
+                    contextStep,
+                    { id: 'guard', text: 'Checked for specific data markers matching this query — none found.' },
+                    { id: 'fallback', text: 'Falling back to guided suggestions.' }
+                ];
+                content = "I'm still learning and can't answer that specific question just yet in this version. I'm best at answering questions about student attention, topic performance, assessments, or weekly summaries.\n\nTry asking **“Who needs my attention?”**, **“Draft a message to parents about overdue work”**, or **“Explain factorisation simply”**.";
             }
+
+            const assistantMsg: Message = {
+                id: Date.now().toString() + '-a',
+                role: 'assistant',
+                steps: steps,
+                content: content,
+                actions: actions.length > 0 ? actions : undefined
+            };
 
             setMessages(prev => [...prev, assistantMsg]);
         }, 1500);
@@ -288,31 +418,86 @@ const TeacherCopilotPage: React.FC = () => {
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-                            {/* Context Card */}
-                            <div className="bg-[#F8F9FA] border border-slate-200 rounded-xl p-4">
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Current Context</h3>
-                                <div className="space-y-3">
-                                    <div className="flex items-start gap-2 text-slate-700">
-                                        <BookOpen size={16} className="mt-0.5 text-slate-400" />
-                                        <div className="font-medium text-sm">
-                                            {isDemo ? 'Sec 3 Mathematics' : 'All Classes'}
-                                            {isDemo && <span className="text-slate-500 font-normal pl-1">/ Scenario A</span>}
+                            {/* Context Selection Pill */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
+                                >
+                                    <Layers size={14} className="shrink-0" />
+                                    <span className="text-xs font-bold whitespace-nowrap">
+                                        {currentClassName}
+                                    </span>
+                                    <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Desktop Popover */}
+                                {isContextPopupOpen && (
+                                    <>
+                                        {/* Backdrop for desktop click-away */}
+                                        <div 
+                                            className="fixed inset-0 z-30 hidden md:block" 
+                                            onClick={() => setIsContextPopupOpen(false)}
+                                        />
+                                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="px-4 py-2 mb-1">
+                                                <p className="text-[11px] font-medium text-slate-400">
+                                                    Copilot will answer using data from this class only.
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                                <button
+                                                    onClick={() => handleContextChange(null)}
+                                                    className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${!selectedClassId ? 'bg-teal-50/50' : ''}`}
+                                                >
+                                                    <div className={`mt-0.5 p-1 rounded-md ${!selectedClassId ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <GraduationCap size={14} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm font-bold text-slate-900">All classes</span>
+                                                            {!selectedClassId && <Check size={16} className="text-teal-600" />}
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            Answers will name the relevant class each time
+                                                        </p>
+                                                    </div>
+                                                </button>
+
+                                                <div className="my-1 border-t border-slate-100" />
+
+                                                {MOCK_CLASSES.map((cls) => (
+                                                    <button
+                                                        key={cls.id}
+                                                        onClick={() => handleContextChange(cls.id)}
+                                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
+                                                    >
+                                                        <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <BookOpen size={14} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-sm font-bold text-slate-900 truncate">{cls.name}</span>
+                                                                {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-500">
+                                                                {cls.studentsCount} students · Last active {cls.lastActive}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-start gap-2 text-slate-700">
-                                        <AlertCircle size={16} className="mt-0.5 text-orange-400" />
-                                        <div className="font-medium text-sm">
-                                            {isDemo ? '3 students need attention' : 'Ready to help'}
-                                        </div>
-                                    </div>
-                                </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Prompt Chips */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
                                 <div className="flex flex-col gap-2">
-                                    {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                                    {currentPrompts.map((prompt, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleSend(prompt)}
@@ -328,7 +513,7 @@ const TeacherCopilotPage: React.FC = () => {
 
                         <div className="p-6 border-t border-[#EAE7DD]">
                             <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                                Copilot can see: assignments, scores, weak topics, and student progress across your active classes.
+                                I'm best at questions about class data, assessment feedback, communication drafts, and topic explanations based on your Elora records.
                             </p>
                         </div>
                     </div>
@@ -357,47 +542,59 @@ const TeacherCopilotPage: React.FC = () => {
                                     </div>
                                     <h2 className="text-2xl font-bold text-slate-900 mb-2">How can I help you today?</h2>
                                     <p className="text-slate-500 text-sm">
-                                        I can uncover trends in your classes, identify students who need support, and summarize recent engagement.
+                                        I can uncover trends in your classes, draft feedback or messages, explain topics, and prioritize students who need your support.
                                     </p>
                                 </div>
                             ) : (
                                 messages.map((msg) => (
-                                    <div key={msg.id} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[90%] md:max-w-2xl flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                            
-                                            {msg.role === 'assistant' && msg.steps && msg.steps.length > 0 && (
-                                                <ThinkingStrip steps={msg.steps} />
-                                            )}
-
-                                            <div
-                                                className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${
-                                                    msg.role === 'user'
-                                                        ? 'bg-teal-600 text-white rounded-br-sm'
-                                                        : 'bg-white border border-[#EAE7DD] text-slate-800 rounded-tl-sm'
-                                                }`}
-                                            >
-                                                <div className="whitespace-pre-wrap leading-relaxed">
-                                                    {msg.content.split('**').map((part, i) => (
-                                                        i % 2 === 1 ? <strong key={part + i}>{part}</strong> : part
-                                                    ))}
+                                    <div key={msg.id} className="w-full">
+                                        {msg.role === 'system' ? (
+                                            <div className="flex justify-center my-4">
+                                                <div className="text-[12px] font-bold text-slate-400 flex items-center gap-2">
+                                                    <span className="h-[1px] w-8 bg-slate-200" />
+                                                    {msg.content}
+                                                    <span className="h-[1px] w-8 bg-slate-200" />
                                                 </div>
                                             </div>
+                                        ) : (
+                                            <div className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[90%] md:max-w-2xl flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                    
+                                                    {msg.role === 'assistant' && msg.steps && msg.steps.length > 0 && (
+                                                        <ThinkingStrip steps={msg.steps} />
+                                                    )}
 
-                                            {msg.actions && msg.actions.length > 0 && (
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    {msg.actions.map((action, i) => (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => handleActionClick(action)}
-                                                            className="text-[12px] md:text-[13px] font-medium text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 shadow-sm"
-                                                        >
-                                                            {action.label}
-                                                            <ArrowRight size={14} />
-                                                        </button>
-                                                    ))}
+                                                    <div
+                                                        className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${
+                                                            msg.role === 'user'
+                                                                ? 'bg-teal-600 text-white rounded-br-sm'
+                                                                : 'bg-white border border-[#EAE7DD] text-slate-800 rounded-tl-sm'
+                                                        }`}
+                                                    >
+                                                        <div className="whitespace-pre-wrap leading-relaxed">
+                                                            {msg.content.split('**').map((part, i) => (
+                                                                i % 2 === 1 ? <strong key={part + i}>{part}</strong> : part
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {msg.actions && msg.actions.length > 0 && (
+                                                        <div className="mt-3 flex flex-wrap gap-2">
+                                                            {msg.actions.map((action, i) => (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => handleActionClick(action)}
+                                                                    className="text-[12px] md:text-[13px] font-medium text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 shadow-sm"
+                                                                >
+                                                                    {action.label}
+                                                                    <ArrowRight size={14} />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -423,11 +620,14 @@ const TeacherCopilotPage: React.FC = () => {
                             <div className="max-w-4xl mx-auto space-y-4">
                                 {/* Mobile Context/Prompt Chips - Scrollable horizontally */}
                                 <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                    <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full text-[11px] font-bold border border-slate-200 whitespace-nowrap">
-                                        <BookOpen size={12} />
-                                        {isDemo ? 'Sec 3 Maths' : 'All Classes'}
-                                    </div>
-                                    {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                                    <button
+                                        onClick={() => setIsContextPopupOpen(true)}
+                                        className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-bold border border-teal-200 whitespace-nowrap transition-colors hover:bg-teal-100"
+                                    >
+                                        <Layers size={12} />
+                                        {currentClassName}
+                                    </button>
+                                    {currentPrompts.map((prompt, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleSend(prompt)}
@@ -438,11 +638,11 @@ const TeacherCopilotPage: React.FC = () => {
                                     ))}
                                 </div>
 
-                                <div className="flex items-end gap-3">
+                                <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => setMessages([])}
                                         title="New conversation"
-                                        className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl transition-colors shrink-0"
+                                        className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl transition-colors shrink-0"
                                     >
                                         <Plus size={20} />
                                     </button>
@@ -464,7 +664,7 @@ const TeacherCopilotPage: React.FC = () => {
                                         <button
                                             onClick={() => handleSend(inputValue)}
                                             disabled={!inputValue.trim() || isThinking}
-                                            className="absolute right-2.5 top-2.5 p-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white rounded-lg transition-colors flex items-center justify-center"
+                                            className="absolute right-2.5 top-3 p-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white rounded-lg transition-colors flex items-center justify-center"
                                         >
                                             <Send size={16} className="ml-0.5" />
                                         </button>
@@ -478,6 +678,57 @@ const TeacherCopilotPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Mobile Context Bottom Sheet */}
+                    {isContextPopupOpen && (
+                        <div className="md:hidden fixed inset-0 z-[60] flex flex-col justify-end">
+                            <div 
+                                className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-300"
+                                onClick={() => setIsContextPopupOpen(false)}
+                            />
+                            <div className="relative bg-white rounded-t-3xl shadow-2xl p-6 flex flex-col max-h-[70%] animate-in slide-in-from-bottom duration-300">
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 shrink-0" />
+                                
+                                <h3 className="text-lg font-bold text-slate-900 mb-1">Select Context</h3>
+                                <p className="text-sm text-slate-500 mb-6">
+                                    Copilot will answer using data from this class only.
+                                </p>
+
+                                <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-6 custom-scrollbar">
+                                    <button
+                                        onClick={() => handleContextChange(null)}
+                                        className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-colors ${!selectedClassId ? 'bg-teal-50 border-2 border-teal-200' : 'bg-slate-50 border-2 border-transparent'}`}
+                                    >
+                                        <div className={`p-2 rounded-xl ${!selectedClassId ? 'bg-teal-100 text-teal-600' : 'bg-white text-slate-400 border border-slate-200'}`}>
+                                            <GraduationCap size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-[15px] font-bold text-slate-900">All classes</div>
+                                            <div className="text-[12px] text-slate-500">Compare data across everything</div>
+                                        </div>
+                                        {!selectedClassId && <Check size={20} className="text-teal-600" />}
+                                    </button>
+
+                                    {MOCK_CLASSES.map((cls) => (
+                                        <button
+                                            key={cls.id}
+                                            onClick={() => handleContextChange(cls.id)}
+                                            className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50 border-2 border-teal-200' : 'bg-slate-50 border-2 border-transparent'}`}
+                                        >
+                                            <div className={`p-2 rounded-xl ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-white text-slate-400 border border-slate-200'}`}>
+                                                <BookOpen size={20} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-[15px] font-bold text-slate-900">{cls.name}</div>
+                                                <div className="text-[12px] text-slate-500">{cls.studentsCount} students · Last active {cls.lastActive}</div>
+                                            </div>
+                                            {selectedClassId === cls.id && <Check size={20} className="text-teal-600" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
         </div>

@@ -85,9 +85,16 @@ interface SidebarItemProps {
 // --- COMPONENTS ---
 
 export default function StudentDashboardPage() {
-    const { currentUser, logout } = useAuth();
+    const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
+
+    // Ensure demo user is "logged in" for backend headers
+    React.useEffect(() => {
+        if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
+            login('student');
+        }
+    }, [isDemo, currentUser, login]);
 
     const [gamePackFilter, setGamePackFilter] = useState('All');
 
@@ -185,7 +192,24 @@ export default function StudentDashboardPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [isDemo]);
+
+    // Add polling for nudges to ensure parent sends appear immediately in UI
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                if (isDemo) {
+                    setNudges([...demoStudentNudges]);
+                } else {
+                    const nudgesData = await dataService.getStudentNudges();
+                    setNudges(nudgesData);
+                }
+            } catch (err) {
+                // Ignore silent poll errors
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [isDemo]);
 
     // The backend notifications fetch logic is now handled by our shared hook.
 
@@ -630,6 +654,14 @@ export default function StudentDashboardPage() {
                                 {loading ? 'Loading…' : `Good day, ${displayName}`}
                             </h1>
                             <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Student</p>
+                            
+                            {isDemo && (
+                                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg w-fit mt-2">
+                                    <span className="text-[#68507B] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                    <span>Struggling Class (Sec 3 Mathematics)</span>
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-4 lg:gap-6">
                             <div className="relative hidden md:block">
@@ -957,6 +989,8 @@ export default function StudentDashboardPage() {
                                          } : null}
                                          error={eloraError}
                                          onRefresh={() => fetchEloraSuggestionRef.current?.()}
+                                         isDemo={isDemo}
+                                         defaultExpanded={isDemo && activeTab === 'dashboard'}
                                      />
 
                                      {/* PROGRESS SNAPSHOT */}
@@ -1029,28 +1063,10 @@ export default function StudentDashboardPage() {
                                             </div>
 
                                             {/* SUPPORT & NUDGES */}
-                                            <div className="mt-2 pt-6 border-t border-slate-50">
-                                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Messages & Tips</h3>
-                                                <div className="space-y-4">
-                                                    {nudges.filter(n => !n.read).slice(0, 1).map(nudge => (
-                                                        <div key={nudge.id} className="p-4 bg-pink-50/50 border border-pink-100 rounded-2xl relative group">
-                                                            <div className="flex items-center gap-3 mb-2">
-                                                                <div className="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-pink-500">
-                                                                    <Heart size={14} fill="currentColor" />
-                                                                </div>
-                                                                <p className="text-[12px] font-bold text-pink-700">From Parent</p>
-                                                            </div>
-                                                            <p className="text-[13px] text-slate-700 leading-snug italic">"{nudge.message}"</p>
-                                                            <button 
-                                                                onClick={() => handleMarkNudgeRead(nudge.id)}
-                                                                className="absolute top-3 right-3 text-pink-300 hover:text-pink-500 transition-colors"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    
-                                                    {recentPerformance?.weakTopics?.[0] && (
+                                            {recentPerformance?.weakTopics?.[0] && (
+                                                <div className="mt-2 pt-6 border-t border-slate-50">
+                                                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Messages & Tips</h3>
+                                                    <div className="space-y-4">
                                                         <div className="p-4 bg-[#68507B]/5 border border-[#68507B]/10 rounded-2xl group hover:border-[#68507B]/30 transition-all">
                                                             <p className="text-[11px] font-bold text-[#68507B] uppercase tracking-widest mb-2">Coach's Focus</p>
                                                             <p className="text-[13px] text-slate-700 leading-snug">Boost your performance by reviewing <strong>{recentPerformance.weakTopics[0]}</strong>.</p>
@@ -1061,9 +1077,67 @@ export default function StudentDashboardPage() {
                                                                 Start practice session <ChevronRight size={14} />
                                                             </button>
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* NUDGES FROM HOME CARD */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
+                                                    <MessageCircle size={18} />
+                                                </div>
+                                                <h2 className="font-bold text-slate-900 tracking-tight">Messages from home</h2>
                                             </div>
+                                            {nudges.filter(n => !n.read).length > 0 && (
+                                                <span className="px-2 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 rounded-lg text-[11px] font-bold">
+                                                    {nudges.filter(n => !n.read).length} New
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="p-0 divide-y divide-slate-50 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                            {nudges.length > 0 ? (
+                                                [...nudges]
+                                                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                    .slice(0, 5).map(nudge => (
+                                                    <div 
+                                                        key={nudge.id} 
+                                                        onClick={() => !nudge.read && handleMarkNudgeRead(nudge.id)}
+                                                        className={`p-4 transition-colors group ${!nudge.read ? 'bg-pink-50/30 hover:bg-pink-50/50 cursor-pointer' : 'hover:bg-slate-50 relative'}`}
+                                                    >
+                                                        <div className="flex gap-3">
+                                                            {!nudge.read ? (
+                                                                <div className="w-2 h-2 rounded-full bg-pink-500 mt-1.5 shrink-0" />
+                                                            ) : (
+                                                                <div className="w-2 h-2 shrink-0 border border-slate-300 rounded-full mt-1.5" />
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between mb-0.5">
+                                                                    <span className={`text-[12px] font-bold ${!nudge.read ? 'text-slate-900' : 'text-slate-500'}`}>
+                                                                        {nudge.senderName || 'From your parent'}
+                                                                    </span>
+                                                                    <span className="text-[11px] text-slate-400 whitespace-nowrap ml-2">
+                                                                        {relativeTime(nudge.createdAt)}
+                                                                    </span>
+                                                                </div>
+                                                                <p className={`text-[13px] ${!nudge.read ? 'text-slate-700 font-medium' : 'text-slate-500'} line-clamp-2`}>
+                                                                    "{nudge.message}"
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-6">
+                                                    <SectionEmpty
+                                                        headline="No messages yet"
+                                                        detail="Messages from your parents or teachers will appear here."
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
 

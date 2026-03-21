@@ -142,6 +142,100 @@ export default function StudentDashboardPage() {
     const [joinError, setJoinError] = useState<string | null>(null);
     const [joiningClass, setJoiningClass] = useState(false);
 
+    // ── Student Copilot Handlers ──
+    const getStudentAssignmentsList = () => {
+        const unfinished = pendingAssignments; 
+        
+        const sorted = [...unfinished].sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+
+        if (sorted.length === 0) {
+            return "I don't see any unfinished assignments — your schedule looks clear right now.";
+        }
+
+        let str = `You have ${sorted.length} thing${sorted.length > 1 ? 's' : ''} still to do:\n`;
+        const top3 = sorted.slice(0, 3);
+        top3.forEach((asgn, i) => {
+            const isOverdue = asgn.status === 'danger';
+            let dueText = '';
+            if (asgn.dueDate) {
+                const diffDays = Math.floor((Date.now() - new Date(asgn.dueDate).getTime()) / 86400000);
+                if (isOverdue) {
+                     dueText = diffDays > 0 ? `was due ${diffDays} day${diffDays > 1 ? 's' : ''} ago` : 'was due today';
+                } else {
+                     const inDays = Math.ceil((new Date(asgn.dueDate).getTime() - Date.now()) / 86400000);
+                     dueText = inDays > 0 ? `is due in ${inDays} day${inDays > 1 ? 's' : ''}` : 'is due today';
+                }
+            } else {
+                dueText = 'has no due date';
+            }
+            const startHint = i === 0 ? " Start this first." : "";
+            str += `\n${asgn.title} — ${dueText}.${startHint}`;
+        });
+        
+        return str;
+    };
+
+    const getStudentNextAction = () => {
+        const sorted = [...pendingAssignments].sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+
+        const urgent = sorted[0];
+        const weakTopic = studentFocus.primaryWeakTopic;
+
+        if (urgent) {
+            let str = `The best use of your next 20 minutes is to finish ${urgent.title}. It should take about 15–20 minutes.`;
+            if (weakTopic) {
+                str += `\n\nIf you have time after that, try one short round on ${weakTopic}.`;
+            }
+            return str;
+        } else if (weakTopic) {
+            return `You don't have any urgent assignments. The best use of your next 20 minutes is to try one short round on ${weakTopic}.`;
+        }
+
+        return "You have no urgent assignments and your topics look solid. Enjoy your free time or explore new topics!";
+    };
+
+    const getStudentWeekSummary = () => {
+        if (!streakData || streakData.weeklyScores.length === 0) {
+            return "I don't see enough activity this week to give a summary yet.";
+        }
+        
+        const thisWeekScore = streakData.scoreThisWeek ?? 0;
+        const priorWeekScore = streakData.scorePriorWeek ?? 0;
+        
+        const submittedCount = completedAssignments.length;
+        const totalCount = assignments.length;
+
+        const weakTopic = studentFocus.primaryWeakTopic;
+        const topicString = weakTopic ? ` The main topic to watch is ${weakTopic}.` : "";
+
+        return `This week, your average score is ${thisWeekScore}% (last week it was ${priorWeekScore}%). You've submitted ${submittedCount} of ${totalCount} assignments.${topicString}`;
+    };
+
+    const handleStudentAskElora = async (prompt: string): Promise<string> => {
+        await new Promise(r => setTimeout(r, 600));
+        const lowerPrompt = prompt.toLowerCase();
+        
+        if (lowerPrompt.includes('overdue') || lowerPrompt.includes('unfinished') || lowerPrompt.includes('not finished')) {
+            return getStudentAssignmentsList();
+        }
+        if (lowerPrompt.includes('next') || lowerPrompt.includes('20 minutes') || lowerPrompt.includes('work on') || lowerPrompt.includes('should i work on')) {
+            return getStudentNextAction();
+        }
+        if (lowerPrompt.includes('week') || lowerPrompt.includes('how am i doing')) {
+            return getStudentWeekSummary();
+        }
+        
+        return "I don't see enough activity to answer that yet.";
+    };
+
     // --- Real Data State ---
     const [assignments, setAssignments] = useState<dataService.StudentAssignment[]>([]);
     const [recentPerformance, setRecentPerformance] = useState<{ scores: { score: number; date: string }[]; weakTopics: string[] } | null>(null);
@@ -737,6 +831,30 @@ export default function StudentDashboardPage() {
                                                 : "You're behind, but one session can change that — let's go, Jordan."
                                         }
                                     />
+
+                                    {/* STUDENT COPILOT (Phase 1) */}
+                                    {!loading && (
+                                        <EloraAssistantCard
+                                            role="student"
+                                            assistantName={currentUser?.assistantName}
+                                            title="Your learning assistant"
+                                            description="Elora helps you track your progress and figure out what to do next."
+                                            badgeText="Beta · Elora Copilot"
+                                            helperText="Ask about your learning — suggestions are based on your live data."
+                                            onAsk={handleStudentAskElora}
+                                            suggestedPrompts={[
+                                                "What's overdue?",
+                                                "What should I work on next?",
+                                                "How am I doing this week?"
+                                            ]}
+                                            accentClasses={{
+                                                chipBg: 'bg-[#68507B]/10',
+                                                buttonBg: 'bg-[#68507B]',
+                                                iconBg: 'bg-[#68507B]/10',
+                                                text: 'text-[#68507B]',
+                                            }}
+                                        />
+                                    )}
 
                                     {/* TODAY'S FOCUS CARD */}
                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">

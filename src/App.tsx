@@ -7,6 +7,7 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import Signup from './Signup';
 import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
+import TeacherCopilotPage from './pages/TeacherCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
 import OurStoryPage from './pages/OurStoryPage';
@@ -609,11 +610,17 @@ export default function App() {
 
       {/* Demo routes – no auth required */}
       <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
+      <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
       <Route path="/student/demo" element={<StudentDashboardPage />} />
       <Route path="/parent/demo" element={<ParentDashboardPage />} />
       <Route path="/dashboard/teacher" element={
         <ProtectedRoute>
           <TeacherDashboardPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/copilot" element={
+        <ProtectedRoute>
+          <TeacherCopilotPage />
         </ProtectedRoute>
       } />
       <Route

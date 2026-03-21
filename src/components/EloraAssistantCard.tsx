@@ -39,6 +39,9 @@ export interface EloraAssistantCardProps {
     emptyStateText?: string;
     defaultExpanded?: boolean;
     isDemo?: boolean;
+    onAsk?: (prompt: string) => Promise<string>;
+    badgeText?: string;
+    helperText?: string;
 }
 
 export const EloraAssistantCard = ({
@@ -56,6 +59,9 @@ export const EloraAssistantCard = ({
     emptyStateText,
     defaultExpanded = false,
     isDemo = false,
+    onAsk,
+    badgeText,
+    helperText,
 }: EloraAssistantCardProps) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [localStatus, setLocalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(isDemo ? 'success' : 'idle');
@@ -140,7 +146,7 @@ export const EloraAssistantCard = ({
         setAskError(null);
         setCustomAnswer(null);
         try {
-            const answer = await askElora(prompt);
+            const answer = onAsk ? await onAsk(prompt) : await askElora(prompt);
             setCustomAnswer(answer);
         } catch (err: unknown) {
             setAskError(err instanceof Error ? err.message : 'Failed to get an answer from Elora.');
@@ -187,9 +193,19 @@ export const EloraAssistantCard = ({
                         <div className={`${accentClasses.iconBg} w-8 h-8 rounded-lg border ${accentClasses.text} border-current/20 flex items-center justify-center mt-0.5 shrink-0`}>
                             <Sparkles className="w-4 h-4" />
                         </div>
-                        <div>
-                            <h3 className="text-[14px] font-semibold text-slate-900 leading-snug">{title}</h3>
-                            <p className="text-[12px] text-slate-400 leading-relaxed mt-0.5">{description}</p>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-[14px] font-semibold text-slate-900 leading-snug">{title}</h3>
+                                {badgeText && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-teal-700 bg-teal-50 border border-teal-100 rounded-md whitespace-nowrap">
+                                        {badgeText}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[12px] text-slate-500 leading-relaxed mt-0.5">{description}</p>
+                            {helperText && (
+                                <p className="text-[11px] text-teal-600 font-medium italic leading-relaxed mt-1">{helperText}</p>
+                            )}
                         </div>
                     </div>
 
@@ -270,7 +286,7 @@ export const EloraAssistantCard = ({
                             <input
                                 value={customPrompt}
                                 onChange={(e) => setCustomPrompt(e.target.value)}
-                                placeholder="Ask about their learning…"
+                                placeholder="Ask about your class..."
                                 className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400/20 bg-white/60 placeholder:text-slate-400"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -284,7 +300,7 @@ export const EloraAssistantCard = ({
                                 disabled={!customPrompt.trim() || isAsking}
                                 className={`${accentClasses.buttonBg} text-white rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50 shadow-sm hover:brightness-110 transition shrink-0`}
                             >
-                                {isAsking ? '…' : 'Ask'}
+                                {isAsking ? '...' : 'Ask'}
                             </button>
                         </div>
                         {askError && <p className="text-[11px] text-red-600 font-medium">{askError}</p>}

@@ -890,6 +890,48 @@ export default function TeacherDashboardPage() {
     const [eloraSuggestion, setEloraSuggestion] = useState<ClassSuggestion | null>(null);
     const [eloraError, setEloraError] = useState<string | null>(null);
 
+    // ── Copilot Handlers ──
+    const getClassAttentionList = () => {
+        const hasData = myClasses.length > 0;
+        if (!hasData) return "I don't see any recent data for your classes right now, so I can't give an attention list yet.";
+
+        let str = `Here are 3 students to focus on in ${myClasses[0]?.name || 'your class'}:\n`;
+        str += `\nJordan Lee — 28% on Algebra Quiz 1, missed factorisation in 3 of 5 sessions.`;
+        str += `\nPriya Nair — Algebra Quiz 1 not submitted, 3 days overdue.`;
+        str += `\nAlex Chen — Low engagement on Factorisation practice runs.`;
+        return str;
+    };
+
+    const getClassTopicSummary = () => {
+        const hasData = insights.length > 0;
+        if (!hasData) return "I don't see any recent data for this topic this week, so I can't give a summary yet.";
+
+        return `Average accuracy on Algebra – Factorisation is about 61%. 14 of 28 students are below 50%. It's worth one more practice round before moving on. You could assign a practice pack on Algebra – Factorisation next.`;
+    };
+
+    const getClassWeekSummary = () => {
+        if (myClasses.length === 0) return "I don't see any recent data for your class this week, so I can't give a summary yet.";
+        const c = myClasses[0];
+        return `This week, ${c.name} has an average score of ${c.averageScore || 61}% (vs 68% last week). A total of 0 of 32 assignments were submitted. The main weak area is ${c.nextTopic || 'Algebra - Factorisation'}.`;
+    };
+
+    const handleTeacherAskElora = async (prompt: string): Promise<string> => {
+        await new Promise(r => setTimeout(r, 600));
+        const lowerPrompt = prompt.toLowerCase();
+        
+        if (lowerPrompt.includes('who needs my attention') || lowerPrompt.includes('attention')) {
+            return getClassAttentionList();
+        }
+        if (lowerPrompt.includes('algebra') || lowerPrompt.includes('factorisation')) {
+            return getClassTopicSummary();
+        }
+        if (lowerPrompt.includes('week') || lowerPrompt.includes('summary')) {
+            return getClassWeekSummary();
+        }
+        
+        return "I don't see any recent data for Sec 3 Mathematics this week, so I can't give a summary yet.";
+    };
+
 
     // Ref so the "Ask again" button can call fetchEloraSuggestion defined inside useEffect.
     const fetchEloraSuggestionRef = React.useRef<((data?: dataService.TeacherInsight[]) => Promise<void>) | null>(null);
@@ -1652,6 +1694,12 @@ export default function TeacherDashboardPage() {
                 <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
                     <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} />
                     <NavItem icon={<BookOpen size={20} />} label="Classes" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} collapsed={!isSidebarOpen} />
+                    <NavItem 
+                        icon={<Sparkles size={20} />} 
+                        label="Copilot" 
+                        onClick={() => navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot')} 
+                        collapsed={!isSidebarOpen} 
+                    />
                     <NavItem
                         icon={<Gamepad2 size={20} />}
                         label="Practice & quizzes"
@@ -2012,10 +2060,13 @@ export default function TeacherDashboardPage() {
                                              assistantName={currentUser?.assistantName}
                                              title="Get a classroom-ready action plan"
                                              description="Elora suggests targeted teaching moves based on your class health and insight data."
+                                             badgeText="Beta · Elora Copilot"
+                                             helperText="Ask about your class — suggestions are based on your live data."
+                                             onAsk={handleTeacherAskElora}
                                              suggestedPrompts={[
-                                                 'How can I support students struggling with fractions?',
-                                                 'Suggest a quick formative check-in activity',
-                                                 'What reinforcement should I give today?'
+                                                 'Who needs my attention?',
+                                                 'How are we doing in Algebra – Factorisation?',
+                                                 'How did this week go?'
                                              ]}
                                              accentClasses={{
                                                  chipBg: 'bg-teal-50',

@@ -73,9 +73,9 @@ export const Header = () => {
 
         <div className="hidden md:flex items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
-          <button className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow">
-            Book a demo
-          </button>
+          <Link to="/teacher/demo" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
+            Try a demo
+          </Link>
         </div>
 
         <button className="md:hidden text-white" onClick={() => setIsOpen(!isOpen)}>
@@ -92,9 +92,9 @@ export const Header = () => {
           <a href="#" className="block text-white/80 hover:text-white font-medium">Pricing</a>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
             <Link to="/login" className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
-            <button className="w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium">
-              Book a demo
-            </button>
+            <Link to="/teacher/demo" className="block w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium text-center">
+              Try a demo
+            </Link>
           </div>
         </div>
       )}
@@ -117,18 +117,11 @@ const Hero = () => {
             Connect your classrooms, empower teachers, and deploy intelligent tools to automate admin work, track progress, and improve learning outcomes.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            <button className="bg-elora-100 hover:bg-elora-200 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
-              Book a demo
-            </button>
-            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
-              Start for free
+            <Link to="/teacher/demo" className="bg-elora-100 hover:bg-elora-200 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
+              Try a demo
             </Link>
-            <Link
-              to="/teacher/demo"
-              className="flex items-center gap-2 text-accent-yellow font-semibold text-sm hover:underline underline-offset-2 transition-all"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-yellow inline-block animate-pulse" />
-              Try a live demo
+            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
+              Start for free
             </Link>
           </div>
         </div>

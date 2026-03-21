@@ -22,15 +22,35 @@ export interface CurrentUser {
     id: string;
     name: string;
     role: UserRole;
+    preferredName?: string;
+    assistantName?: string;
 }
 
 // ── Demo user map ─────────────────────────────────────────────────────────────
 // These IDs match the in-memory DB seeded in server/db.ts.
 
 export const DEMO_USERS: Record<UserRole, CurrentUser> = {
-    teacher: { id: 'teacher_1', name: 'Ms. Harper', role: 'teacher' },
-    student: { id: 'student_1', name: 'Jamie Rivera', role: 'student' },
-    parent: { id: 'parent_1', name: 'Sarah Chen', role: 'parent' },
+    teacher: {
+        id: 'teacher_1',
+        name: 'Mr. Michael Lee',
+        role: 'teacher',
+        preferredName: 'Michael',
+        assistantName: 'Elora',
+    },
+    student: {
+        id: 'student_1',
+        name: 'Jordan Lee',
+        role: 'student',
+        preferredName: 'Jordan',
+        assistantName: 'Elora',
+    },
+    parent: {
+        id: 'parent_1',
+        name: 'Mr. Lee',
+        role: 'parent',
+        preferredName: 'Lee',
+        assistantName: 'Elora',
+    },
 };
 
 const LS_KEY = 'elora_current_user';
@@ -57,7 +77,9 @@ interface AuthState {
      * Signs in as one of the three demo users matching the given role.
      * Persists to localStorage and syncs headers to dataService.
      */
-    login: (role: UserRole) => void;
+    login: (role: UserRole, data?: Partial<CurrentUser>) => void;
+    /** Updates the current user profile (e.g. preferredName, assistantName). */
+    updateProfile: (data: Partial<CurrentUser>) => void;
     /** Signs out, clears storage and resets dataService headers. */
     logout: () => void;
     /**
@@ -82,15 +104,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dsSetCurrentUser(currentUser);
     }, [currentUser]);
 
-    const login = (role: UserRole) => {
-        const user = DEMO_USERS[role];
+    const login = (role: UserRole, data?: Partial<CurrentUser>) => {
+        const baseUser = DEMO_USERS[role];
+        const user: CurrentUser = {
+            ...baseUser,
+            ...data,
+            role: baseUser.role,
+            id: baseUser.id,
+            name: baseUser.name,
+        };
         setCurrentUser(user);
         localStorage.setItem(LS_KEY, JSON.stringify(user));
+        dsSetCurrentUser(user);
+    };
+
+    const updateProfile = (data: Partial<CurrentUser>) => {
+        setCurrentUser((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, ...data };
+            localStorage.setItem(LS_KEY, JSON.stringify(next));
+            return next;
+        });
     };
 
     const logout = () => {
         setCurrentUser(null);
         localStorage.removeItem(LS_KEY);
+        dsSetCurrentUser(null);
     };
 
     const value: AuthState = {
@@ -98,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isVerified: currentUser !== null,
         role: currentUser?.role ?? null,
         login,
+        updateProfile,
         logout,
         // backward compat alias
         mockVerify: login,

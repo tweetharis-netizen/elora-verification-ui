@@ -117,10 +117,12 @@ export function NotificationsPopover({
                                                     </p>
                                                 </div>
 
-                                                {/* Unread dot */}
-                                                <div className={`mt-1.5 shrink-0 ml-1 transition-all duration-300 ${isUnread ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
-                                                    <div className={`w-2 h-2 ${unreadDotColor} rounded-full shadow-sm`} />
-                                                </div>
+                                                 {/* Unread dot */}
+                                                 {isUnread && (
+                                                     <div className="mt-1.5 shrink-0 ml-1">
+                                                         <div className={`w-2 h-2 ${unreadDotColor} rounded-full shadow-sm animate-in fade-in zoom-in duration-300`} />
+                                                     </div>
+                                                 )}
                                             </button>
                                         );
                                     })}

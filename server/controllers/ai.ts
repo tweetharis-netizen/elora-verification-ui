@@ -9,6 +9,7 @@ export interface GameQuestion {
     correctIndex: number;
     difficulty: "easy" | "medium" | "hard";
     topic: string;
+    explanation?: string;
 }
 
 export interface GamePack {
@@ -51,6 +52,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
         let prompt = "";
         let options: string[] = [];
         let correctIndex = 0;
+        let explanation = "";
 
         if (isMath) {
             // Seed a realistic math question
@@ -59,21 +61,24 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
 
             if (i % 3 === 0) {
                 // Word problem
-                prompt = `If a train travels at ${a * 10} km/h for ${b} hours, what is the total distance covered?`;
                 const ans = (a * 10) * b;
+                prompt = `If a train travels at ${a * 10} km/h for ${b} hours, what is the total distance covered?`;
                 options = [`${ans - 10} km`, `${ans} km`, `${ans + 20} km`, `${ans + 10} km`];
                 correctIndex = 1;
+                explanation = `Distance is calculated by multiplying speed (${a * 10} km/h) by time (${b} hours), which equals ${ans} km.`;
             } else if (i % 3 === 1) {
                 // Equation
                 prompt = `Solve for x in the equation: ${a}x - ${b} = ${a * 3 - b}`;
                 options = ['1', '2', '3', '4'];
                 correctIndex = 2; // ans is 3
+                explanation = `Adding ${b} to both sides gives ${a}x = ${a * 3}. Dividing by ${a} leaves x = 3.`;
             } else {
                 // Comparison / Fractions
                 prompt = `Which fraction is larger: 1/${a} or 1/${b}?`;
                 const isALarger = (1 / a) > (1 / b);
                 options = [`1/${a}`, `1/${b}`, `They are equal`, `Cannot be determined`];
                 correctIndex = isALarger ? 0 : 1;
+                explanation = `When two fractions have the same numerator (1), the one with the smaller denominator is the larger fraction.`;
             }
         } else if (isScience) {
             if (i % 3 === 0) {
@@ -85,6 +90,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
                     `It increases exponentially in a closed system.`
                 ];
                 correctIndex = 1;
+                explanation = `The principle of conservation states that the total amount remains constant even as it changes from one form to another.`;
             } else if (i % 3 === 1) {
                 prompt = `What is a common misconception regarding ${topic}?`;
                 options = [
@@ -94,6 +100,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
                     `That it does not interact with other materials.`
                 ];
                 correctIndex = 0;
+                explanation = `In science, many concepts that seem universal actually only apply within specific boundary conditions or scales.`;
             } else {
                 prompt = `Which phenomenon is most directly related to the study of ${topic}?`;
                 options = [
@@ -103,6 +110,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
                     `It depends on the specific environmental variables.`
                 ];
                 correctIndex = 3;
+                explanation = `Many scientific observations in ${topic} are highly dependent on the physical context and external variables of the system.`;
             }
         } else {
             // General Knowledge / Language
@@ -115,6 +123,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
                     `It is the only correct framework for analyzing the subject.`
                 ];
                 correctIndex = 0;
+                explanation = `${topic} is crucial because it forms the basic building blocks required to understand more complex ${level} topics.`;
             } else {
                 prompt = `Which term is most synonymous with the key ideas of ${topic}?`;
                 options = [
@@ -124,6 +133,7 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
                     `Hypothetical approximations`
                 ];
                 correctIndex = 0;
+                explanation = `The key ideas of ${topic} are considered "fundamental principles" because they are the essential underlying truths of the subject.`;
             }
         }
 
@@ -136,7 +146,8 @@ const generateGamePackFromLLM = async (params: GenerateGameRequest): Promise<Gam
             options: shuffled.map(s => s.opt),
             correctIndex: shuffled.findIndex(s => s.isCorrect),
             difficulty: qDifficulty as "easy" | "medium" | "hard",
-            topic
+            topic,
+            explanation
         });
     }
 

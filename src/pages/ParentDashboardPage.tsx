@@ -17,6 +17,7 @@ import {
     Lightbulb,
     Send,
     X,
+    Search,
     PanelLeftClose,
     PanelLeftOpen,
     LogOut,
@@ -26,7 +27,9 @@ import {
     UserCircle2,
     Inbox,
     RefreshCw,
+    Heart,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
     BarChart,
     Bar,
@@ -38,98 +41,26 @@ import {
     Cell,
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
-import { getDemoGamePack, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
+import { getDemoGamePack, getGamePackById, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
+import EloraAssistantCard from '../components/EloraAssistantCard';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { EloraLogo } from '../components/EloraLogo';
 import { Link } from 'react-router-dom';
+import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
+import { useDemoMode } from '../hooks/useDemoMode';
+import { DemoBanner } from '../components/DemoBanner';
+import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { 
+    demoChildren, 
+    demoChildSummary 
+} from '../demo/demoParentScenarioA';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-
-const CHILDREN = [
-    { id: 'aqil', name: 'Aqil', level: 'Sec 3 Express', classes: ['E-Maths', 'A-Maths', 'Science', 'English'] },
-    { id: 'nadia', name: 'Nadia', level: 'Sec 2NA', classes: ['Science', 'English', 'Maths'] },
-];
-
-const CHILD_DATA: Record<string, {
-    stats: { label: string; value: string; icon: any; trend?: 'up' | 'down' | 'neutral' }[];
-    subjectScores: { name: string; score: number }[];
-    recentActivity: { id: string; title: string; subject: string; tag: string; type: string; score?: string; date: string; status: 'Completed' | 'In Progress' | 'Needs Attention' }[];
-    upcoming: { id: string; title: string; subject: string; dueDate: string; status: 'On track' | 'Due soon' | 'Overdue' }[];
-    weakTopics: string[];
-    messages: { id: string; from: string; subject: string; body: string; time: string; unread: boolean }[];
-    tips: { id: string; title: string; body: string }[];
-}> = {
-    aqil: {
-        stats: [
-            { label: 'Assignments due this week', value: '3', icon: FileText, trend: 'neutral' },
-            { label: 'GamePacks completed this week', value: '2', icon: Gamepad2, trend: 'up' },
-            { label: 'Average score this week', value: '76%', icon: TrendingUp, trend: 'up' },
-            { label: 'Attendance this week', value: '5 / 5', icon: CheckCircle2, trend: 'neutral' },
-        ],
-        subjectScores: [
-            { name: 'E-Maths', score: 78 },
-            { name: 'A-Maths', score: 65 },
-            { name: 'Science', score: 82 },
-            { name: 'English', score: 70 },
-        ],
-        recentActivity: [
-            { id: 'a1', title: 'Algebra – Quadratic Equations', subject: 'Sec 3 Express – E-Maths', tag: 'O-Level style', type: 'GamePack', score: '82%', date: '4 Mar 2026', status: 'Completed' },
-            { id: 'a2', title: 'Trigonometry – Sine & Cosine Rule', subject: 'Sec 3 Express – A-Maths', tag: 'O-Level style', type: 'Assignment', score: '61%', date: '3 Mar 2026', status: 'Needs Attention' },
-            { id: 'a3', title: 'Informal Email Writing', subject: 'Sec 3 Express – English', tag: 'O-Level style', type: 'Assignment', date: '2 Mar 2026', status: 'In Progress' },
-            { id: 'a4', title: 'Cell Division – Mitosis', subject: 'Sec 3 – Science', tag: 'O-Level style', type: 'GamePack', score: '90%', date: '1 Mar 2026', status: 'Completed' },
-        ],
-        upcoming: [
-            { id: 'u1', title: 'E-Maths: Polynomial Functions Quiz', subject: 'Sec 3 Express – E-Maths', dueDate: 'Due Fri, 7 Mar', status: 'Due soon' },
-            { id: 'u2', title: 'Formal Letter Writing Assignment', subject: 'Sec 3 Express – English', dueDate: 'Due Mon, 10 Mar', status: 'On track' },
-            { id: 'u3', title: 'A-Maths: Surds & Indices Practice', subject: 'Sec 3 Express – A-Maths', dueDate: 'Overdue – 2 Mar', status: 'Overdue' },
-        ],
-        weakTopics: ['Algebra – Factorisation', 'Trigonometry – Sine rule', 'Informal Email – Tone'],
-        messages: [
-            { id: 'm1', from: 'Mr Tan Wei (E-Maths)', subject: 'Progress Update – Week 9', body: 'Aqil has been improving steadily in E-Maths. He should focus more on showing working clearly in his solutions.', time: '4 Mar, 9:12 AM', unread: true },
-            { id: 'm2', from: 'Mrs Lim (English)', subject: 'Assignment Feedback', body: 'The informal email submission was good overall. Aqil should pay attention to tone consistency throughout the letter.', time: '2 Mar, 2:35 PM', unread: false },
-        ],
-        tips: [
-            { id: 't1', title: 'Support Factorisation at Home', body: 'Ask Aqil to explain how he factors a quadratic expression — teaching it reinforces understanding.' },
-            { id: 't2', title: 'Encourage Daily Practice', body: 'Even 15 minutes of GamePack practice per day builds long-term retention for O-Level topics.' },
-        ],
-    },
-    nadia: {
-        stats: [
-            { label: 'Assignments due this week', value: '2', icon: FileText, trend: 'neutral' },
-            { label: 'GamePacks completed this week', value: '1', icon: Gamepad2, trend: 'neutral' },
-            { label: 'Average score this week', value: '68%', icon: TrendingUp, trend: 'down' },
-            { label: 'Attendance this week', value: '4 / 5', icon: CheckCircle2, trend: 'neutral' },
-        ],
-        subjectScores: [
-            { name: 'Maths', score: 64 },
-            { name: 'Science', score: 72 },
-            { name: 'English', score: 68 },
-        ],
-        recentActivity: [
-            { id: 'n1', title: 'Living Things – Ecosystem', subject: 'Sec 2NA – Science', tag: 'NA-Level style', type: 'GamePack', score: '74%', date: '4 Mar 2026', status: 'Completed' },
-            { id: 'n2', title: 'Number Patterns & Sequences', subject: 'Sec 2NA – Maths', tag: 'NA-Level style', type: 'Assignment', score: '58%', date: '3 Mar 2026', status: 'Needs Attention' },
-            { id: 'n3', title: 'Normal Tech – English – Informal Email', subject: 'Sec 2NA – English', tag: 'NA-Level style', type: 'Assignment', date: '1 Mar 2026', status: 'In Progress' },
-        ],
-        upcoming: [
-            { id: 'nu1', title: 'Science: Photosynthesis Quiz', subject: 'Sec 2NA – Science', dueDate: 'Due Fri, 7 Mar', status: 'On track' },
-            { id: 'nu2', title: 'Maths: Fractions & Decimals Practice', subject: 'Sec 2NA – Maths', dueDate: 'Overdue – 1 Mar', status: 'Overdue' },
-        ],
-        weakTopics: ['Number Patterns – Sequences', 'English – Informal Letter Tone'],
-        messages: [
-            { id: 'nm1', from: 'Mr Azman (Science)', subject: 'Absence & Makeup Work', body: 'Nadia missed class on Tuesday. Please ensure she completes the makeup worksheet by this Friday.', time: '3 Mar, 11:00 AM', unread: true },
-        ],
-        tips: [
-            { id: 'nt1', title: 'Review Number Patterns Together', body: 'Look at 3-4 pattern questions with Nadia weekly — spotting the rule together builds mathematical confidence.' },
-            { id: 'nt2', title: 'Read Aloud for English', body: 'Reading short articles or stories aloud can help strengthen Nadia\'s written expression in English.' },
-        ],
-    },
-};
 
 const SIDEBAR_ITEMS = [
     { icon: LayoutDashboard, label: 'Overview', id: 'overview' },
@@ -139,46 +70,20 @@ const SIDEBAR_ITEMS = [
     { icon: MessageSquare, label: 'Messages', id: 'messages' },
 ];
 
-// ─── SHARED STATE HELPERS ─────────────────────────────────────────────────────
+// ─── SHARED STATE HELPERS & UTILITIES ─────────────────────────────────────────
 
-const SectionSkeleton = ({ rows = 3 }: { rows?: number }) => (
-    <div className="space-y-3 py-2">
-        {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="animate-pulse flex gap-3 items-center">
-                <div className="w-8 h-8 bg-slate-200 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-slate-200 rounded w-2/3" />
-                    <div className="h-2.5 bg-slate-100 rounded w-full" />
-                </div>
-            </div>
-        ))}
-    </div>
-);
+/**
+ * Maps icon names (from API) to actual icon components.
+ * Used when converting ParentChildSummary.stats[].iconName to JSX.
+ */
+const iconNameMap: Record<string, any> = {
+    FileText,
+    Gamepad2,
+    TrendingUp,
+    CheckCircle2,
+};
 
-const SectionError = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm">
-        <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-            <p className="text-red-700 leading-relaxed">{message}</p>
-        </div>
-        {onRetry && (
-            <button
-                onClick={onRetry}
-                className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 shrink-0 ml-2"
-            >
-                <RefreshCw size={12} /> Retry
-            </button>
-        )}
-    </div>
-);
-
-const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Inbox size={28} className="text-slate-300" />
-        <p className="text-sm font-semibold text-slate-600">{headline}</p>
-        {detail && <p className="text-xs text-slate-400 max-w-xs">{detail}</p>}
-    </div>
-);
+// Shared state display components are now imported from src/components/ui/SectionStates.tsx
 
 // ─── SUBCOMPONENTS ────────────────────────────────────────────────────────────
 
@@ -188,12 +93,14 @@ function SidebarItem({
     active,
     collapsed,
     onClick,
+    className = "",
 }: {
     icon: any;
     label: string;
     active?: boolean;
     collapsed?: boolean;
     onClick?: () => void;
+    className?: string;
     key?: string | number;
 }) {
     return (
@@ -201,7 +108,7 @@ function SidebarItem({
             href="#"
             onClick={(e) => { e.preventDefault(); onClick?.(); }}
             className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                } ${collapsed ? 'justify-center' : ''}`}
+                } ${collapsed ? 'justify-center' : ''} ${className}`}
             title={collapsed ? label : undefined}
         >
             <Icon className="w-5 h-5 shrink-0" />
@@ -228,7 +135,7 @@ function SummaryCard({
     key?: string | number;
 }) {
     return (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
+        <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6 flex items-start gap-4">
             <div className="p-3 rounded-lg shrink-0" style={{ backgroundColor: `${BRAND}18`, color: BRAND }}>
                 <Icon className="w-5 h-5" />
             </div>
@@ -294,18 +201,34 @@ function ProgressSection({
     weakTopics,
     perfTab,
     onTabChange,
+    isLoading,
+    isError,
+    onRetry,
+    childName = "student",
+    lastUpdated
 }: {
     subjectScores: { name: string; score: number }[];
     weakTopics: string[];
     perfTab: string;
     onTabChange: (tab: string) => void;
+    isLoading?: boolean;
+    isError?: boolean;
+    onRetry?: () => void;
+    childName?: string;
+    lastUpdated?: string | null;
 }) {
     return (
         <section>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Progress & Reports</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Progress & Reports</h2>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                        Live data {lastUpdated && `• Last updated ${lastUpdated}`}
+                    </span>
+                </div>
                 <div className="flex items-center gap-2">
-                    {['Subjects', 'Topics', 'GamePacks'].map((tab) => (
+                    {['Subjects', 'Topics', 'Practice & quizzes'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
@@ -321,54 +244,74 @@ function ProgressSection({
                 </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={subjectScores} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis
-                                dataKey="name"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 13, fill: '#64748B' }}
-                                dy={10}
-                            />
-                            <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 13, fill: '#64748B' }}
-                                domain={[0, 100]}
-                                ticks={[0, 25, 50, 75, 100]}
-                            />
-                            <Tooltip
-                                cursor={{ fill: '#F1F5F9' }}
-                                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            />
-                            <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                                {subjectScores.map((entry, index) => (
-                                    <Cell
-                                        key={`cell-${index}`}
-                                        fill={entry.score >= 75 ? '#10B981' : entry.score >= 60 ? '#F59E0B' : '#EF4444'}
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6 min-h-[300px] flex flex-col justify-center">
+                {isLoading ? (
+                    <SectionSkeleton rows={5} />
+                ) : isError ? (
+                    <SectionError
+                        message={`We couldn't load ${childName}'s latest progress data. Please try again.`}
+                        onRetry={onRetry}
+                    />
+                ) : subjectScores.length === 0 ? (
+                    <SectionEmpty
+                        headline="No progress data yet"
+                        detail={`${childName}'s progress will appear here once they complete their first assessment.`}
+                    />
+                ) : (
+                    <>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={subjectScores} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 13, fill: '#64748B' }}
+                                        dy={10}
                                     />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 13, fill: '#64748B' }}
+                                        domain={[0, 100]}
+                                        ticks={[0, 25, 50, 75, 100]}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: '#F1F5F9' }}
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                                        {subjectScores.map((entry, index) => (
+                                            <Cell
+                                                key={`cell-${index}`}
+                                                fill={entry.score >= 75 ? '#10B981' : entry.score >= 60 ? '#F59E0B' : '#EF4444'}
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-100">
-                    <h3 className="text-[14px] font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-orange-500" />
-                        Topics needing more practice
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {weakTopics.map((topic, i) => (
-                            <span key={i} className="px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200/60 rounded-md text-[13px] font-medium">
-                                {topic}
-                            </span>
-                        ))}
-                    </div>
-                </div>
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                            <h3 className="text-[14px] font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-orange-500" />
+                                Topics needing more practice
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                {weakTopics.length > 0 ? (
+                                    weakTopics.map((topic, i) => (
+                                        <span key={i} className="px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200/60 rounded-md text-[13px] font-medium">
+                                            {topic}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-[13px] text-slate-500 italic">No weak topics identified yet – {childName} is doing great!</span>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </section>
     );
@@ -379,20 +322,37 @@ function ActivityList({
     filter,
     onFilterChange,
     onActivityClick,
+    isLoading,
+    isError,
+    onRetry,
+    childName = "student"
 }: {
-    activities: (typeof CHILD_DATA)['aqil']['recentActivity'];
+    activities: Array<{
+        id: string;
+        title: string;
+        subject: string;
+        tag: string;
+        type: string;
+        score?: string;
+        date: string;
+        status: string;
+    }>;
     filter: string;
     onFilterChange: (f: string) => void;
     onActivityClick?: (activity: any) => void;
+    isLoading?: boolean;
+    isError?: boolean;
+    onRetry?: () => void;
+    childName?: string;
 }) {
     const filtered = filter === 'All' ? activities : activities.filter((a) => a.type === filter);
 
     return (
         <section>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Recent Activity & GamePacks</h2>
+                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Recent activity & practice</h2>
                 <div className="flex items-center bg-slate-100 p-1 rounded-lg overflow-x-auto">
-                    {['All', 'GamePack', 'Assignment'].map((f) => (
+                    {['All', 'Practice', 'Assignment'].map((f) => (
                         <button
                             key={f}
                             onClick={() => onFilterChange(f)}
@@ -405,56 +365,90 @@ function ActivityList({
                 </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="divide-y divide-slate-100">
-                    {filtered.map((item) => (
-                        <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onActivityClick?.(item)}>
-                            <div className="flex justify-between items-start gap-3">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-md">
-                                            {item.type}
-                                        </span>
-                                        <span
-                                            className="inline-block px-2 py-0.5 text-[11px] font-medium rounded-md border"
-                                            style={{ backgroundColor: `${BRAND}12`, color: BRAND, borderColor: `${BRAND}30` }}
-                                        >
-                                            {item.tag}
-                                        </span>
-                                    </div>
-                                    <h3 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h3>
-                                    <p className="text-[13px] text-slate-500 mt-0.5">{item.subject}</p>
-                                    <div className="flex items-center gap-3 mt-2">
-                                        <div className="flex items-center gap-1.5 text-[12px] text-slate-500">
-                                            <Calendar className="w-3.5 h-3.5" />
-                                            {item.date}
-                                        </div>
-                                        {item.score && (
-                                            <div className="flex items-center gap-1.5 text-[12px] font-medium"
-                                                style={{ color: parseInt(item.score) >= 75 ? '#10B981' : parseInt(item.score) >= 60 ? '#F59E0B' : '#EF4444' }}>
-                                                <Award className="w-3.5 h-3.5" />
-                                                Score: {item.score}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <StatusBadge status={item.status} />
-                            </div>
-                        </div>
-                    ))}
-                    {filtered.length === 0 && (
-                        <SectionEmpty
-                            headline="No activity for this filter"
-                            detail="Try switching to 'All' to see every recent session."
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
+                {isLoading ? (
+                    <div className="p-6"><SectionSkeleton rows={4} /></div>
+                ) : isError ? (
+                    <div className="p-6">
+                        <SectionError
+                            message={`We couldn't load ${childName}'s activity list.`}
+                            onRetry={onRetry}
                         />
-                    )}
-                </div>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="p-6">
+                        <SectionEmpty
+                            headline={filter === 'All' ? "No activity yet" : `No recent ${filter}s`}
+                            detail={filter === 'All'
+                                ? `Recent activity for ${childName} will appear here once they start their learning sessions.`
+                                : `No ${filter.toLowerCase()}s were found for ${childName} in the recent period.`}
+                        />
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {filtered.map((item) => (
+                            <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onActivityClick?.(item)}>
+                                <div className="flex justify-between items-start gap-3">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-md">
+                                                {item.type}
+                                            </span>
+                                            <span
+                                                className="inline-block px-2 py-0.5 text-[11px] font-medium rounded-md border"
+                                                style={{ backgroundColor: `${BRAND}12`, color: BRAND, borderColor: `${BRAND}30` }}
+                                            >
+                                                {item.tag}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h3>
+                                        <p className="text-[13px] text-slate-500 mt-0.5">{item.subject}</p>
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <div className="flex items-center gap-1.5 text-[12px] text-slate-500">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                {item.date}
+                                            </div>
+                                            {item.score && (
+                                                <div className="flex items-center gap-1.5 text-[12px] font-medium"
+                                                    style={{ color: parseInt(item.score) >= 75 ? '#10B981' : parseInt(item.score) >= 60 ? '#F59E0B' : '#EF4444' }}>
+                                                    <Award className="w-3.5 h-3.5" />
+                                                    Score: {item.score}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <StatusBadge status={item.status} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </section>
     );
 }
 
-function UpcomingList({ items, onViewAll }: { items: (typeof CHILD_DATA)['aqil']['upcoming']; onViewAll?: () => void }) {
+function UpcomingList({
+    items,
+    onViewAll,
+    isLoading,
+    isError,
+    onRetry,
+    childName = "student"
+}: {
+    items: Array<{
+        id: string;
+        title: string;
+        subject: string;
+        dueDate: string;
+        status: string;
+    }>;
+    onViewAll?: () => void;
+    isLoading?: boolean;
+    isError?: boolean;
+    onRetry?: () => void;
+    childName?: string;
+}) {
     const iconMap = {
         'On track': <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
         'Due soon': <Clock className="w-4 h-4 text-orange-500" />,
@@ -466,39 +460,53 @@ function UpcomingList({ items, onViewAll }: { items: (typeof CHILD_DATA)['aqil']
             <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 mb-4">
                 Upcoming Assignments & Quizzes
             </h2>
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="divide-y divide-slate-100">
-                    {items.map((item) => (
-                        <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer">
-                            <div className="flex justify-between items-start gap-3">
-                                <div>
-                                    <h3 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h3>
-                                    <p className="text-[13px] text-slate-500 mt-1">{item.subject}</p>
-                                    <div className="flex items-center gap-1.5 mt-2.5">
-                                        {iconMap[item.status]}
-                                        <span className="text-[12px] font-medium text-slate-600">{item.dueDate}</span>
-                                    </div>
-                                </div>
-                                <StatusBadge status={item.status} />
-                            </div>
-                        </div>
-                    ))}
-                    {items.length === 0 && (
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
+                {isLoading ? (
+                    <div className="p-6"><SectionSkeleton rows={3} /></div>
+                ) : isError ? (
+                    <div className="p-6">
+                        <SectionError
+                            message={`We couldn't load ${childName}'s upcoming tasks.`}
+                            onRetry={onRetry}
+                        />
+                    </div>
+                ) : items.length === 0 ? (
+                    <div className="p-8">
                         <SectionEmpty
                             headline="No upcoming assignments"
-                            detail="Assignments set by your child's teachers will appear here."
+                            detail={`Any assignments or tasks created for ${childName} will show up here.`}
                         />
-                    )}
-                </div>
-                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                    <button
-                        onClick={() => onViewAll?.()}
-                        className="text-[13px] font-medium transition-colors hover:opacity-80"
-                        style={{ color: BRAND }}
-                    >
-                        View all tasks
-                    </button>
-                </div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="divide-y divide-slate-100">
+                            {items.map((item) => (
+                                <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                                    <div className="flex justify-between items-start gap-3">
+                                        <div>
+                                            <h3 className="text-[14px] font-semibold text-slate-900 leading-tight">{item.title}</h3>
+                                            <p className="text-[13px] text-slate-500 mt-1">{item.subject}</p>
+                                            <div className="flex items-center gap-1.5 mt-2.5">
+                                                {(iconMap as any)[item.status]}
+                                                <span className="text-[12px] font-medium text-slate-600">{item.dueDate}</span>
+                                            </div>
+                                        </div>
+                                        <StatusBadge status={item.status} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                            <button
+                                onClick={() => onViewAll?.()}
+                                className="text-[13px] font-medium transition-colors hover:opacity-80"
+                                style={{ color: BRAND }}
+                            >
+                                View all tasks
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </section>
     );
@@ -509,11 +517,30 @@ function MessageFeed({
     tips,
     activeTab,
     onTabChange,
+    isLoading,
+    isError,
+    onRetry,
+    childName = "student"
 }: {
-    messages: (typeof CHILD_DATA)['aqil']['messages'];
-    tips: (typeof CHILD_DATA)['aqil']['tips'];
+    messages: Array<{
+        id: string;
+        from: string;
+        subject: string;
+        body: string;
+        time: string;
+        unread: boolean;
+    }>;
+    tips: Array<{
+        id: string;
+        title: string;
+        body: string;
+    }>;
     activeTab: string;
     onTabChange: (tab: string) => void;
+    isLoading?: boolean;
+    isError?: boolean;
+    onRetry?: () => void;
+    childName?: string;
 }) {
     return (
         <section>
@@ -539,52 +566,76 @@ function MessageFeed({
                 </div>
             </div>
 
-            {activeTab === 'Messages' ? (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="divide-y divide-slate-100">
-                        {messages.map((msg) => (
-                            <div key={msg.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer">
-                                <div className="flex items-start justify-between gap-3 mb-1">
-                                    <div className="flex items-center gap-2">
-                                        {msg.unread && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: BRAND }} />}
-                                        <span className="text-[13px] font-semibold text-slate-900">{msg.from}</span>
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm min-h-[250px] flex flex-col justify-center overflow-hidden">
+                {isLoading ? (
+                    <div className="p-6"><SectionSkeleton rows={4} /></div>
+                ) : isError ? (
+                    <div className="p-6">
+                        <SectionError
+                            message={`We couldn't load ${childName}'s messages.`}
+                            onRetry={onRetry}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        {activeTab === 'Messages' ? (
+                            <>
+                                <div className="divide-y divide-slate-100 flex-1">
+                                    {messages.map((msg) => (
+                                        <div key={msg.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                                            <div className="flex items-start justify-between gap-3 mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    {msg.unread && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: BRAND }} />}
+                                                    <span className="text-[13px] font-semibold text-slate-900">{msg.from}</span>
+                                                </div>
+                                                <span className="text-[11px] text-slate-400 whitespace-nowrap">{msg.time}</span>
+                                            </div>
+                                            <p className="text-[12px] font-medium text-slate-600 mb-1">{msg.subject}</p>
+                                            <p className="text-[13px] text-slate-600 leading-relaxed line-clamp-2">{msg.body}</p>
+                                        </div>
+                                    ))}
+                                    {messages.length === 0 && (
+                                        <div className="p-8">
+                                            <SectionEmpty
+                                                headline="No messages yet"
+                                                detail={`Any messages or feedback for ${childName} from their teachers will appear here.`}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                                    <button className="text-[13px] font-medium transition-colors hover:opacity-80" style={{ color: BRAND }}>
+                                        View all messages
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-5 lg:p-6 relative overflow-hidden">
+                                {tips.length > 0 ? (
+                                    <div className="relative z-10 space-y-4">
+                                        {tips.map((tip) => (
+                                            <div key={tip.id} className="flex items-start gap-3">
+                                                <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-sm" style={{ color: BRAND }}>
+                                                    <Lightbulb className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[14px] font-semibold text-slate-900">{tip.title}</h4>
+                                                    <p className="text-[13px] text-slate-700 mt-1 leading-relaxed">{tip.body}</p>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <span className="text-[11px] text-slate-400 whitespace-nowrap">{msg.time}</span>
-                                </div>
-                                <p className="text-[12px] font-medium text-slate-600 mb-1">{msg.subject}</p>
-                                <p className="text-[13px] text-slate-600 leading-relaxed line-clamp-2">{msg.body}</p>
+                                ) : (
+                                    <SectionEmpty
+                                        headline="No tips for today"
+                                        detail="Check back later for personalized insights on how to support your child's learning."
+                                    />
+                                )}
                             </div>
-                        ))}
-                        {messages.length === 0 && (
-                            <SectionEmpty
-                                headline="No messages yet"
-                                detail="Your child's teachers can send updates and feedback here."
-                            />
                         )}
-                    </div>
-                    <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                        <button className="text-[13px] font-medium transition-colors hover:opacity-80" style={{ color: BRAND }}>
-                            View all messages
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 relative overflow-hidden">
-                    <div className="relative z-10 space-y-4">
-                        {tips.map((tip) => (
-                            <div key={tip.id} className="flex items-start gap-3">
-                                <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-sm" style={{ color: BRAND }}>
-                                    <Lightbulb className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <h4 className="text-[14px] font-semibold text-slate-900">{tip.title}</h4>
-                                    <p className="text-[13px] text-slate-700 mt-1 leading-relaxed">{tip.body}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                    </>
+                )}
+            </div>
         </section>
     );
 }
@@ -592,17 +643,47 @@ function MessageFeed({
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export default function ParentDashboardPage() {
+    const navigate = useNavigate();
+    const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activePage, setActivePage] = useState('overview');
+    
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_parent_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
     const [activeChildId, setActiveChildId] = useState<string | null>(null);
     const [perfTab, setPerfTab] = useState('Subjects');
+
+    type AskEloraStatus = 'idle' | 'loading' | 'success' | 'error';
+    const [eloraStatus, setEloraStatus] = useState<AskEloraStatus>('success');
+    const [eloraSuggestion, setEloraSuggestion] = useState({
+        kind: 'parent_message' as const,
+        title: 'Encourage focus with a short daily check-in',
+        body: "Try letting your child know they did a great job today and offer one small goal for tomorrow.",
+        suggestedTargets: ['Math concept practice'],
+    });
+    const [eloraError, setEloraError] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState('All');
     const [msgTab, setMsgTab] = useState('Messages');
     const [nudgeOpen, setNudgeOpen] = useState(false);
     const [nudgeText, setNudgeText] = useState('');
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-    const { currentUser } = useAuth();
+    const { currentUser, login } = useAuth();
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
+
+    // Ensure demo user is "logged in" for backend headers
+    React.useEffect(() => {
+        if (isDemo && currentUser?.id !== 'parent_1' && typeof login === 'function') {
+            login('parent');
+        }
+    }, [isDemo, currentUser, login]);
 
     const {
         notifications: parentNotifications,
@@ -613,10 +694,10 @@ export default function ParentDashboardPage() {
 
     const handleNotificationClick = async (item: PopoverNotificationItem) => {
         if (!item.original) return;
-        
+
         // Mark as read in backend
         await handleMarkOneRead(item.original.id);
-        
+
         // Use the centralized UI helper for default destination mapping.
         const dest = getNotificationDefaultDestination(item.original);
         setActivePage(dest);
@@ -644,58 +725,164 @@ export default function ParentDashboardPage() {
     const [isSendingNudge, setIsSendingNudge] = useState(false);
 
     const loadChildren = React.useCallback(() => {
+        console.log('[ParentDashboard] Calling loadChildren...');
+        setIsLoading(true);
         setLoadError(null);
+
+        if (isDemo) {
+            const mapped = demoChildren.map((c: any, i: number) => ({
+                id: c.id,
+                name: c.name,
+                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
+            }));
+            setChildrenList(mapped);
+            if (mapped.length > 0) {
+                setActiveChildId(mapped[0].id);
+            }
+            setIsLoading(false);
+            return;
+        }
+
         getParentChildren().then(list => {
+            console.log('[ParentDashboard] Children received:', list.length);
             const mapped = list.map((c, i) => ({
                 id: c.id,
                 name: c.name,
-                level: i === 0 ? 'Sec 3 Express' : 'Sec 2NA',
+                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
             }));
             setChildrenList(mapped);
-            if (mapped.length > 0) setActiveChildId(mapped[0].id);
-        }).catch(() => {
+            if (mapped.length > 0) {
+                console.log('[ParentDashboard] Auto-selecting child:', mapped[0].id);
+                setActiveChildId(mapped[0].id);
+            } else {
+                setIsLoading(false);
+            }
+        }).catch(err => {
+            console.error('[ParentDashboard] Error loading children:', err);
             setLoadError('Could not load children. Please try again.');
             setIsLoading(false);
         });
-    }, []);
+    }, [isDemo]);
 
-    React.useEffect(() => { loadChildren(); }, [loadChildren]);
+    // 1. ADD MOUNT EFFECT
+    React.useEffect(() => {
+        loadChildren();
+    }, [loadChildren]);
+
+    const handleRetry = () => {
+        if (activeChildId) {
+            setIsLoading(true);
+            setLoadError(null);
+            getParentChildSummary(activeChildId).then(data => {
+                setSummaryData(data);
+            }).catch(() => {
+                setLoadError(`We couldn't load ${activeChild?.name}'s latest data. Please try again.`);
+            }).finally(() => setIsLoading(false));
+        } else {
+            setIsLoading(true);
+            loadChildren();
+        }
+    };
 
     React.useEffect(() => {
         if (!activeChildId) return;
+        console.log('[ParentDashboard] Fetching summary for child:', activeChildId);
         setIsLoading(true);
         setLoadError(null);
+
+        if (isDemo) {
+            setSummaryData(demoChildSummary);
+            setLastUpdated('Just now');
+            setIsLoading(false);
+            return;
+        }
+
         getParentChildSummary(activeChildId).then(data => {
+            console.log('[ParentDashboard] Summary received for:', activeChildId);
             setSummaryData(data);
-        }).catch(() => {
+            setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }).catch(err => {
+            console.error('[ParentDashboard] Error loading summary:', err);
             setLoadError('Could not load data for this student. Please try again.');
         }).finally(() => setIsLoading(false));
-    }, [activeChildId]);
+    }, [activeChildId, isDemo]);
 
-    const activeChild = childrenList.find((c) => c.id === activeChildId) || CHILDREN[0];
-    const mockData = CHILD_DATA['aqil'];
-    const iconsMap: any = { FileText, Gamepad2, TrendingUp, CheckCircle2 };
+    // Debug logging for the "Human"
+    console.log('[ParentDashboard] Render state:', {
+        isLoading,
+        loadError: !!loadError,
+        activeChildId,
+        childrenCount: childrenList.length,
+        hasSummary: !!summaryData
+    });
 
-    const data = {
-        stats: summaryData?.stats?.map((s: any) => ({ ...s, icon: iconsMap[s.iconName] || FileText })) || mockData.stats,
-        upcoming: summaryData?.upcoming || mockData.upcoming,
-        recentActivity: summaryData?.recentActivity || mockData.recentActivity,
-        weakTopics: summaryData?.weakTopics || mockData.weakTopics,
-        subjectScores: (summaryData?.subjectScores && summaryData.subjectScores.length > 0)
-            ? summaryData.subjectScores
-            : mockData.subjectScores,
-        messages: mockData.messages,
-        tips: mockData.tips
-    };
+    const activeChild = childrenList.find((c) => c.id === activeChildId) || null;
 
-    const parentName = 'Mrs. Chen';
-    const parentInitials = 'MC';
+    // ── Map API data to UI view model ──────────────────────────────────────
+    // Convert stats with iconName strings to components
+    const stats = (summaryData?.stats || []).map((s: any) => ({
+        ...s,
+        icon: iconNameMap[s.iconName] || FileText
+    }));
+
+    const upcoming = summaryData?.upcoming || [];
+    const recentActivity = summaryData?.recentActivity || [];
+    const weakTopics = summaryData?.weakTopics || [];
+    const subjectScores = (summaryData?.subjectScores && summaryData.subjectScores.length > 0)
+        ? summaryData.subjectScores
+        : [];
+
+    // Mock data for messages & tips that varies by child
+    const messages = React.useMemo(() => {
+        if (!activeChildId) return [];
+        return [
+            {
+                id: 'msg-1',
+                from: 'Ms. Sarah Lee',
+                subject: 'Great progress in Science!',
+                body: `I wanted to let you know that ${activeChild?.name || 'your child'} did exceptionally well in today's Science practical. Their understanding of basic circuits is very strong.`,
+                time: '2h ago',
+                unread: true
+            },
+            {
+                id: 'msg-2',
+                from: 'Mr. David Tan',
+                subject: 'Math homework reminder',
+                body: `Just a friendly reminder that the algebra assignment is due this Friday. ${activeChild?.name || 'your child'} has started but hasn't submitted yet.`,
+                time: 'Yesterday',
+                unread: false
+            }
+        ];
+    }, [activeChildId, activeChild?.name]);
+
+    const tips = React.useMemo(() => {
+        if (!activeChildId) return [];
+        return [
+            {
+                id: 'tip-1',
+                title: 'Building consistency',
+                body: `Try to set a fixed 20-minute slot for ${activeChild?.name || 'your child'} to review weak topics like '${weakTopics.slice(0, 1) || 'Algebra'}' after dinner.`
+            },
+            {
+                id: 'tip-2',
+                title: 'Encouragement goes a long way',
+                body: "Celebrate small wins! A positive remark about their effort in tough subjects can boost their confidence significantly."
+            }
+        ];
+    }, [activeChildId, activeChild?.name, weakTopics]);
+
+    const parentName = isDemo ? 'Mr. Lee' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
+    const parentInitials = parentName
+        .split(' ')
+        .map((word) => word.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join('');
 
     const handleActivityClick = async (activity: any) => {
-        if (activity.type === 'GamePack' && activity.status === 'Completed') {
+        if (activity.type === 'quiz' && activity.status === 'at_risk') {
             try {
                 // Fetch demo pack to show in review mode
-                const pack = await getDemoGamePack();
+                const pack = await getGamePackById('algebra-basics');
                 setReviewGamePack(pack);
                 setReviewActivity(activity);
                 setReviewQuestionIndex(0);
@@ -705,6 +892,8 @@ export default function ParentDashboardPage() {
         }
     };
 
+    const [showNudgeSuccess, setShowNudgeSuccess] = useState(false);
+
     const handleSendNudge = async () => {
         if (!activeChildId || !nudgeText.trim()) return;
         setIsSendingNudge(true);
@@ -712,7 +901,10 @@ export default function ParentDashboardPage() {
             await sendParentNudge(activeChildId, nudgeText.trim());
             setNudgeOpen(false);
             setNudgeText('');
-            // Optional: alert('Nudge sent successfully!');
+            if (isDemo) {
+                setShowNudgeSuccess(true);
+                setTimeout(() => setShowNudgeSuccess(false), 3000);
+            }
         } catch (error) {
             console.error("Failed to send nudge", error);
             alert("Failed to send nudge. Please try again.");
@@ -764,7 +956,15 @@ export default function ParentDashboardPage() {
     }
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            {isDemo && (
+                <>
+                    <DemoBanner />
+                    <DemoRoleSwitcher />
+                </>
+            )}
+
+            <div className="flex flex-1 overflow-hidden">
 
             {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
             <aside
@@ -825,85 +1025,105 @@ export default function ParentDashboardPage() {
             </aside>
 
             {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
-
-                {/* HEADER */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-                    <div className="flex items-center gap-4">
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                    {/* HEADER */}
+                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
                         <div>
-                            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Overview</div>
-                            <h2 className="text-[15px] font-semibold text-slate-800 leading-tight">Parent Dashboard</h2>
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Parent Dashboard
+                            </div>
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                {`Good day, ${parentName}`}
+                            </h1>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                                <p className="text-[13px] text-slate-500 font-medium">You are signed in as Parent</p>
+                                {isDemo && (
+                                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
+                                        <span className="text-[#DB844A] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                        <span>Struggling Class (Sec 3 Mathematics)</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        {/* Child selector – pill group */}
-                        <div className="hidden md:flex">
-                            <ChildSelector
-                                children={childrenList.length ? childrenList : CHILDREN}
-                                activeId={activeChildId}
-                                onSelect={setActiveChildId as any}
-                            />
-                        </div>
-
-                        <div className="w-px h-6 bg-slate-200 mx-2" />
-
-                        <div className="relative">
+                        <div className="flex items-center gap-4 lg:gap-6">
+                            <div className="relative hidden md:block">
+                                <Search
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    size={16}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Search classes…"
+                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
+                                />
+                            </div>
+                            <div className="hidden md:block">
+                                <ChildSelector
+                                    children={childrenList}
+                                    activeId={activeChildId}
+                                    onSelect={setActiveChildId as any}
+                                />
+                            </div>
                             <NotificationsPopover
                                 items={popoverNotifications}
                                 unreadCount={notificationsUnreadCount}
                                 onMarkAllRead={handleMarkAllRead}
                                 onNotificationClick={handleNotificationClick}
-                                badgeColor="bg-red-500"
-                                unreadDotColor="bg-red-500"
-                                unreadBgColor="bg-red-50/20"
-                                headerTextColor="text-red-500"
+                                badgeColor="bg-orange-500"
+                                unreadDotColor="bg-orange-500"
+                                unreadBgColor="bg-orange-50/20"
+                                headerTextColor="text-teal-600"
                             />
-                        </div>
-
-                        <div className="flex items-center gap-3 cursor-pointer">
-                            <div className="text-right hidden sm:block">
-                                <div className="text-[13px] font-semibold text-slate-900">{parentName}</div>
-                                <div className="text-[11px] text-slate-500">Parent</div>
+                            <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-sm font-semibold text-slate-900">
+                                        {parentName}
+                                    </div>
+                                    <div className="text-xs text-slate-500 font-medium">Parent</div>
+                                </div>
+                                <div
+                                    className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm"
+                                >
+                                    {parentInitials}
+                                </div>
                             </div>
-                            <div
-                                className="w-8 h-8 rounded-full text-white flex items-center justify-center text-sm font-bold"
-                                style={{ backgroundColor: BRAND }}
-                            >
-                                {parentInitials}
-                            </div>
                         </div>
-                    </div>
-                </header>
+                    </header>
 
-                {/* SCROLLABLE CANVAS */}
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8">
                     <div className="max-w-7xl mx-auto space-y-8">
 
-                        {/* PAGE TITLE + CHILD SELECTOR (mobile) */}
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                             <div>
                                 <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">
                                     {activePage === 'overview' && `Hi, ${parentName}`}
+                                    {activePage === 'overview' && showNudgeSuccess && (
+                                        <span className="text-sm font-medium text-teal-600 animate-in fade-in slide-in-from-left-2 duration-300 ml-3">
+                                            ✓ Message sent to {activeChild?.name}!
+                                        </span>
+                                    )}
                                     {activePage === 'progress' && 'Progress & Reports'}
                                     {activePage === 'assignments' && 'Assignments & Quizzes'}
                                     {activePage === 'messages' && 'Messages & Tips'}
                                     {activePage === 'children' && 'My Children'}
                                 </h1>
-                                <p className="text-[15px] text-slate-500 mt-1">
-                                    Viewing{' '}
-                                    <span className="font-medium" style={{ color: BRAND }}>
-                                        {activeChild.name}
-                                    </span>{' '}
-                                    – {activeChild.level}
-                                </p>
+                                {activeChild && (
+                                    <p className="text-[15px] text-slate-500 mt-1">
+                                        Viewing{' '}
+                                        <span className="font-medium" style={{ color: BRAND }}>
+                                            {activeChild.name}
+                                        </span>{' '}
+                                        – {activeChild.level}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-3">
                                 {/* Mobile child pills */}
                                 <div className="flex md:hidden">
                                     <ChildSelector
-                                        children={childrenList.length ? childrenList : CHILDREN}
+                                        children={childrenList}
                                         activeId={activeChildId}
                                         onSelect={setActiveChildId as any}
                                     />
@@ -926,187 +1146,305 @@ export default function ParentDashboardPage() {
                             </div>
                         </div>
 
-                        {/* ── LOADING / ERROR ── */}
-                        {isLoading ? (
-                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                                <SectionSkeleton rows={4} />
+                        {/* ── DATA VIEW ── */}
+                        {isLoading && !activeChild ? (
+                            <div className="space-y-8">
+                                <SectionSkeleton rows={3} />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <SectionSkeleton rows={5} />
+                                    <SectionSkeleton rows={5} />
+                                </div>
                             </div>
-                        ) : loadError ? (
-                            <SectionError message={loadError} onRetry={() => {
-                                if (activeChildId) {
-                                    setIsLoading(true);
-                                    setLoadError(null);
-                                    getParentChildSummary(activeChildId)
-                                        .then(setSummaryData)
-                                        .catch(() => setLoadError('Could not load data for this student. Please try again.'))
-                                        .finally(() => setIsLoading(false));
-                                } else {
-                                    loadChildren();
-                                }
-                            }} />
+                        ) : loadError && !activeChild ? (
+                            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                <SectionError
+                                    message="We encountered an issue loading your family data. Please try again."
+                                    onRetry={handleRetry}
+                                />
+                            </div>
+                        ) : !activeChild ? (
+                            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                <SectionEmpty
+                                    headline="No children found"
+                                    detail="It looks like there are no students linked to this parent account. Please contact support if this is an error."
+                                />
+                            </div>
                         ) : (
-                        <>
+                            <div className="relative">
+                                {/* Loading Overlay (Optional, but user wanted sections to handle it) */}
+                                {/* We now pass isLoading and loadError to sections individually */}
+                                <>
 
-                        {/* ── OVERVIEW ──────────────────────────────────────────────── */}
-                        {activePage === 'overview' && (
-                            <>
-                                {/* TODAY AT A GLANCE – SUMMARY TILES */}
-                                <div>
-                                    <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                                        Today at a glance – {activeChild.name}
-                                    </h2>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        {data.stats.map((stat, i) => (
-                                            <SummaryCard
-                                                key={i}
-                                                icon={stat.icon}
-                                                label={stat.label}
-                                                value={stat.value}
-                                                trend={stat.trend}
+                                    {/* ── OVERVIEW ──────────────────────────────────────────────── */}
+                                    {activePage === 'overview' && (
+                                        <>
+                                            <DashboardTour 
+                                                role="parent"
+                                                isVisible={!welcomeDismissed}
+                                                onAction1={() => {
+                                                    const card = document.getElementById('elora-assistant-card');
+                                                    card?.scrollIntoView({ behavior: 'smooth' });
+                                                }}
+                                                onAction2={() => setActivePage('progress')}
+                                                onDismiss={handleDismissWelcome}
                                             />
-                                        ))}
-                                    </div>
-                                </div>
+                                            {/* TODAY AT A GLANCE – SUMMARY TILES */}
+                                            <div>
+                                                <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                                    Today at a glance – {activeChild?.name}
+                                                </h2>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    {isLoading ? (
+                                                        Array.from({ length: 4 }).map((_, i) => (
+                                                            <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 flex items-center gap-4 animate-pulse">
+                                                                <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
+                                                                <div className="flex-1 space-y-2">
+                                                                    <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                                                                    <div className="h-4 bg-slate-200 rounded w-3/4" />
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : loadError ? (
+                                                        <div className="col-span-full">
+                                                            <SectionError
+                                                                message={`We couldn't load ${activeChild?.name}'s stats.`}
+                                                                onRetry={handleRetry}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        stats.map((stat, i) => (
+                                                            <SummaryCard
+                                                                key={i}
+                                                                icon={stat.icon}
+                                                                label={stat.label}
+                                                                value={stat.value}
+                                                                trend={stat.trend}
+                                                            />
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
 
-                                {/* TWO-COLUMN LAYOUT */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                    <div className="lg:col-span-2 space-y-8">
-                                        <ProgressSection
-                                            subjectScores={data.subjectScores}
-                                            weakTopics={data.weakTopics}
-                                            perfTab={perfTab}
-                                            onTabChange={setPerfTab}
-                                        />
-                                        <ActivityList
-                                            activities={data.recentActivity}
-                                            filter={activityFilter}
-                                            onFilterChange={setActivityFilter}
-                                            onActivityClick={handleActivityClick}
-                                        />
-                                    </div>
-                                    <div className="space-y-8">
-                                        <UpcomingList items={data.upcoming} onViewAll={() => setActivePage('assignments')} />
-                                        <MessageFeed
-                                            messages={data.messages}
-                                            tips={data.tips}
-                                            activeTab={msgTab}
-                                            onTabChange={setMsgTab}
-                                        />
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                                            {/* TWO-COLUMN LAYOUT */}
+                                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
+                                                <div className="lg:col-span-2 space-y-8">
+                                                    <ProgressSection
+                                                        subjectScores={subjectScores}
+                                                        weakTopics={weakTopics}
+                                                        perfTab={perfTab}
+                                                        onTabChange={setPerfTab}
+                                                        isLoading={isLoading}
+                                                        isError={!!loadError}
+                                                        onRetry={handleRetry}
+                                                        childName={activeChild?.name}
+                                                        lastUpdated={lastUpdated}
+                                                    />
+                                                    <ActivityList
+                                                        activities={recentActivity}
+                                                        filter={activityFilter}
+                                                        onFilterChange={setActivityFilter}
+                                                        onActivityClick={handleActivityClick}
+                                                        isLoading={isLoading}
+                                                        isError={!!loadError}
+                                                        onRetry={handleRetry}
+                                                        childName={activeChild?.name}
+                                                    />
+                                                </div>
+                                                <div className="space-y-8 lg:mt-10" id="elora-assistant-card">
+                                                    <EloraAssistantCard
+                                                        role="parent"
+                                                        assistantName={currentUser?.assistantName}
+                                                        title={`Ask Elora about ${activeChild?.name || 'your child'}'s learning`}
+                                                        description="Get a clear explanation of how they're doing and what to focus on next."
+                                                        suggestedPrompts={[
+                                                            'What should we focus on this week?',
+                                                            'Explain today\'s weak topics in simple terms.',
+                                                            `How can I support ${activeChild?.name || 'my child'} before the next test?`,
+                                                            `Is ${activeChild?.name || 'my child'} on track in math and English?`,
+                                                        ]}
+                                                        accentClasses={{
+                                                            chipBg: 'bg-orange-50',
+                                                            buttonBg: 'bg-orange-500',
+                                                            iconBg: 'bg-orange-50',
+                                                            text: 'text-orange-700',
+                                                        }}
+                                                        status={eloraStatus}
+                                                        suggestion={eloraSuggestion}
+                                                        error={eloraError}
+                                                        emptyStateText={`Ask Elora one question about ${activeChild?.name || 'your child'}'s learning to start.`}
+                                                    />
+                                                    <UpcomingList
+                                                        items={upcoming}
+                                                        onViewAll={() => setActivePage('assignments')}
+                                                        isLoading={isLoading}
+                                                        isError={!!loadError}
+                                                        onRetry={handleRetry}
+                                                        childName={activeChild?.name}
+                                                    />
+                                                    <MessageFeed
+                                                        messages={messages}
+                                                        tips={tips}
+                                                        activeTab={msgTab}
+                                                        onTabChange={setMsgTab}
+                                                        isLoading={isLoading}
+                                                        isError={!!loadError}
+                                                        onRetry={handleRetry}
+                                                        childName={activeChild?.name}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
 
-                        {/* ── PROGRESS & REPORTS ────────────────────────────────────── */}
-                        {activePage === 'progress' && (
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {data.stats.map((stat, i) => (
-                                        <SummaryCard key={i} icon={stat.icon} label={stat.label} value={stat.value} trend={stat.trend} />
-                                    ))}
-                                </div>
-                                <ProgressSection
-                                    subjectScores={data.subjectScores}
-                                    weakTopics={data.weakTopics}
-                                    perfTab={perfTab}
-                                    onTabChange={setPerfTab}
-                                />
-                                {data.weakTopics.length > 0 ? (
-                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                                        <div className="flex items-center">
-                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-orange-50 text-orange-700 border-orange-200">
-                                                Needs practice
-                                            </span>
+                                    {/* ── PROGRESS & REPORTS ────────────────────────────────────── */}
+                                    {activePage === 'progress' && (
+                                        <div className="space-y-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {isLoading ? (
+                                                    Array.from({ length: 3 }).map((_, i) => (
+                                                        <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-6 flex items-center gap-4 animate-pulse">
+                                                            <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
+                                                            <div className="flex-1 space-y-2">
+                                                                <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                                                                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : loadError ? (
+                                                    <div className="col-span-full">
+                                                        <SectionError message={`We couldn't load ${activeChild?.name}'s status cards.`} onRetry={handleRetry} />
+                                                    </div>
+                                                ) : (
+                                                    stats.map((stat, i) => (
+                                                        <SummaryCard key={i} icon={stat.icon} label={stat.label} value={stat.value} trend={stat.trend} />
+                                                    ))
+                                                )}
+                                            </div>
+                                            <ProgressSection
+                                                subjectScores={subjectScores}
+                                                weakTopics={weakTopics}
+                                                perfTab={perfTab}
+                                                onTabChange={setPerfTab}
+                                                isLoading={isLoading}
+                                                isError={!!loadError}
+                                                onRetry={handleRetry}
+                                                childName={activeChild?.name}
+                                                lastUpdated={lastUpdated}
+                                            />
+                                            {!isLoading && !loadError && (
+                                                weakTopics.length > 0 ? (
+                                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                        <div className="flex items-center">
+                                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-orange-50 text-orange-700 border-orange-200">
+                                                                Needs practice
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[14px] font-medium text-slate-900">
+                                                                {weakTopics.join(', ')}
+                                                            </span>
+                                                            <span className="text-[13px] text-slate-500 leading-relaxed">
+                                                                {activeChild?.name} could use a bit more support here.
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                        <div className="flex items-center">
+                                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-teal-50 text-teal-700 border-teal-200">
+                                                                On track
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[14px] font-medium text-slate-900">
+                                                                Looking great overall
+                                                            </span>
+                                                            <span className="text-[13px] text-slate-500 leading-relaxed">
+                                                                Everyone is on track in the current topics.
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            )}
                                         </div>
-                                        <div className="flex flex-col gap-0.5">
-                                            <span className="text-[14px] font-medium text-slate-900">
-                                                {data.weakTopics.join(', ')}
-                                            </span>
-                                            <span className="text-[13px] text-slate-500 leading-relaxed">
-                                                {activeChild.name} could use a bit more support here.
-                                            </span>
+                                    )}
+
+                                    {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
+                                    {activePage === 'assignments' && (
+                                        <div className="space-y-8">
+                                            <UpcomingList
+                                                items={upcoming}
+                                                onViewAll={() => setActivePage('assignments')}
+                                                isLoading={isLoading}
+                                                isError={!!loadError}
+                                                onRetry={handleRetry}
+                                                childName={activeChild?.name}
+                                            />
+                                            <ActivityList
+                                                activities={recentActivity}
+                                                filter={activityFilter}
+                                                onFilterChange={setActivityFilter}
+                                                onActivityClick={handleActivityClick}
+                                                isLoading={isLoading}
+                                                isError={!!loadError}
+                                                onRetry={handleRetry}
+                                                childName={activeChild?.name}
+                                            />
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                                        <div className="flex items-center">
-                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-teal-50 text-teal-700 border-teal-200">
-                                                On track
-                                            </span>
+                                    )}
+
+                                    {/* ── MESSAGES & TIPS ───────────────────────────────────────── */}
+                                    {activePage === 'messages' && (
+                                        <div className="max-w-2xl">
+                                            <MessageFeed
+                                                messages={messages}
+                                                tips={tips}
+                                                activeTab={msgTab}
+                                                onTabChange={setMsgTab}
+                                                isLoading={isLoading}
+                                                isError={!!loadError}
+                                                onRetry={handleRetry}
+                                                childName={activeChild?.name}
+                                            />
                                         </div>
-                                        <div className="flex flex-col gap-0.5">
-                                            <span className="text-[14px] font-medium text-slate-900">
-                                                Looking great overall
-                                            </span>
-                                            <span className="text-[13px] text-slate-500 leading-relaxed">
-                                                Everyone is on track in the current topics.
-                                            </span>
+                                    )}
+
+                                    {/* ── CHILDREN ──────────────────────────────────────────────── */}
+                                    {activePage === 'children' && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {childrenList.map(child => (
+                                                <button
+                                                    key={child.id}
+                                                    onClick={() => { setActiveChildId(child.id); setActivePage('overview'); }}
+                                                    className={`p-6 rounded-xl border text-left transition-all hover:shadow-md ${activeChildId === child.id ? 'border-transparent shadow-md' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                                                    style={activeChildId === child.id ? { backgroundColor: `${BRAND}10`, borderColor: BRAND } : {}}
+                                                >
+                                                    <div
+                                                        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[18px] font-bold mb-4"
+                                                        style={{ backgroundColor: BRAND }}
+                                                    >
+                                                        {child.name.charAt(0)}
+                                                    </div>
+                                                    <div className="text-[16px] font-semibold text-slate-900">{child.name}</div>
+                                                    <div className="text-[13px] text-slate-500 mt-1">{(child as any).level || 'Student'}</div>
+                                                    {activeChildId === child.id && (
+                                                        <div className="mt-3 text-[12px] font-semibold" style={{ color: BRAND }}>Currently viewing</div>
+                                                    )}
+                                                </button>
+                                            ))}
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+
+                                    {/* Bottom padding */}
+                                    <div className="h-8" />
+
+                                </>
                             </div>
-                        )}
-
-                        {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
-                        {activePage === 'assignments' && (
-                            <div className="space-y-8">
-                                <UpcomingList items={data.upcoming} onViewAll={() => setActivePage('assignments')} />
-                                <ActivityList
-                                    activities={data.recentActivity}
-                                    filter={activityFilter}
-                                    onFilterChange={setActivityFilter}
-                                    onActivityClick={handleActivityClick}
-                                />
-                            </div>
-                        )}
-
-                        {/* ── MESSAGES & TIPS ───────────────────────────────────────── */}
-                        {activePage === 'messages' && (
-                            <div className="max-w-2xl">
-                                <MessageFeed
-                                    messages={data.messages}
-                                    tips={data.tips}
-                                    activeTab={msgTab}
-                                    onTabChange={setMsgTab}
-                                />
-                            </div>
-                        )}
-
-                        {/* ── CHILDREN ──────────────────────────────────────────────── */}
-                        {activePage === 'children' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {(childrenList.length ? childrenList : CHILDREN).map(child => (
-                                    <button
-                                        key={child.id}
-                                        onClick={() => { setActiveChildId(child.id); setActivePage('overview'); }}
-                                        className={`p-6 rounded-xl border text-left transition-all hover:shadow-md ${activeChildId === child.id ? 'border-transparent shadow-md' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                                        style={activeChildId === child.id ? { backgroundColor: `${BRAND}10`, borderColor: BRAND } : {}}
-                                    >
-                                        <div
-                                            className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[18px] font-bold mb-4"
-                                            style={{ backgroundColor: BRAND }}
-                                        >
-                                            {child.name.charAt(0)}
-                                        </div>
-                                        <div className="text-[16px] font-semibold text-slate-900">{child.name}</div>
-                                        <div className="text-[13px] text-slate-500 mt-1">{(child as any).level || 'Student'}</div>
-                                        {activeChildId === child.id && (
-                                            <div className="mt-3 text-[12px] font-semibold" style={{ color: BRAND }}>Currently viewing</div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Bottom padding */}
-                        <div className="h-8" />
-
-                        </>
                         )}
 
                     </div>
-                </main>
-            </div>
+                </div>
+            </main>
 
             {/* ── SEND A NUDGE MODAL ──────────────────────────────────────────── */}
             {nudgeOpen && (
@@ -1119,11 +1457,11 @@ export default function ParentDashboardPage() {
                                         className="px-2 py-0.5 text-[11px] font-semibold rounded-md"
                                         style={{ backgroundColor: `${BRAND}15`, color: BRAND }}
                                     >
-                                        {activeChild.name} – {activeChild.level}
+                                        {activeChild?.name} – {activeChild?.level}
                                     </span>
                                 </div>
                                 <h2 className="text-[20px] font-semibold text-slate-900">Send a Nudge</h2>
-                                <p className="text-[13px] text-slate-500 mt-1">Encourage {activeChild.name} to get back on track.</p>
+                                <p className="text-[13px] text-slate-500 mt-1">Encourage {activeChild?.name || 'your child'} to get back on track.</p>
                             </div>
                             <button
                                 onClick={() => setNudgeOpen(false)}
@@ -1136,7 +1474,7 @@ export default function ParentDashboardPage() {
                         <div className="p-6 space-y-4">
                             <div className="flex flex-wrap gap-2">
                                 {[
-                                    `Keep it up, ${activeChild.name}! 💪`,
+                                    `Keep it up, ${activeChild?.name || 'buddy'}! 💪`,
                                     'Time to practice! ⏰',
                                     `Don't forget your assignment! 📝`,
                                 ].map((preset) => (
@@ -1153,7 +1491,7 @@ export default function ParentDashboardPage() {
                                 value={nudgeText}
                                 onChange={(e) => setNudgeText(e.target.value)}
                                 rows={3}
-                                placeholder={`Write a custom message to ${activeChild.name}…`}
+                                placeholder={`Write a custom message to ${activeChild?.name || 'your child'}…`}
                                 className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[14px] text-slate-700 focus:outline-none resize-none placeholder:text-slate-400 focus:ring-2"
                                 style={{ '--tw-ring-color': `${BRAND}40` } as any}
                             />
@@ -1180,6 +1518,7 @@ export default function ParentDashboardPage() {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

@@ -1,33 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import {
-    LayoutDashboard,
-    BookOpen,
+import { 
+    LayoutDashboard, 
+    BookOpen, 
+    MessageSquare, 
+    Calendar, 
+    Settings, 
+    LogOut, 
+    ChevronRight, 
+    Bell, 
+    Search, 
+    Zap, 
+    Clock, 
+    CheckCircle2, 
+    Trophy, 
+    ListTodo, 
+    Star, 
+    RotateCcw, 
+    Activity, 
+    TrendingUp, 
+    Target, 
+    Shield, 
+    ExternalLink,
+    Play,
+    Book,
+    Sparkles,
     Gamepad2,
     FileText,
     BarChart2,
-    Settings,
-    Bell,
-    Search,
-    ChevronRight,
-    Play,
-    RotateCcw,
-    ListTodo,
-    TrendingUp,
-    Clock,
     AlertCircle,
-    CheckCircle2,
     X,
     Lightbulb,
     PanelLeftClose,
     PanelLeftOpen,
-    LogOut,
-    Zap,
-    Inbox,
-    MessageCircle,
     Heart,
-    Target,
-    Calendar,
-    Sparkles
+    Inbox,
+    MessageCircle
 } from 'lucide-react';
 import {
     BarChart,
@@ -37,16 +44,31 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell
+    Cell,
+    AreaChart,
+    Area
 } from 'recharts';
+import MotivationBanner from '../components/MotivationBanner';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { useNavigate, Link } from 'react-router-dom';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
+import EloraAssistantCard from '../components/EloraAssistantCard';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { EloraLogo } from '../components/EloraLogo';
+import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
+import { useDemoMode } from '../hooks/useDemoMode';
+import { DemoBanner } from '../components/DemoBanner';
+import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { 
+    demoStudentData, 
+    demoStudentStreak, 
+    demoGameSessions, 
+    demoStudentNudges 
+} from '../demo/demoStudentScenarioA';
 
 
 
@@ -56,24 +78,24 @@ interface SidebarItemProps {
     active?: boolean;
     collapsed?: boolean;
     onClick?: () => void;
+    className?: string;
 }
 
-// Shared empty-state helper
-const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-3 py-10 text-center animate-in fade-in duration-700">
-        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200 mb-2">
-            <Inbox size={32} strokeWidth={1.5} />
-        </div>
-        <p className="text-[15px] font-bold text-slate-700 tracking-tight">{headline}</p>
-        {detail && <p className="text-[13px] text-slate-400 max-w-[240px] leading-relaxed font-medium">{detail}</p>}
-    </div>
-);
+// Shared empty-state helper is now imported from src/components/ui/SectionStates.tsx
 
 // --- COMPONENTS ---
 
 export default function StudentDashboardPage() {
-    const { currentUser, logout } = useAuth();
+    const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
+    const isDemo = useDemoMode();
+
+    // Ensure demo user is "logged in" for backend headers
+    React.useEffect(() => {
+        if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
+            login('student');
+        }
+    }, [isDemo, currentUser, login]);
 
     const [gamePackFilter, setGamePackFilter] = useState('All');
 
@@ -81,6 +103,16 @@ export default function StudentDashboardPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments'>('dashboard');
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
+
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_student_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
 
     const handleClassClick = (className: string) => {
         setActiveClassFilter(className);
@@ -118,13 +150,13 @@ export default function StudentDashboardPage() {
     const [nudges, setNudges] = useState<dataService.ParentNudge[]>([]);
 
     // Backend Notification records for this student (from the unified /api/notifications endpoint)
-    const { 
-        notifications: backendNotifications, 
+    const {
+        notifications: backendNotifications,
         markOneRead: handleMarkBackendNotificationRead,
         markAllRead: handleMarkAllBackendNotificationsRead
-    } = useNotifications({ 
-        userId: currentUser?.id || '', 
-        role: 'student' 
+    } = useNotifications({
+        userId: currentUser?.id || '',
+        role: 'student'
     });
 
     const [loading, setLoading] = useState(true);
@@ -134,6 +166,15 @@ export default function StudentDashboardPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
+                if (isDemo) {
+                    setAssignments(demoStudentData.assignments);
+                    setRecentPerformance(demoStudentData.recentPerformance);
+                    setStreakData(demoStudentStreak);
+                    setGameSessions(demoGameSessions);
+                    setNudges(demoStudentNudges);
+                    setLoading(false);
+                    return;
+                }
                 const [studentData, sessions, streak, nudgesData] = await Promise.all([
                     dataService.getStudentAssignments(),
                     dataService.getStudentGameSessions(),
@@ -152,7 +193,24 @@ export default function StudentDashboardPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [isDemo]);
+
+    // Add polling for nudges to ensure parent sends appear immediately in UI
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                if (isDemo) {
+                    setNudges([...demoStudentNudges]);
+                } else {
+                    const nudgesData = await dataService.getStudentNudges();
+                    setNudges(nudgesData);
+                }
+            } catch (err) {
+                // Ignore silent poll errors
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [isDemo]);
 
     // The backend notifications fetch logic is now handled by our shared hook.
 
@@ -294,8 +352,8 @@ export default function StudentDashboardPage() {
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
-    const studentName = currentUser?.name || 'Student';
-    const studentInitial = studentName.charAt(0).toUpperCase();
+    const displayName = isDemo ? 'Jordan' : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
+    const studentInitial = displayName.charAt(0).toUpperCase();
 
     // ── Status normalisation ───────────────────────────────────────────────────
     // The backend returns raw attempt statuses: 'not_started' | 'submitted' | 'in_progress'.
@@ -401,9 +459,9 @@ export default function StudentDashboardPage() {
         handleMarkAllBackendNotificationsRead();
         // Nudges and assignments don't have a backend "mark all read" yet that we want to trigger here
     };
-    
-    // Total unread calculation for the badge
-    const notificationsUnreadCount = popoverNotifications.length;
+
+     // Total unread calculation for the badge
+     const notificationsUnreadCount = popoverNotifications.filter(n => !n.isRead).length;
 
 
     // Map assignments to "Upcoming items" for the right column
@@ -525,7 +583,14 @@ export default function StudentDashboardPage() {
     );
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            {isDemo && (
+                <>
+                    <DemoBanner />
+                    <DemoRoleSwitcher />
+                </>
+            )}
+            <div className="flex flex-1 overflow-hidden">
 
             {/* SIDEBAR */}
             <aside className={`bg-[#68507B] text-white flex flex-col hidden md:flex shrink-0 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
@@ -547,7 +612,7 @@ export default function StudentDashboardPage() {
                 <nav className="flex-1 px-4 py-4 space-y-1 overflow-hidden">
                     <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'dashboard'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
                     <SidebarItem icon={BookOpen} label="My Classes" collapsed={!isSidebarOpen} />
-                    <SidebarItem icon={Gamepad2} label="My GamePacks" collapsed={!isSidebarOpen} />
+                    <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} />
                     <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} />
                     <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} />
                 </nav>
@@ -562,6 +627,7 @@ export default function StudentDashboardPage() {
                             <PanelLeftOpen className="w-5 h-5" />
                         </button>
                     )}
+                    <div className="h-px bg-white/10 my-2 mx-3" />
                     <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} />
                     <button
                         onClick={logout}
@@ -575,114 +641,106 @@ export default function StudentDashboardPage() {
             </aside>
 
             {/* MAIN CONTENT */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
-                {/* HEADER */}
-                <header className="py-4 px-6 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 transition-all">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Student Overview</h1>
-                        <p className="text-[13px] text-slate-500 font-medium">Hi, {studentName.split(' ')[0]}. Here's what's next.</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <NotificationsPopover 
+                    {/* HEADER */}
+                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
+                        <div>
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Student Dashboard
+                            </div>
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                {loading ? 'Loading…' : `Good day, ${displayName}`}
+                            </h1>
+                            <p className="text-[13px] text-slate-500 font-medium mt-1">You are signed in as Student</p>
+                            
+                                {isDemo && (
+                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
+                                            <span className="text-[#68507B] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                            <span>Struggling Class (Sec 3 Mathematics)</span>
+                                        </div>
+                                        {focusChipText && (
+                                            <div className="flex items-center gap-2 text-[11px] font-medium text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-lg w-fit">
+                                                <span className="text-orange-700 font-bold uppercase tracking-widest text-[9px]">Struggling with</span>
+                                                <span className="w-1 h-1 rounded-full bg-orange-300" />
+                                                <span>{focusChipText}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                        </div>
+                        <div className="flex items-center gap-4 lg:gap-6">
+                            <div className="relative hidden md:block">
+                                <Search
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    size={16}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Search classes…"
+                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
+                                />
+                            </div>
+                            <NotificationsPopover
                                 items={popoverNotifications}
                                 unreadCount={notificationsUnreadCount}
                                 onMarkAllRead={handleMarkAllNotificationsRead}
                                 onNotificationClick={handleNotificationClick}
-                                badgeColor="bg-blue-500"
-                                unreadDotColor="bg-[#68507B]"
-                                unreadBgColor="bg-[#68507B]/10"
-                                headerTextColor="text-blue-600"
+                                badgeColor="bg-orange-500"
+                                unreadDotColor="bg-orange-500"
+                                unreadBgColor="bg-orange-50/20"
+                                headerTextColor="text-teal-600"
                             />
-                        </div>
-
-                        <div className="flex items-center gap-3 pl-1 border-l border-slate-100 ml-1">
-                            <div className="text-right hidden sm:block">
-                                <div className="text-[12px] font-semibold text-slate-900 leading-none">{studentName}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">Year 3 Student</div>
+                            <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-sm font-semibold text-slate-900">
+                                        {displayName}
+                                    </div>
+                                    <div className="text-xs text-slate-500 font-medium">Student</div>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm">
+                                    {studentInitial}
+                                </div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-[#68507B]/10 text-[#68507B] flex items-center justify-center font-bold text-xs ring-2 ring-white ring-offset-1">
-                                {studentInitial}
-                            </div>
                         </div>
-                    </div>
-                </header>
-
-                {/* SCROLLABLE CANVAS */}
-                <main className="flex-1 overflow-y-auto bg-[#FDFBF5]/50 p-6 lg:p-8">
+                    </header>
                     <div className="max-w-7xl mx-auto space-y-8">
+                        {activeTab === 'dashboard' && (
+                            <DashboardTour 
+                                role="student"
+                                isVisible={!welcomeDismissed}
+                                onAction1={() => navigate('/play/practice-general')}
+                                onAction2={() => setShowJoinClass(true)}
+                                onDismiss={handleDismissWelcome}
+                            />
+                        )}
 
                         {activeTab === 'dashboard' ? (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                
+
                                 {/* LEFT COLUMN (Wider) */}
                                 <div className="lg:col-span-2 space-y-8">
-                                    
-                                    {/* MASTERY TREND CHART */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div>
-                                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Mastery Trend</h2>
-                                                <p className="text-[13px] text-slate-500 mt-1">Your performance across recent sessions.</p>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-[#68507B]" />
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Accuracy %</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="h-[240px] w-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={(recentPerformance?.scores || []).map(s => ({
-                                                    date: new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-                                                    score: s.score
-                                                })).slice(-7)}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                                                    <XAxis 
-                                                        dataKey="date" 
-                                                        axisLine={false} 
-                                                        tickLine={false} 
-                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
-                                                        dy={10}
-                                                    />
-                                                    <YAxis 
-                                                        axisLine={false} 
-                                                        tickLine={false} 
-                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}} 
-                                                        domain={[0, 100]}
-                                                        dx={-10}
-                                                    />
-                                                    <Tooltip 
-                                                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}}
-                                                        itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
-                                                        labelStyle={{fontSize: '10px', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em'}}
-                                                    />
-                                                    <Bar 
-                                                        dataKey="score" 
-                                                        fill="#68507B" 
-                                                        radius={[4, 4, 0, 0]} 
-                                                        barSize={32}
-                                                    >
-                                                        {(recentPerformance?.scores || []).slice(-7).map((entry, index) => (
-                                                            <Cell 
-                                                                key={`cell-${index}`} 
-                                                                fill={entry.score >= 80 ? '#10B981' : entry.score >= 60 ? '#68507B' : '#F59E0B'} 
-                                                                fillOpacity={0.9}
-                                                            />
-                                                        ))}
-                                                    </Bar>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </section>
+
+                                    {/* MOTIVATION BANNER */}
+                                    <MotivationBanner
+                                        streakWeeks={streakData?.streakWeeks || 0}
+                                        levelLabel={`Level ${Math.floor((streakData?.totalActiveDays || 0) / 5) + 1}`}
+                                        xpEstimate={`${(streakData?.totalActiveDays || 0) * 105} XP`}
+                                        motivationalMessage={
+                                            (streakData?.streakWeeks || 0) > 0
+                                                ? ((streakData?.streakWeeks || 0) > 2
+                                                    ? "You're on fire! " + (streakData?.streakWeeks) + " weeks is an incredible achievement."
+                                                    : "Your learning journey is picking up speed. Great work today!")
+                                                : "You're behind, but one session can change that — let's go, Jordan."
+                                        }
+                                    />
 
                                     {/* TODAY'S FOCUS CARD */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="w-8 h-8 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center">
                                                     <ListTodo size={18} />
@@ -693,13 +751,13 @@ export default function StudentDashboardPage() {
                                                 {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                                             </span>
                                         </div>
-                                        
+
                                         <div className="p-5">
                                             {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).length > 0 ? (
                                                 <div className="space-y-4">
                                                     {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).map(item => (
-                                                        <div 
-                                                            key={item.id} 
+                                                        <div
+                                                            key={item.id}
                                                             onClick={() => navigate(`/play/${(item as any).gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId}`)}
                                                             className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all group cursor-pointer shadow-sm hover:shadow-md"
                                                         >
@@ -728,7 +786,7 @@ export default function StudentDashboardPage() {
                                                     </div>
                                                     <p className="text-lg font-bold text-slate-900">You're all set!</p>
                                                     <p className="text-sm text-slate-500 mt-1 max-w-[240px]">No tasks due today. Use this time to sharpen your skills with a practice session.</p>
-                                                    <button 
+                                                    <button
                                                         onClick={() => navigate('/play/practice-general')}
                                                         className="mt-6 px-6 py-2.5 bg-[#68507B] text-white text-sm font-bold rounded-xl shadow-lg shadow-[#68507B]/20 hover:bg-[#5a456a] hover:-translate-y-0.5 transition-all"
                                                     >
@@ -749,9 +807,9 @@ export default function StudentDashboardPage() {
                                             {nextSteps.map(rec => {
                                                 const isRetry = rec.icon === 'retry';
                                                 const isImprove = rec.icon === 'improve';
-                                                
+
                                                 return (
-                                                    <button 
+                                                    <button
                                                         key={rec.id}
                                                         onClick={() => navigate(rec.href)}
                                                         className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all hover:shadow-lg hover:-translate-y-1 group relative overflow-hidden ${
@@ -776,23 +834,86 @@ export default function StudentDashboardPage() {
                                                 );
                                             })}
                                             {nextSteps.length === 0 && (
-                                                <div className="col-span-2 p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
-                                                    <p className="text-sm text-slate-400 italic">Complete more sessions to unlock personalized path cards.</p>
+                                                <div className="col-span-2">
+                                                    <SectionEmpty
+                                                        headline="No recommendations yet"
+                                                        detail="Complete more sessions to unlock personalized path cards."
+                                                    />
                                                 </div>
                                             )}
                                         </div>
                                     </section>
 
-                                    {/* UPCOMING ASSIGNMENTS */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                        <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                    {/* MASTERY TREND CHART */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Mastery Trend</h2>
+                                                <p className="text-[13px] text-slate-500 mt-1">Your performance across recent sessions.</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-[#68507B]" />
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Accuracy %</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-[240px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={(recentPerformance?.scores || []).map(s => ({
+                                                    date: new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                                                    score: s.score
+                                                })).slice(-7)}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}}
+                                                        dy={10}
+                                                    />
+                                                    <YAxis
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 600}}
+                                                        domain={[0, 100]}
+                                                        dx={-10}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}}
+                                                        itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
+                                                        labelStyle={{fontSize: '10px', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em'}}
+                                                    />
+                                                    <Bar
+                                                        dataKey="score"
+                                                        fill="#68507B"
+                                                        radius={[4, 4, 0, 0]}
+                                                        barSize={32}
+                                                    >
+                                                        {(recentPerformance?.scores || []).slice(-7).map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.score >= 80 ? '#10B981' : entry.score >= 60 ? '#68507B' : '#F59E0B'}
+                                                                fillOpacity={0.9}
+                                                            />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </section>
+
+                                     {/* UPCOMING ASSIGNMENTS */}
+                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
                                                     <Calendar size={18} />
                                                 </div>
                                                 <h2 className="font-bold text-slate-900 tracking-tight">Full Schedule</h2>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={() => setActiveTab('assignments')}
                                                 className="text-[11px] font-bold text-[#68507B] hover:text-[#5a456a] transition-colors flex items-center gap-1"
                                             >
@@ -837,66 +958,55 @@ export default function StudentDashboardPage() {
                                                 );
                                             })}
                                             {upcomingItems.length === 0 && (
-                                                <div className="p-12 text-center text-slate-400">
-                                                    <p className="text-sm font-medium italic">Your schedule is looking clear!</p>
+                                                <div className="p-8">
+                                                    <SectionEmpty
+                                                        headline="Schedule looking clear!"
+                                                        detail="No upcoming assignments or quizzes for now."
+                                                    />
                                                 </div>
                                             )}
                                         </div>
                                     </section>
 
-                                    {/* ELORA CARD */}
-                                    {eloraStatus === 'success' && eloraSuggestion && (
-                                        <section className="bg-gradient-to-br from-slate-900 to-[#1a1523] rounded-2xl shadow-xl border border-slate-800 p-8 relative overflow-hidden group">
-                                            {/* Glowing effects */}
-                                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#68507B] rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity duration-1000" />
-                                            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity duration-1000" />
-                                            
-                                            <div className="relative z-10">
-                                                <div className="flex items-center gap-3 mb-6">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#68507B] to-[#8b6ead] flex items-center justify-center text-white shadow-2xl shadow-[#68507B]/40 ring-1 ring-white/10">
-                                                        <Sparkles size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] block">AI Assistant</span>
-                                                        <span className="text-white font-bold tracking-tight">Elora's Smart Recommendation</span>
-                                                    </div>
-                                                </div>
-                                                
-                                                <h3 className="text-2xl font-bold text-white mb-3 leading-tight tracking-tight">{eloraSuggestion.title}</h3>
-                                                <p className="text-[16px] text-slate-300 leading-relaxed max-w-xl mb-8 font-medium">{eloraSuggestion.body}</p>
-                                                
-                                                <div className="flex items-center gap-4">
-                                                    {eloraSuggestion.suggestedPackId && (
-                                                        <button 
-                                                            onClick={() => navigate(`/play/${eloraSuggestion.suggestedPackId}`)}
-                                                            className="px-8 py-3 bg-white text-slate-900 rounded-xl text-[15px] font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition-all shadow-xl active:scale-95"
-                                                        >
-                                                            Start Now
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => {
-                                                            setEloraStatus('loading');
-                                                            fetchEloraSuggestionRef.current?.();
-                                                        }}
-                                                        className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 active:scale-95"
-                                                        title="Get new suggestion"
-                                                    >
-                                                        <RotateCcw size={20} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </section>
-                                    )}
+
 
                                 </div>
 
-                                {/* RIGHT COLUMN (Narrower) */}
-                                <div className="space-y-8">
-                                    
-                                    {/* PROGRESS SNAPSHOT */}
-                                    <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden sticky top-8">
-                                        <div className="p-5 border-b border-slate-50">
+                                 {/* RIGHT COLUMN (Narrower) */}
+                                 <div className="space-y-8">
+                                     <EloraAssistantCard
+                                         role="student"
+                                         assistantName={currentUser?.assistantName}
+                                         title="Smart study suggestions"
+                                         description="Elora analyzes your recent performance to give a focused practice idea."
+                                         suggestedPrompts={[
+                                             'What should I practice tonight to improve accuracy?',
+                                             'Show me 5 quick algebra questions',
+                                             'How do I reduce careless mistakes?'
+                                         ]}
+                                         accentClasses={{
+                                             chipBg: 'bg-[#68507B]/10',
+                                             buttonBg: 'bg-[#68507B]',
+                                             iconBg: 'bg-[#EAE7DD]',
+                                             text: 'text-[#68507B]',
+                                         }}
+                                         status={eloraStatus}
+                                         suggestion={eloraSuggestion ? {
+                                             kind: 'lesson_idea',
+                                             title: eloraSuggestion.title,
+                                             body: eloraSuggestion.body,
+                                             suggestedTargets: eloraSuggestion.suggestedTargets,
+                                             suggestedPackId: eloraSuggestion.suggestedPackId,
+                                         } : null}
+                                         error={eloraError}
+                                         onRefresh={() => fetchEloraSuggestionRef.current?.()}
+                                         isDemo={isDemo}
+                                         defaultExpanded={isDemo && activeTab === 'dashboard'}
+                                     />
+
+                                     {/* PROGRESS SNAPSHOT */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden sticky top-8">
+                                        <div className="p-5 border-b border-[#EAE7DD]">
                                             <h2 className="text-[15px] font-bold text-slate-900 tracking-tight">Performance Snapshot</h2>
                                         </div>
                                         
@@ -953,34 +1063,21 @@ export default function StudentDashboardPage() {
                                                         </span>
                                                     ))}
                                                     {(recentPerformance?.weakTopics || []).length === 0 && (
-                                                        <p className="text-[13px] text-slate-400 italic font-medium">Looking great! Keep it up.</p>
+                                                        <div className="w-full">
+                                                            <SectionEmpty
+                                                                headline="No weak topics"
+                                                                detail="Looking great! Keep it up to maintain your performance."
+                                                            />
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
                                             {/* SUPPORT & NUDGES */}
-                                            <div className="mt-2 pt-6 border-t border-slate-50">
-                                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Messages & Tips</h3>
-                                                <div className="space-y-4">
-                                                    {nudges.filter(n => !n.read).slice(0, 1).map(nudge => (
-                                                        <div key={nudge.id} className="p-4 bg-pink-50/50 border border-pink-100 rounded-2xl relative group">
-                                                            <div className="flex items-center gap-3 mb-2">
-                                                                <div className="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-pink-500">
-                                                                    <Heart size={14} fill="currentColor" />
-                                                                </div>
-                                                                <p className="text-[12px] font-bold text-pink-700">From Parent</p>
-                                                            </div>
-                                                            <p className="text-[13px] text-slate-700 leading-snug italic">"{nudge.message}"</p>
-                                                            <button 
-                                                                onClick={() => handleMarkNudgeRead(nudge.id)}
-                                                                className="absolute top-3 right-3 text-pink-300 hover:text-pink-500 transition-colors"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    
-                                                    {recentPerformance?.weakTopics?.[0] && (
+                                            {recentPerformance?.weakTopics?.[0] && (
+                                                <div className="mt-2 pt-6 border-t border-slate-50">
+                                                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Messages & Tips</h3>
+                                                    <div className="space-y-4">
                                                         <div className="p-4 bg-[#68507B]/5 border border-[#68507B]/10 rounded-2xl group hover:border-[#68507B]/30 transition-all">
                                                             <p className="text-[11px] font-bold text-[#68507B] uppercase tracking-widest mb-2">Coach's Focus</p>
                                                             <p className="text-[13px] text-slate-700 leading-snug">Boost your performance by reviewing <strong>{recentPerformance.weakTopics[0]}</strong>.</p>
@@ -991,9 +1088,67 @@ export default function StudentDashboardPage() {
                                                                 Start practice session <ChevronRight size={14} />
                                                             </button>
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* NUDGES FROM HOME CARD */}
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                        <div className="p-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
+                                                    <MessageCircle size={18} />
+                                                </div>
+                                                <h2 className="font-bold text-slate-900 tracking-tight">Messages from home</h2>
                                             </div>
+                                            {nudges.filter(n => !n.read).length > 0 && (
+                                                <span className="px-2 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 rounded-lg text-[11px] font-bold">
+                                                    {nudges.filter(n => !n.read).length} New
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="p-0 divide-y divide-slate-50 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                            {nudges.length > 0 ? (
+                                                [...nudges]
+                                                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                    .slice(0, 5).map(nudge => (
+                                                    <div 
+                                                        key={nudge.id} 
+                                                        onClick={() => !nudge.read && handleMarkNudgeRead(nudge.id)}
+                                                        className={`p-4 transition-colors group ${!nudge.read ? 'bg-pink-50/30 hover:bg-pink-50/50 cursor-pointer' : 'hover:bg-slate-50 relative'}`}
+                                                    >
+                                                        <div className="flex gap-3">
+                                                            {!nudge.read ? (
+                                                                <div className="w-2 h-2 rounded-full bg-pink-500 mt-1.5 shrink-0" />
+                                                            ) : (
+                                                                <div className="w-2 h-2 shrink-0 border border-slate-300 rounded-full mt-1.5" />
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between mb-0.5">
+                                                                    <span className={`text-[12px] font-bold ${!nudge.read ? 'text-slate-900' : 'text-slate-500'}`}>
+                                                                        {nudge.senderName || 'From your parent'}
+                                                                    </span>
+                                                                    <span className="text-[11px] text-slate-400 whitespace-nowrap ml-2">
+                                                                        {relativeTime(nudge.createdAt)}
+                                                                    </span>
+                                                                </div>
+                                                                <p className={`text-[13px] ${!nudge.read ? 'text-slate-700 font-medium' : 'text-slate-500'} line-clamp-2`}>
+                                                                    "{nudge.message}"
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-6">
+                                                    <SectionEmpty
+                                                        headline="No messages yet"
+                                                        detail="Messages from your parents or teachers will appear here."
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
 
@@ -1090,12 +1245,11 @@ export default function StudentDashboardPage() {
                                             })}
                                             
                                             {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50/30 rounded-xl border border-dashed border-slate-200 m-2">
-                                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-50">
-                                                        <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                                                    </div>
-                                                    <p className="font-bold text-slate-900 text-lg">All caught up!</p>
-                                                    <p className="text-slate-500 text-sm mt-1 max-w-[200px]">You've completed all your assignments. Great job!</p>
+                                                <div className="p-8">
+                                                    <SectionEmpty
+                                                        headline="All caught up!"
+                                                        detail="You've completed all your assignments. Great job!"
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -1139,9 +1293,11 @@ export default function StudentDashboardPage() {
                                             ))}
                                             
                                             {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 italic">
-                                                    <Clock className="w-12 h-12 text-slate-100 mb-3" />
-                                                    <p className="text-sm">No completed assignments yet.</p>
+                                                <div className="p-12">
+                                                    <SectionEmpty
+                                                        headline="No history yet"
+                                                        detail="Completed assignments will appear here for your review."
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -1153,8 +1309,8 @@ export default function StudentDashboardPage() {
                         {/* Bottom padding */}
                         <div className="h-8"></div>
                     </div>
-                </main>
-            </div >
+                </div>
+            </main>
 
             {/* DETAIL MODAL */}
             {
@@ -1319,7 +1475,8 @@ export default function StudentDashboardPage() {
                 );
             })()}
 
-        </div >
+            </div>
+        </div>
     );
 }
 
@@ -1388,7 +1545,7 @@ function NextStepsStrip({ recs, onNavigate }: { recs: Rec[]; onNavigate: (href: 
     );
 }
 
-function SidebarItem({ icon: Icon, label, active, collapsed, onClick }: SidebarItemProps) {
+function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className }: SidebarItemProps) {
     return (
         <a
             href="#"
@@ -1402,7 +1559,7 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick }: SidebarI
                 active
                     ? 'bg-white text-[#68507B] shadow-lg shadow-black/10'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
-                } ${collapsed ? 'justify-center px-2' : ''}`}
+                } ${collapsed ? 'justify-center px-2' : ''} ${className || ''}`}
             title={collapsed ? label : undefined}
         >
             <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-[#68507B]' : 'text-current'}`} />

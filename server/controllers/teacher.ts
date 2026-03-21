@@ -187,3 +187,24 @@ export const getInsightsNeedsAttention = (req: AuthRequest, res: Response) => {
 
     res.json(sorted);
 };
+
+export const sendTeacherNudge = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const { studentId, message } = req.body;
+    
+    if (!studentId || !message) {
+        return res.status(400).json({ error: 'Student ID and message are required' });
+    }
+    
+    const nudge: any = {
+        id: `t-nudge-${Date.now()}`,
+        teacherId,
+        studentId,
+        message,
+        read: false,
+        createdAt: new Date().toISOString()
+    };
+    
+    db.teacherNudges.push(nudge);
+    res.status(201).json(nudge);
+};

@@ -189,17 +189,36 @@ export const getStudentStreak = (req: AuthRequest, res: Response) => {
 
 export const getStudentNudges = (req: AuthRequest, res: Response) => {
     const studentId = req.user!.id;
-    const nudges = db.parentNudges
-        .filter(n => n.studentId === studentId)
+    
+    const pNudges = db.parentNudges.filter(n => n.studentId === studentId).map(n => {
+        const parent = db.users.find(u => u.id === n.parentId);
+        return {
+            ...n,
+            senderName: parent ? parent.name : 'Parent'
+        };
+    });
+    
+    const tNudges = db.teacherNudges.filter(n => n.studentId === studentId).map(n => {
+        const teacher = db.users.find(u => u.id === n.teacherId);
+        return {
+            ...n,
+            senderName: teacher ? teacher.name : 'Teacher'
+        };
+    });
+    
+    const allNudges = [...pNudges, ...tNudges]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    res.json(nudges);
+        
+    res.json(allNudges);
 };
 
 export const markNudgeRead = (req: AuthRequest, res: Response): any => {
     const studentId = req.user!.id;
     const nudgeId = req.params.id;
 
-    const nudge = db.parentNudges.find(n => n.id === nudgeId && n.studentId === studentId);
+    const nudge = (db.parentNudges as any[]).concat(db.teacherNudges as any[])
+        .find(n => n.id === nudgeId && n.studentId === studentId);
+
     if (!nudge) {
         return res.status(404).json({ error: 'Nudge not found' });
     }

@@ -100,6 +100,18 @@ export interface ParentChild {
     grade?: string;
 }
 
+export type ParentInsightType = 'weak_topic' | 'low_scores' | 'overdue_assignment';
+
+export interface ParentInsight {
+    id: string;
+    type: ParentInsightType;
+    topicTag?: string;
+    detail: string;
+    studentName?: string;
+    assignmentTitle?: string;
+    assignmentId?: string;
+}
+
 export interface ParentChildSummary {
     child: ParentChild;
     stats: { label: string; value: string; iconName: string; trend?: 'up' | 'down' | 'neutral' }[];
@@ -131,6 +143,7 @@ export interface GameQuestion {
     correctIndex: number;
     difficulty: 'easy' | 'medium' | 'hard';
     topic: string;
+    explanation?: string;
 }
 
 export interface GamePack {
@@ -148,6 +161,7 @@ export interface ParentNudge {
     message: string;
     read: boolean;
     createdAt: string;
+    senderName?: string;
 }
 
 export interface QuestionResult {
@@ -453,6 +467,19 @@ export const sendParentNudge = async (
     message: string
 ): Promise<ParentNudge> => {
     const response = await fetch(`${API_BASE}/parent/nudges`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ studentId, message }),
+    });
+    if (!response.ok) throw new Error('Failed to send nudge');
+    return response.json();
+};
+
+export const sendTeacherNudge = async (
+    studentId: string,
+    message: string
+): Promise<any> => {
+    const response = await fetch(`${API_BASE}/teacher/nudges`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ studentId, message }),

@@ -16,6 +16,9 @@ import {
     Clock,
     ChevronRight,
     ChevronLeft,
+    ChevronDown,
+    ChevronUp,
+    Pencil,
     X,
     AlertCircle,
     MoreHorizontal,
@@ -27,18 +30,34 @@ import {
     CheckCircle2,
     Send,
     Inbox,
-    RefreshCw
+    RefreshCw,
+    Heart,
+    GraduationCap,
+    UserPlus,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { getClassSupportSuggestion, type ClassSuggestion } from '../services/classSuggestionService';
-import { askElora } from '../services/askElora';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { EloraLogo } from '../components/EloraLogo';
+import EloraAssistantCard, { EloraAssistantSuggestion } from '../components/EloraAssistantCard';
+import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
+import { DashboardTour } from '../components/DashboardTour';
+import { useDemoMode } from '../hooks/useDemoMode';
+import { DemoBanner } from '../components/DemoBanner';
+import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import {
+    demoStats,
+    demoClasses,
+    demoAssignments,
+    demoInsights,
+    demoTeacherName,
+    DEMO_CLASS_LEVEL,
+} from '../demo/demoTeacherScenarioA';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -82,48 +101,7 @@ const DevShortcut = () => {
 };
 
 // ── Shared state-display helpers ────────────────────────────────────────────────
-
-/** Animated skeleton rows shown while a section is loading. */
-const SectionSkeleton = ({ rows = 3 }: { rows?: number }) => (
-    <div className="space-y-3 py-2">
-        {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="animate-pulse flex gap-3 items-center">
-                <div className="w-8 h-8 bg-slate-200 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-slate-200 rounded w-2/3" />
-                    <div className="h-2.5 bg-slate-100 rounded w-full" />
-                </div>
-            </div>
-        ))}
-    </div>
-);
-
-/** Compact error card with an optional retry action. */
-const SectionError = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm">
-        <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-            <p className="text-red-700 leading-relaxed">{message}</p>
-        </div>
-        {onRetry && (
-            <button
-                onClick={onRetry}
-                className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 shrink-0 ml-2"
-            >
-                <RefreshCw size={12} /> Retry
-            </button>
-        )}
-    </div>
-);
-
-/** Generic empty state with an icon and two lines of copy. */
-const SectionEmpty = ({ headline, detail }: { headline: string; detail?: string }) => (
-    <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Inbox size={28} className="text-slate-300" />
-        <p className="text-sm font-semibold text-slate-600">{headline}</p>
-        {detail && <p className="text-xs text-slate-400 max-w-xs">{detail}</p>}
-    </div>
-);
+// Now imported from src/components/ui/SectionStates.tsx
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -133,12 +111,14 @@ const NavItem = ({
     active = false,
     onClick,
     collapsed = false,
+    className = "",
 }: {
     icon: React.ReactNode;
     label: string;
     active?: boolean;
     onClick?: () => void;
     collapsed?: boolean;
+    className?: string;
 }) => (
     <a
         href="#"
@@ -146,7 +126,7 @@ const NavItem = ({
         className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active
             ? 'bg-teal-800 text-white'
             : 'text-teal-100 hover:bg-teal-800/50 hover:text-white'
-            } ${collapsed ? 'justify-center focus:outline-none' : ''}`}
+            } ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
         title={collapsed ? label : undefined}
     >
         <div className="shrink-0">{icon}</div>
@@ -172,7 +152,7 @@ const StatCard = ({
 }) => (
     <div className="bg-white p-5 rounded-2xl border border-[#EAE7DD] shadow-sm flex flex-col gap-3">
         <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center shrink-0">
                 {icon}
             </div>
             {trend && (
@@ -200,29 +180,38 @@ const StatCard = ({
 
 const StatusBadge = ({ status }: { status: string }) => {
     let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+    let icon = null;
+
+    const lower = status.toLowerCase();
+
     if (
-        status === 'Active' ||
-        status === 'Completed' ||
-        status === 'Scheduled' ||
-        status === 'success' ||
-        status === 'Improving'
+        lower.includes('active') ||
+        lower.includes('completed') ||
+        lower.includes('scheduled') ||
+        lower.includes('success') ||
+        lower.includes('improving')
     ) {
         colorClass = 'bg-teal-50 text-teal-700 border-teal-200';
     } else if (
-        status === 'Needs Attention' ||
-        status === 'Due tomorrow' ||
-        status === 'warning' ||
-        status === 'At risk'
+        lower.includes('attention') ||
+        lower.includes('due tomorrow') ||
+        lower.includes('warning') ||
+        lower.includes('at risk') ||
+        lower.includes('dropping')
     ) {
         colorClass = 'bg-orange-50 text-orange-700 border-orange-200';
-    } else if (status === 'Draft' || status === 'Stable') {
+        if (lower.includes('dropping')) {
+            icon = <TrendingDown size={12} className="shrink-0" />;
+        }
+    } else if (lower.includes('draft') || lower.includes('stable')) {
         colorClass = 'bg-slate-50 text-slate-600 border-slate-200';
     }
 
     return (
         <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colorClass}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${colorClass}`}
         >
+            {icon}
             {status}
         </span>
     );
@@ -235,32 +224,216 @@ interface AiForm {
     level: string;
     questionCount: number;
     difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+    questionType: 'mcq' | 'open_ended'; // user specifically mentioned MCQ
 }
 
-const AiGamePanel = ({ onClose, onReview, onAssign }: { onClose: () => void, onReview: (game: dataService.GamePack) => void, onAssign: (game: dataService.GamePack) => void }) => {
+interface AiGamePanelProps {
+    onClose: () => void;
+    onReview: (game: dataService.GamePack) => void;
+    onAssign: (game: dataService.GamePack) => void;
+    initialValues?: Partial<AiForm>;
+}
+
+interface QuestionPreviewItemProps {
+    key?: React.Key;
+    q: dataService.GameQuestion;
+    idx: number;
+    onUpdate?: (updated: dataService.GameQuestion) => void;
+}
+
+const QuestionPreviewItem = ({ 
+    q, 
+    idx, 
+    onUpdate 
+}: QuestionPreviewItemProps) => {
+    const [showExplanation, setShowExplanation] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editPrompt, setEditPrompt] = useState(q.prompt);
+
+    const handleSave = () => {
+        if (onUpdate) {
+            onUpdate({ ...q, prompt: editPrompt });
+        }
+        setIsEditing(false);
+    };
+
+    return (
+        <div className="bg-[#FDFBF5] border border-[#EAE7DD] rounded-xl p-4 transition-all hover:shadow-sm group">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2 flex-1">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs font-bold shrink-0">
+                        {idx + 1}
+                    </span>
+                    {isEditing ? (
+                        <div className="flex-1 flex gap-2">
+                            <input 
+                                autoFocus
+                                value={editPrompt}
+                                onChange={(e) => setEditPrompt(e.target.value)}
+                                className="flex-1 px-3 py-1.5 text-sm bg-white border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                            />
+                            <button 
+                                onClick={handleSave}
+                                className="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <h4 className="font-semibold text-slate-900 text-sm leading-snug">
+                                {q.prompt}
+                            </h4>
+                            <button 
+                                onClick={() => setIsEditing(true)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-600 transition-all"
+                                title="Edit question"
+                            >
+                                <Pencil size={14} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+                {!isEditing && <StatusBadge status={q.difficulty} />}
+            </div>
+
+            <div className="flex flex-col gap-2 mb-3">
+                {q.options.map((opt, optIdx) => {
+                    const isCorrect = optIdx === q.correctIndex;
+                    return (
+                        <div
+                            key={optIdx}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors ${isCorrect
+                                ? 'border-teal-300 bg-teal-50 text-teal-900'
+                                : 'border-[#EAE7DD] bg-white text-slate-600'
+                                }`}
+                        >
+                            <div className="w-6 flex justify-center shrink-0">
+                                {isCorrect ? (
+                                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 text-white">
+                                        <Check size={12} strokeWidth={3} />
+                                    </div>
+                                ) : (
+                                    <span className="text-xs font-bold text-slate-400">
+                                        {['A', 'B', 'C', 'D'][optIdx]}
+                                    </span>
+                                )}
+                            </div>
+                            <span className={isCorrect ? 'font-bold' : ''}>{opt}</span>
+                            {isCorrect && (
+                                <span className="ml-auto text-[10px] font-bold text-teal-600 uppercase tracking-wider">Correct</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {q.explanation && (
+                <div className="mt-2 border-t border-[#EAE7DD] pt-2">
+                    <button
+                        onClick={() => setShowExplanation(!showExplanation)}
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-teal-600 transition-colors uppercase tracking-wider focus:outline-none"
+                    >
+                        {showExplanation ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
+                    </button>
+                    {showExplanation && (
+                        <div className="mt-2 p-3 bg-teal-50/50 rounded-lg border border-teal-100/50">
+                            <p className="text-xs font-semibold text-teal-800 mb-1 flex items-center gap-1">
+                                <Sparkles size={10} /> Why this is correct:
+                            </p>
+                            <p className="text-xs text-slate-600 leading-relaxed italic">
+                                {q.explanation}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanelProps) => {
     const [aiForm, setAiForm] = useState<AiForm>({
-        topic: '',
-        level: '',
-        questionCount: 5,
-        difficulty: 'mixed',
+        topic: initialValues?.topic ?? '',
+        level: initialValues?.level ?? '',
+        questionCount: initialValues?.questionCount ?? 5,
+        difficulty: initialValues?.difficulty ?? 'mixed',
+        questionType: initialValues?.questionType ?? 'mcq',
     });
     const [generating, setGenerating] = useState(false);
     const [generatedGame, setGeneratedGame] = useState<dataService.GamePack | null>(null);
+
+    const isDemo = true; // Hardcoded or from hook for this component's scope if needed.
+
+    const handleUpdateQuestion = (idx: number, updated: dataService.GameQuestion) => {
+        if (!generatedGame) return;
+        const newQuestions = [...generatedGame.questions];
+        newQuestions[idx] = updated;
+        setGeneratedGame({ ...generatedGame, questions: newQuestions });
+    };
     const [generateError, setGenerateError] = useState<string | null>(null);
 
-    const handleGenerate = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Auto-generate if pre-filled from an insight
+    useEffect(() => {
+        if (initialValues?.topic) {
+            handleGenerateInternal();
+        }
+    }, [initialValues]);
+
+    const handleGenerateInternal = async () => {
         setGenerating(true);
         setGenerateError(null);
         setGeneratedGame(null);
         try {
-            const pack = await dataService.generateGamePack({
-                topic: aiForm.topic,
-                level: aiForm.level,
-                questionCount: aiForm.questionCount,
-                difficulty: aiForm.difficulty,
-            });
-            setGeneratedGame(pack);
+            if (isDemo && aiForm.topic.toLowerCase().includes('factorisation')) {
+                // Mocked "Struggling Class" Demo Pack with Tutor-Style Explanations
+                await new Promise(r => setTimeout(r, 1500)); // Fake realistic delay
+                const pack: dataService.GamePack = {
+                    id: `demo-${Date.now()}`,
+                    title: `Algebra: Factorisation Mastery`,
+                    topic: aiForm.topic,
+                    level: aiForm.level,
+                    questions: [
+                        {
+                            id: 'demo-q1',
+                            prompt: 'Factorise x² + 7x + 12',
+                            options: ['(x+3)(x+4)', '(x+1)(x+12)', '(x+2)(x+6)', 'x(x+7) + 12'],
+                            correctIndex: 0,
+                            difficulty: 'medium',
+                            topic: 'Algebra – Factorisation',
+                            explanation: "This is a basic quadratic. Look for two numbers that multiply to 12 and add up to 7 (3 and 4).\n\nExample: (x + 3)(x + 4) = x² + 4x + 3x + 12 = x² + 7x + 12.\n\nWatch out: Don't flip the signs! Since all terms are positive, both binomial factors must be (x + constant)."
+                        },
+                        {
+                            id: 'demo-q2',
+                            prompt: 'Factorise completely: 4x² - 16',
+                            options: ['4(x-2)(x+2)', '(2x-4)(2x+4)', '4(x-4)(x+4)', '2(x²-8)'],
+                            correctIndex: 0,
+                            difficulty: 'hard',
+                            topic: 'Algebra – Factorisation',
+                            explanation: "First, look for a common factor (HCF). Both terms can be divided by 4, leaving (x² - 4).\n\nExample: 4(x² - 4) = 4(x - 2)(x + 2) using the difference of two squares.\n\nWatch out: Many students forget to factor out the 4 first and get stuck!"
+                        },
+                        {
+                            id: 'demo-q3',
+                            prompt: 'Factorise: x² - 9',
+                            options: ['(x-3)(x+3)', '(x-3)²', '(x+9)(x-1)', 'x(x-9)'],
+                            correctIndex: 0,
+                            difficulty: 'easy',
+                            topic: 'Algebra – Factorisation',
+                            explanation: "This is a classic 'Difference of Two Squares' (a² - b²). Notice that 9 is a perfect square (3²).\n\nExample: x² - 3² = (x - 3)(x + 3).\n\nWatch out: This only works with a minus sign in between! x² + 9 does not factorise this way."
+                        }
+                    ]
+                };
+                setGeneratedGame(pack);
+            } else {
+                const pack = await dataService.generateGamePack({
+                    topic: aiForm.topic,
+                    level: aiForm.level,
+                    questionCount: aiForm.questionCount,
+                    difficulty: aiForm.difficulty,
+                });
+                setGeneratedGame(pack);
+            }
         } catch (err: unknown) {
             setGenerateError(
                 err instanceof Error ? err.message : 'Failed to generate game'
@@ -270,70 +443,71 @@ const AiGamePanel = ({ onClose, onReview, onAssign }: { onClose: () => void, onR
         }
     };
 
+    const handleGenerate = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleGenerateInternal();
+    };
+
     return (
         <section
-            className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-6 mb-8"
+            className="bg-white rounded-3xl border border-[#EAE7DD] shadow-xl p-6 lg:p-8 mb-8 relative overflow-hidden"
         >
-            <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                    <Sparkles size={20} className="text-teal-600" />
-                    <h2 className="text-lg font-semibold text-slate-900">AI Game Generator</h2>
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-bl-full -mr-16 -mt-16 opacity-50 pointer-events-none" />
+
+            <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
+                        <Sparkles size={20} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-900">Practice Pack Generator</h2>
+                        <p className="text-sm text-slate-500 font-medium italic">Create targeted AI-driven exercises in seconds.</p>
+                    </div>
                 </div>
                 <button
                     onClick={onClose}
-                    className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-100"
                 >
                     <X size={20} />
                 </button>
             </div>
 
-            <form onSubmit={handleGenerate} className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                            Topic
+            <form onSubmit={handleGenerate} className="flex flex-col gap-6 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Subject &amp; Topic
                         </label>
                         <input
                             required
                             type="text"
                             value={aiForm.topic}
                             onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })}
-                            placeholder="e.g. Solar System"
-                            className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
+                            placeholder="e.g. Mathematics - Fractions"
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
                         />
+                        <p className="mt-1.5 text-[11px] text-slate-400 font-medium pl-1">Explanations will reference this topic directly.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                            Level
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Academic Level
                         </label>
                         <input
                             required
                             type="text"
                             value={aiForm.level}
                             onChange={(e) => setAiForm({ ...aiForm, level: e.target.value })}
-                            placeholder="e.g. Grade 5 Science"
-                            className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
+                            placeholder="e.g. Grade 5"
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
                         />
                     </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                            Number of Questions (1–10)
-                        </label>
-                        <input
-                            required
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={aiForm.questionCount}
-                            onChange={(e) =>
-                                setAiForm({ ...aiForm, questionCount: parseInt(e.target.value) })
-                            }
-                            className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                            Difficulty Profile
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Difficulty
                         </label>
                         <select
                             value={aiForm.difficulty}
@@ -343,18 +517,46 @@ const AiGamePanel = ({ onClose, onReview, onAssign }: { onClose: () => void, onR
                                     difficulty: e.target.value as AiForm['difficulty'],
                                 })
                             }
-                            className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium appearance-none cursor-pointer"
                         >
-                            <option value="mixed">Mixed</option>
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
+                            <option value="mixed">Mixed Balance</option>
+                            <option value="easy">Introductory</option>
+                            <option value="medium">Standard</option>
+                            <option value="hard">Advanced</option>
                         </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Question Count
+                        </label>
+                        <div className="relative">
+                            <input
+                                required
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={aiForm.questionCount}
+                                onChange={(e) =>
+                                    setAiForm({ ...aiForm, questionCount: parseInt(e.target.value) || 1 })
+                                }
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Items</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Question Format
+                        </label>
+                        <div className="w-full px-4 py-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/20 text-xs font-semibold text-slate-400 flex items-center h-[46px]">
+                            Multiple choice · More formats coming soon
+                        </div>
                     </div>
                 </div>
 
                 {generateError && (
-                    <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-2xl px-5 py-4">
+                        <AlertCircle size={18} />
                         {generateError}
                     </div>
                 )}
@@ -362,81 +564,80 @@ const AiGamePanel = ({ onClose, onReview, onAssign }: { onClose: () => void, onR
                 <button
                     type="submit"
                     disabled={generating}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors"
+                    className="flex items-center justify-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]"
                 >
                     {generating ? (
-                        'Generating…'
+                        <>
+                            <RefreshCw className="animate-spin" size={20} />
+                            Thinking...
+                        </>
                     ) : (
                         <>
-                            <Sparkles size={16} /> Generate Game
+                            <Sparkles size={18} /> Generate Learning Content
                         </>
                     )}
                 </button>
             </form>
 
-            {/* Results */}
+            {/* Results Preview */}
             {generatedGame && (
-                <div className="mt-6 pt-6 border-t border-[#EAE7DD]">
-                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div className="mt-10 pt-8 border-t border-slate-100 relative z-10">
+                    <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
                         <div>
-                            <h3 className="text-base font-semibold text-slate-900 mb-1">
-                                {generatedGame.title}
-                            </h3>
-                            <p className="text-xs text-slate-500">
-                                Topic: {generatedGame.topic} &nbsp;·&nbsp; Level: {generatedGame.level}
+                            <div className="flex items-center gap-2 mb-1">
+                                <h3 className="text-xl font-bold text-slate-900">
+                                    {generatedGame.title}
+                                </h3>
+                                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 text-[10px] font-bold rounded-full border border-teal-100 uppercase tracking-wider">Ready to review</span>
+                            </div>
+                            <p className="text-xs text-slate-400 font-medium">
+                                Topic: <span className="text-slate-600">{generatedGame.topic}</span> &nbsp;·&nbsp; 
+                                Level: <span className="text-slate-600">{generatedGame.level}</span> &nbsp;·&nbsp;
+                                Questions: <span className="text-slate-600">{generatedGame.questions.length}</span>
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                             <button
                                 onClick={() => onReview(generatedGame)}
-                                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl font-semibold text-sm transition-colors border border-teal-200 shadow-sm"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-bold text-sm transition-all border border-slate-200 shadow-sm"
                             >
-                                <MonitorPlay size={16} /> Review Quiz UI
+                                <MonitorPlay size={18} className="text-teal-600" /> Preview as student
                             </button>
                             <button
                                 onClick={() => onAssign(generatedGame)}
-                                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-teal-600/20"
                             >
-                                <Plus size={16} /> Assign to Class
+                                <Plus size={18} /> Assign to Class
                             </button>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-4">
-                        {generatedGame.questions.map((q, idx) => (
-                            <div
-                                key={q.id}
-                                className="bg-[#FDFBF5] border border-[#EAE7DD] rounded-xl p-4"
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <h4 className="font-semibold text-slate-900 text-sm leading-snug">
-                                        {idx + 1}. {q.prompt}
-                                    </h4>
-                                    <StatusBadge status={q.difficulty} />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    {q.options.map((opt, optIdx) => (
-                                        <div
-                                            key={optIdx}
-                                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm ${optIdx === q.correctIndex
-                                                ? 'border-teal-300 bg-teal-50 font-semibold text-teal-800'
-                                                : 'border-[#EAE7DD] bg-white text-slate-700'
-                                                }`}
-                                        >
-                                            <div className="w-5 flex justify-center shrink-0">
-                                                {optIdx === q.correctIndex ? (
-                                                    <Check size={15} className="text-teal-600" />
-                                                ) : (
-                                                    <span className="text-xs font-bold text-slate-400">
-                                                        {['A', 'B', 'C', 'D'][optIdx]}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {opt}
-                                        </div>
-                                    ))}
-                                </div>
+                    
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <div className="flex items-center gap-2">
+                                <div className="h-4 w-1 bg-teal-500 rounded-full" />
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Question Preview</span>
                             </div>
-                        ))}
+                            <p className="text-[10px] text-slate-400 font-medium">Click on a question to edit its prompt</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-5">
+                            {generatedGame.questions.map((q, idx) => (
+                                <QuestionPreviewItem 
+                                    key={q.id} 
+                                    q={q} 
+                                    idx={idx} 
+                                    onUpdate={(updated) => handleUpdateQuestion(idx, updated)}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Disclaimer */}
+                        <div className="mt-6 flex items-start gap-2 p-4 bg-orange-50/30 border border-orange-100 rounded-2xl">
+                            <AlertCircle size={14} className="text-orange-600 mt-0.5" />
+                            <p className="text-[11px] text-orange-800 leading-relaxed font-medium">
+                                Review these questions before assigning — AI-generated content may need editing for your class.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -452,7 +653,9 @@ interface NeedsAttentionCardProps {
     error: string | null;
     onInsightClick: (insight: dataService.TeacherInsight) => void;
     onAssignPractice: (insight: dataService.TeacherInsight) => void;
+    onNudgeStudent: (insight: dataService.TeacherInsight) => void;
     onDrillDown?: (filters: { statusFilter?: string, classFilter?: string }) => void;
+    generatePracticeLabel?: string;
 }
 
 const insightMeta: Record<
@@ -488,7 +691,9 @@ const NeedsAttentionCard = ({
     error,
     onInsightClick,
     onAssignPractice,
+    onNudgeStudent,
     onDrillDown,
+    generatePracticeLabel = 'Generate practice →',
 }: NeedsAttentionCardProps) => {
     const hasInsights = insights.length > 0;
 
@@ -497,12 +702,9 @@ const NeedsAttentionCard = ({
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
                 <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)] shrink-0" />
-                <h2 className="text-sm font-semibold tracking-tight text-slate-800">Needs attention</h2>
-                {hasInsights && (
-                    <span className="ml-auto text-[10px] font-bold bg-orange-100 text-orange-700 rounded-full px-2 py-0.5">
-                        {insights.length}
-                    </span>
-                )}
+                <h2 className="text-sm font-semibold tracking-tight text-slate-800">
+                    Needs Attention {hasInsights && <span className="text-slate-400 font-normal ml-0.5">· {insights.length}</span>}
+                </h2>
             </div>
 
             {/* Body */}
@@ -523,12 +725,10 @@ const NeedsAttentionCard = ({
                         {error}
                     </div>
                 ) : !hasInsights ? (
-                    // All-clear state
-                    <div className="flex flex-col items-center gap-2 py-4 text-center">
-                        <CheckCircle2 size={28} className="text-teal-500" />
-                        <p className="text-sm font-semibold text-slate-700">All clear for now 👍</p>
-                        <p className="text-xs text-slate-500">No urgent items across your classes.</p>
-                    </div>
+                    <SectionEmpty
+                        headline="You’re all caught up 🎉"
+                        detail="No students need attention right now."
+                    />
                 ) : (
                     insights.map((insight) => {
                         const meta = insightMeta[insight.type];
@@ -596,14 +796,26 @@ const NeedsAttentionCard = ({
                                             )}
                                         </p>
                                     )}
-                                    {(insight.type === 'weak_topic' || insight.type === 'low_scores') && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onAssignPractice(insight); }}
-                                            className="mt-2 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-100 transition-colors"
-                                        >
-                                            Assign Practice
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-2 mt-2">
+                                        {(insight.type === 'weak_topic' || insight.type === 'low_scores') && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onAssignPractice(insight); }}
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-100 transition-colors"
+                                            >
+                                                <Sparkles size={11} />
+                                                {generatePracticeLabel}
+                                            </button>
+                                        )}
+                                        {insight.studentId && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onNudgeStudent(insight); }}
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100 transition-colors"
+                                            >
+                                                <Send size={11} />
+                                                Nudge
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -638,14 +850,29 @@ interface DisplayClass {
 type NotificationItem = dataService.Notification;
 
 
+// ── Demo banner ────────────────────────────────────────────────────────────────
+
+// Demo banner and switcher are now imported from src/components/
+
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function TeacherDashboardPage() {
-    const { isVerified, logout, currentUser } = useAuth();
+    const navigate = useNavigate();
+    const { isVerified, logout, currentUser, login } = useAuth();
+    const isDemo = useDemoMode();
+    const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
+
+    // Ensure demo user is "logged in" for backend headers
+    React.useEffect(() => {
+        if (isDemo && currentUser?.id !== 'teacher_1' && typeof login === 'function') {
+            login('teacher');
+        }
+    }, [isDemo, currentUser, login]);
 
 
     // ── Real data state ──
-    const [teacherName, setTeacherName] = useState<string>('');
+    const [teacherName, setTeacherName] = useState<string>(isDemo ? demoTeacherName : (currentUser?.preferredName || 'Teacher'));
     const [stats, setStats] = useState<dataService.TeacherStat[]>([]);
     const [myClasses, setMyClasses] = useState<dataService.TeacherClass[]>([]);
     const [upcomingAssignments, setUpcomingAssignments] = useState<DisplayAssignment[]>([]);
@@ -663,26 +890,6 @@ export default function TeacherDashboardPage() {
     const [eloraSuggestion, setEloraSuggestion] = useState<ClassSuggestion | null>(null);
     const [eloraError, setEloraError] = useState<string | null>(null);
 
-    // ── Custom Ask Elora State ──
-    const [eloraPrompt, setEloraPrompt] = useState('');
-    const [eloraCustomAnswer, setEloraCustomAnswer] = useState<string | null>(null);
-    const [isAskingElora, setIsAskingElora] = useState(false);
-    const [askEloraError, setAskEloraError] = useState<string | null>(null);
-
-    const handleCustomAsk = async () => {
-        if (!eloraPrompt.trim()) return;
-        setIsAskingElora(true);
-        setAskEloraError(null);
-        setEloraCustomAnswer(null);
-        try {
-            const answer = await askElora(eloraPrompt);
-            setEloraCustomAnswer(answer);
-        } catch (err: unknown) {
-            setAskEloraError(err instanceof Error ? err.message : 'Failed to get an answer from Elora.');
-        } finally {
-            setIsAskingElora(false);
-        }
-    };
 
     // Ref so the "Ask again" button can call fetchEloraSuggestion defined inside useEffect.
     const fetchEloraSuggestionRef = React.useRef<((data?: dataService.TeacherInsight[]) => Promise<void>) | null>(null);
@@ -752,11 +959,22 @@ export default function TeacherDashboardPage() {
     const [perfTab, setPerfTab] = useState('Classes');
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
     const [showAiPanel, setShowAiPanel] = useState(false);
+    const [aiPanelPrefill, setAiPanelPrefill] = useState<Partial<AiForm> | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'classes'>('dashboard');
     const [showCreateClass, setShowCreateClass] = useState(false);
     const [newClassName, setNewClassName] = useState('');
     const [createClassError, setCreateClassError] = useState<string | null>(null);
     const [creatingClass, setCreatingClass] = useState(false);
+
+    // ── Welcome strip state (persisted via localStorage) ──
+    const WELCOME_KEY = 'elora_teacher_welcome_dismissed';
+    const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
+        () => localStorage.getItem(WELCOME_KEY) === 'true'
+    );
+    const handleDismissWelcome = () => {
+        setWelcomeDismissed(true);
+        localStorage.setItem(WELCOME_KEY, 'true');
+    };
 
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -796,6 +1014,58 @@ export default function TeacherDashboardPage() {
     const [insightDueDate, setInsightDueDate] = useState('');
     const [insightAssigningError, setInsightAssigningError] = useState<string | null>(null);
     const [insightAssigning, setInsightAssigning] = useState(false);
+    
+    // ── Nudge student state ──
+    const [nudgeModalOpen, setNudgeModalOpen] = useState(false);
+    const [nudgeInsight, setNudgeInsight] = useState<dataService.TeacherInsight | null>(null);
+    const [nudgeText, setNudgeText] = useState('');
+    const [isSendingNudge, setIsSendingNudge] = useState(false);
+    const [nudgeError, setNudgeError] = useState<string | null>(null);
+
+    const handleNudgeClick = (insight: dataService.TeacherInsight) => {
+        setNudgeInsight(insight);
+        setNudgeModalOpen(true);
+        setNudgeText('');
+        setNudgeError(null);
+    };
+
+    const handleSendNudge = async () => {
+        if (!nudgeInsight?.studentId || !nudgeText.trim()) return;
+
+        setIsSendingNudge(true);
+        setNudgeError(null);
+        try {
+            await dataService.sendTeacherNudge(nudgeInsight.studentId, nudgeText);
+            setNudgeModalOpen(false);
+            setNudgeInsight(null);
+            setNudgeText('');
+        } catch (err: unknown) {
+            setNudgeError(err instanceof Error ? err.message : 'Failed to send nudge');
+        } finally {
+            setIsSendingNudge(false);
+        }
+    };
+
+    // ── Generate practice prefill hook ──
+    const handleGeneratePractice = (insight: dataService.TeacherInsight) => {
+        // Derive the level from the class name (e.g. "Sec 3 Mathematics" → "Sec 3")
+        const derivedLevel = insight.className
+            ? insight.className.replace(/\s+(mathematics|science|english|physics|chemistry|biology|history|geography)\b.*/i, '').trim()
+            : DEMO_CLASS_LEVEL;
+
+        const prefill: Partial<AiForm> = {
+            topic: insight.topicTag ?? insight.assignmentTitle ?? 'Targeted Practice',
+            level: derivedLevel,
+            questionCount: 5,
+            difficulty: 'mixed',
+        };
+        setAiPanelPrefill(prefill);
+        setShowAiPanel(true);
+        // Scroll the AI panel into view after state update
+        setTimeout(() => {
+            document.getElementById('ai-game-panel-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+    };
 
     const handleTargetedPracticeClick = async (insight: dataService.TeacherInsight) => {
         setInsightToAssign(insight);
@@ -943,6 +1213,26 @@ export default function TeacherDashboardPage() {
 
     useEffect(() => {
         const loadData = async () => {
+            // ── Demo mode: bypass real fetches and seed scenario A ──
+            if (isDemo) {
+                setStats(demoStats);
+                setMyClasses(demoClasses);
+                setUpcomingAssignments(
+                    demoAssignments.map((a) => ({
+                        id: a.id,
+                        title: a.title,
+                        class: a.className,
+                        due: a.statusLabel,
+                        status: a.status,
+                        submitted: 0,
+                        total: 32,
+                    }))
+                );
+                setTeacherName(demoTeacherName);
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
                 const [s, c, a, t] = await Promise.all([
@@ -1006,6 +1296,13 @@ export default function TeacherDashboardPage() {
         fetchEloraSuggestionRef.current = fetchEloraSuggestion;
 
         const loadInsights = async () => {
+            // ── Demo mode: use seeded insights ──
+            if (isDemo) {
+                setInsights(demoInsights);
+                setInsightsLoading(false);
+                fetchEloraSuggestion(demoInsights);
+                return;
+            }
             try {
                 setInsightsLoading(true);
                 setInsightsError(null);
@@ -1032,7 +1329,7 @@ export default function TeacherDashboardPage() {
         loadData();
         loadInsights();
         loadPacks();
-    }, []);
+    }, [isDemo]);
 
     // ── Map real class data → performance display shape ──
     const classPerformance: DisplayClass[] = myClasses.map((cls) => ({
@@ -1118,8 +1415,8 @@ export default function TeacherDashboardPage() {
         };
     }, [myClasses, insights]);
 
-    // ── Guard: show dev shortcut if auth was bypassed ──
-    if (!isVerified) {
+    // ── Guard: show dev shortcut if auth was bypassed (skip in demo mode) ──
+    if (!isVerified && !isDemo) {
         return (
             <div className="min-h-screen w-full bg-[#28193D] flex flex-col items-center justify-center p-4">
                 <DevShortcut />
@@ -1321,7 +1618,15 @@ export default function TeacherDashboardPage() {
     }
 
     return (
-        <div className="flex min-h-screen bg-[#FDFBF5] font-sans text-slate-900">
+        <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900">
+            {/* Demo banner & Role Switcher – only shown in demo mode */}
+            {isDemo && (
+                <>
+                    <DemoBanner />
+                    <DemoRoleSwitcher />
+                </>
+            )}
+        <div className="flex flex-1">
             {/* ── Sidebar ── */}
             <aside
                 className={`bg-teal-900 text-teal-50 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'
@@ -1349,7 +1654,7 @@ export default function TeacherDashboardPage() {
                     <NavItem icon={<BookOpen size={20} />} label="Classes" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} collapsed={!isSidebarOpen} />
                     <NavItem
                         icon={<Gamepad2 size={20} />}
-                        label="GamePacks"
+                        label="Practice & quizzes"
                         onClick={() => setShowAiPanel(true)}
                         collapsed={!isSidebarOpen}
                     />
@@ -1381,17 +1686,29 @@ export default function TeacherDashboardPage() {
 
             {/* ── Main Content ── */}
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
                     {/* Top Header */}
-                    <header className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-[#EAE7DD] mb-8 gap-4">
+                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
                         <div>
-                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                Today
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Teacher Dashboard
                             </div>
-                            <h1 className="text-2xl lg:text-[26px] font-semibold text-slate-900 tracking-tight">
-                                {loading ? 'Loading…' : `Good day, ${teacherName}`}
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                {loading ? 'Loading…' : `Good day, ${displayName}`}
                             </h1>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                                <p className="text-[13px] text-slate-500 font-medium">You are signed in as Teacher</p>
+                                {isDemo && (
+                                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
+                                        <span className="text-teal-700 font-bold uppercase tracking-widest text-[9px]">Scenario</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                        <span>Struggling Class (Sec 3 Mathematics)</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                        <span className="text-slate-400">Updated just now</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-4 lg:gap-6">
                             <div className="relative hidden md:block">
@@ -1453,9 +1770,32 @@ export default function TeacherDashboardPage() {
                     {activeTab === 'dashboard' ? (
                         <>
 
+                            {/* ── Welcome to Elora strip (new-user onboarding) ── */}
+                            <DashboardTour 
+                                role="teacher"
+                                isVisible={!welcomeDismissed}
+                                onAction1={() => setShowAiPanel(true)}
+                                onAction2={() => navigate('/invite')}
+                                onDismiss={handleDismissWelcome}
+                            />
+
+                            {/* "What's New" Strip */}
+                            <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">What's new</span>
+                                <span className="text-sm text-slate-600 font-medium">
+                                    New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
+                                </span>
+                                <Link 
+                                    to="/our-story" 
+                                    className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
+                                >
+                                    View details
+                                </Link>
+                            </div>
+
                             {/* Class Health Strip */}
                             {classHealth && !loading && !insightsLoading && (
-                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
                                     <div className="flex flex-col flex-1 gap-1 sm:flex-row sm:items-center">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="text-[14px] font-medium text-slate-900">
@@ -1496,175 +1836,6 @@ export default function TeacherDashboardPage() {
                                 </div>
                             )}
 
-                            {/* ── Ask Elora Card ─────────────────────────────────────────────────── */}
-                            {/* Shown once insights have at least started loading (not during the very
-                                first full-page skeleton). Hides when tab switches away. */}
-                            {!loading && (
-                                <div className="mb-4 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm" id="ask-elora-card">
-                                    {/* ── idle (should flash by quickly) ── */}
-                                    {eloraStatus === 'idle' && (
-                                        <p className="text-[13px] text-slate-400">Preparing a suggestion…</p>
-                                    )}
-
-                                    {/* ── loading skeleton ── */}
-                                    {eloraStatus === 'loading' && (
-                                        <div className="flex items-center gap-3">
-                                            {/* Sparkle pulse */}
-                                            <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center">
-                                                <Sparkles size={14} className="text-teal-400 animate-pulse" />
-                                            </div>
-                                            <div className="flex-1 space-y-2 animate-pulse">
-                                                <div className="h-3 bg-slate-200 rounded w-2/5" />
-                                                <div className="h-2.5 bg-slate-100 rounded w-4/5" />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* ── error state ── */}
-                                    {eloraStatus === 'error' && (
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <AlertCircle size={15} className="text-orange-400 shrink-0" />
-                                                <p className="text-[13px] text-slate-500 leading-relaxed">
-                                                    Elora couldn't prepare a suggestion right now. Try again in a moment.
-                                                </p>
-                                            </div>
-                                            <button
-                                                id="ask-elora-retry-btn"
-                                                onClick={() => fetchEloraSuggestionRef.current?.()}
-                                                className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 shrink-0"
-                                            >
-                                                <RefreshCw size={13} />
-                                                Retry
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* ── success state ── */}
-                                    {eloraStatus === 'success' && eloraSuggestion && (() => {
-                                        const kindIcon: Record<ClassSuggestion['kind'], React.ReactNode> = {
-                                            practice_task: <Gamepad2 size={13} className="text-teal-500" />,
-                                            parent_message: <Send size={13} className="text-violet-500" />,
-                                            lesson_idea: <BookOpen size={13} className="text-sky-500" />,
-                                        };
-                                        const targetLabel =
-                                            eloraSuggestion.suggestedTargets.length === 1
-                                                ? eloraSuggestion.suggestedTargets[0]
-                                                : eloraSuggestion.suggestedTargets.slice(0, 2).join(', ') +
-                                                  (eloraSuggestion.suggestedTargets.length > 2
-                                                      ? ` +${eloraSuggestion.suggestedTargets.length - 2}`
-                                                      : '');
-
-                                        return (
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                                {/* Icon */}
-                                                <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center">
-                                                    <Sparkles size={14} className="text-teal-500" />
-                                                </div>
-
-                                                {/* Body */}
-                                                <div className="flex-1 min-w-0">
-                                                    {/* Label */}
-                                                    <p className="text-[11px] font-medium text-slate-400 mb-0.5 flex items-center gap-1">
-                                                        {kindIcon[eloraSuggestion.kind]}
-                                                        Elora's suggestion
-                                                    </p>
-                                                    {/* Title */}
-                                                    <p className="text-[14px] font-medium text-slate-900 leading-snug">
-                                                        {eloraSuggestion.title}
-                                                    </p>
-                                                    {/* Body + targets */}
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed mt-0.5">
-                                                        {eloraSuggestion.body}
-                                                        {eloraSuggestion.suggestedTargets.length > 0 &&
-                                                            eloraSuggestion.suggestedTargets[0] !== 'whole class' && (
-                                                                <span className="ml-1 text-slate-400">
-                                                                    {' '}For:{' '}
-                                                                    <span className="font-medium text-slate-600">{targetLabel}</span>.
-                                                                </span>
-                                                            )}
-                                                    </p>
-                                                </div>
-
-                                                {/* CTA */}
-                                                <button
-                                                    id="ask-elora-refresh-btn"
-                                                    onClick={() => fetchEloraSuggestionRef.current?.()}
-                                                    className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 shrink-0"
-                                                    aria-label="Ask Elora for another suggestion"
-                                                >
-                                                    <RefreshCw size={13} />
-                                                    Ask again
-                                                </button>
-                                            </div>
-                                        );
-                                    })()}
-                                    
-                                    {/* ── Custom Ask Elora Prompt ── */}
-                                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={eloraPrompt}
-                                                onChange={(e) => setEloraPrompt(e.target.value)}
-                                                placeholder="Ask Elora a specific question..."
-                                                disabled={isAskingElora}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') handleCustomAsk();
-                                                }}
-                                                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 disabled:opacity-60"
-                                            />
-                                            <button
-                                                onClick={handleCustomAsk}
-                                                disabled={!eloraPrompt.trim() || isAskingElora}
-                                                className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-60 transition-colors shrink-0"
-                                            >
-                                                {isAskingElora ? 'Asking...' : 'Ask'}
-                                            </button>
-                                        </div>
-                                        {askEloraError && (
-                                            <p className="text-[13px] text-red-600 mt-1">{askEloraError}</p>
-                                        )}
-                                        {eloraCustomAnswer && (
-                                            <div className="mt-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                                {eloraCustomAnswer}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Quick Actions */}
-                            <div className="flex flex-wrap gap-3 mb-8">
-                                <button
-                                    onClick={() => setShowAiPanel(!showAiPanel)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
-                                >
-                                    <Sparkles size={16} /> Create AI GamePack
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <Plus size={16} /> Create Assignment
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <FileText size={16} /> Assign Quiz
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <MonitorPlay size={16} /> View Class
-                                </button>
-                            </div>
-
-                            {/* AI Game Panel (toggled) */}
-                            {showAiPanel && (
-                                <AiGamePanel
-                                    onClose={() => setShowAiPanel(false)}
-                                    onReview={(pack) => {
-                                        setReviewGamePack(pack);
-                                        setReviewQuestionIndex(0);
-                                    }}
-                                    onAssign={handleAssignClick}
-                                />
-                            )}
-
                             {/* Error banner */}
                             {error && (
                                 <div className="mb-6">
@@ -1675,7 +1846,7 @@ export default function TeacherDashboardPage() {
                                 </div>
                             )}
 
-                            {/* Stats Strip */}
+                            {/* Stats Strip (prioritized above-the-fold) */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
                                 <StatCard
                                     icon={<BookOpen className="text-teal-600" size={20} />}
@@ -1700,17 +1871,173 @@ export default function TeacherDashboardPage() {
                                 />
                             </div>
 
-                            {/* Two-column layout */}
-                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                            {/* Two-column layout (reorganized: time-sensitive left, reference right) */}
+                            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 mb-8">
 
-                                {/* ── Left column (wider) ── */}
+                                {/* ── Left column (wider): Time-sensitive items ── */}
                                 <div className="xl:col-span-2 flex flex-col gap-8">
 
-                                    {/* My Classes table
-                  NOTE: GamePack history is not yet stored in backend; this table
-                  shows real classes from /api/classes until a GamePack history
-                  endpoint is available. Replace GAMEPACKS mock below with that
-                  endpoint once ready. */}
+                                    {/* Upcoming Assignments */}
+                                    <section
+                                        ref={assignmentsSectionRef}
+                                        className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
+                                                Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
+                                            </h2>
+                                            <button className="text-teal-600 hover:text-teal-700 p-1">
+                                                <MoreHorizontal size={20} />
+                                            </button>
+                                        </div>
+
+                                        {/* Slim Filter Bar */}
+                                        <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
+                                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
+
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                            >
+                                                <option value="all">All Statuses</option>
+                                                <option value="needs_attention">Needs Attention</option>
+                                                <option value="on_track">On Track</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
+
+                                            <select
+                                                value={classFilter}
+                                                onChange={(e) => setClassFilter(e.target.value)}
+                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                            >
+                                                <option value="all">All Classes</option>
+                                                {availableClasses.map(cls => (
+                                                    <option key={cls} value={cls}>{cls}</option>
+                                                ))}
+                                            </select>
+
+                                            {(statusFilter !== 'all' || classFilter !== 'all') && (
+                                                <button
+                                                    onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
+                                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
+                                                >
+                                                    Clear filters
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {loading ? (
+                                            <SectionSkeleton rows={2} />
+                                        ) : upcomingAssignments.length === 0 ? (
+                                            <SectionEmpty
+                                                headline="No upcoming assignments"
+                                                detail="Assignments you create will appear here for quick access."
+                                            />
+                                        ) : filteredAssignments.length === 0 ? (
+                                            <SectionEmpty
+                                                headline="No assignments match filters"
+                                                detail="Try clearing your filters to see more."
+                                            />
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {filteredAssignments.map((item) => {
+                                                    const statusLower = item.status.toLowerCase();
+                                                    const borderColor = 
+                                                        (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
+                                                        (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
+                                                        'border-l-teal-500';
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className={`p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
+                                                            onClick={() => handleViewAssignment(item.id)}
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <h3 className="text-sm font-semibold text-slate-900">
+                                                                    {item.title}
+                                                                </h3>
+                                                                <StatusBadge status={item.status} />
+                                                            </div>
+                                                            <p className="text-xs text-slate-600 mb-3">{item.class}</p>
+                                                            <div className="flex items-center justify-between text-xs">
+                                                                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                                                    <Clock size={14} /> {item.due}
+                                                                </div>
+                                                                {item.total > 0 && (
+                                                                    <div className="font-semibold text-slate-700">
+                                                                        {item.submitted}/{item.total}{' '}
+                                                                        <span className="text-slate-400 font-normal">
+                                                                            submitted
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
+                                            View all assignments
+                                        </button>
+                                    </section>
+
+                                    {/* ── Needs Attention (live data) ── */}
+                                    <NeedsAttentionCard
+                                        insights={insights.slice(0, 5)}
+                                        loading={insightsLoading}
+                                        error={insightsError}
+                                        onInsightClick={(insight) => {
+                                            if (insight.assignmentId) {
+                                                handleViewAssignment(insight.assignmentId);
+                                            }
+                                        }}
+                                        onAssignPractice={handleGeneratePractice}
+                                        onNudgeStudent={handleNudgeClick}
+                                        onDrillDown={handleDrillDown}
+                                        generatePracticeLabel="Generate practice →"
+                                    />
+
+                                </div>
+
+                                 {/* ── Right column (narrower): Reference items ── */}
+                                 <div className="xl:col-span-2 flex flex-col gap-8">
+ 
+                                     {!loading && (
+                                         <EloraAssistantCard
+                                             role="teacher"
+                                             assistantName={currentUser?.assistantName}
+                                             title="Get a classroom-ready action plan"
+                                             description="Elora suggests targeted teaching moves based on your class health and insight data."
+                                             suggestedPrompts={[
+                                                 'How can I support students struggling with fractions?',
+                                                 'Suggest a quick formative check-in activity',
+                                                 'What reinforcement should I give today?'
+                                             ]}
+                                             accentClasses={{
+                                                 chipBg: 'bg-teal-50',
+                                                 buttonBg: 'bg-teal-600',
+                                                 iconBg: 'bg-teal-50',
+                                                 text: 'text-teal-700',
+                                             }}
+                                             status={eloraStatus}
+                                             suggestion={eloraSuggestion ? {
+                                                 kind: eloraSuggestion.kind,
+                                                 title: eloraSuggestion.title,
+                                                 body: eloraSuggestion.body,
+                                                 suggestedTargets: eloraSuggestion.suggestedTargets,
+                                             } : null}
+                                             error={eloraError}
+                                             onRefresh={() => fetchEloraSuggestionRef.current?.()}
+                                             isDemo={isDemo}
+                                             defaultExpanded={isDemo && activeTab === 'dashboard'}
+                                         />
+                                     )}
+ 
+                                     {/* My Classes table */}
                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
                                         <div className="p-5 lg:p-6 border-b border-[#EAE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                             <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
@@ -1805,7 +2132,7 @@ export default function TeacherDashboardPage() {
                                                 Student Performance Overview
                                             </h2>
                                             <div className="flex gap-2">
-                                                {['Classes', 'Students', 'GamePacks'].map((tab) => (
+                                                {['Classes', 'Students', 'Practice & quizzes'].map((tab) => (
                                                     <button
                                                         key={tab}
                                                         onClick={() => setPerfTab(tab)}
@@ -1869,127 +2196,47 @@ export default function TeacherDashboardPage() {
                                             </div>
                                         )}
                                     </section>
-                                </div>
 
-                                {/* ── Right column (narrower) ── */}
-                                <div className="flex flex-col gap-8">
-
-                                    {/* Upcoming Assignments */}
-                                    <section
-                                        ref={assignmentsSectionRef}
-                                        className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                Upcoming Assignments
-                                            </h2>
-                                            <button className="text-teal-600 hover:text-teal-700 p-1">
-                                                <MoreHorizontal size={20} />
-                                            </button>
-                                        </div>
-
-                                        {/* Slim Filter Bar */}
-                                        <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
-                                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
-
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Statuses</option>
-                                                <option value="needs_attention">Needs Attention</option>
-                                                <option value="on_track">On Track</option>
-                                                <option value="completed">Completed</option>
-                                            </select>
-
-                                            <select
-                                                value={classFilter}
-                                                onChange={(e) => setClassFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Classes</option>
-                                                {availableClasses.map(cls => (
-                                                    <option key={cls} value={cls}>{cls}</option>
-                                                ))}
-                                            </select>
-
-                                            {(statusFilter !== 'all' || classFilter !== 'all') && (
-                                                <button
-                                                    onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
-                                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
-                                                >
-                                                    Clear filters
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {loading ? (
-                                            <SectionSkeleton rows={2} />
-                                        ) : upcomingAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No upcoming assignments"
-                                                detail="Assignments you create will appear here for quick access."
-                                            />
-                                        ) : filteredAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No assignments match filters"
-                                                detail="Try clearing your filters to see more."
-                                            />
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {filteredAssignments.map((item) => (
-                                                    <div
-                                                        key={item.id}
-                                                        className="p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] cursor-pointer hover:border-teal-300 transition-colors"
-                                                        onClick={() => handleViewAssignment(item.id)}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <h3 className="text-sm font-semibold text-slate-900">
-                                                                {item.title}
-                                                            </h3>
-                                                            <StatusBadge status={item.status} />
-                                                        </div>
-                                                        <p className="text-xs text-slate-600 mb-3">{item.class}</p>
-                                                        <div className="flex items-center justify-between text-xs">
-                                                            <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                                                                <Clock size={14} /> {item.due}
-                                                            </div>
-                                                            {item.total > 0 && (
-                                                                <div className="font-semibold text-slate-700">
-                                                                    {item.submitted}/{item.total}{' '}
-                                                                    <span className="text-slate-400 font-normal">
-                                                                        submitted
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
-                                            View all assignments
-                                        </button>
-                                    </section>
-
-                                    {/* ── Needs Attention (live data) ── */}
-                                    <NeedsAttentionCard
-                                        insights={insights.slice(0, 5)}
-                                        loading={insightsLoading}
-                                        error={insightsError}
-                                        onInsightClick={(insight) => {
-                                            if (insight.assignmentId) {
-                                                handleViewAssignment(insight.assignmentId);
-                                            }
-                                        }}
-                                        onAssignPractice={handleTargetedPracticeClick}
-                                        onDrillDown={handleDrillDown}
-                                    />
 
                                 </div>
                             </div>
+
+
+
+                            {/* Quick Actions (below fold) */}
+                            <div className="flex flex-wrap gap-3 mb-8">
+                                <button
+                                    onClick={() => setShowAiPanel(!showAiPanel)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
+                                >
+                                    <Sparkles size={16} /> Create AI Practice
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <Plus size={16} /> Create Assignment
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <FileText size={16} /> Assign Quiz
+                                </button>
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
+                                    <MonitorPlay size={16} /> View Class
+                                </button>
+                            </div>
+
+                            {/* AI Generation Panel (toggled) */}
+                            <div id="ai-game-panel-anchor" />
+                            {showAiPanel && (
+                                <React.Fragment key={JSON.stringify(aiPanelPrefill)}>
+                                <AiGamePanel
+                                    initialValues={aiPanelPrefill}
+                                    onClose={() => { setShowAiPanel(false); setAiPanelPrefill(undefined); }}
+                                    onReview={(pack) => {
+                                        setReviewGamePack(pack);
+                                        setReviewQuestionIndex(0);
+                                    }}
+                                    onAssign={handleAssignClick}
+                                />
+                                </React.Fragment>
+                            )}
                         </>) : activeTab === 'classes' ? (
                             <div className="flex flex-col gap-6">
                                 <div className="flex items-center justify-between mb-2">
@@ -2186,11 +2433,11 @@ export default function TeacherDashboardPage() {
                         </div>
                         <form onSubmit={handleAssignSubmit} className="flex flex-col gap-5">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">GamePack / Assignment</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Practice / Assignment</label>
                                 {availablePacks.length === 0 && !packToAssign ? (
                                     <div className="text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-2">
                                         <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                                        <p>No GamePacks available yet. Use the <strong>AI Game Panel</strong> to generate one first!</p>
+                                        <p>No practice sessions available yet. Use the <strong>AI Generation Panel</strong> to create one first!</p>
                                     </div>
                                 ) : packToAssign ? (
                                     <div className="text-slate-900 font-medium px-4 py-3 bg-slate-50 border border-[#EAE7DD] rounded-xl flex justify-between items-center">
@@ -2350,6 +2597,83 @@ export default function TeacherDashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* Nudge Modal */}
+            {nudgeModalOpen && nudgeInsight && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setNudgeModalOpen(false)} />
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <Send className="text-orange-500 w-5 h-5" />
+                                Send a Nudge
+                            </h3>
+                            <button onClick={() => setNudgeModalOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-xl flex gap-3">
+                            <AlertCircle className="shrink-0 text-orange-500 mt-0.5" size={18} />
+                            <div>
+                                <h4 className="font-semibold text-slate-800 text-sm">To: {nudgeInsight.studentName}</h4>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    {nudgeInsight.type === 'weak_topic'
+                                        ? `Identifying that they are struggling with ${nudgeInsight.topicTag}.`
+                                        : `Addressing ${nudgeInsight.assignmentTitle || 'recent performance'}.`}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Your Message</label>
+                                <textarea
+                                    autoFocus
+                                    value={nudgeText}
+                                    onChange={(e) => setNudgeText(e.target.value)}
+                                    placeholder={`Hi ${nudgeInsight.studentName.split(' ')[0]}, just a quick nudge to...`}
+                                    rows={4}
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 resize-none bg-white"
+                                />
+                                <p className="text-xs text-slate-400 mt-2 px-1">
+                                    This will appear as a personal message on their dashboard.
+                                </p>
+                            </div>
+
+                            {nudgeError && (
+                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                    {nudgeError}
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 mt-2">
+                                <button type="button" onClick={() => setNudgeModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleSendNudge}
+                                    disabled={isSendingNudge || !nudgeText.trim()} 
+                                    className="px-5 py-2.5 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                                >
+                                    {isSendingNudge ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            Sending...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={16} />
+                                            Send Nudge
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
         </div>
     );
 }

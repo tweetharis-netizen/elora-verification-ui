@@ -9,10 +9,12 @@ import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
+import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentGamePage from './pages/StudentGamePage';
 import { EloraLogo } from './components/EloraLogo';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 
 // ─── Homepage components ──────────────────────────────────────────────────────
 
@@ -50,7 +52,7 @@ const ComingSoonBar = () => {
   );
 };
 
-const Header = () => {
+export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -71,9 +73,9 @@ const Header = () => {
 
         <div className="hidden md:flex items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
-          <button className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow">
-            Book a demo
-          </button>
+          <Link to="/teacher/demo" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
+            Try a live demo
+          </Link>
         </div>
 
         <button className="md:hidden text-white" onClick={() => setIsOpen(!isOpen)}>
@@ -90,9 +92,9 @@ const Header = () => {
           <a href="#" className="block text-white/80 hover:text-white font-medium">Pricing</a>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
             <Link to="/login" className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
-            <button className="w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium">
-              Book a demo
-            </button>
+            <Link to="/teacher/demo" className="block w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium text-center">
+              Try a live demo
+            </Link>
           </div>
         </div>
       )}
@@ -115,10 +117,10 @@ const Hero = () => {
             Connect your classrooms, empower teachers, and deploy intelligent tools to automate admin work, track progress, and improve learning outcomes.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            <button className="bg-elora-100 hover:bg-elora-200 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
-              Book a demo
-            </button>
-            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
+            <Link to="/teacher/demo" className="bg-elora-100 hover:bg-elora-200 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
+              Try a live demo
+            </Link>
+            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
               Start for free
             </Link>
           </div>
@@ -237,7 +239,7 @@ const RoleSelectionSection = () => {
               <Users className="w-6 h-6" />
             </div>
             <h3 className="text-2xl font-medium mb-3 text-white">Teacher</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI GamePacks, manage class sessions, and analyze student engagement.</p>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI practice & quizzes, manage class sessions, and analyze student engagement.</p>
             <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
               Try Teacher Flow <ChevronRight className="w-4 h-4" />
             </div>
@@ -521,7 +523,7 @@ const FinalCTA = () => {
   );
 };
 
-const Footer = () => {
+export const Footer = () => {
   return (
     <footer className="bg-elora-400 text-white/60 py-16 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
@@ -555,7 +557,7 @@ const Footer = () => {
         <div>
           <h4 className="text-white font-medium mb-5">Company</h4>
           <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+            <li><Link to="/our-story" className="hover:text-white transition-colors">Our Story</Link></li>
             <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
             <li><a href="#" className="hover:text-white transition-colors">Partners</a></li>
@@ -603,16 +605,17 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/verify" element={<VerifyPage />} />
+      <Route path="/our-story" element={<OurStoryPage />} />
 
-      {/* Protected dashboard routes – ProtectedRoute redirects to /verify if not verified */}
-      <Route
-        path="/dashboard/teacher"
-        element={
-          <ProtectedRoute>
-            <TeacherDashboardPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Demo routes – no auth required */}
+      <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
+      <Route path="/student/demo" element={<StudentDashboardPage />} />
+      <Route path="/parent/demo" element={<ParentDashboardPage />} />
+      <Route path="/dashboard/teacher" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage />
+        </ProtectedRoute>
+      } />
       <Route
         path="/dashboard/student"
         element={

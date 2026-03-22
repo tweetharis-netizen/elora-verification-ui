@@ -197,14 +197,14 @@ export const EloraAssistantCard = ({
                             <div className="flex items-center gap-2">
                                 <h3 className="text-[14px] font-semibold text-slate-900 leading-snug">{title}</h3>
                                 {badgeText && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-teal-700 bg-teal-50 border border-teal-100 rounded-md whitespace-nowrap">
+                                    <span className={`px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${accentClasses.text} ${accentClasses.chipBg} border border-current/10 rounded-md whitespace-nowrap`}>
                                         {badgeText}
                                     </span>
                                 )}
                             </div>
                             <p className="text-[12px] text-slate-500 leading-relaxed mt-0.5">{description}</p>
                             {helperText && (
-                                <p className="text-[11px] text-teal-600 font-medium italic leading-relaxed mt-1">{helperText}</p>
+                                <p className={`text-[11px] ${accentClasses.text} opacity-80 font-medium italic leading-relaxed mt-1`}>{helperText}</p>
                             )}
                         </div>
                     </div>

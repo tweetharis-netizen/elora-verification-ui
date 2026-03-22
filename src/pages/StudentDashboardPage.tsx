@@ -661,14 +661,14 @@ export default function StudentDashboardPage() {
         })),
         ...(gameSessions.length === 0 ? [{
             id: 'rec-1',
-            title: 'E-Maths: Algebra Practice',
-            subject: 'Maths',
+            title: 'Algebra Basics',
+            subject: 'Mathematics',
             tag: 'Recommended',
             lastPlayed: 'Never',
             progress: 0,
             status: 'Recommended',
             score: 'N/A',
-            description: 'A recommended practice set based on your curriculum.'
+            description: 'Master the fundamentals of linear equations and basic variables.'
         }] : [])
     ];
 
@@ -677,18 +677,16 @@ export default function StudentDashboardPage() {
     );
 
     return (
-        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
-            {isDemo && (
-                <>
-                    <DemoBanner />
-                    <DemoRoleSwitcher />
-                </>
-            )}
-            <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            {isDemo && <DemoBanner />}
+
+            <div className="flex flex-1 overflow-hidden relative">
+                {isDemo && <DemoRoleSwitcher />}
 
             {/* SIDEBAR */}
-            <aside className={`bg-[#68507B] text-white flex flex-col hidden md:flex shrink-0 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-                <div className={`p-6 flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+            <aside className={`bg-[#68507B] text-white flex flex-col h-screen sticky top-0 hidden md:flex shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+                {/* Logo & Close toggle */}
+                <div className={`h-20 flex items-center border-b border-white/10 px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                     <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
                         <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
                     </Link>
@@ -698,46 +696,42 @@ export default function StudentDashboardPage() {
                             className="text-white/50 hover:text-white transition-colors"
                             title="Close sidebar"
                         >
-                            <PanelLeftClose className="w-4 h-4" />
+                            <PanelLeftClose size={18} />
                         </button>
                     )}
                 </div>
 
-                <nav className="flex-1 px-4 py-4 space-y-1 overflow-hidden">
+                <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto no-scrollbar">
                     <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'dashboard'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
                     <SidebarItem icon={BookOpen} label="My Classes" collapsed={!isSidebarOpen} />
+                    <SidebarItem 
+                        icon={Sparkles} 
+                        label="Copilot" 
+                        collapsed={!isSidebarOpen} 
+                        onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')} 
+                    />
                     <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} />
                     <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} />
                     <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} />
-                    
-                    <div className="my-2 border-t border-white/10" />
-                    <SidebarItem 
-                        icon={Sparkles} 
-                        label="Elora Copilot" 
-                        collapsed={!isSidebarOpen} 
-                        onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')} 
-                        className="text-[#68507B] hover:text-[#68507B] bg-white hover:bg-white/90 font-semibold shadow-sm" 
-                    />
                 </nav>
 
-                <div className="p-4 flex flex-col gap-1">
+                <div className="p-4 border-t border-white/10 space-y-1.5">
                     {!isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(true)}
                             className="flex items-center justify-center w-full p-2.5 text-white/50 hover:text-white hover:bg-white/5 rounded-lg transition-colors mb-2"
                             title="Open sidebar"
                         >
-                            <PanelLeftOpen className="w-5 h-5" />
+                            <PanelLeftOpen size={20} />
                         </button>
                     )}
-                    <div className="h-px bg-white/10 my-2 mx-3" />
                     <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} />
                     <button
                         onClick={logout}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors text-white/70 hover:bg-red-500/20 hover:text-white ${!isSidebarOpen ? 'justify-center' : ''}`}
+                        className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
                         title={!isSidebarOpen ? "Sign out" : undefined}
                     >
-                        <LogOut className="w-5 h-5 shrink-0" />
+                        <LogOut size={20} className="shrink-0" />
                         {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                     </button>
                 </div>
@@ -784,7 +778,7 @@ export default function StudentDashboardPage() {
                                 <input
                                     type="text"
                                     placeholder="Search classes…"
-                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
+                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#68507B]/50 focus:border-[#68507B] w-56 shadow-sm transition-all"
                                 />
                             </div>
                             <NotificationsPopover
@@ -795,7 +789,7 @@ export default function StudentDashboardPage() {
                                 badgeColor="bg-orange-500"
                                 unreadDotColor="bg-orange-500"
                                 unreadBgColor="bg-orange-50/20"
-                                headerTextColor="text-teal-600"
+                                headerTextColor="text-[#68507B]"
                             />
                             <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
                                 <div className="text-right hidden sm:block">
@@ -804,7 +798,7 @@ export default function StudentDashboardPage() {
                                     </div>
                                     <div className="text-xs text-slate-500 font-medium">Student</div>
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm">
+                                <div className="w-10 h-10 rounded-full bg-[#68507B]/10 text-[#68507B] flex items-center justify-center font-semibold border border-[#68507B]/20 shadow-sm">
                                     {studentInitial}
                                 </div>
                             </div>
@@ -846,8 +840,8 @@ export default function StudentDashboardPage() {
                                         <EloraAssistantCard
                                             role="student"
                                             assistantName={currentUser?.assistantName}
-                                            title="Your learning assistant"
-                                            description="Elora helps you track your progress and figure out what to do next."
+                                            title="Elora Copilot"
+                                            description="Elora suggests what to work on next based on your progress data."
                                             badgeText="Beta · Elora Copilot"
                                             helperText="Ask about your learning — suggestions are based on your live data."
                                             onAsk={handleStudentAskElora}
@@ -1682,18 +1676,20 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className 
                     onClick();
                 }
             }}
-            className={`group relative flex items-center gap-3 px-3.5 py-3 rounded-xl text-[14px] font-bold transition-all duration-200 ${
+            className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 active
-                    ? 'bg-white text-[#68507B] shadow-lg shadow-black/10'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                } ${collapsed ? 'justify-center px-2' : ''} ${className || ''}`}
+                    ? 'bg-white/11 text-white shadow-sm'
+                    : 'text-white/70 hover:bg-white/5 hover:text-white'
+                } ${collapsed ? 'justify-center focus:outline-none' : ''} ${className || ''}`}
             title={collapsed ? label : undefined}
         >
-            <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-[#68507B]' : 'text-current'}`} />
+            <div className={`shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
+                <Icon size={20} />
+            </div>
             {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
             
             {active && !collapsed && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#68507B]/40" />
+                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
             )}
         </a>
     );

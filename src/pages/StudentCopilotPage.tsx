@@ -452,7 +452,7 @@ const StudentCopilotPage: React.FC = () => {
             setIsSidebarOpen={setIsSidebarOpen}
             isDemo={isDemo}
             themeColor="#68507B"
-            sidebarColor="#4a3958"
+            sidebarColor="#68507B"
             logout={logout}
             navigate={navigate}
             sidebar={sidebarContent}

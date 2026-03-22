@@ -44,6 +44,8 @@ export type Message = {
     steps?: Step[];
     actions?: ActionChip[];
     intent?: string;
+    /** Whether to show the feedback row for this message (~5% chance) */
+    showFeedback?: boolean;
 };
 
 export const handleFeedback = (feedback: { messageId: string; role: string; value: 'yes' | 'no'; intent?: string }) => {
@@ -320,14 +322,17 @@ export const CopilotMessageBubble: React.FC<{
     onActionClick?: (action: ActionChip) => void,
     shouldAutoExpandSteps?: boolean,
     thinkingStripHeader?: string,
-    copilotRole?: 'teacher' | 'student' | 'parent'
+    copilotRole?: 'teacher' | 'student' | 'parent',
+    /** Pre-computed flag: show feedback row for this message (call shouldShowFeedback() once at render site) */
+    showFeedback?: boolean
 }> = ({ 
     message, 
     themeColor = '#14b8a6', 
     onActionClick, 
     shouldAutoExpandSteps = false,
     thinkingStripHeader,
-    copilotRole
+    copilotRole,
+    showFeedback = false
 }) => {
     if (message.role === 'system') {
         return (
@@ -362,7 +367,8 @@ export const CopilotMessageBubble: React.FC<{
                     </div>
                 </div>
 
-                {message.role === 'assistant' && copilotRole && (
+                {/* Feedback row — only shown for ~1-in-20 assistant messages */}
+                {message.role === 'assistant' && copilotRole && showFeedback && (
                     <CopilotFeedbackRow 
                         messageId={message.id}
                         role={copilotRole}
@@ -394,6 +400,13 @@ export const CopilotMessageBubble: React.FC<{
         </div>
     );
 };
+
+/**
+ * Returns true with ~5% probability (≈1-in-20).
+ * Call this once when creating/rendering a message, then store the result
+ * so it does not change on re-renders.
+ */
+export const shouldShowFeedback = (): boolean => Math.random() < 0.05;
 
 /**
  * Empty State for a clean chat interface

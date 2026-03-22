@@ -28,7 +28,8 @@ import {
     CopilotMobileHeader,
     Message, 
     Step, 
-    ActionChip 
+    ActionChip,
+    shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
 
 const topicExplanations: Record<string, string> = {
@@ -195,12 +196,16 @@ const StudentCopilotPage: React.FC = () => {
         const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this/i.test(q);
         const isOverdueKw = (q: string) => /overdue|unfinished|not finished|not done|what's overdue|todo|haven't finished/i.test(q);
         const isNextActionKw = (q: string) => /next|20 minutes|work on|should i work on|do now|best use of my time/i.test(q);
-        const isSummaryKw = (q: string) => /week|how am i doing|summary|overview|progress/i.test(q);
+        // Summary: also catch "how am i doing", "am i doing ok", "am i behind", "am i okay in school"
+        const isSummaryKw = (q: string) => /week|summary|overview|progress|(how am i doing)|(am i (doing|behind|okay|ok|keeping up))|(how am i going)/i.test(q);
         const isFocusTopicKw = (q: string) => /topic to focus on|area to focus on|growth area|what to work on|focus area|weakest topic/i.test(q);
         const isWhyPatternKw = (q: string) => /why do i keep getting|why do i keep missing|why do i keep getting this wrong/i.test(q);
         const isPrepareQuizKw = (q: string) => /prepare for the next quiz|prepare for the quiz|prepare for test|get ready for/i.test(q);
         const isExplainKw = (q: string) => /explain|what is|help me understand/i.test(q);
+        // Sensitive: wellbeing
         const isSensitiveKw = (q: string) => /sad|depressed|hurt|mean|bully|stress|lonely|anxious|unhappy/i.test(q);
+        // Fear / low confidence: "i feel dumb", "scared to fail", "i'm stupid"
+        const isFearKw = (q: string) => /(feel (dumb|stupid|useless|like i can'?t))|(scared (i'?m going to|to) fail)|(going to fail)|(i'?m (so |really |)(bad|terrible|rubbish) at)/i.test(q);
 
         const getScopePrefix = () => {
             if (selectedSubjectId !== 'all') return "";
@@ -229,6 +234,18 @@ const StudentCopilotPage: React.FC = () => {
 
             if (isSensitiveKw(lowerQuery)) {
                 content = "I hear that you're feeling this way, and that sounds genuinely tough. While I don't give personal advice, I'd really encourage you to talk to a teacher, counselor, or parent. They can provide the support you need right now.\n\nI'm still here if you want to take a look at your workload or take a pause from studying.";
+            } else if (isFearKw(lowerQuery)) {
+                content = "That's a really normal feeling, and it doesn't mean you're not capable. Lots of students feel this way — especially before a big quiz or when a topic feels hard.\n\nLet me check where you actually stand, because the data often tells a different story than how we feel.";
+                steps = [
+                    getCtxStep(),
+                    { id: 'check-scores', text: 'Checked your recent scores and submission rate' }
+                ];
+                if (streakData) {
+                    const thisWeekScore = streakData.scoreThisWeek ?? 0;
+                    content += `\n\nRight now, you're averaging **${thisWeekScore}%** this week${primaryFocusTopic ? ` and your main area to focus on is **${primaryFocusTopic}**` : ' and your scores are fairly balanced'}. You're not failing — there's one thing worth working on, and I can help you focus on it.`;
+                    if (primaryFocusTopic) actions.push({ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
+                }
+                actions.unshift({ label: 'Show me where I stand', actionType: 'navigate', destination: '/dashboard/student' });
             } else if (isSummaryKw(lowerQuery)) {
                 steps = [
                     getCtxStep(),
@@ -237,7 +254,7 @@ const StudentCopilotPage: React.FC = () => {
                     { id: 'check-streak', text: 'Checked your practice streak for this week' }
                 ];
                 if (!streakData || streakData.weeklyScores.length === 0) {
-                    content = "I don't have enough data to give you a summary yet for this week. Keep at it!";
+                    content = "I don't have enough data to give you a full summary yet — keep at it and I'll have more to show you soon!";
                 } else {
                     const ctxStr = selectedSubjectId === 'all' ? 'Across all your subjects' : `For your ${selectedSubjectId} work`;
                     const thisWeekScore = streakData.scoreThisWeek ?? 0;
@@ -245,10 +262,11 @@ const StudentCopilotPage: React.FC = () => {
                     const subCount = filteredAssignments.filter(a => ['completed', 'success', 'submitted'].includes(a.status || '')).length;
                     const totalCount = filteredAssignments.length;
 
-                    content = getScopePrefix() + `${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week. \n\nYou’ve submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryFocusTopic ? `The main topic to focus on is **${primaryFocusTopic}**.` : 'Your scores are looking very balanced across all topics.'}`;
+                    content = getScopePrefix() + `You're doing okay overall — there are a couple of things worth focusing on, but nothing is out of control. ${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week.\n\nYou've submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryFocusTopic ? `The best next step is to work on **${primaryFocusTopic}** — I can open a practice round for you.` : 'Your scores are looking balanced across all topics — nice work.'}`;
                     actions = [{ label: "See my remaining work", actionType: 'navigate', destination: '/dashboard/student' }];
                     if (primaryFocusTopic) actions.push({ label: `Practice ${primaryFocusTopic} now`, actionType: 'navigate', destination: '/play/practice-general' });
                 }
+
             } else if (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") {
                 content = "Hey! I'm your Elora assistant. I'm here to help you stay on top of your work and improve your scores. \n\nWhat can I help you with right now? Try asking about your unfinished assignments or what to focus on next.";
             } else if (isAboutKw(lowerQuery)) {
@@ -374,6 +392,7 @@ const StudentCopilotPage: React.FC = () => {
             }
 
             const resolvedIntent = isSensitiveKw(lowerQuery) ? 'sensitive' :
+                isFearKw(lowerQuery) ? 'fearconfidence' :
                 isSummaryKw(lowerQuery) ? 'summary' :
                 (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") ? 'smalltalk' :
                 isAboutKw(lowerQuery) ? 'about' :
@@ -390,7 +409,8 @@ const StudentCopilotPage: React.FC = () => {
                 steps: steps,
                 content: content,
                 actions: actions.length > 0 ? actions : undefined,
-                intent: resolvedIntent
+                intent: resolvedIntent,
+                showFeedback: shouldShowFeedback()
             };
 
             setMessages(prev => [...prev, assistantMsg]);
@@ -576,6 +596,7 @@ const StudentCopilotPage: React.FC = () => {
                                 onActionClick={handleActionClick}
                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
                                 copilotRole="student"
+                                showFeedback={msg.showFeedback}
                             />
                         ))}
                     </>

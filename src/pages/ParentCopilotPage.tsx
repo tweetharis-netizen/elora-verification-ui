@@ -31,7 +31,8 @@ import {
     Message,
     ActionChip,
     getParentGreeting,
-    getPronoun
+    getPronoun,
+    shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
 import { ParentChildData, processParentPrompt } from '../lib/parentIntentHandler';
 
@@ -164,7 +165,8 @@ const ParentCopilotPage: React.FC = () => {
                 content: result.content,
                 steps: result.steps,
                 actions: result.actions,
-                intent: result.intent
+                intent: result.intent,
+                showFeedback: shouldShowFeedback()
             };
 
             setMessages(prev => [...prev, assistantMessage]);
@@ -356,6 +358,7 @@ const ParentCopilotPage: React.FC = () => {
                                 thinkingStripHeader="How I found this"
                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
                                 copilotRole="parent"
+                                showFeedback={msg.showFeedback}
                             />
                         ))}
                     </>

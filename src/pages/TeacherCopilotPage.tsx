@@ -35,7 +35,8 @@ import {
     CopilotMobileHeader,
     Message, 
     Step, 
-    ActionChip 
+    ActionChip,
+    shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
 
 
@@ -244,13 +245,21 @@ const TeacherCopilotPage: React.FC = () => {
             const isCommunicationKw = (q: string) => /message|email|note|parent|families|tell|say/i.test(q);
             const isExplanationKw = (q: string) => /explain|help me understand|what is (?!elora|this|copilot)|give me a summary of (?!the class|how)/i.test(q);
             const isFeedbackKw = (q: string) => /feedback|comment|what should i say/i.test(q);
-            const isAttentionKw = (q: string) => /attention|struggling|help|behind|at risk|falling behind|improved|most improved/i.test(q);
-            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class|work on|focus on/i.test(q);
+            const isAttentionKw = (q: string) => /attention|struggling|help|behind|at risk|falling behind|improved|most improved|worried about|worry about|miss|slipping|quietly/i.test(q);
+            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class|work on|focus on|main thing|should i focus/i.test(q);
             const isTopicKw = (q: string) => /factorisation|algebra|topic|performance|doing on|index laws|fractions/i.test(q);
-            const isSummaryKw = (q: string) => /summary|how are we doing|report|weekly/i.test(q);
-            const isSensitiveKw = (q: string) => /stress|worried|anxious|unhappy|sad|upset/i.test(q);
+            // Overview: "how is this class doing", "how are they doing", "is everything ok", "any patterns"
+            const isOverviewKw = (q: string) => 
+                /(how is|how are|how's) (this class|the class|they|we|my class|my classes) (doing|getting on|overall|lately)/i.test(q) ||
+                /(is everything|is it) (ok|okay|mostly ok|fine|alright)/i.test(q) ||
+                /(should i be worried|anything (i should|on my radar)|anything you think|are there any patterns|any patterns)/i.test(q) ||
+                /how am i doing|how are my classes doing|anything urgent|should i be|on my radar/i.test(q);
+            const isSummaryKw = (q: string) => /summary|report|weekly|how are we doing/.test(q);
+            // Teacher low-confidence / lost
+            const isTeacherLostKw = (q: string) => /feeling (a bit |)lost|overwhelm|don'?t know where to start|not sure what to do/i.test(q);
+            const isSensitiveKw = (q: string) => /stress|anxious|unhappy|sad|upset|burnt out/i.test(q);
 
-            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery) || isSensitiveKw(lowerQuery);
+            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery) || isSensitiveKw(lowerQuery) || isOverviewKw(lowerQuery) || isTeacherLostKw(lowerQuery);
 
             const isSmallTalk = isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello";
             const isUnknown = !isSmallTalk && !isAboutKw(lowerQuery) && !hasSupportedIntent;
@@ -273,9 +282,29 @@ const TeacherCopilotPage: React.FC = () => {
             if (isSmallTalk) {
                 steps = [];
                 content = "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'";
+            } else if (isTeacherLostKw(lowerQuery)) {
+                steps = [];
+                content = "That's completely understandable — there's a lot to keep track of. Let me help you focus on what matters most right now.\n\nThe quickest thing I can do is show you which students need your attention and flag anything that's overdue. Want me to start there?";
+                actions = [{ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }];
             } else if (isSensitiveKw(lowerQuery)) {
                 steps = [];
-                content = "I hear your concern. It's tough when students or classes are feeling that way. While I can't offer wellbeing advice, I can help you look at their progress to see if there are academic patterns we can support.\n\nI'd also encourage you to reach out to their parents or a school counselor if you're worried about their emotional well-being.";
+                content = "I hear your concern, and those feelings are real. While I can't offer wellbeing advice, I can help you look at engagement and progress data to see if there are academic patterns worth noting.\n\nFor anything beyond that, reaching out to the school counselor or a colleague is always a good step.";
+            } else if (isOverviewKw(lowerQuery)) {
+                // Class/all-classes overview intent for fuzzy questions like "how is this class doing lately"
+                steps = [
+                    contextStep,
+                    { id: 'agg', text: `Checked recent sessions — filtered to the last 7 days.` },
+                    { id: 'flag', text: 'Checked for overdue assignments and weak topic flags.' }
+                ];
+                if (selectedClassId) {
+                    content = `This class has had a mostly steady week — overall they're doing okay. Average accuracy is around **61%**, which is slightly down from last week's 68%, but within a normal range.\n\nThe main thing worth flagging is that **Algebra Quiz 1** still has no submissions, now 3 days overdue. Three students in particular need a check-in: Jordan Lee (28%), Priya Nair (not started), and Jordan Smith (20%).\n\nWant me to show you who needs the most attention?`;
+                } else {
+                    content = `${getScopePrefix()}Your classes are generally on track this week. Sec 3 Mathematics is averaging **61%** and Sec 4 Physics is holding steady at **74%**. The main thing on my radar is the overdue Algebra Quiz 1 in Sec 3.\n\nWant me to dig into either class, or show you who needs attention across the board?`;
+                }
+                actions = [
+                    { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' },
+                    { label: selectedClassId ? `Full report for ${currentClassNameText}` : 'See weekly report', actionType: 'navigate', destination: isDemo ? '/teacher/demo' : '/dashboard/teacher' }
+                ];
             } else if (isCommunicationKw(lowerQuery)) {
                 const overdueInsight = insights.find(i => i.type === 'overdue_assignment');
                 const weakTopicInsight = insights.find(i => i.type === 'weak_topic');
@@ -395,21 +424,17 @@ const TeacherCopilotPage: React.FC = () => {
                     { id: 'comp', text: 'Checked weak topic flags — none found this week.' }
                 ];
                 content = selectedClassId
-                    ? `In **${currentClassNameText}**, the class is averaging 61% accuracy this week, which is slightly down from last week's 68%. Notably, no students have submitted the Algebra Quiz 1 yet.`
-                    : getScopePrefix() + `Engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
+                    ? `This class has had a mostly steady week — averaging **61%** accuracy, slightly down from last week's 68%. The main thing to note is that no students have submitted Algebra Quiz 1 yet, now 3 days overdue.\n\nWant me to show you who needs attention most?`
+                    : getScopePrefix() + `Overall your classes are doing okay. Sec 3 Mathematics is at **61%** this week (slightly down), while Sec 4 Physics is holding steady at **74%**. The most pressing flag is the overdue Algebra Quiz 1 in Sec 3.`;
                 
                 actions = [
                     { 
                         label: selectedClassId ? `See full report for ${currentClassNameText}` : 'See weekly report', 
                         actionType: 'navigate', 
                         destination: isDemo ? '/teacher/demo' : '/dashboard/teacher' 
-                    }
+                    },
+                    { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }
                 ];
-
-                // If class matches, optionally add attention chip
-                if (selectedClassId) {
-                    actions.push({ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' });
-                }
             } else if (isUnknown) {
                 steps = [];
                 const topWeakTopicForContext = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
@@ -420,7 +445,9 @@ const TeacherCopilotPage: React.FC = () => {
             }
 
             const resolvedIntent = isSmallTalk ? 'smalltalk' :
+                isTeacherLostKw(lowerQuery) ? 'teacherlost' :
                 isSensitiveKw(lowerQuery) ? 'sensitive' :
+                isOverviewKw(lowerQuery) ? 'overview' :
                 isCommunicationKw(lowerQuery) ? 'communication' :
                 isAttentionKw(lowerQuery) ? 'attention' :
                 isPlanningKw(lowerQuery) ? 'planning' :
@@ -433,7 +460,8 @@ const TeacherCopilotPage: React.FC = () => {
                 steps: steps,
                 content: content,
                 actions: actions.length > 0 ? actions : undefined,
-                intent: resolvedIntent
+                intent: resolvedIntent,
+                showFeedback: shouldShowFeedback()
             };
 
             setMessages(prev => [...prev, assistantMsg]);
@@ -622,6 +650,7 @@ const TeacherCopilotPage: React.FC = () => {
                                 onActionClick={handleActionClick}
                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
                                 copilotRole="teacher"
+                                showFeedback={msg.showFeedback}
                             />
                         ))}
                     </>

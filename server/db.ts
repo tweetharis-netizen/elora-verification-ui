@@ -19,6 +19,7 @@ export interface User {
 export interface Classroom {
     id: string;
     name: string;
+    subject: string;
     teacherId: string;
     joinCode: string;
     studentIds: string[];
@@ -177,6 +178,7 @@ export const classes: Classroom[] = [
     {
         id: "1",
         name: "Sec 3 Mathematics",
+        subject: "Mathematics",
         teacherId: "teacher_1",
         joinCode: "X7B9-Q",
         studentIds: ["student_1", "student_2", "student_3", ...Array(29).fill("dummy_id")],
@@ -188,6 +190,7 @@ export const classes: Classroom[] = [
     {
         id: "2",
         name: "Sec 4 Physics",
+        subject: "Physics",
         teacherId: "teacher_1",
         joinCode: "PHYS-4",
         studentIds: ["student_1", "student_2", ...Array(26).fill("dummy_id")],
@@ -199,6 +202,7 @@ export const classes: Classroom[] = [
     {
         id: "3",
         name: "Sec 1 Science",
+        subject: "Science",
         teacherId: "teacher_1",
         joinCode: "SCI-11",
         studentIds: Array(40).fill("dummy_id"),
@@ -210,6 +214,7 @@ export const classes: Classroom[] = [
     {
         id: "4",
         name: "Sec 2 Mathematics",
+        subject: "Mathematics",
         teacherId: "teacher_1",
         joinCode: "MATH-2",
         studentIds: Array(42).fill("dummy_id"),

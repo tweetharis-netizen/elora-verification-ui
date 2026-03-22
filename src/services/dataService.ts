@@ -82,6 +82,7 @@ export interface TeacherStat {
 export interface TeacherClass {
     id: string;
     name: string;
+    subject: string;
     studentsCount: number;
     nextTopic: string;
     time: string;
@@ -189,6 +190,15 @@ export interface GameSession {
 
 // ── Student API ───────────────────────────────────────────────────────────────
 
+export interface StudentClass {
+    id: string;
+    name: string;
+    subject: string;
+    teacherName: string;
+    joinCode: string;
+    enrolledAt: string;
+}
+
 export interface StudentDashboardData {
     assignments: StudentAssignment[];
     recentPerformance: {
@@ -210,6 +220,14 @@ export const getStudentAssignments = async (): Promise<StudentDashboardData> => 
         headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch student assignments');
+    return response.json();
+};
+
+export const getStudentClasses = async (): Promise<StudentClass[]> => {
+    const response = await fetch(`${API_BASE}/classes/mine`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch student classes');
     return response.json();
 };
 
@@ -306,11 +324,15 @@ export const getMyClasses = async (): Promise<TeacherClass[]> => {
     return response.json();
 };
 
-export const createTeacherClass = async (name: string): Promise<TeacherClass> => {
+export const createTeacherClass = async (
+    name: string,
+    subject: string,
+    scheduleTime?: string
+): Promise<TeacherClass> => {
     const response = await fetch(`${API_BASE}/classes`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, subject, scheduleTime }),
     });
     if (!response.ok) throw new Error('Failed to create class');
     return response.json();
@@ -448,6 +470,14 @@ export const getParentChildren = async (): Promise<ParentChild[]> => {
         headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch children');
+    return response.json();
+};
+
+export const getChildClasses = async (childId: string): Promise<StudentClass[]> => {
+    const response = await fetch(`${API_BASE}/parent/children/${childId}/classes`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch child classes');
     return response.json();
 };
 

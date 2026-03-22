@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db.js';
+import { sqliteDb, DEMO_USER_IDS } from '../database.js';
 import { AuthRequest } from '../middleware/auth.js';
 
 export const getChildren = (req: AuthRequest, res: Response) => {
@@ -142,6 +143,22 @@ export const getChildSummary = (req: AuthRequest, res: Response) => {
         score: Math.round(total / count),
     }));
 
+    // Add child classes to response
+    let childClasses = [];
+    if (DEMO_USER_IDS.has(parent.id)) {
+        childClasses = db.classes
+            .filter(c => c.studentIds.includes(childId))
+            .map(c => ({ id: c.id, name: c.name, subject: (c as any).subject ?? 'General' }));
+    } else {
+        const rows = sqliteDb.prepare(`
+            SELECT c.id, c.name, c.subject
+            FROM classes c
+            JOIN enrollments e ON c.id = e.class_id
+            WHERE e.student_id = ? AND e.status = 'active'
+        `).all(childId) as any[];
+        childClasses = rows.map(c => ({ id: c.id, name: c.name, subject: c.subject }));
+    }
+
     res.json({
         child: {
             id: child.id,
@@ -154,7 +171,50 @@ export const getChildSummary = (req: AuthRequest, res: Response) => {
         recentActivity,
         weakTopics,
         subjectScores,
+        classes: childClasses,
     });
+};
+
+export const getChildClasses = (req: AuthRequest, res: Response) => {
+    const parent = req.user!;
+    const childId = req.params.id;
+
+    if (!parent.childrenIds || !parent.childrenIds.includes(childId)) {
+        res.status(403).json({ error: 'Not authorized to view this child' });
+        return;
+    }
+
+    if (DEMO_USER_IDS.has(parent.id)) {
+        const myClasses = db.classes.filter(c => c.studentIds.includes(childId));
+        return res.json(myClasses.map(c => {
+            const teacher = db.users.find(u => u.id === c.teacherId);
+            return {
+                id: c.id,
+                name: c.name,
+                subject: (c as any).subject ?? 'General',
+                teacherName: teacher?.name || 'Unknown',
+                joinCode: c.joinCode,
+                enrolledAt: new Date().toISOString()
+            };
+        }));
+    }
+
+    const rows = sqliteDb.prepare(`
+        SELECT c.*, u.name as teacher_name, e.joined_at
+        FROM classes c
+        JOIN enrollments e ON c.id = e.class_id
+        JOIN users u ON c.teacher_id = u.id
+        WHERE e.student_id = ? AND e.status = 'active'
+    `).all(childId) as any[];
+
+    res.json(rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        subject: r.subject,
+        teacherName: r.teacher_name,
+        joinCode: r.join_code,
+        enrolledAt: r.joined_at
+    })));
 };
 
 export const sendNudge = (req: AuthRequest, res: Response): any => {

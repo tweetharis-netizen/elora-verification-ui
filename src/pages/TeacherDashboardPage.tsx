@@ -1005,6 +1005,8 @@ export default function TeacherDashboardPage() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'classes'>('dashboard');
     const [showCreateClass, setShowCreateClass] = useState(false);
     const [newClassName, setNewClassName] = useState('');
+    const [newClassSubject, setNewClassSubject] = useState('');
+    const [newClassSchedule, setNewClassSchedule] = useState('');
     const [createClassError, setCreateClassError] = useState<string | null>(null);
     const [creatingClass, setCreatingClass] = useState(false);
 
@@ -1023,10 +1025,12 @@ export default function TeacherDashboardPage() {
         setCreatingClass(true);
         setCreateClassError(null);
         try {
-            const newClass = await dataService.createTeacherClass(newClassName);
+            const newClass = await dataService.createTeacherClass(newClassName, newClassSubject, newClassSchedule || undefined);
             setMyClasses(prev => [...prev, newClass]);
             setShowCreateClass(false);
             setNewClassName('');
+            setNewClassSubject('');
+            setNewClassSchedule('');
         } catch (err: unknown) {
             setCreateClassError(err instanceof Error ? err.message : 'Failed to create class');
         } finally {
@@ -2318,7 +2322,14 @@ export default function TeacherDashboardPage() {
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="min-w-0">
                                                         <h3 className="text-lg font-semibold text-slate-900 truncate">{cls.name}</h3>
-                                                        <p className="text-sm text-slate-500 mt-1">{cls.studentsCount} Students Enrolled</p>
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                            {cls.subject && (
+                                                                <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-semibold border border-teal-200">
+                                                                    {cls.subject}
+                                                                </span>
+                                                            )}
+                                                            <p className="text-sm text-slate-500">{cls.studentsCount} Students Enrolled</p>
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-start gap-2 shrink-0">
                                                         {(!cls.activeAssignments || cls.activeAssignments === 0) ? (
@@ -2721,6 +2732,101 @@ export default function TeacherDashboardPage() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Create Class Modal ── */}
+            {showCreateClass && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowCreateClass(false); setCreateClassError(null); }} />
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <Plus className="text-teal-600 w-5 h-5" />
+                                Create New Class
+                            </h3>
+                            <button
+                                onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
+                                className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateClass} className="flex flex-col gap-5">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Class Name <span className="text-red-500">*</span></label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={newClassName}
+                                    onChange={(e) => setNewClassName(e.target.value)}
+                                    placeholder="e.g. Sec 3 Mathematics"
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Subject <span className="text-red-500">*</span></label>
+                                <select
+                                    required
+                                    value={newClassSubject}
+                                    onChange={(e) => setNewClassSubject(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white text-slate-700"
+                                >
+                                    <option value="" disabled>-- Select a subject --</option>
+                                    <option>Mathematics</option>
+                                    <option>Science</option>
+                                    <option>English</option>
+                                    <option>Physics</option>
+                                    <option>Chemistry</option>
+                                    <option>Biology</option>
+                                    <option>History</option>
+                                    <option>Geography</option>
+                                    <option>Literature</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Schedule <span className="text-slate-400 font-normal">(optional)</span></label>
+                                <input
+                                    type="text"
+                                    value={newClassSchedule}
+                                    onChange={(e) => setNewClassSchedule(e.target.value)}
+                                    placeholder="e.g. Mon & Wed, 2:00 PM"
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
+                                />
+                                <p className="text-xs text-slate-400 mt-1.5 px-1">This will be shown on the class card for quick reference.</p>
+                            </div>
+
+                            {createClassError && (
+                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                    {createClassError}
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
+                                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={creatingClass}
+                                    className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                                >
+                                    {creatingClass ? (
+                                        <><RefreshCw className="w-4 h-4 animate-spin" /> Creating...</>
+                                    ) : (
+                                        <><Plus size={16} /> Create Class</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

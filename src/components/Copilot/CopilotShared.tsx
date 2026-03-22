@@ -55,7 +55,7 @@ export const CopilotLayout: React.FC<{
     isSidebarOpen: boolean;
     setIsSidebarOpen: (open: boolean) => void;
     isDemo: boolean;
-    role: 'Teacher' | 'Student';
+    role: 'Teacher' | 'Student' | 'Parent';
     themeColor?: string;
     sidebarColor?: string;
     logout: () => void;
@@ -156,6 +156,12 @@ export const CopilotLayout: React.FC<{
                             <>
                                 <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} />
                                 <NavItem icon={<BarChart2 size={20} />} label="Reports" collapsed={!isSidebarOpen} />
+                            </>
+                        )}
+                        {role === 'Parent' && (
+                            <>
+                                <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} />
+                                <NavItem icon={<BarChart2 size={20} />} label="Progress" collapsed={!isSidebarOpen} />
                             </>
                         )}
                         {role === 'Teacher' && <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} />}

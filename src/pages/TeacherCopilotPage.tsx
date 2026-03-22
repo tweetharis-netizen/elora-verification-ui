@@ -474,15 +474,48 @@ const TeacherCopilotPage: React.FC = () => {
                         handleSend={handleSend}
                     />
                 ) : (
-                    messages.map((msg) => (
-                        <CopilotMessageBubble
-                            key={msg.id}
-                            message={msg}
-                            themeColor="#14b8a6"
-                            onActionClick={handleActionClick}
-                            shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
-                        />
-                    ))
+                    <>
+                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#EAE7DD]">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-teal-50 p-2 rounded-xl border border-teal-100 hidden md:block">
+                                    <Sparkles className="w-6 h-6 text-teal-600" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-slate-900 leading-tight">Copilot</h1>
+                                    <p className="text-sm text-slate-500 font-medium">
+                                        Your classroom AI assistant
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Context Selection Pill */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit shadow-sm"
+                                >
+                                    <Layers size={14} className="shrink-0" />
+                                    {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                    )}
+                                    <span className="text-xs font-bold whitespace-nowrap">
+                                        {currentClassName}
+                                    </span>
+                                    <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {messages.map((msg) => (
+                            <CopilotMessageBubble
+                                key={msg.id}
+                                message={msg}
+                                themeColor="#14b8a6"
+                                onActionClick={handleActionClick}
+                                shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
+                            />
+                        ))}
+                    </>
                 )}
 
                 {isThinking && (

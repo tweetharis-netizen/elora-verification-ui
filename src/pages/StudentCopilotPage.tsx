@@ -4,7 +4,12 @@ import {
     Plus,
     CheckCircle2,
     ChevronDown,
-    Sparkles
+    Sparkles,
+    ArrowRight,
+    Layers,
+    GraduationCap,
+    BookOpen,
+    Check
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
@@ -142,6 +147,17 @@ const StudentCopilotPage: React.FC = () => {
         const isExplainKw = (q: string) => /explain|what is|help me understand/i.test(q);
         const isSensitiveKw = (q: string) => /sad|depressed|hurt|mean|bully|stress|lonely/i.test(q);
 
+        const getScopePrefix = () => {
+            if (selectedSubjectId !== 'all') return "";
+            const variations = [
+                "Across all your subjects, here's what I found...",
+                "Checking across all your current work...",
+                "Looking at everything across all subjects...",
+                "Based on your data from all subjects..."
+            ];
+            return variations[Math.floor(Math.random() * variations.length)] + "\n\n";
+        };
+
         setTimeout(() => {
             setIsThinking(false);
 
@@ -152,8 +168,8 @@ const StudentCopilotPage: React.FC = () => {
             // Context-aware Step generator helper
             const getCtxStep = () => {
                 return selectedSubjectId === 'all' 
-                    ? { id: 'ctx', text: 'Context: All subjects — looking across all your work' } 
-                    : { id: 'ctx', text: `Context: ${selectedSubjectId} — only using data from this class` };
+                    ? { id: 'ctx', text: 'Context: All subjects — scoping all lookups across your full schedule' } 
+                    : { id: 'ctx', text: `Context: ${selectedSubjectId} — scoping all lookups to this subject only` };
             };
 
             if (isSmallTalkKw(lowerQuery)) {
@@ -178,7 +194,7 @@ const StudentCopilotPage: React.FC = () => {
                 if (sorted.length === 0) {
                     content = `I don't see any unfinished assignments ${selectedSubjectId === 'all' ? '' : `for ${selectedSubjectId} `}— your schedule looks clear right now.`;
                 } else {
-                    content = `You have ${sorted.length} assignment${sorted.length > 1 ? 's' : ''} still to do:\n`;
+                    content = getScopePrefix() + `You have ${sorted.length} assignment${sorted.length > 1 ? 's' : ''} still to do:\n`;
                     sorted.slice(0, 5).forEach(asgn => {
                         const isOverdue = asgn.dueDate && new Date(asgn.dueDate).getTime() < Date.now();
                         let dueText = '';
@@ -204,14 +220,14 @@ const StudentCopilotPage: React.FC = () => {
                 })[0];
 
                 if (urgent) {
-                    content = `The most important thing to start now is **${urgent.title}** because it is the most urgent on your list.`;
+                    content = getScopePrefix() + `The most important thing to start now is **${urgent.title}** because it is the most urgent on your list.`;
                     if (primaryWeakTopic) {
                         content += `\n\nIf you have extra time, follow that up with a short practice round on **${primaryWeakTopic}** to boost your scores.`;
                         actions.push({ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
                     }
                     actions.unshift({ label: `Start ${urgent.title}`, actionType: 'navigate', destination: '/dashboard/student' });
                 } else if (primaryWeakTopic) {
-                    content = `Across your subjects, the best use of your time right now is to practice **${primaryWeakTopic}**. This is the topic you've been finding most tricky recently.`;
+                    content = getScopePrefix() + `Across your subjects, the best use of your time right now is to practice **${primaryWeakTopic}**. This is the topic you've been finding most tricky recently.`;
                     actions = [{ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
                 } else {
                     content = "Your schedule looks great! You've cleared your priority assignments and your recent scores are balanced. You could explore a new topic or take a well-earned break.";
@@ -233,7 +249,7 @@ const StudentCopilotPage: React.FC = () => {
                     const subCount = filteredAssignments.filter(a => ['completed', 'success', 'submitted'].includes(a.status || '')).length;
                     const totalCount = filteredAssignments.length;
 
-                    content = `${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week. \n\nYou’ve submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryWeakTopic ? `The main topic to watch is **${primaryWeakTopic}** if we see one.` : 'Your scores are looking very balanced across all topics.'}`;
+                    content = getScopePrefix() + `${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week. \n\nYou’ve submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryWeakTopic ? `The main topic to watch is **${primaryWeakTopic}** if we see one.` : 'Your scores are looking very balanced across all topics.'}`;
                     actions = [{ label: "See what's left to do", actionType: 'navigate', destination: '/dashboard/student' }];
                     if (primaryWeakTopic) actions.push({ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
                 }
@@ -245,7 +261,7 @@ const StudentCopilotPage: React.FC = () => {
                 ];
 
                 if (primaryWeakTopic) {
-                    content = `Right now, the topic you're finding hardest is **${primaryWeakTopic}**. Working on this first will have the biggest impact on your overall progress.`;
+                    content = getScopePrefix() + `Right now, the topic you're finding hardest is **${primaryWeakTopic}**. Working on this first will have the biggest impact on your overall progress.`;
                     actions = [
                         { label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
                         { label: `Explain ${primaryWeakTopic} simply`, actionType: 'navigate', destination: '#' }
@@ -279,10 +295,10 @@ const StudentCopilotPage: React.FC = () => {
                 const nextQuiz = filteredPending.find(a => /quiz|test/i.test(a.title));
                 
                 if (nextQuiz) {
-                    content = `Your next quiz is **${nextQuiz.title}**. The most important thing for you to focus on is any weak points in that area. Spending just 15–20 minutes on specific practice rounds before the quiz will help you feel more confident!`;
+                    content = getScopePrefix() + `Your next quiz is **${nextQuiz.title}**. The most important thing for you to focus on is any weak points in that area. Spending just 15–20 minutes on specific practice rounds before the quiz will help you feel more confident!`;
                     actions = [{ label: "Show me what's on the quiz", actionType: 'navigate', destination: '/dashboard/student' }];
                 } else {
-                    content = "I don't see any upcoming quizzes on your schedule right now, so you can use this time for general practice or clearing any overdue work.";
+                    content = getScopePrefix() + "I don't see any upcoming quizzes on your schedule right now, so you can use this time for general practice or clearing any overdue work.";
                     actions = [{ label: "Start a practice round", actionType: 'navigate', destination: '/play/practice-general' }];
                 }
             } else if (isExplainKw(lowerQuery)) {
@@ -322,83 +338,109 @@ const StudentCopilotPage: React.FC = () => {
     };
 
     const sidebarContent = (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6]">
+            {/* Sidebar Header */}
             <div className="p-6 border-b border-[#EAE7DD]">
-                <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles size={18} className="text-[#68507B]" />
-                    Context
-                </h2>
-                <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">
-                    Picking a class helps me give more accurate answers about your specific work.
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Elora Copilot</h2>
+                <p className="text-sm font-medium text-[#68507B] flex items-center gap-1.5">
+                    <Sparkles size={14} />
+                    Connected to your progress
                 </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Current Class</p>
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 no-scrollbar select-none">
+                {/* Subject Selector (Pill Style like Teacher) */}
+                <div className="relative">
                     <button
                         onClick={() => setIsSubjectSelectorOpen(!isSubjectSelectorOpen)}
-                        className="w-full flex items-center justify-between p-3 bg-[#68507B]/5 border border-[#68507B]/20 rounded-xl text-[#68507B] hover:bg-[#68507B]/10 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[#68507B]/5 hover:bg-[#68507B]/10 border border-[#68507B]/20 rounded-full text-[#68507B] transition-colors w-fit shadow-sm"
                     >
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <div className="w-2 h-2 rounded-full bg-[#68507B]/40 shrink-0" />
-                            <span className="text-sm font-bold truncate">{selectedSubjectName}</span>
-                        </div>
-                        <ChevronDown size={16} className={`shrink-0 transition-transform ${isSubjectSelectorOpen ? 'rotate-180' : ''}`} />
+                        <Layers size={14} className="shrink-0" />
+                        {selectedSubjectId === 'all' && primaryWeakTopic && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                        )}
+                        <span className="text-xs font-bold whitespace-nowrap">
+                            {selectedSubjectName}
+                        </span>
+                        <ChevronDown size={14} className={`shrink-0 transition-transform ${isSubjectSelectorOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isSubjectSelectorOpen && (
-                        <div className="mt-2 bg-white rounded-xl border border-[#EAE7DD] shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button
-                                onClick={() => {
-                                    setSelectedSubjectId('all');
-                                    setIsSubjectSelectorOpen(false);
-                                    setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: '── Context changed to All subjects ──' }]);
-                                }}
-                                className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedSubjectId === 'all' ? 'bg-[#68507B]/5 text-[#68507B]' : 'text-slate-700'}`}
-                            >
-                                <span>All subjects</span>
-                                {selectedSubjectId === 'all' && <CheckCircle2 size={16} />}
-                            </button>
-                            {subjects.map(subj => (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="px-4 py-2 mb-1">
+                                <p className="text-[11px] font-medium text-slate-400">Copilot will answer using data from this subject only.</p>
+                            </div>
+                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                 <button
-                                    key={subj}
                                     onClick={() => {
-                                        setSelectedSubjectId(subj);
+                                        setSelectedSubjectId('all');
                                         setIsSubjectSelectorOpen(false);
-                                        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `── Context changed to ${subj} ──` }]);
+                                        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `── Context changed to All subjects ──` }]);
                                     }}
-                                    className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-slate-50 border-t border-slate-50 transition-colors ${selectedSubjectId === subj ? 'bg-[#68507B]/5 text-[#68507B]' : 'text-slate-700'}`}
+                                    className={`w-full text-left px-4 py-3 text-sm font-bold flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === 'all' ? 'bg-[#68507B]/5' : ''}`}
                                 >
-                                    <span className="truncate">{subj}</span>
-                                    {selectedSubjectId === subj && <CheckCircle2 size={16} />}
+                                    <div className={`mt-0.5 p-1 rounded-md ${selectedSubjectId === 'all' ? 'bg-[#68507B]/10 text-[#68507B]' : 'bg-slate-100 text-slate-500'}`}>
+                                        <Plus size={14} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
+                                                {primaryWeakTopic && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                                                All subjects
+                                            </span>
+                                            {selectedSubjectId === 'all' && <Check size={16} className="text-[#68507B]" />}
+                                        </div>
+                                    </div>
                                 </button>
-                            ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                {subjects.map(subj => (
+                                    <button
+                                        key={subj}
+                                        onClick={() => {
+                                            setSelectedSubjectId(subj);
+                                            setIsSubjectSelectorOpen(false);
+                                            setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `── Context changed to ${subj} ──` }]);
+                                        }}
+                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === subj ? 'bg-[#68507B]/5' : ''}`}
+                                    >
+                                        <div className={`mt-0.5 p-1 rounded-md ${selectedSubjectId === subj ? 'bg-[#68507B]/10 text-[#68507B]' : 'bg-slate-100 text-slate-500'}`}>
+                                            <BookOpen size={14} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-bold text-slate-900 truncate">{subj}</span>
+                                                {selectedSubjectId === subj && <Check size={16} className="text-[#68507B]" />}
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-2 italic">I'm best at:</p>
-                    <ul className="space-y-2.5 px-2">
-                        <li className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#68507B]/30 mt-1.5 shrink-0" />
-                            Finding unfinished work
-                        </li>
-                        <li className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#68507B]/30 mt-1.5 shrink-0" />
-                            Suggesting what to do next
-                        </li>
-                        <li className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#68507B]/30 mt-1.5 shrink-0" />
-                            Weekly progress summaries
-                        </li>
-                        <li className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#68507B]/30 mt-1.5 shrink-0" />
-                            Explaining tricky topics
-                        </li>
-                    </ul>
+                {/* Prompt Chips */}
+                <div>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
+                    <div className="flex flex-col gap-2">
+                        {currentPrompts.map((prompt, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => handleSend(prompt)}
+                                className="text-left text-sm text-[#68507B] font-medium bg-[#68507B]/5 border border-[#68507B]/10 hover:bg-[#68507B]/10 hover:border-[#68507B]/20 transition-colors px-4 py-3 rounded-xl flex items-start gap-2"
+                            >
+                                <span className="flex-1 leading-snug">{prompt}</span>
+                                <ArrowRight size={16} className="shrink-0 text-[#68507B] opacity-50 mt-0.5" />
+                            </button>
+                        ))}
+                    </div>
                 </div>
+            </div>
+
+            <div className="p-6 border-t border-[#EAE7DD] bg-[#faf9f6]">
+                <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                    I'm best at checking pending work, suggesting what to do next, and explaining tricky topics based on your actual progress data.
+                </p>
             </div>
         </div>
     );
@@ -414,8 +456,8 @@ const StudentCopilotPage: React.FC = () => {
             logout={logout}
             navigate={navigate}
             sidebar={sidebarContent}
-            demoBanner={<DemoBanner />}
-            demoRoleSwitcher={<DemoRoleSwitcher />}
+            demoBanner={isDemo && <DemoBanner />}
+            demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
         >
             <CopilotMobileHeader themeColor="#68507B" />
 
@@ -431,12 +473,14 @@ const StudentCopilotPage: React.FC = () => {
                     <>
                         <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#EAE7DD]">
                             <div className="flex items-center gap-3">
-                                <div className="bg-[#68507B]/10 p-2 rounded-xl border border-[#68507B]/20 hidden md:block">
+                                <div className="bg-[#68507B]/5 p-2 rounded-xl border border-[#68507B]/10 hidden md:block">
                                     <Sparkles className="w-6 h-6 text-[#68507B]" />
                                 </div>
                                 <div>
                                     <h1 className="text-xl font-bold text-slate-900 leading-tight">Copilot</h1>
-                                    <p className="text-sm text-slate-500 font-medium">Your personal learning assistant</p>
+                                    <p className="text-sm text-slate-500 font-medium">
+                                        Your personal learning assistant
+                                    </p>
                                 </div>
                             </div>
 
@@ -446,7 +490,10 @@ const StudentCopilotPage: React.FC = () => {
                                     onClick={() => setIsSubjectSelectorOpen(!isSubjectSelectorOpen)}
                                     className="flex items-center gap-2 px-3 py-1.5 bg-[#68507B]/5 hover:bg-[#68507B]/10 border border-[#68507B]/20 rounded-full text-[#68507B] transition-colors w-fit shadow-sm"
                                 >
-                                    <div className="w-2 h-2 rounded-full bg-[#68507B]/40" />
+                                    <Layers size={14} className="shrink-0" />
+                                    {selectedSubjectId === 'all' && primaryWeakTopic && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                    )}
                                     <span className="text-xs font-bold whitespace-nowrap">
                                         {selectedSubjectName}
                                     </span>

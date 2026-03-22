@@ -28,6 +28,7 @@ import {
     Inbox,
     RefreshCw,
     Heart,
+    Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -64,6 +65,7 @@ const BRAND = '#DB844A';
 
 const SIDEBAR_ITEMS = [
     { icon: LayoutDashboard, label: 'Overview', id: 'overview' },
+    { icon: Sparkles, label: 'Elora Copilot', id: 'copilot' },
     { icon: Users, label: 'Children', id: 'children' },
     { icon: BarChart2, label: 'Progress & Reports', id: 'progress' },
     { icon: FileText, label: 'Assignments & Quizzes', id: 'assignments' },
@@ -997,7 +999,13 @@ export default function ParentDashboardPage() {
                             label={item.label}
                             active={activePage === item.id}
                             collapsed={!isSidebarOpen}
-                            onClick={() => setActivePage(item.id)}
+                            onClick={() => {
+                                if (item.id === 'copilot') {
+                                    navigate('/parent/copilot');
+                                } else {
+                                    setActivePage(item.id);
+                                }
+                            }}
                         />
                     ))}
                 </nav>

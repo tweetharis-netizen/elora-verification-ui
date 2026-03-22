@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Sparkles, 
     ChevronUp, 
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EloraLogo } from '../EloraLogo';
+import { CopilotFeedbackRow } from './CopilotFeedbackRow';
 
 // --- Shared Types ---
 export type Step = {
@@ -42,7 +43,50 @@ export type Message = {
     content: string;
     steps?: Step[];
     actions?: ActionChip[];
+    intent?: string;
 };
+
+export const handleFeedback = (feedback: { messageId: string; role: string; value: 'yes' | 'no'; intent?: string }) => {
+    console.log('Copilot feedback', feedback);
+};
+
+export const getParentGreeting = (childFirstName?: string) => {
+    const hour = new Date().getHours();
+    const nameStr = childFirstName ? ` ${childFirstName}` : '';
+    const nameDisplay = childFirstName ? childFirstName : 'my child';
+    const kidsStr = childFirstName ? ` ${childFirstName}'s` : ` my child's`;
+    
+    // As per specification:
+    // If multiple children / no child selected (childFirstName is null/undefined if we want the generic form)
+    // Actually Section 3.1 explicitly says:
+    // Morning: Good morning. How’s Liam getting on?
+    // Afternoon: Good afternoon. Want to check in on Liam?
+    // Evening: Good evening. This is a good time to catch up on Liam’s week.
+    // Late night: Hi. Anything you want to check on?
+    if (!childFirstName) {
+        if (hour >= 5 && hour < 12) return 'Good morning. How are the kids getting on?';
+        if (hour >= 12 && hour < 17) return 'Good afternoon. Want to check in on the kids?';
+        if (hour >= 17 && hour < 21) return 'Good evening. This is a good time to catch up on the kids\' week.';
+        return 'Hi. Anything you want to check on?';
+    }
+
+    if (hour >= 5 && hour < 12) return `Good morning. How’s ${childFirstName} getting on?`;
+    if (hour >= 12 && hour < 17) return `Good afternoon. Want to check in on ${childFirstName}?`;
+    if (hour >= 17 && hour < 21) return `Good evening. This is a good time to catch up on ${childFirstName}’s week.`;
+    return 'Hi. Anything you want to check on?';
+};
+
+export const getPronoun = (gender: 'male' | 'female' | 'non-binary') => {
+    switch (gender) {
+        case 'male':
+            return { pSub: 'he', pObj: 'him', pPos: 'his', pIs: 'is' };
+        case 'female':
+            return { pSub: 'she', pObj: 'her', pPos: 'her', pIs: 'is' };
+        default:
+            return { pSub: 'they', pObj: 'them', pPos: 'their', pIs: 'are' };
+    }
+};
+
 
 // --- Shared Components ---
 
@@ -232,13 +276,15 @@ export const CopilotMobileHeader: React.FC<{
 export const ThinkingStrip: React.FC<{ 
     steps: Step[], 
     defaultExpanded?: boolean, 
-    themeColor?: string 
+    themeColor?: string,
+    headerText?: string
 }> = ({ 
     steps, 
     defaultExpanded, 
-    themeColor = '#14b8a6' 
+    themeColor = '#14b8a6',
+    headerText = 'How I figured this out'
 }) => {
-    const [expanded, setExpanded] = useState(defaultExpanded ?? false);
+    const [expanded, setExpanded] = useState(defaultExpanded ?? (window.innerWidth >= 768));
 
     return (
         <div className="mb-2 w-full">
@@ -247,7 +293,7 @@ export const ThinkingStrip: React.FC<{
                 className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors bg-white/50 px-2.5 py-1 rounded-md mb-1 border border-slate-200"
             >
                 <Sparkles size={12} style={{ color: themeColor }} />
-                <span>What I checked &middot; {steps.length} steps</span>
+                <span>{headerText} &middot; {steps.length} steps {!expanded && '↓'}</span>
                 {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
 
@@ -272,12 +318,16 @@ export const CopilotMessageBubble: React.FC<{
     message: Message, 
     themeColor?: string, 
     onActionClick?: (action: ActionChip) => void,
-    shouldAutoExpandSteps?: boolean
+    shouldAutoExpandSteps?: boolean,
+    thinkingStripHeader?: string,
+    copilotRole?: 'teacher' | 'student' | 'parent'
 }> = ({ 
     message, 
     themeColor = '#14b8a6', 
     onActionClick, 
-    shouldAutoExpandSteps = false 
+    shouldAutoExpandSteps = false,
+    thinkingStripHeader,
+    copilotRole
 }) => {
     if (message.role === 'system') {
         return (
@@ -295,7 +345,7 @@ export const CopilotMessageBubble: React.FC<{
         <div className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[90%] md:max-w-2xl flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
                 {message.role === 'assistant' && message.steps && message.steps.length > 0 && (
-                    <ThinkingStrip steps={message.steps} defaultExpanded={shouldAutoExpandSteps} themeColor={themeColor} />
+                    <ThinkingStrip steps={message.steps} defaultExpanded={shouldAutoExpandSteps} themeColor={themeColor} headerText={thinkingStripHeader} />
                 )}
 
                 <div
@@ -311,6 +361,15 @@ export const CopilotMessageBubble: React.FC<{
                         ))}
                     </div>
                 </div>
+
+                {message.role === 'assistant' && copilotRole && (
+                    <CopilotFeedbackRow 
+                        messageId={message.id}
+                        role={copilotRole}
+                        intent={message.intent}
+                        onFeedback={handleFeedback}
+                    />
+                )}
 
                 {message.actions && message.actions.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -345,37 +404,100 @@ export const CopilotEmptyState: React.FC<{
     description: string;
     prompts: string[];
     handleSend: (p: string) => void;
+    userName?: string;
+    customGreeting?: string;
 }> = ({ 
     themeColor = '#14b8a6', 
-    title = "How can I help you today?", 
+    title, 
     description,
     prompts,
-    handleSend
-}) => (
-    <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto p-4">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ backgroundColor: themeColor + '1a', color: themeColor }}>
-            <Sparkles size={32} />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">{title}</h2>
-        <p className="text-slate-500 text-sm">
-            {description}
-        </p>
-        <div className="flex flex-col gap-2 mt-6 w-full max-w-xs">
-            {prompts.map((prompt, idx) => (
-                <button
-                    key={idx}
-                    onClick={() => handleSend(prompt)}
-                    className="w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-colors flex items-center justify-between gap-2 shadow-sm"
-                    style={{
-                        backgroundColor: themeColor + '05',
-                        borderColor: themeColor + '1a',
-                        color: themeColor
-                    }}
+    handleSend,
+    userName,
+    customGreeting
+}) => {
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) return 'Good morning';
+        if (hour >= 12 && hour < 17) return 'Good afternoon';
+        if (hour >= 17 && hour < 21) return 'Good evening';
+        return 'Hi';
+    };
+
+    const getGreetingName = (name?: string) => {
+        if (!name || name === 'Teacher' || name === 'Parent') return null;
+        
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 0) return null;
+
+        const titles = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Mdm.', 'Mr', 'Ms', 'Mrs', 'Dr'];
+        
+        // If it's just a title by itself, ignore it
+        if (parts.length === 1 && titles.some(t => parts[0].toLowerCase() === t.toLowerCase())) {
+            return null;
+        }
+
+        // Return full name for "Ms. Tan" instead of dropping the title
+        if (parts.length >= 2 && titles.some(t => parts[0].toLowerCase() === t.toLowerCase())) {
+            return name.trim();
+        }
+        
+        // Otherwise use the first word (existing behavior)
+        return parts[0];
+    };
+
+    const greeting = getGreeting();
+    const gName = getGreetingName(userName);
+    const finalTitle = title || (gName ? `${greeting}, ${gName}.` : `${greeting}.`);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
+
+    useEffect(() => {
+        const checkScroll = () => {
+            if (scrollRef.current) {
+                const { scrollWidth, clientWidth } = scrollRef.current;
+                setShowOverlay(scrollWidth > clientWidth);
+            }
+        };
+
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, [prompts]);
+
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto text-center px-4 py-12">
+            <div className={`w-16 h-16 rounded-2xl mb-6 flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform`} style={{ backgroundColor: themeColor }}>
+                <Sparkles className="text-white w-8 h-8" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                {customGreeting ? customGreeting : finalTitle}
+            </h2>
+            <p className="text-slate-500 text-sm md:text-base mb-10 leading-relaxed font-medium">
+                {description}
+            </p>
+            <div className="relative w-full mt-6">
+                <div 
+                    ref={scrollRef}
+                    className="flex flex-row gap-2 w-full overflow-x-auto no-scrollbar"
                 >
-                    <span className="text-slate-800">{prompt}</span>
-                    <ArrowRight size={14} className="shrink-0 opacity-60" />
-                </button>
-            ))}
+                    {prompts.map((prompt, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSend(prompt)}
+                            className="w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-colors flex items-center justify-between gap-2 shadow-sm"
+                            style={{
+                                backgroundColor: themeColor + '05',
+                                borderColor: themeColor + '1a',
+                                color: themeColor
+                            }}
+                        >
+                            <span className="text-slate-800">{prompt}</span>
+                            <ArrowRight size={14} className="shrink-0 opacity-60" />
+                        </button>
+                    ))}
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};

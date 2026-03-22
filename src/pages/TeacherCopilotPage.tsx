@@ -45,6 +45,62 @@ const MOCK_CLASSES = [
     { id: 'demo-class-2', name: 'Sec 4 Physics', studentsCount: 24, lastActive: '1 day ago' },
 ];
 
+const HorizontalChips: React.FC<{ 
+    prompts: string[], 
+    onSend: (p: string) => void, 
+    themeColor: string 
+}> = ({ prompts, onSend, themeColor }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
+
+    const checkScroll = () => {
+        if (scrollRef.current) {
+            const { scrollWidth, clientWidth } = scrollRef.current;
+            setShowOverlay(scrollWidth > clientWidth);
+        }
+    };
+
+    useEffect(() => {
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, [prompts]);
+
+    return (
+        <div className="relative flex-1 min-w-0">
+            <div 
+                ref={scrollRef}
+                onScroll={checkScroll}
+                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pr-8"
+            >
+                {prompts.map((prompt, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => onSend(prompt)}
+                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
+                        style={{
+                            backgroundColor: themeColor + '0d',
+                            borderColor: themeColor + '33',
+                            color: themeColor
+                        }}
+                    >
+                        {prompt}
+                    </button>
+                ))}
+            </div>
+            {showOverlay && (
+                <div 
+                    className="absolute right-0 top-0 h-[calc(100%-4px)] w-8 pointer-events-none rounded-r-full"
+                    style={{ 
+                        background: `linear-gradient(to right, transparent, white)`
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
+
 const TeacherCopilotPage: React.FC = () => {
     const { isVerified, logout, currentUser } = useAuth();
     const navigate = useNavigate();
@@ -114,7 +170,7 @@ const TeacherCopilotPage: React.FC = () => {
                     ],
                     content: 'In Sec 3 Mathematics, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.',
                     actions: [
-                        { label: 'View these students in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }
+                        { label: 'See who’s falling behind', actionType: 'navigate', destination: 'needs-attention' }
                     ]
                 }
             ]);
@@ -138,7 +194,7 @@ const TeacherCopilotPage: React.FC = () => {
         const systemMsg: Message = {
             id: `system-${Date.now()}`,
             role: 'system',
-            content: `── Context changed to ${label} ──`
+            content: `Switched to ${label} · answers now reflect ${classId ? 'this class' : 'all classes'}`
         };
         setMessages(prev => [...prev, systemMsg]);
     };
@@ -183,20 +239,20 @@ const TeacherCopilotPage: React.FC = () => {
             };
 
             // Intent Detection Helpers
-            const isSmallTalkKw = (q: string) => /hi|hello|hey|thanks|thank you|how are you/i.test(q);
+            const isSmallTalkKw = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you)$/i.test(q.replace(/[?!.]/g, ''));
             const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this|how do i use this/i.test(q);
             const isCommunicationKw = (q: string) => /message|email|note|parent|families|tell|say/i.test(q);
-            const isExplanationKw = (q: string) => /explain|help me understand|what is (?!elora|this|copilot)/i.test(q);
+            const isExplanationKw = (q: string) => /explain|help me understand|what is (?!elora|this|copilot)|give me a summary of (?!the class|how)/i.test(q);
             const isFeedbackKw = (q: string) => /feedback|comment|what should i say/i.test(q);
-            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class/i.test(q);
-            const isAttentionKw = (q: string) => /attention|struggling|help/i.test(q);
-            const isTopicKw = (q: string) => /factorisation|algebra|topic|performance/i.test(q);
+            const isAttentionKw = (q: string) => /attention|struggling|help|behind|at risk|falling behind|improved|most improved/i.test(q);
+            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class|work on|focus on/i.test(q);
+            const isTopicKw = (q: string) => /factorisation|algebra|topic|performance|doing on|index laws|fractions/i.test(q);
             const isSummaryKw = (q: string) => /summary|how are we doing|report|weekly/i.test(q);
+            const isSensitiveKw = (q: string) => /stress|worried|anxious|unhappy|sad|upset/i.test(q);
 
-            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery);
+            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery) || isSensitiveKw(lowerQuery);
 
-            const wordCount = query.trim().split(/\s+/).length;
-            const isSmallTalk = isSmallTalkKw(lowerQuery);
+            const isSmallTalk = isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello";
             const isUnknown = !isSmallTalk && !isAboutKw(lowerQuery) && !hasSupportedIntent;
 
             let content = "";
@@ -217,9 +273,9 @@ const TeacherCopilotPage: React.FC = () => {
             if (isSmallTalk) {
                 steps = [];
                 content = "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'";
-            } else if (isAboutKw(lowerQuery)) {
+            } else if (isSensitiveKw(lowerQuery)) {
                 steps = [];
-                content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
+                content = "I hear your concern. It's tough when students or classes are feeling that way. While I can't offer wellbeing advice, I can help you look at their progress to see if there are academic patterns we can support.\n\nI'd also encourage you to reach out to their parents or a school counselor if you're worried about their emotional well-being.";
             } else if (isCommunicationKw(lowerQuery)) {
                 const overdueInsight = insights.find(i => i.type === 'overdue_assignment');
                 const weakTopicInsight = insights.find(i => i.type === 'weak_topic');
@@ -227,9 +283,13 @@ const TeacherCopilotPage: React.FC = () => {
                 const draftWeakTopic = weakTopicInsight?.topicTag ?? weakTopicInsight?.detail ?? null;
                 const draftClassName = selectedClassId ? currentClassNameText : (overdueInsight?.className ?? 'your class');
 
+                // Personalize if a student is mentioned
+                const mentionedStudent = insights.find(i => i.studentName && lowerQuery.includes(i.studentName.split(' ')[0].toLowerCase()));
+                const recipient = mentionedStudent ? `${mentionedStudent.studentName}'s family` : `${draftClassName} families`;
+
                 const draftBody = draftWeakTopic
-                    ? `Here's a draft message for ${draftClassName} families:\n\n"Hi everyone, I wanted to let you know that ${draftAssignmentTitle} hasn't had any submissions yet. If your child is finding ${draftWeakTopic} a bit tricky, that's completely normal at this stage — it trips up a lot of students. Please encourage them to attempt it this week; even a first go helps me understand where they are. Feel free to reach out if you'd like to talk through how to support them at home."\n\nFeel free to edit the tone to match your voice before sending.`
-                    : `Here's a draft message for ${draftClassName} families:\n\n"Hi everyone, just a reminder that ${draftAssignmentTitle} is still outstanding. If your child needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`;
+                    ? `Here's a draft message for ${recipient}:\n\n"Hi, I wanted to let you know that ${draftAssignmentTitle} hasn't had a submission yet. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} is finding ${draftWeakTopic} a bit tricky, that's completely normal — it trips up a lot of students. Please encourage them to attempt it this week; even a first go helps me understand where they are."\n\nFeel free to edit the tone to match your voice before sending.`
+                    : `Here's a draft message for ${recipient}:\n\n"Hi, just a reminder that ${draftAssignmentTitle} is still outstanding. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`;
 
                 steps = [
                     contextStep,
@@ -238,11 +298,23 @@ const TeacherCopilotPage: React.FC = () => {
                     { id: 'draft', text: 'Drafted a parent-facing message using this context' }
                 ];
                 content = getScopePrefix() + draftBody;
-                actions = [{ label: 'View Assignment', actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
+                actions = [{ label: `See results for ${draftAssignmentTitle}`, actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
+            } else if (isAboutKw(lowerQuery)) {
+                steps = [];
+                content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
             } else if (isExplanationKw(lowerQuery)) {
                 steps = [];
-                content = "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the class average.";
-                actions = [{ label: 'Open Practice Pack', actionType: 'navigate', destination: '/teacher/practice' }];
+                const topics: Record<string, string> = {
+                    'factorisation': "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.",
+                    'index laws': "Index laws are rules used to simplify expressions involving powers of the same base. Key ones to remember are adding indices when multiplying and subtracting when dividing.",
+                    'algebra': "Algebra uses symbols to represent numbers in formulas and equations. It's about finding the unknown or expressing relationships clearly.",
+                    'fractions': "Fractions represent parts of a whole, defined by a numerator (top) and denominator (bottom)."
+                };
+                const matchedTopic = Object.keys(topics).find(t => lowerQuery.includes(t));
+                content = matchedTopic ? topics[matchedTopic] : "I'm not exactly sure about that topic, but I'd suggest focusing on breaking it down into smaller, visual steps for this class.";
+                
+                content += "\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the class average.";
+                actions = [{ label: 'See practice packs for this topic', actionType: 'navigate', destination: '/teacher/practice' }];
             } else if (isFeedbackKw(lowerQuery)) {
                 const allStudentInsights = insights.filter(i => i.studentName);
                 const mentionedInsight = allStudentInsights.find(insight => {
@@ -276,13 +348,6 @@ const TeacherCopilotPage: React.FC = () => {
                         : `For **${targetName}**:\n\n"${firstName}, I can see you're making an effort — keep going. Let's connect briefly next lesson to make sure you feel confident about where you're at."\n\nAdapt as needed.`;
                     content = getScopePrefix() + content;
                 }
-            } else if (isPlanningKw(lowerQuery)) {
-                steps = [
-                    contextStep,
-                    { id: 'load-stats', text: `Checked overdue/upcoming assignments for ${currentClassNameText}.` },
-                    { id: 'check-upcoming', text: 'Checked weak topic flags — none found this week.' }
-                ];
-                content = getScopePrefix() + `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the class average on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
             } else if (isAttentionKw(lowerQuery)) {
                 steps = [
                     contextStep,
@@ -290,10 +355,29 @@ const TeacherCopilotPage: React.FC = () => {
                     { id: 's2', text: 'Checked recent sessions — filtered to the last 7 days.' },
                     { id: 's3', text: 'Ranked by urgency: overdue first, then low scores, then weak topics.' }
                 ];
-                content = selectedClassId
-                    ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
-                    : getScopePrefix() + `**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
-                actions = [{ label: 'View in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }];
+                
+                if (lowerQuery.includes('improved')) {
+                    content = selectedClassId
+                        ? `In **${currentClassNameText}**, the class has shown general improvement in Index Laws, though Factorisation remains a hurdle. Jordan Lee has shown the most consistent growth in participation this week.`
+                        : getScopePrefix() + `Across all classes, your Sec 4 Physics class has improved the most this week (+12% avg score).`;
+                } else if (lowerQuery.includes('behind') || lowerQuery.includes('risk')) {
+                    content = selectedClassId
+                        ? `In **${currentClassNameText}**, **Jordan Lee** and **Priya Nair** are most at risk due to low quiz scores and inactivity respectively. Checking in with them before Friday is highly recommended.`
+                        : getScopePrefix() + `**Sec 3 Mathematics** is currently the furthest behind schedule, with a key quiz 3 days overdue and no submissions yet.`;
+                } else {
+                    content = selectedClassId
+                        ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
+                        : getScopePrefix() + `**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
+                }
+                actions = [{ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }];
+            } else if (isPlanningKw(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'load-stats', text: `Checked overdue/upcoming assignments for ${currentClassNameText}.` },
+                    { id: 'check-upcoming', text: 'Checked weak topic flags — none found this week.' }
+                ];
+                content = getScopePrefix() + `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the class average on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
+                actions = [{ label: 'See practice packs', actionType: 'navigate', destination: '/teacher/practice' }];
             } else if (isTopicKw(lowerQuery)) {
                 steps = [
                     contextStep,
@@ -303,6 +387,7 @@ const TeacherCopilotPage: React.FC = () => {
                 content = selectedClassId
                     ? `In **${currentClassNameText}**, average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are currently below the class average. It might be worth assigning one more short practice round.`
                     : getScopePrefix() + `**Algebra - Factorisation** is a key area for support in Sec 3 Mathematics (61% avg). Your other classes are performing within expected ranges.`;
+                actions = [{ label: 'See class performance', actionType: 'navigate', destination: '/dashboard/teacher' }];
             } else if (isSummaryKw(lowerQuery)) {
                 steps = [
                     contextStep,
@@ -312,6 +397,19 @@ const TeacherCopilotPage: React.FC = () => {
                 content = selectedClassId
                     ? `In **${currentClassNameText}**, the class is averaging 61% accuracy this week, which is slightly down from last week's 68%. Notably, no students have submitted the Algebra Quiz 1 yet.`
                     : getScopePrefix() + `Engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
+                
+                actions = [
+                    { 
+                        label: selectedClassId ? `See full report for ${currentClassNameText}` : 'See weekly report', 
+                        actionType: 'navigate', 
+                        destination: isDemo ? '/teacher/demo' : '/dashboard/teacher' 
+                    }
+                ];
+
+                // If class matches, optionally add attention chip
+                if (selectedClassId) {
+                    actions.push({ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' });
+                }
             } else if (isUnknown) {
                 steps = [];
                 const topWeakTopicForContext = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
@@ -321,12 +419,21 @@ const TeacherCopilotPage: React.FC = () => {
                 content = `I didn't quite follow that. Here are some ${contextHint}:\n• 'Which students need my attention before Friday?'\n• 'How is this class doing on ${topWeakTopicForContext ?? 'the current topic'}?'\n• 'Draft a note to parents about an overdue assignment.'\n• 'What should I focus on before our next lesson?'`;
             }
 
+            const resolvedIntent = isSmallTalk ? 'smalltalk' :
+                isSensitiveKw(lowerQuery) ? 'sensitive' :
+                isCommunicationKw(lowerQuery) ? 'communication' :
+                isAttentionKw(lowerQuery) ? 'attention' :
+                isPlanningKw(lowerQuery) ? 'planning' :
+                isTopicKw(lowerQuery) ? 'topic' :
+                isSummaryKw(lowerQuery) ? 'summary' : 'unknown';
+
             const assistantMsg: Message = {
                 id: Date.now().toString() + '-a',
                 role: 'assistant',
                 steps: steps,
                 content: content,
-                actions: actions.length > 0 ? actions : undefined
+                actions: actions.length > 0 ? actions : undefined,
+                intent: resolvedIntent
             };
 
             setMessages(prev => [...prev, assistantMsg]);
@@ -469,6 +576,7 @@ const TeacherCopilotPage: React.FC = () => {
                 {messages.length === 0 ? (
                     <CopilotEmptyState
                         themeColor="#14b8a6"
+                        userName={displayName}
                         description="I can uncover trends in your classes, draft feedback or messages, explain topics, and prioritize students who need your support."
                         prompts={currentPrompts}
                         handleSend={handleSend}
@@ -513,6 +621,7 @@ const TeacherCopilotPage: React.FC = () => {
                                 themeColor="#14b8a6"
                                 onActionClick={handleActionClick}
                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
+                                copilotRole="teacher"
                             />
                         ))}
                     </>
@@ -547,15 +656,7 @@ const TeacherCopilotPage: React.FC = () => {
                             )}
                             {currentClassName}
                         </button>
-                        {currentPrompts.map((prompt, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleSend(prompt)}
-                                className="shrink-0 px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-medium border border-teal-100 whitespace-nowrap"
-                            >
-                                {prompt}
-                            </button>
-                        ))}
+                        <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#14b8a6" />
                     </div>
 
                     <div className="flex items-center gap-3">

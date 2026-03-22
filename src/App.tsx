@@ -11,6 +11,7 @@ import TeacherCopilotPage from './pages/TeacherCopilotPage';
 import StudentCopilotPage from './pages/StudentCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
+import ParentCopilotPage from './pages/ParentCopilotPage';
 import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -615,6 +616,7 @@ export default function App() {
       <Route path="/student/demo" element={<StudentDashboardPage />} />
       <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
       <Route path="/parent/demo" element={<ParentDashboardPage />} />
+      <Route path="/parent/copilot/demo" element={<ParentCopilotPage />} />
       <Route path="/dashboard/teacher" element={
         <ProtectedRoute>
           <TeacherDashboardPage />
@@ -646,6 +648,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ParentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/parent/copilot"
+        element={
+          <ProtectedRoute>
+            <ParentCopilotPage />
           </ProtectedRoute>
         }
       />

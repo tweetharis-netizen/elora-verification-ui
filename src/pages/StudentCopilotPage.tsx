@@ -39,6 +39,61 @@ const topicExplanations: Record<string, string> = {
     'Kinematics': "Kinematics is the study of motion. We use terms like displacement, velocity, and acceleration to describe how objects move without worrying about the forces that cause the movement. It's the foundation of almost everything in classical physics."
 };
 
+const HorizontalChips: React.FC<{ 
+    prompts: string[], 
+    onSend: (p: string) => void, 
+    themeColor: string 
+}> = ({ prompts, onSend, themeColor }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
+
+    const checkScroll = () => {
+        if (scrollRef.current) {
+            const { scrollWidth, clientWidth } = scrollRef.current;
+            setShowOverlay(scrollWidth > clientWidth);
+        }
+    };
+
+    useEffect(() => {
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, [prompts]);
+
+    return (
+        <div className="relative md:hidden">
+            <div 
+                ref={scrollRef}
+                onScroll={checkScroll}
+                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pr-10"
+            >
+                {prompts.map((prompt, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => onSend(prompt)}
+                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
+                        style={{
+                            backgroundColor: themeColor + '0d',
+                            borderColor: themeColor + '33',
+                            color: themeColor
+                        }}
+                    >
+                        {prompt}
+                    </button>
+                ))}
+            </div>
+            {showOverlay && (
+                <div 
+                    className="absolute right-0 top-0 h-[calc(100%-4px)] w-10 pointer-events-none rounded-r-full"
+                    style={{ 
+                        background: `linear-gradient(to right, transparent, white)`
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
 const StudentCopilotPage: React.FC = () => {
     const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
@@ -53,7 +108,7 @@ const StudentCopilotPage: React.FC = () => {
     const [assignments, setAssignments] = useState<any[]>([]);
     const [recentPerformance, setRecentPerformance] = useState<any>(null);
     const [streakData, setStreakData] = useState<any>(null);
-    const [, setGameSessions] = useState<any[]>([]);
+    const [gameSessions, setGameSessions] = useState<any[]>([]);
 
     useEffect(() => {
         // Ensure demo user is logically "logged in"
@@ -94,7 +149,7 @@ const StudentCopilotPage: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Derived logic from Student Dashboard
-    const primaryWeakTopic = recentPerformance?.weakTopics?.[0] ?? null;
+    const primaryFocusTopic = recentPerformance?.weakTopics?.[0] ?? null;
 
     // Derived subjects list for selector
     const subjects = Array.from(new Set(assignments.map(a => a.className))).filter(Boolean);
@@ -136,16 +191,16 @@ const StudentCopilotPage: React.FC = () => {
         const lowerQuery = query.toLowerCase().trim();
 
         // ── Intent Classifiers ──
-        const isSmallTalkKw = (q: string) => /hi|hello|hey|thanks|thank you|how are you/i.test(q);
+        const isSmallTalkKw = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you)$/i.test(q.replace(/[?!.]/g, ''));
         const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this/i.test(q);
         const isOverdueKw = (q: string) => /overdue|unfinished|not finished|not done|what's overdue|todo|haven't finished/i.test(q);
         const isNextActionKw = (q: string) => /next|20 minutes|work on|should i work on|do now|best use of my time/i.test(q);
         const isSummaryKw = (q: string) => /week|how am i doing|summary|overview|progress/i.test(q);
-        const isWeakestTopicKw = (q: string) => /weakest topic|what am i worst at|what do i struggle with|struggling most with/i.test(q);
+        const isFocusTopicKw = (q: string) => /topic to focus on|area to focus on|growth area|what to work on|focus area|weakest topic/i.test(q);
         const isWhyPatternKw = (q: string) => /why do i keep getting|why do i keep missing|why do i keep getting this wrong/i.test(q);
         const isPrepareQuizKw = (q: string) => /prepare for the next quiz|prepare for the quiz|prepare for test|get ready for/i.test(q);
         const isExplainKw = (q: string) => /explain|what is|help me understand/i.test(q);
-        const isSensitiveKw = (q: string) => /sad|depressed|hurt|mean|bully|stress|lonely/i.test(q);
+        const isSensitiveKw = (q: string) => /sad|depressed|hurt|mean|bully|stress|lonely|anxious|unhappy/i.test(q);
 
         const getScopePrefix = () => {
             if (selectedSubjectId !== 'all') return "";
@@ -172,12 +227,32 @@ const StudentCopilotPage: React.FC = () => {
                     : { id: 'ctx', text: `Context: ${selectedSubjectId} — scoping all lookups to this subject only` };
             };
 
-            if (isSmallTalkKw(lowerQuery)) {
+            if (isSensitiveKw(lowerQuery)) {
+                content = "I hear that you're feeling this way, and that sounds genuinely tough. While I don't give personal advice, I'd really encourage you to talk to a teacher, counselor, or parent. They can provide the support you need right now.\n\nI'm still here if you want to take a look at your workload or take a pause from studying.";
+            } else if (isSummaryKw(lowerQuery)) {
+                steps = [
+                    getCtxStep(),
+                    { id: 'check-scores', text: 'Checked your average score this week and last week' },
+                    { id: 'check-asgn', text: 'Checked how many assignments you’ve submitted out of those due' },
+                    { id: 'check-streak', text: 'Checked your practice streak for this week' }
+                ];
+                if (!streakData || streakData.weeklyScores.length === 0) {
+                    content = "I don't have enough data to give you a summary yet for this week. Keep at it!";
+                } else {
+                    const ctxStr = selectedSubjectId === 'all' ? 'Across all your subjects' : `For your ${selectedSubjectId} work`;
+                    const thisWeekScore = streakData.scoreThisWeek ?? 0;
+                    const priorWeekScore = streakData.scorePriorWeek ?? 0;
+                    const subCount = filteredAssignments.filter(a => ['completed', 'success', 'submitted'].includes(a.status || '')).length;
+                    const totalCount = filteredAssignments.length;
+
+                    content = getScopePrefix() + `${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week. \n\nYou’ve submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryFocusTopic ? `The main topic to focus on is **${primaryFocusTopic}**.` : 'Your scores are looking very balanced across all topics.'}`;
+                    actions = [{ label: "See my remaining work", actionType: 'navigate', destination: '/dashboard/student' }];
+                    if (primaryFocusTopic) actions.push({ label: `Practice ${primaryFocusTopic} now`, actionType: 'navigate', destination: '/play/practice-general' });
+                }
+            } else if (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") {
                 content = "Hey! I'm your Elora assistant. I'm here to help you stay on top of your work and improve your scores. \n\nWhat can I help you with right now? Try asking about your unfinished assignments or what to focus on next.";
             } else if (isAboutKw(lowerQuery)) {
                 content = "Elora is a platform for tracking your progress and assignments. I'm your Student Copilot, designed to help you figure out what to work on, understand tricky topics, and get ready for quizzes. \n\nTry asking: \n• 'What should I do right now?' \n• 'What assignments haven’t I finished?' \n• 'Explain Factorisation simply.'";
-            } else if (isSensitiveKw(lowerQuery)) {
-                content = "I'm sorry to hear that you're feeling this way. It might be helpful to talk things through with a trusted adult, like a teacher, parent, or counselor. \n\nI'm still here if you'd like to talk about your schoolwork or anything you're working on in Elora.";
             } else if (isOverdueKw(lowerQuery)) {
                 steps = [
                     getCtxStep(),
@@ -210,7 +285,7 @@ const StudentCopilotPage: React.FC = () => {
                 steps = [
                     getCtxStep(),
                     { id: 'load-data', text: 'Checked your pending assignments and their due dates' },
-                    { id: 'load-performance', text: 'Analyzed your recent practice performance looking for weak topics' }
+                    { id: 'load-performance', text: 'Analyzed your recent practice performance looking for topics to focus on' }
                 ];
 
                 const urgent = [...filteredPending].sort((a, b) => {
@@ -221,57 +296,36 @@ const StudentCopilotPage: React.FC = () => {
 
                 if (urgent) {
                     content = getScopePrefix() + `The most important thing to start now is **${urgent.title}** because it is the most urgent on your list.`;
-                    if (primaryWeakTopic) {
-                        content += `\n\nIf you have extra time, follow that up with a short practice round on **${primaryWeakTopic}** to boost your scores.`;
-                        actions.push({ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
+                    if (primaryFocusTopic) {
+                        content += `\n\nIf you have extra time, follow that up with a short practice round on **${primaryFocusTopic}** to boost your scores.`;
+                        actions.push({ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
                     }
                     actions.unshift({ label: `Start ${urgent.title}`, actionType: 'navigate', destination: '/dashboard/student' });
-                } else if (primaryWeakTopic) {
-                    content = getScopePrefix() + `Across your subjects, the best use of your time right now is to practice **${primaryWeakTopic}**. This is the topic you've been finding most tricky recently.`;
-                    actions = [{ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
+                } else if (primaryFocusTopic) {
+                    content = getScopePrefix() + `Across your subjects, the best use of your time right now is to practice **${primaryFocusTopic}**. This is the topic you've been finding most tricky recently.`;
+                    actions = [{ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
                 } else {
                     content = "Your schedule looks great! You've cleared your priority assignments and your recent scores are balanced. You could explore a new topic or take a well-earned break.";
                 }
-            } else if (isSummaryKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'check-scores', text: 'Checked your average score this week and last week' },
-                    { id: 'check-asgn', text: 'Checked how many assignments you’ve submitted out of those due' },
-                    { id: 'check-streak', text: 'Checked your practice streak for this week' }
-                ];
-
-                if (!streakData || streakData.weeklyScores.length === 0) {
-                    content = "I don't have enough data to give you a summary yet for this week. Keep at it!";
-                } else {
-                    const ctxStr = selectedSubjectId === 'all' ? 'Across all your subjects' : `For your ${selectedSubjectId} work`;
-                    const thisWeekScore = streakData.scoreThisWeek ?? 0;
-                    const priorWeekScore = streakData.scorePriorWeek ?? 0;
-                    const subCount = filteredAssignments.filter(a => ['completed', 'success', 'submitted'].includes(a.status || '')).length;
-                    const totalCount = filteredAssignments.length;
-
-                    content = getScopePrefix() + `${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week. \n\nYou’ve submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryWeakTopic ? `The main topic to watch is **${primaryWeakTopic}** if we see one.` : 'Your scores are looking very balanced across all topics.'}`;
-                    actions = [{ label: "See what's left to do", actionType: 'navigate', destination: '/dashboard/student' }];
-                    if (primaryWeakTopic) actions.push({ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
-                }
-            } else if (isWeakestTopicKw(lowerQuery)) {
+            } else if (isFocusTopicKw(lowerQuery)) {
                 steps = [
                     getCtxStep(),
                     { id: 'check-topics', text: 'Analyzed your recent practice results by topic' },
-                    { id: 'find-weakest', text: 'Found the topic where you’ve missed the most questions' }
+                    { id: 'find-focus-area', text: 'Found the topic where you have the most room to grow' }
                 ];
 
-                if (primaryWeakTopic) {
-                    content = getScopePrefix() + `Right now, the topic you're finding hardest is **${primaryWeakTopic}**. Working on this first will have the biggest impact on your overall progress.`;
+                if (primaryFocusTopic) {
+                    content = getScopePrefix() + `Right now, your main focus area is **${primaryFocusTopic}**. Working on this first will have the biggest impact on your overall progress.`;
                     actions = [
-                        { label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
-                        { label: `Explain ${primaryWeakTopic} simply`, actionType: 'navigate', destination: '#' }
+                        { label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
+                        { label: `Explain ${primaryFocusTopic} simply`, actionType: 'navigate', destination: '#' }
                     ];
                 } else {
-                    content = "I don't see a clearly weakest topic right now — your recent results are fairly balanced.";
+                    content = "I don't see a single topic to focus on right now — your recent results are fairly balanced.";
                 }
             } else if (isWhyPatternKw(lowerQuery)) {
                 const topicInQuery = Object.keys(topicExplanations).find(t => lowerQuery.includes(t.toLowerCase()));
-                const actualTopic = topicInQuery || primaryWeakTopic;
+                const actualTopic = topicInQuery || primaryFocusTopic;
 
                 steps = [
                     { id: 'load-pattern', text: `Loaded your recent practice sessions for ${actualTopic || 'your work'}` },
@@ -289,29 +343,29 @@ const StudentCopilotPage: React.FC = () => {
                     getCtxStep(),
                     { id: 'find-quiz', text: 'Found your next upcoming quiz or test' },
                     { id: 'check-quiz-topics', text: 'Checked which topics it covers' },
-                    { id: 'compare-performance', text: 'Compared that with the topics you’re finding hardest right now' }
+                    { id: 'compare-performance', text: 'Compared that with your current focus areas' }
                 ];
 
                 const nextQuiz = filteredPending.find(a => /quiz|test/i.test(a.title));
                 
                 if (nextQuiz) {
-                    content = getScopePrefix() + `Your next quiz is **${nextQuiz.title}**. The most important thing for you to focus on is any weak points in that area. Spending just 15–20 minutes on specific practice rounds before the quiz will help you feel more confident!`;
+                    content = getScopePrefix() + `Your next quiz is **${nextQuiz.title}**. The most important thing for you to focus on is any growth areas in that area. Spending just 15–20 minutes on specific practice rounds before the quiz will help you feel more confident!`;
                     actions = [{ label: "Show me what's on the quiz", actionType: 'navigate', destination: '/dashboard/student' }];
                 } else {
                     content = getScopePrefix() + "I don't see any upcoming quizzes on your schedule right now, so you can use this time for general practice or clearing any overdue work.";
-                    actions = [{ label: "Start a practice round", actionType: 'navigate', destination: '/play/practice-general' }];
+                    actions = [{ label: "Start a practice round now", actionType: 'navigate', destination: '/play/practice-general' }];
                 }
             } else if (isExplainKw(lowerQuery)) {
-                const matchedTopic = Object.keys(topicExplanations).find(t => lowerQuery.includes(t.toLowerCase()));
+                const matchedTopic = Object.keys(topicExplanations).find(t => lowerQuery.includes(t.toLowerCase().split(' – ')[0]));
                 if (matchedTopic) {
                     content = topicExplanations[matchedTopic];
                     actions = [
                         { label: `Practice ${matchedTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
                         { label: "Ask another question", actionType: 'navigate', destination: '#' }
                     ];
-                } else if (primaryWeakTopic) {
-                    content = `I'm not sure which topic you mean, but since you've been working on **${primaryWeakTopic}** lately, here's a simple explanation: \n\n${topicExplanations[primaryWeakTopic] || "It's an important concept that builds on what you've learned. Try some practice questions to see how it works!"}`;
-                    actions = [{ label: `Practice ${primaryWeakTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
+                } else if (primaryFocusTopic) {
+                    content = `I'm not exactly sure which topic you mean, but since you've been working on **${primaryFocusTopic}** lately, here's a simple explanation: \n\n${topicExplanations[primaryFocusTopic] || "It's an important concept that builds on what you've learned. Try some practice questions to see how it works!"}`;
+                    actions = [{ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
                 } else {
                     content = "Which topic would you like me to explain? I can help with things like Factorisation, Quadratic Equations, or Kinematics.";
                 }
@@ -319,12 +373,24 @@ const StudentCopilotPage: React.FC = () => {
                 content = "I'm not sure I can help with that one, but I'm great at questions about your work — like what to do next, what's overdue, or why a topic is tricky. \n\nTry asking: \n• 'What should I do right now?' \n• 'How am I doing this week?' \n• 'Explain Factorisation simply.'";
             }
 
+            const resolvedIntent = isSensitiveKw(lowerQuery) ? 'sensitive' :
+                isSummaryKw(lowerQuery) ? 'summary' :
+                (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") ? 'smalltalk' :
+                isAboutKw(lowerQuery) ? 'about' :
+                isOverdueKw(lowerQuery) ? 'overdue' :
+                isNextActionKw(lowerQuery) ? 'nextaction' :
+                isFocusTopicKw(lowerQuery) ? 'focustopic' :
+                isWhyPatternKw(lowerQuery) ? 'whypattern' :
+                isPrepareQuizKw(lowerQuery) ? 'preparequiz' :
+                isExplainKw(lowerQuery) ? 'explain' : 'unknown';
+
             const assistantMsg: Message = {
                 id: Date.now().toString() + '-a',
                 role: 'assistant',
                 steps: steps,
                 content: content,
-                actions: actions.length > 0 ? actions : undefined
+                actions: actions.length > 0 ? actions : undefined,
+                intent: resolvedIntent
             };
 
             setMessages(prev => [...prev, assistantMsg]);
@@ -356,7 +422,7 @@ const StudentCopilotPage: React.FC = () => {
                         className="flex items-center gap-2 px-3 py-1.5 bg-[#68507B]/5 hover:bg-[#68507B]/10 border border-[#68507B]/20 rounded-full text-[#68507B] transition-colors w-fit shadow-sm"
                     >
                         <Layers size={14} className="shrink-0" />
-                        {selectedSubjectId === 'all' && primaryWeakTopic && (
+                        {selectedSubjectId === 'all' && primaryFocusTopic && (
                             <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
                         )}
                         <span className="text-xs font-bold whitespace-nowrap">
@@ -375,7 +441,7 @@ const StudentCopilotPage: React.FC = () => {
                                     onClick={() => {
                                         setSelectedSubjectId('all');
                                         setIsSubjectSelectorOpen(false);
-                                        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `── Context changed to All subjects ──` }]);
+                                        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `Switched to All subjects · answers now reflect this subject` }]);
                                     }}
                                     className={`w-full text-left px-4 py-3 text-sm font-bold flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === 'all' ? 'bg-[#68507B]/5' : ''}`}
                                 >
@@ -385,7 +451,7 @@ const StudentCopilotPage: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
-                                                {primaryWeakTopic && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                                                {primaryFocusTopic && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
                                                 All subjects
                                             </span>
                                             {selectedSubjectId === 'all' && <Check size={16} className="text-[#68507B]" />}
@@ -399,7 +465,7 @@ const StudentCopilotPage: React.FC = () => {
                                         onClick={() => {
                                             setSelectedSubjectId(subj);
                                             setIsSubjectSelectorOpen(false);
-                                            setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `── Context changed to ${subj} ──` }]);
+                                            setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `Switched to ${subj} · answers now reflect this subject` }]);
                                         }}
                                         className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === subj ? 'bg-[#68507B]/5' : ''}`}
                                     >
@@ -465,6 +531,7 @@ const StudentCopilotPage: React.FC = () => {
                 {messages.length === 0 ? (
                     <CopilotEmptyState
                         themeColor="#68507B"
+                        userName={currentUser?.name}
                         description="I can check your pending assignments, tell you what to focus on, and summarize your weekly progress."
                         prompts={currentPrompts}
                         handleSend={handleSend}
@@ -491,7 +558,7 @@ const StudentCopilotPage: React.FC = () => {
                                     className="flex items-center gap-2 px-3 py-1.5 bg-[#68507B]/5 hover:bg-[#68507B]/10 border border-[#68507B]/20 rounded-full text-[#68507B] transition-colors w-fit shadow-sm"
                                 >
                                     <Layers size={14} className="shrink-0" />
-                                    {selectedSubjectId === 'all' && primaryWeakTopic && (
+                                    {selectedSubjectId === 'all' && primaryFocusTopic && (
                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
                                     )}
                                     <span className="text-xs font-bold whitespace-nowrap">
@@ -508,6 +575,7 @@ const StudentCopilotPage: React.FC = () => {
                                 themeColor="#68507B"
                                 onActionClick={handleActionClick}
                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
+                                copilotRole="student"
                             />
                         ))}
                     </>
@@ -533,16 +601,8 @@ const StudentCopilotPage: React.FC = () => {
             <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
                 <div className="max-w-4xl mx-auto space-y-4">
                     {messages.length > 0 && (
-                        <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                            {currentPrompts.map((prompt, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleSend(prompt)}
-                                    className="shrink-0 px-3 py-1.5 bg-[#68507B]/5 text-[#68507B] rounded-full text-[11px] font-medium border border-[#68507B]/20 whitespace-nowrap hover:bg-[#68507B]/10 transition-colors"
-                                >
-                                    {prompt}
-                                </button>
-                            ))}
+                        <div className="relative">
+                            <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#68507B" />
                         </div>
                     )}
 

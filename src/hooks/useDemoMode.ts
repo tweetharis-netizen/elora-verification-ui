@@ -10,9 +10,7 @@ import { useLocation } from 'react-router-dom';
 
 export function useDemoMode(): boolean {
     const { pathname, search } = useLocation();
-    if (pathname.startsWith('/teacher/demo')) return true;
-    if (pathname.startsWith('/parent/demo')) return true;
-    if (pathname.startsWith('/student/demo')) return true;
+    if (pathname.includes('/demo')) return true;
     if (new URLSearchParams(search).get('demo') === 'true') return true;
     return false;
 }

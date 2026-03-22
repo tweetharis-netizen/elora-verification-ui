@@ -48,19 +48,6 @@ type Message = {
     actions?: ActionChip[];
 };
 
-const SUGGESTED_PROMPTS_ALL = [
-    "Who needs attention across all my classes?",
-    "Give me a cross-class summary of this week.",
-    "Explain Algebra – Factorisation in simple terms.",
-    "Draft a message to parents about Algebra Quiz 1 being overdue."
-];
-
-const SUGGESTED_PROMPTS_SPECIFIC = [
-    "Which students need my attention before Friday?",
-    "How is this class doing on factorisation?",
-    "Draft a note to parents about Algebra Quiz 1 being overdue.",
-    "What's one thing I should focus on before our next lesson?"
-];
 
 // Mock classes for the context selector
 const MOCK_CLASSES = [
@@ -81,6 +68,38 @@ const TeacherCopilotPage: React.FC = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : null);
     const [isContextPopupOpen, setIsContextPopupOpen] = useState(false);
+    const dataMessageCountRef = useRef(0);
+    const insights = isDemo ? demoInsights : [];
+
+    const buildPrompts = (): string[] => {
+        const topTopic = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
+        const overdueTitle = insights.find(i => i.type === 'overdue_assignment')?.assignmentTitle ?? null;
+
+        if (!selectedClassId) {
+            return [
+                'Who needs my attention across all my classes?',
+                'Give me a cross-class summary of this week.',
+                topTopic
+                    ? `How are my classes doing on ${topTopic}?`
+                    : 'Which class is furthest behind right now?',
+                overdueTitle
+                    ? `Draft a parent message about ${overdueTitle} being overdue.`
+                    : 'Draft a general update for parents about learning progress.',
+            ];
+        } else {
+            const currentClassNameText = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'this class';
+            return [
+                `Which students need my attention before Friday in ${currentClassNameText}?`,
+                topTopic
+                    ? `How is ${currentClassNameText} doing on ${topTopic}?`
+                    : `What's the main thing to work on in ${currentClassNameText}?`,
+                overdueTitle
+                    ? `Draft a note to parents about ${overdueTitle} being overdue.`
+                    : `Draft a parent update for ${currentClassNameText}.`,
+                `What should I focus on before the next ${currentClassNameText} lesson?`,
+            ];
+        }
+    };
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -134,64 +153,13 @@ const TeacherCopilotPage: React.FC = () => {
         setMessages(prev => [...prev, systemMsg]);
     };
 
-    const currentPrompts = selectedClassId ? SUGGESTED_PROMPTS_SPECIFIC : SUGGESTED_PROMPTS_ALL;
+    const currentPrompts = buildPrompts();
     const currentClassName = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'All classes';
 
     // Scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
-
-    useEffect(() => {
-        console.log(`
-[Elora Copilot Update Summary]
-
-1. Small-talk / Greetings Detection:
-Detected via case-insensitive keywords ('hi', 'hey', etc.) OR if the message is short (<= 6 words) and matches no other intent keywords.
-Pattern fired: No thinking strip rendered. A short, friendly fallback message provides guided examples to help the user.
-
-2. Thinking Steps Construction:
-Steps are dynamically created array objects matching the natural logic of the check.
-Example (Planning intent):
-- Step 1: "Context: Sec 3 Mathematics — scoping all lookups to this class." (or All classes aggregate text)
-- Step 2: "Checked overdue/upcoming assignments for Sec 3 Mathematics."
-- Step 3: "Checked weak topic flags — none found this week."
-
-3. Updated Copilot Description & Examples:
-The "what is elora" / "what is copilot" intent clearly explains that Copilot works strictly on actual tracked class data and won't guess beyond it.
-Example prompts:
-- 'Which students need my attention before Friday?'
-- 'Explain Algebra – Factorisation simply for this class.'
-- 'Draft a short note to parents about Algebra Quiz 1 being overdue.'
-
-4. Example Responses:
-a) "Hi"
-   - Steps: None
-   - Text: "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:
-   • 'Who needs my attention before Friday?'
-   • 'Explain Algebra – Factorisation simply for this class.'
-   • 'Draft a short note to parents about Algebra Quiz 1 being overdue.'"
-
-b) "Which students need my attention before Friday?" (Sec 3 Mathematics)
-   - Steps:
-     1. "Context: Sec 3 Mathematics — scoping all lookups to this class."
-     2. "Loaded assignments for Sec 3 Mathematics — found 1 overdue (Algebra Quiz 1)."
-     3. "Checked recent sessions — filtered to the last 7 days."
-     4. "Ranked by urgency: overdue first, then low scores, then weak topics."
-   - Text: "In **Sec 3 Mathematics**, three students need your attention before Friday:
-   **Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.
-   **Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.
-   **Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in."
-
-c) "What is Elora?"
-   - Steps: None
-   - Text: "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.
-   You can ask me things like:
-   • 'Which students need my attention before Friday?'
-   • 'Explain Algebra – Factorisation simply for this class.'
-   • 'Draft a short message to parents about an overdue assignment.'"
-        `);
-    }, []);
 
     const handleSend = (text: string) => {
         const query = text.trim();
@@ -220,8 +188,8 @@ c) "What is Elora?"
             const contextStep = {
                 id: `ctx-${Date.now()}`,
                 text: selectedClassId
-                    ? `Context: ${currentClassNameText} — scoping all lookups to this class.`
-                    : `Context: All classes — aggregating across ${allClassesList}.`
+                    ? `Scoped to ${currentClassNameText} — ${MOCK_CLASSES.find(c => c.id === selectedClassId)?.studentsCount ?? '?'} students`
+                    : `Looking across all your classes (${allClassesList})`,
             };
 
             // Intent Detection Helpers
@@ -238,7 +206,8 @@ c) "What is Elora?"
             const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery);
 
             const wordCount = query.trim().split(/\s+/).length;
-            const isSmallTalk = isSmallTalkKw(lowerQuery) || (wordCount <= 6 && !hasSupportedIntent);
+            const isSmallTalk = isSmallTalkKw(lowerQuery);
+            const isUnknown = !isSmallTalk && !isAboutKw(lowerQuery) && !hasSupportedIntent;
 
             let content = "";
             let steps: Step[] = [];
@@ -262,24 +231,61 @@ c) "What is Elora?"
                 steps = [];
                 content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
             } else if (isCommunicationKw(lowerQuery)) {
+                const overdueInsight = insights.find(i => i.type === 'overdue_assignment');
+                const weakTopicInsight = insights.find(i => i.type === 'weak_topic');
+                const draftAssignmentTitle = overdueInsight?.assignmentTitle ?? 'the recent assignment';
+                const draftWeakTopic = weakTopicInsight?.topicTag ?? weakTopicInsight?.detail ?? null;
+                const draftClassName = selectedClassId ? currentClassNameText : (overdueInsight?.className ?? 'your class');
+
+                const draftBody = draftWeakTopic
+                    ? `Here's a draft message for ${draftClassName} families:\n\n"Hi everyone, I wanted to let you know that ${draftAssignmentTitle} hasn't had any submissions yet. If your child is finding ${draftWeakTopic} a bit tricky, that's completely normal at this stage — it trips up a lot of students. Please encourage them to attempt it this week; even a first go helps me understand where they are. Feel free to reach out if you'd like to talk through how to support them at home."\n\nFeel free to edit the tone to match your voice before sending.`
+                    : `Here's a draft message for ${draftClassName} families:\n\n"Hi everyone, just a reminder that ${draftAssignmentTitle} is still outstanding. If your child needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`;
+
                 steps = [
                     contextStep,
-                    { id: 'scan-asgn', text: `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).` },
-                    { id: 'drafting', text: 'Drafting a calm message based on assignment status.' }
+                    { id: 'load-asgn', text: `Loaded assignments for ${draftClassName} — found ${overdueInsight ? `"${draftAssignmentTitle}" (overdue)` : 'no overdue assignments'}` },
+                    { id: 'check-topic', text: draftWeakTopic ? `Checked top weak topic: ${draftWeakTopic}` : 'No specific weak topic flagged this week' },
+                    { id: 'draft', text: 'Drafted a parent-facing message using this context' }
                 ];
-                content = getScopePrefix() + `Here’s a draft message you can send to parents about **Algebra Quiz 1**:\n\n"Hi everyone, I noticed that Algebra Quiz 1 was due a few days ago but hasn't been submitted yet. If your child is struggling with the factorisation topics, please let me know — I'm happy to help them get back on track!"`;
+                content = getScopePrefix() + draftBody;
                 actions = [{ label: 'View Assignment', actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
             } else if (isExplanationKw(lowerQuery)) {
                 steps = [];
                 content = "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the class average.";
                 actions = [{ label: 'Open Practice Pack', actionType: 'navigate', destination: '/teacher/practice' }];
             } else if (isFeedbackKw(lowerQuery)) {
-                steps = [
-                    contextStep,
-                    { id: 'check-student', text: 'Checked performance data for Jordan Lee.' },
-                    { id: 'load-insight', text: 'Loaded insight: 28% on Algebra Quiz 1, struggling with factorisation.' }
-                ];
-                content = getScopePrefix() + `For **Jordan Lee**, I suggest this feedback: "Jordan, I see you've made a start on the factorisation exercises. It's a tricky topic! Let's spend a few minutes next lesson looking at the bracket expansion rules together to help boost your confidence."`;
+                const allStudentInsights = insights.filter(i => i.studentName);
+                const mentionedInsight = allStudentInsights.find(insight => {
+                    if (!insight.studentName) return false;
+                    const firstName = insight.studentName.split(' ')[0].toLowerCase();
+                    return lowerQuery.includes(firstName);
+                });
+
+                const targetInsight = mentionedInsight ?? allStudentInsights[0] ?? null;
+                const targetName = targetInsight?.studentName ?? null;
+                const targetTopic = targetInsight?.topicTag ?? null;
+                const targetDetail = targetInsight?.detail ?? null;
+
+                if (!targetName) {
+                    steps = [];
+                    const knownNames = allStudentInsights
+                        .map(i => i.studentName)
+                        .filter(Boolean)
+                        .slice(0, 4)
+                        .join(', ');
+                    content = `Who would you like to give feedback to? I can see data for: ${knownNames || 'students in your classes'}. Try asking "What feedback should I give [name]?"`;
+                } else {
+                    steps = [
+                        contextStep,
+                        { id: 'find-student', text: `Checked data for ${targetName}` },
+                        { id: 'load-insight', text: targetDetail ?? `Found insight for ${targetName}` },
+                    ];
+                    const firstName = targetName.split(' ')[0];
+                    content = targetTopic
+                        ? `For **${targetName}**, here's a suggestion:\n\n"${firstName}, I can see you've been working hard on ${targetTopic}. It's a tricky area and you're not alone — let's spend a few minutes on it next lesson to clear up the parts that are causing you trouble. If you want to get ahead of it, try one short practice round before we meet."\n\nAdapt the tone to match your relationship with them.`
+                        : `For **${targetName}**:\n\n"${firstName}, I can see you're making an effort — keep going. Let's connect briefly next lesson to make sure you feel confident about where you're at."\n\nAdapt as needed.`;
+                    content = getScopePrefix() + content;
+                }
             } else if (isPlanningKw(lowerQuery)) {
                 steps = [
                     contextStep,
@@ -316,9 +322,13 @@ c) "What is Elora?"
                 content = selectedClassId
                     ? `In **${currentClassNameText}**, the class is averaging 61% accuracy this week, which is slightly down from last week's 68%. Notably, no students have submitted the Algebra Quiz 1 yet.`
                     : getScopePrefix() + `Engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
-            } else {
+            } else if (isUnknown) {
                 steps = [];
-                content = `I'm not sure I can help with that one yet. Here are things I can do:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for ${currentClassNameText}.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'\n• 'What should I focus on before our next lesson?'`;
+                const topWeakTopicForContext = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
+                const contextHint = selectedClassId
+                  ? `things I can help you with for ${currentClassNameText}`
+                  : 'things I can help you with across your classes';
+                content = `I didn't quite follow that. Here are some ${contextHint}:\n• 'Which students need my attention before Friday?'\n• 'How is this class doing on ${topWeakTopicForContext ?? 'the current topic'}?'\n• 'Draft a note to parents about an overdue assignment.'\n• 'What should I focus on before our next lesson?'`;
             }
 
             const assistantMsg: Message = {
@@ -473,6 +483,9 @@ c) "What is Elora?"
                                     className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
                                 >
                                     <Layers size={14} className="shrink-0" />
+                                    {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                    )}
                                     <span className="text-xs font-bold whitespace-nowrap">
                                         {currentClassName}
                                     </span>
@@ -515,26 +528,37 @@ c) "What is Elora?"
 
                                                 <div className="my-1 border-t border-slate-100" />
 
-                                                {MOCK_CLASSES.map((cls) => (
-                                                    <button
-                                                        key={cls.id}
-                                                        onClick={() => handleContextChange(cls.id)}
-                                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
-                                                    >
-                                                        <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                            <BookOpen size={14} />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-sm font-bold text-slate-900 truncate">{cls.name}</span>
-                                                                {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
+                                                {MOCK_CLASSES.map((cls) => {
+                                                    const classHasInsight = insights.some(i => i.className === cls.name);
+                                                    return (
+                                                        <button
+                                                            key={cls.id}
+                                                            onClick={() => handleContextChange(cls.id)}
+                                                            className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
+                                                        >
+                                                            <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                                <BookOpen size={14} />
                                                             </div>
-                                                            <p className="text-[11px] text-slate-500">
-                                                                {cls.studentsCount} students · Last active {cls.lastActive}
-                                                            </p>
-                                                        </div>
-                                                    </button>
-                                                ))}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
+                                                                        {classHasInsight && (
+                                                                            <span
+                                                                                className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-0.5"
+                                                                                title="This class has students needing attention"
+                                                                            />
+                                                                        )}
+                                                                        {cls.name}
+                                                                    </span>
+                                                                    {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500">
+                                                                    {cls.studentsCount} students · Last active {cls.lastActive}
+                                                                </p>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </>
@@ -592,6 +616,18 @@ c) "What is Elora?"
                                     <p className="text-slate-500 text-sm">
                                         I can uncover trends in your classes, draft feedback or messages, explain topics, and prioritize students who need your support.
                                     </p>
+                                    <div className="flex flex-col gap-2 mt-6 w-full max-w-xs">
+                                        {currentPrompts.map((prompt, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleSend(prompt)}
+                                                className="w-full text-left px-4 py-3 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-sm font-medium text-teal-700 transition-colors flex items-center justify-between gap-2"
+                                            >
+                                                <span>{prompt}</span>
+                                                <ArrowRight size={14} className="shrink-0 text-teal-400" />
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             ) : (
                                 messages.map((msg) => (
@@ -608,9 +644,14 @@ c) "What is Elora?"
                                             <div className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                 <div className={`max-w-[90%] md:max-w-2xl flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-                                                    {msg.role === 'assistant' && msg.steps && msg.steps.length > 0 && (
-                                                        <ThinkingStrip steps={msg.steps} />
-                                                    )}
+                                                    {msg.role === 'assistant' && msg.steps && msg.steps.length > 0 && (() => {
+                                                        const dataMessages = messages.filter(
+                                                            m => m.role === 'assistant' && m.steps && m.steps.length > 0
+                                                        );
+                                                        const indexInDataMessages = dataMessages.findIndex(m => m.id === msg.id);
+                                                        const shouldAutoExpand = indexInDataMessages < 3;
+                                                        return <ThinkingStrip steps={msg.steps} defaultExpanded={shouldAutoExpand} />;
+                                                    })()}
 
                                                     <div
                                                         className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${msg.role === 'user'
@@ -672,6 +713,9 @@ c) "What is Elora?"
                                         className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-bold border border-teal-200 whitespace-nowrap transition-colors hover:bg-teal-100"
                                     >
                                         <Layers size={12} />
+                                        {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                        )}
                                         {currentClassName}
                                     </button>
                                     {currentPrompts.map((prompt, idx) => (
@@ -756,22 +800,33 @@ c) "What is Elora?"
                                         {!selectedClassId && <Check size={20} className="text-teal-600" />}
                                     </button>
 
-                                    {MOCK_CLASSES.map((cls) => (
-                                        <button
-                                            key={cls.id}
-                                            onClick={() => handleContextChange(cls.id)}
-                                            className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50 border-2 border-teal-200' : 'bg-slate-50 border-2 border-transparent'}`}
-                                        >
-                                            <div className={`p-2 rounded-xl ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-white text-slate-400 border border-slate-200'}`}>
-                                                <BookOpen size={20} />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-[15px] font-bold text-slate-900">{cls.name}</div>
-                                                <div className="text-[12px] text-slate-500">{cls.studentsCount} students · Last active {cls.lastActive}</div>
-                                            </div>
-                                            {selectedClassId === cls.id && <Check size={20} className="text-teal-600" />}
-                                        </button>
-                                    ))}
+                                    {MOCK_CLASSES.map((cls) => {
+                                        const classHasInsight = insights.some(i => i.className === cls.name);
+                                        return (
+                                            <button
+                                                key={cls.id}
+                                                onClick={() => handleContextChange(cls.id)}
+                                                className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50 border-2 border-teal-200' : 'bg-slate-50 border-2 border-transparent'}`}
+                                            >
+                                                <div className={`p-2 rounded-xl ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-white text-slate-400 border border-slate-200'}`}>
+                                                    <BookOpen size={20} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        {classHasInsight && (
+                                                            <span
+                                                                className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-0.5"
+                                                                title="This class has students needing attention"
+                                                            />
+                                                        )}
+                                                        <span className="text-[15px] font-bold text-slate-900">{cls.name}</span>
+                                                    </div>
+                                                    <div className="text-[12px] text-slate-500">{cls.studentsCount} students · Last active {cls.lastActive}</div>
+                                                </div>
+                                                {selectedClassId === cls.id && <Check size={20} className="text-teal-600" />}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -786,8 +841,8 @@ export default TeacherCopilotPage;
 
 // --- Subcomponents ---
 
-const ThinkingStrip = ({ steps }: { steps: Step[] }) => {
-    const [expanded, setExpanded] = useState(false);
+const ThinkingStrip = ({ steps, defaultExpanded }: { steps: Step[], defaultExpanded?: boolean }) => {
+    const [expanded, setExpanded] = useState(defaultExpanded ?? false);
 
     return (
         <div className="mb-2 w-full">

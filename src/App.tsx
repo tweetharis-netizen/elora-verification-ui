@@ -8,6 +8,7 @@ import Signup from './Signup';
 import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import TeacherCopilotPage from './pages/TeacherCopilotPage';
+import StudentCopilotPage from './pages/StudentCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
 import OurStoryPage from './pages/OurStoryPage';
@@ -612,6 +613,7 @@ export default function App() {
       <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
       <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
       <Route path="/student/demo" element={<StudentDashboardPage />} />
+      <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
       <Route path="/parent/demo" element={<ParentDashboardPage />} />
       <Route path="/dashboard/teacher" element={
         <ProtectedRoute>
@@ -628,6 +630,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <StudentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/copilot"
+        element={
+          <ProtectedRoute>
+            <StudentCopilotPage />
           </ProtectedRoute>
         }
       />

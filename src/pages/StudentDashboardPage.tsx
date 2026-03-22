@@ -709,6 +709,15 @@ export default function StudentDashboardPage() {
                     <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} />
                     <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} />
                     <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} />
+                    
+                    <div className="my-2 border-t border-white/10" />
+                    <SidebarItem 
+                        icon={Sparkles} 
+                        label="Elora Copilot" 
+                        collapsed={!isSidebarOpen} 
+                        onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')} 
+                        className="text-[#68507B] hover:text-[#68507B] bg-white hover:bg-white/90 font-semibold shadow-sm" 
+                    />
                 </nav>
 
                 <div className="p-4 flex flex-col gap-1">

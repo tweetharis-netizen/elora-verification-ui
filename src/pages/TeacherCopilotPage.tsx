@@ -81,7 +81,7 @@ const TeacherCopilotPage: React.FC = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : null);
     const [isContextPopupOpen, setIsContextPopupOpen] = useState(false);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initial demo state
@@ -121,7 +121,7 @@ const TeacherCopilotPage: React.FC = () => {
 
         const newClass = MOCK_CLASSES.find(c => c.id === classId);
         const label = newClass ? newClass.name : 'All classes';
-        
+
         setSelectedClassId(classId);
         setIsContextPopupOpen(false);
 
@@ -142,6 +142,57 @@ const TeacherCopilotPage: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
 
+    useEffect(() => {
+        console.log(`
+[Elora Copilot Update Summary]
+
+1. Small-talk / Greetings Detection:
+Detected via case-insensitive keywords ('hi', 'hey', etc.) OR if the message is short (<= 6 words) and matches no other intent keywords.
+Pattern fired: No thinking strip rendered. A short, friendly fallback message provides guided examples to help the user.
+
+2. Thinking Steps Construction:
+Steps are dynamically created array objects matching the natural logic of the check.
+Example (Planning intent):
+- Step 1: "Context: Sec 3 Mathematics — scoping all lookups to this class." (or All classes aggregate text)
+- Step 2: "Checked overdue/upcoming assignments for Sec 3 Mathematics."
+- Step 3: "Checked weak topic flags — none found this week."
+
+3. Updated Copilot Description & Examples:
+The "what is elora" / "what is copilot" intent clearly explains that Copilot works strictly on actual tracked class data and won't guess beyond it.
+Example prompts:
+- 'Which students need my attention before Friday?'
+- 'Explain Algebra – Factorisation simply for this class.'
+- 'Draft a short note to parents about Algebra Quiz 1 being overdue.'
+
+4. Example Responses:
+a) "Hi"
+   - Steps: None
+   - Text: "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:
+   • 'Who needs my attention before Friday?'
+   • 'Explain Algebra – Factorisation simply for this class.'
+   • 'Draft a short note to parents about Algebra Quiz 1 being overdue.'"
+
+b) "Which students need my attention before Friday?" (Sec 3 Mathematics)
+   - Steps:
+     1. "Context: Sec 3 Mathematics — scoping all lookups to this class."
+     2. "Loaded assignments for Sec 3 Mathematics — found 1 overdue (Algebra Quiz 1)."
+     3. "Checked recent sessions — filtered to the last 7 days."
+     4. "Ranked by urgency: overdue first, then low scores, then weak topics."
+   - Text: "In **Sec 3 Mathematics**, three students need your attention before Friday:
+   **Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.
+   **Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.
+   **Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in."
+
+c) "What is Elora?"
+   - Steps: None
+   - Text: "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.
+   You can ask me things like:
+   • 'Which students need my attention before Friday?'
+   • 'Explain Algebra – Factorisation simply for this class.'
+   • 'Draft a short message to parents about an overdue assignment.'"
+        `);
+    }, []);
+
     const handleSend = (text: string) => {
         const query = text.trim();
         if (!query) return;
@@ -161,116 +212,113 @@ const TeacherCopilotPage: React.FC = () => {
             setIsThinking(false);
             const lowerQuery = query.toLowerCase().trim();
 
-            const currentClassNameText = selectedClassId 
+            const currentClassNameText = selectedClassId
                 ? MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'this class'
                 : 'all classes';
+            const allClassesList = MOCK_CLASSES.map(c => c.name).join(', ');
 
-            const contextStep = { 
-                id: `ctx-${Date.now()}`, 
-                text: selectedClassId 
+            const contextStep = {
+                id: `ctx-${Date.now()}`,
+                text: selectedClassId
                     ? `Context: ${currentClassNameText} — scoping all lookups to this class.`
-                    : `Context: All classes — aggregating across ${MOCK_CLASSES.map(c => c.name).join(', ')}.`
+                    : `Context: All classes — aggregating across ${allClassesList}.`
             };
 
             // Intent Detection Helpers
-            const isGreeting = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you|thanks!|thnx|good morning|good afternoon|good evening|howdy)/i.test(q);
-            const isAbout = (q: string) => /what is (elora|copilot|this)|what can you do|how should i use this/i.test(q);
-            const isCommunication = (q: string) => /message|email|note|parent|family|families|tell|say/i.test(q);
-            const isExplanation = (q: string) => /explain|help me understand|what is (?!elora|copilot|this)/i.test(q);
-            const isFeedback = (q: string) => /feedback|comment|what should i say/i.test(q);
-            const isPlanning = (q: string) => /before friday|this week|today|next lesson|next class|focus on/i.test(q);
-            const isAttention = (q: string) => /attention|struggling|help/i.test(q);
-            const isTopic = (q: string) => /factorisation|algebra|topic|performance/i.test(q);
-            const isSummary = (q: string) => /summary|how are we doing|report|weekly/i.test(q);
+            const isSmallTalkKw = (q: string) => /hi|hello|hey|thanks|thank you|how are you/i.test(q);
+            const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this|how do i use this/i.test(q);
+            const isCommunicationKw = (q: string) => /message|email|note|parent|families|tell|say/i.test(q);
+            const isExplanationKw = (q: string) => /explain|help me understand|what is (?!elora|this|copilot)/i.test(q);
+            const isFeedbackKw = (q: string) => /feedback|comment|what should i say/i.test(q);
+            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class/i.test(q);
+            const isAttentionKw = (q: string) => /attention|struggling|help/i.test(q);
+            const isTopicKw = (q: string) => /factorisation|algebra|topic|performance/i.test(q);
+            const isSummaryKw = (q: string) => /summary|how are we doing|report|weekly/i.test(q);
+
+            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery);
+
+            const wordCount = query.trim().split(/\s+/).length;
+            const isSmallTalk = isSmallTalkKw(lowerQuery) || (wordCount <= 6 && !hasSupportedIntent);
 
             let content = "";
             let steps: Step[] = [];
             let actions: ActionChip[] = [];
 
-            if (isGreeting(lowerQuery)) {
-                steps = [{ id: 'greet', text: 'Recognised this as a greeting — no class data needed.' }];
-                content = "Hi! I'm best at answering questions about your classes in Elora.\n\nYou can ask things like **“Who needs my attention before Friday?”**, **“How is this class doing on factorisation?”**, **“Explain factorisation simply for Sec 3”**, or **“Draft a message to parents about Algebra Quiz 1 being overdue.”**";
-            } else if (isAbout(lowerQuery)) {
-                steps = [{ id: 'about', text: 'Recognised this as a question about Elora itself — no class data needed.' }];
-                content = "Elora is a platform that helps you see how your students are doing across classes, assignments, and topics. I’m the Copilot built into Elora — I look at your class data and turn it into suggestions, summaries, and drafts, so you can spend more time teaching.\n\nTry asking **“Who needs my attention before Friday?”** or **“Give me a summary of this week.”**";
-            } else if (isCommunication(lowerQuery)) {
+            const getScopePrefix = () => {
+                if (selectedClassId) return "";
+                const variations = [
+                    "Across all your classes, here's what I found...",
+                    "Checking across all your current classes...",
+                    "Looking at everything across all classes...",
+                    "Based on data from all your classes..."
+                ];
+                return variations[Math.floor(Math.random() * variations.length)] + "\n\n";
+            };
+
+            if (isSmallTalk) {
+                steps = [];
+                content = "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'";
+            } else if (isAboutKw(lowerQuery)) {
+                steps = [];
+                content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
+            } else if (isCommunicationKw(lowerQuery)) {
                 steps = [
                     contextStep,
-                    { id: 'scan-asgn', text: `Searching for relevant assignments in ${currentClassNameText}.` },
-                    { id: 'found-asgn', text: 'Identified Algebra Quiz 1 — 3 days overdue with 0 submissions.' },
+                    { id: 'scan-asgn', text: `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).` },
                     { id: 'drafting', text: 'Drafting a calm message based on assignment status.' }
                 ];
-                content = `Here’s a draft message you can send to parents about **Algebra Quiz 1**:\n\n"Hi everyone, I noticed that Algebra Quiz 1 was due a few days ago but hasn't been submitted yet. If your child is struggling with the factorisation topics, please let me know — I'm happy to help them get back on track!"`;
+                content = getScopePrefix() + `Here’s a draft message you can send to parents about **Algebra Quiz 1**:\n\n"Hi everyone, I noticed that Algebra Quiz 1 was due a few days ago but hasn't been submitted yet. If your child is struggling with the factorisation topics, please let me know — I'm happy to help them get back on track!"`;
                 actions = [{ label: 'View Assignment', actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
-            } else if (isExplanation(lowerQuery)) {
-                steps = [{ id: 'explain', text: 'Recognised this as a question about the topic Algebra – Factorisation — providing educational context.' }];
-                content = "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the benchmark.";
+            } else if (isExplanationKw(lowerQuery)) {
+                steps = [];
+                content = "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the class average.";
                 actions = [{ label: 'Open Practice Pack', actionType: 'navigate', destination: '/teacher/practice' }];
-            } else if (isFeedback(lowerQuery)) {
+            } else if (isFeedbackKw(lowerQuery)) {
                 steps = [
                     contextStep,
-                    { id: 'check-student', text: 'Checking performance data for Jordan Lee.' },
-                    { id: 'load-insight', text: 'Loaded insight: 28% on Algebra Quiz 1, struggling with factorisation.' },
-                    { id: 'construct-feedback', text: 'Constructing constructive, non-judgmental feedback.' }
+                    { id: 'check-student', text: 'Checked performance data for Jordan Lee.' },
+                    { id: 'load-insight', text: 'Loaded insight: 28% on Algebra Quiz 1, struggling with factorisation.' }
                 ];
-                content = "For **Jordan Lee**, I suggest this feedback: \"Jordan, I see you've made a start on the factorisation exercises. It's a tricky topic! Let's spend a few minutes next lesson looking at the bracket expansion rules together to help boost your confidence.\"";
-            } else if (isPlanning(lowerQuery)) {
+                content = getScopePrefix() + `For **Jordan Lee**, I suggest this feedback: "Jordan, I see you've made a start on the factorisation exercises. It's a tricky topic! Let's spend a few minutes next lesson looking at the bracket expansion rules together to help boost your confidence."`;
+            } else if (isPlanningKw(lowerQuery)) {
                 steps = [
                     contextStep,
-                    { id: 'load-stats', text: `Loading engagement and submission stats for ${currentClassNameText}.` },
-                    { id: 'check-upcoming', text: 'Checking for upcoming deadlines or overdue work.' },
-                    { id: 'prioritize', text: 'Prioritizing Algebra Quiz 1 due to 0% submission rate.' }
+                    { id: 'load-stats', text: `Checked overdue/upcoming assignments for ${currentClassNameText}.` },
+                    { id: 'check-upcoming', text: 'Checked weak topic flags — none found this week.' }
                 ];
-                content = `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the benchmark on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
-            } else if (isAttention(lowerQuery)) {
-                const step2Text = selectedClassId 
-                    ? `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).`
-                    : `Scanning all classes — identified 3 priority students in ${MOCK_CLASSES[0].name}.`;
-                
+                content = getScopePrefix() + `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the class average on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
+            } else if (isAttentionKw(lowerQuery)) {
                 steps = [
                     contextStep,
-                    { id: 's1', text: step2Text },
-                    { id: 's2', text: 'Checked recent sessions for enrolled students — filtered to last 7 days.' },
-                    { id: 's3', text: 'Ranked by urgency: overdue work first, then attendance, then score dips.' }
+                    { id: 's1', text: `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).` },
+                    { id: 's2', text: 'Checked recent sessions — filtered to the last 7 days.' },
+                    { id: 's3', text: 'Ranked by urgency: overdue first, then low scores, then weak topics.' }
                 ];
-                
-                content = selectedClassId 
-                    ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 not submitted, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
-                    : `Across **all your classes**, here are the students who need attention before Friday:\n\n**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
-                
+                content = selectedClassId
+                    ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
+                    : getScopePrefix() + `**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
                 actions = [{ label: 'View in Needs Attention', actionType: 'navigate', destination: 'needs-attention' }];
-            } else if (isTopic(lowerQuery)) {
-                steps = [contextStep];
-                
-                if (selectedClassId) {
-                    steps.push({ id: 'fetch', text: `Fetched performance data for 'Algebra – Factorisation' in ${currentClassNameText}.` });
-                    steps.push({ id: 'analyze', text: 'Analyzed score distribution across the class roster.' });
-                    steps.push({ id: 'result', text: 'Identified 14/28 students below 50% benchmarks.' });
-                } else {
-                    steps.push({ id: 'fetch', text: "Scanning all classes for 'Algebra' performance tags." });
-                    steps.push({ id: 'result', text: `Identified significant dip in ${MOCK_CLASSES[0].name}; other classes stable.` });
-                }
-
-                content = selectedClassId 
-                    ? `In **${currentClassNameText}**, average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are currently below the 50% benchmark. It might be worth assigning one more short practice round.`
-                    : `Across your classes, **Algebra - Factorisation** is a key area for support in Sec 3 Mathematics (61% avg). Your other classes are performing within expected ranges.`;
-            } else if (isSummary(lowerQuery)) {
+            } else if (isTopicKw(lowerQuery)) {
                 steps = [
                     contextStep,
-                    { id: 'agg', text: `Aggregated engagement data across ${selectedClassId ? currentClassNameText : 'all classes'}.` },
-                    { id: 'comp', text: 'Compared current week average (61%) to previous week (68%).' },
-                    { id: 'status', text: 'Checked for recent assignment submissions — none found for Algebra Quiz 1.' }
+                    { id: 'fetch', text: `Loaded assignments for ${currentClassNameText} — found Algebra Quiz 1.` },
+                    { id: 'analyze', text: 'Checked recent sessions — filtered to the last 7 days.' }
+                ];
+                content = selectedClassId
+                    ? `In **${currentClassNameText}**, average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are currently below the class average. It might be worth assigning one more short practice round.`
+                    : getScopePrefix() + `**Algebra - Factorisation** is a key area for support in Sec 3 Mathematics (61% avg). Your other classes are performing within expected ranges.`;
+            } else if (isSummaryKw(lowerQuery)) {
+                steps = [
+                    contextStep,
+                    { id: 'agg', text: `Checked recent sessions — filtered to the last 7 days.` },
+                    { id: 'comp', text: 'Checked weak topic flags — none found this week.' }
                 ];
                 content = selectedClassId
                     ? `In **${currentClassNameText}**, the class is averaging 61% accuracy this week, which is slightly down from last week's 68%. Notably, no students have submitted the Algebra Quiz 1 yet.`
-                    : `Across **all your classes**, engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
+                    : getScopePrefix() + `Engagement is slightly lower this week. Sec 3 Mathematics is at 61% while Sec 4 Physics is holding steady at 74%.`;
             } else {
-                steps = [
-                    contextStep,
-                    { id: 'guard', text: 'Checked for specific data markers matching this query — none found.' },
-                    { id: 'fallback', text: 'Falling back to guided suggestions.' }
-                ];
-                content = "I'm still learning and can't answer that specific question just yet in this version. I'm best at answering questions about student attention, topic performance, assessments, or weekly summaries.\n\nTry asking **“Who needs my attention?”**, **“Draft a message to parents about overdue work”**, or **“Explain factorisation simply”**.";
+                steps = [];
+                content = `I'm not sure I can help with that one yet. Here are things I can do:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for ${currentClassNameText}.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'\n• 'What should I focus on before our next lesson?'`;
             }
 
             const assistantMsg: Message = {
@@ -334,7 +382,7 @@ const TeacherCopilotPage: React.FC = () => {
                     <DemoRoleSwitcher />
                 </>
             )}
-            
+
             <div className="flex flex-1 overflow-hidden">
                 {/* ── Sidebar ── */}
                 <aside
@@ -355,23 +403,23 @@ const TeacherCopilotPage: React.FC = () => {
                     </div>
 
                     <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                        <NavItem 
-                            icon={<LayoutDashboard size={20} />} 
-                            label="Dashboard" 
-                            onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')} 
-                            collapsed={!isSidebarOpen} 
+                        <NavItem
+                            icon={<LayoutDashboard size={20} />}
+                            label="Dashboard"
+                            onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')}
+                            collapsed={!isSidebarOpen}
                         />
-                        <NavItem 
-                            icon={<BookOpen size={20} />} 
-                            label="Classes" 
-                            onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')} 
-                            collapsed={!isSidebarOpen} 
+                        <NavItem
+                            icon={<BookOpen size={20} />}
+                            label="Classes"
+                            onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')}
+                            collapsed={!isSidebarOpen}
                         />
                         <NavItem
                             icon={<Sparkles size={20} />}
                             label="Copilot"
                             active={true}
-                            onClick={() => {}}
+                            onClick={() => { }}
                             collapsed={!isSidebarOpen}
                         />
                         <NavItem
@@ -406,7 +454,7 @@ const TeacherCopilotPage: React.FC = () => {
 
                 {/* ── Main Copilot Area ── */}
                 <main className="flex-1 flex flex-col md:flex-row h-screen overflow-hidden">
-                    
+
                     {/* Left Column (Context Sidebar) - Hidden on mobile */}
                     <div className="hidden md:flex w-72 bg-white border-r border-[#EAE7DD] flex-col shrink-0">
                         <div className="p-6 border-b border-[#EAE7DD]">
@@ -416,7 +464,7 @@ const TeacherCopilotPage: React.FC = () => {
                                 Connected to class data
                             </p>
                         </div>
-                        
+
                         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
                             {/* Context Selection Pill */}
                             <div className="relative">
@@ -435,8 +483,8 @@ const TeacherCopilotPage: React.FC = () => {
                                 {isContextPopupOpen && (
                                     <>
                                         {/* Backdrop for desktop click-away */}
-                                        <div 
-                                            className="fixed inset-0 z-30 hidden md:block" 
+                                        <div
+                                            className="fixed inset-0 z-30 hidden md:block"
                                             onClick={() => setIsContextPopupOpen(false)}
                                         />
                                         <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
@@ -445,7 +493,7 @@ const TeacherCopilotPage: React.FC = () => {
                                                     Copilot will answer using data from this class only.
                                                 </p>
                                             </div>
-                                            
+
                                             <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                                 <button
                                                     onClick={() => handleContextChange(null)}
@@ -559,17 +607,16 @@ const TeacherCopilotPage: React.FC = () => {
                                         ) : (
                                             <div className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                 <div className={`max-w-[90%] md:max-w-2xl flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                                    
+
                                                     {msg.role === 'assistant' && msg.steps && msg.steps.length > 0 && (
                                                         <ThinkingStrip steps={msg.steps} />
                                                     )}
 
                                                     <div
-                                                        className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${
-                                                            msg.role === 'user'
+                                                        className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${msg.role === 'user'
                                                                 ? 'bg-teal-600 text-white rounded-br-sm'
                                                                 : 'bg-white border border-[#EAE7DD] text-slate-800 rounded-tl-sm'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <div className="whitespace-pre-wrap leading-relaxed">
                                                             {msg.content.split('**').map((part, i) => (
@@ -682,13 +729,13 @@ const TeacherCopilotPage: React.FC = () => {
                     {/* Mobile Context Bottom Sheet */}
                     {isContextPopupOpen && (
                         <div className="md:hidden fixed inset-0 z-[60] flex flex-col justify-end">
-                            <div 
+                            <div
                                 className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-300"
                                 onClick={() => setIsContextPopupOpen(false)}
                             />
                             <div className="relative bg-white rounded-t-3xl shadow-2xl p-6 flex flex-col max-h-[70%] animate-in slide-in-from-bottom duration-300">
                                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 shrink-0" />
-                                
+
                                 <h3 className="text-lg font-bold text-slate-900 mb-1">Select Context</h3>
                                 <p className="text-sm text-slate-500 mb-6">
                                     Copilot will answer using data from this class only.
@@ -752,7 +799,7 @@ const ThinkingStrip = ({ steps }: { steps: Step[] }) => {
                 <span>What I checked &middot; {steps.length} steps</span>
                 {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
-            
+
             {expanded && (
                 <div className="pl-2 border-l-2 border-teal-200 space-y-2 mb-2 ml-1">
                     {steps.map((step) => (

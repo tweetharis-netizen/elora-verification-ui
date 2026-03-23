@@ -34,7 +34,8 @@ import {
     getPronoun,
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
-import { ParentChildData, processParentPrompt } from '../lib/parentIntentHandler';
+import { ParentChildData, ParentChildPerformance, processParentPrompt } from '../lib/parentIntentHandler';
+import { getParentChildren, getParentChildSummary } from '../services/dataService';
 
 // Mock child data for demo
 const DEMO_CHILDREN: ParentChildData[] = [
@@ -112,16 +113,36 @@ const ParentCopilotPage: React.FC = () => {
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     
+    
     // Parent Context
+    const [children, setChildren] = useState<ParentChildData[]>(isDemo ? DEMO_CHILDREN : []);
     const [selectedChildId, setSelectedChildId] = useState<string | null>(isDemo ? 'liam-1' : null);
+    const [performanceData, setPerformanceData] = useState<ParentChildPerformance | null>(null);
     const [selectedSubject, setSelectedSubject] = useState<string>('All subjects');
     
     const [isChildPopupOpen, setIsChildPopupOpen] = useState(false);
     const [isSubjectPopupOpen, setIsSubjectPopupOpen] = useState(false);
     
+    useEffect(() => {
+        if (isDemo) return;
+        getParentChildren().then(data => {
+            setChildren(data);
+            if (data.length > 0 && !selectedChildId) {
+                setSelectedChildId(data[0].id);
+            }
+        }).catch(err => console.error('Failed to fetch children:', err));
+    }, [isDemo]);
+
+    useEffect(() => {
+        if (isDemo || !selectedChildId) return;
+        getParentChildSummary(selectedChildId).then(summary => {
+            setPerformanceData(summary);
+        }).catch(err => console.error('Failed to fetch summary:', err));
+    }, [selectedChildId, isDemo]);
+    
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const currentChild = DEMO_CHILDREN.find(c => c.id === selectedChildId) || null;
+    const currentChild = children.find(c => c.id === selectedChildId) || null;
     const childName = currentChild?.name || 'your child';
 
     const buildPrompts = (): string[] => {
@@ -156,7 +177,8 @@ const ParentCopilotPage: React.FC = () => {
             const result = processParentPrompt(query, {
                 selectedChildId: selectedChildId,
                 selectedSubject: selectedSubject === 'All subjects' ? null : selectedSubject,
-                children: DEMO_CHILDREN
+                children: children,
+                performanceData: performanceData
             });
 
             const assistantMessage: Message = {
@@ -175,7 +197,7 @@ const ParentCopilotPage: React.FC = () => {
     };
 
     const handleChildChange = (id: string | null) => {
-        const newChild = DEMO_CHILDREN.find(c => c.id === id);
+        const newChild = children.find(c => c.id === id);
         setSelectedChildId(id);
         setIsChildPopupOpen(false);
         
@@ -248,7 +270,7 @@ const ParentCopilotPage: React.FC = () => {
                                     <>
                                         <div className="fixed inset-0 z-30" onClick={() => setIsChildPopupOpen(false)} />
                                         <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-200 z-40 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                            {DEMO_CHILDREN.map((child) => (
+                                            {children.map((child) => (
                                                 <button
                                                     key={child.id}
                                                     onClick={() => handleChildChange(child.id)}

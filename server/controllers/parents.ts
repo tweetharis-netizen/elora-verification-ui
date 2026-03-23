@@ -6,19 +6,33 @@ import { AuthRequest } from '../middleware/auth.js';
 export const getChildren = (req: AuthRequest, res: Response) => {
     const parent = req.user!;
 
-    if (!parent.childrenIds || parent.childrenIds.length === 0) {
-        res.json([]);
+    if (DEMO_USER_IDS.has(parent.id)) {
+        if (!parent.childrenIds || parent.childrenIds.length === 0) {
+            res.json([]);
+            return;
+        }
+        const children = db.users.filter(u => parent.childrenIds!.includes(u.id));
+        res.json(children);
         return;
     }
 
-    const children = db.users.filter(u => parent.childrenIds!.includes(u.id));
-    res.json(children);
+    // Real path
+    const childrenRows = sqliteDb.prepare(`
+        SELECT u.id, u.name, u.email
+        FROM parent_children pc
+        JOIN users u ON u.id = pc.child_id
+        WHERE pc.parent_id = ?
+    `).all(parent.id);
+
+    res.json(childrenRows);
 };
 
-export const getChildSummary = (req: AuthRequest, res: Response) => {
-    const parent = req.user!;
-    const childId = req.params.id;
+export const getChildSummary = async (req: AuthRequest, res: Response) => {
+  const parent = req.user!;
+  const childId = req.params.id;
 
+  // Demo path: existing logic unchanged
+  if (DEMO_USER_IDS.has(parent.id)) {
     if (!parent.childrenIds || !parent.childrenIds.includes(childId)) {
         res.status(403).json({ error: 'Not authorized to view this child' });
         return;
@@ -117,11 +131,8 @@ export const getChildSummary = (req: AuthRequest, res: Response) => {
         { label: 'Average recent score', value: avgScore, iconName: 'TrendingUp', trend: 'neutral' },
     ];
 
-    // 5. Subject scores — derive from the child's GameSessions that are linked to
-    //    assignments, grouped by the classroom (subject) name.
-    //    For each classroom, compute the average accuracy across all best attempts.
+    // 5. Subject scores
     const subjectAccuracyMap: Record<string, { total: number; count: number }> = {};
-
     attempts.forEach(atm => {
         if (!atm.bestAttemptId) return;
         const assignment = db.assignments.find(a => a.id === atm.assignmentId);
@@ -143,37 +154,158 @@ export const getChildSummary = (req: AuthRequest, res: Response) => {
         score: Math.round(total / count),
     }));
 
-    // Add child classes to response
-    let childClasses = [];
-    if (DEMO_USER_IDS.has(parent.id)) {
-        childClasses = db.classes
-            .filter(c => c.studentIds.includes(childId))
-            .map(c => ({ id: c.id, name: c.name, subject: (c as any).subject ?? 'General' }));
-    } else {
-        const rows = sqliteDb.prepare(`
-            SELECT c.id, c.name, c.subject
-            FROM classes c
-            JOIN enrollments e ON c.id = e.class_id
-            WHERE e.student_id = ? AND e.status = 'active'
-        `).all(childId) as any[];
-        childClasses = rows.map(c => ({ id: c.id, name: c.name, subject: c.subject }));
-    }
-
-    res.json({
-        child: {
-            id: child.id,
-            name: child.name,
-            score: child.score,
-            streak: child.streak
-        },
+    return res.json({
+        child: { id: child.id, name: child.name, score: (child as any).score || 0, streak: (child as any).streak || 0 },
         stats,
         upcoming,
         recentActivity,
         weakTopics,
         subjectScores,
-        classes: childClasses,
     });
+  }
+
+  // Real path
+  // Verify parent-child link
+  const link = sqliteDb.prepare(
+    `SELECT 1 FROM parent_children WHERE parent_id = ? AND child_id = ?`
+  ).get(parent.id, childId);
+
+  if (!link) {
+    return res.status(403).json({ error: 'Not authorized to view this child' });
+  }
+
+  const child = sqliteDb.prepare(
+    `SELECT id, name FROM users WHERE id = ?`
+  ).get(childId) as any;
+
+  if (!child) {
+    return res.status(404).json({ error: 'Child not found' });
+  }
+
+  const now = new Date();
+
+  // Upcoming: published assignments with not_started or in_progress attempt
+  const upcomingRaw = sqliteDb.prepare(`
+    SELECT 
+      aa.id, a.title, c.name as subject,
+      a.due_date, aa.status
+    FROM assignment_attempts aa
+    JOIN assignments a ON a.id = aa.assignment_id
+    JOIN classes c ON c.id = a.class_id
+    WHERE aa.student_id = ? 
+      AND aa.status != 'submitted'
+      AND a.status = 'published'
+    ORDER BY a.due_date ASC
+    LIMIT 10
+  `).all(childId) as any[];
+
+  // Recent activity: submitted attempts
+  const recentActivityRaw = sqliteDb.prepare(`
+    SELECT 
+      aa.id, a.title, c.name as subject,
+      aa.score, aa.submitted_at, aa.status
+    FROM assignment_attempts aa
+    JOIN assignments a ON a.id = aa.assignment_id
+    JOIN classes c ON c.id = a.class_id
+    WHERE aa.student_id = ? AND aa.status = 'submitted'
+    ORDER BY aa.submitted_at DESC
+    LIMIT 10
+  `).all(childId) as any[];
+
+  // Weak Topics
+  const childSessions = sqliteDb.prepare(`
+      SELECT results FROM game_sessions WHERE student_id = ? ORDER BY played_at DESC LIMIT 20
+  `).all(childId) as any[];
+
+  const topicStats: Record<string, { correct: number, total: number }> = {};
+  childSessions.forEach(gs => {
+      try {
+          const results = JSON.parse(gs.results || '[]');
+          results.forEach((r: any) => {
+              if (r.topicTag) {
+                  if (!topicStats[r.topicTag]) topicStats[r.topicTag] = { correct: 0, total: 0 };
+                  topicStats[r.topicTag].total++;
+                  if (r.isCorrect) topicStats[r.topicTag].correct++;
+              }
+          });
+      } catch (e) {
+          console.error('Error parsing child session results:', e);
+      }
+  });
+
+  const weakTopics = Object.entries(topicStats)
+      .map(([topic, stats]) => ({ topic, score: (stats.correct / stats.total) * 100 }))
+      .filter(t => t.score < 70)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3)
+      .map(entry => entry.topic);
+
+  // Subject Scores
+  const subjectScoresRaw = sqliteDb.prepare(`
+      SELECT c.name, AVG(gs.score) as score
+      FROM game_sessions gs
+      JOIN classes c ON c.id = gs.class_id
+      WHERE gs.student_id = ?
+      GROUP BY c.name
+  `).all(childId) as any[];
+
+  const summaryStats = [
+    { 
+      label: 'Assignments due soon', 
+      value: upcomingRaw.length.toString(), 
+      iconName: 'FileText', 
+      trend: 'neutral' 
+    },
+    { 
+      label: 'Recently completed', 
+      value: recentActivityRaw.length.toString(), 
+      iconName: 'Gamepad2', 
+      trend: 'up' 
+    },
+    { 
+      label: 'Average recent score', 
+      value: recentActivityRaw.length > 0
+        ? Math.round(
+            recentActivityRaw.reduce((s: number, r: any) => s + (r.score || 0), 0) 
+            / recentActivityRaw.filter((r: any) => r.score !== null).length
+          ) + '%'
+        : 'N/A',
+      iconName: 'TrendingUp', 
+      trend: 'neutral' 
+    },
+  ];
+
+  res.json({
+    child: { id: child.id, name: child.name, score: 0, streak: 0 },
+    stats: summaryStats,
+    upcoming: upcomingRaw.map(r => ({
+      id: r.id,
+      title: r.title,
+      subject: r.subject,
+      dueDate: new Date(r.due_date) < now ? 'Overdue' : `Due ${r.due_date}`,
+      status: new Date(r.due_date) < now ? 'Overdue' : 'On track',
+    })),
+    recentActivity: recentActivityRaw.map(r => ({
+      id: r.id,
+      title: r.title,
+      subject: r.subject,
+      tag: 'Assignment',
+      type: 'Assignment',
+      score: r.score !== null ? r.score + '%' : undefined,
+      date: r.submitted_at 
+        ? new Date(r.submitted_at).toLocaleDateString('en-GB', 
+            { day: 'numeric', month: 'short', year: 'numeric' })
+        : 'Unknown',
+      status: 'Completed',
+    })),
+    weakTopics,
+    subjectScores: subjectScoresRaw.map(s => ({
+      name: s.name,
+      score: Math.round(s.score)
+    })),
+  });
 };
+
 
 export const getChildClasses = (req: AuthRequest, res: Response) => {
     const parent = req.user!;

@@ -105,13 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [currentUser]);
 
     const login = (role: UserRole, data?: Partial<CurrentUser>) => {
+        // If data.id is provided and it's not a demo ID, use it for real user login
+        const isReal = data?.id && !Object.values(DEMO_USERS).some(u => u.id === data.id);
+        
         const baseUser = DEMO_USERS[role];
         const user: CurrentUser = {
             ...baseUser,
             ...data,
-            role: baseUser.role,
-            id: baseUser.id,
-            name: baseUser.name,
+            role: role,
+            id: data?.id || baseUser.id,
+            name: data?.name || baseUser.name,
         };
         setCurrentUser(user);
         localStorage.setItem(LS_KEY, JSON.stringify(user));

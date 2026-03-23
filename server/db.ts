@@ -19,7 +19,7 @@ export interface User {
 export interface Classroom {
     id: string;
     name: string;
-    subject: string;
+    subject: string; // e.g., "Mathematics"
     teacherId: string;
     joinCode: string;
     studentIds: string[];

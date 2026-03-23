@@ -1,0 +1,39 @@
+=== SECTION 1: Environment Setup ===
+PASS [OK] 1a. Create real teacher in SQLite
+PASS [OK] 1b. Create real student in SQLite
+PASS [OK] 1d. Real teacher authenticates via requireAuth middleware
+=== SECTION 2: Teacher Class Creation ===
+PASS [OK] 2a. Teacher creates a real class
+PASS [OK] 2b. Class appears in teacher class list
+=== SECTION 3: Student Joins Class ===
+PASS [OK] 3a. Student joins class using join code
+FAIL [!!] 3b. Student class list shows the joined class =>
+=== SECTION 4: Teacher Creates Assignments ===
+FAIL [!!] 4a. Teacher creates DRAFT assignment => Exception calling "GetResponse" with "0" argument(s): "The remote server returned an error: (400) Bad Request."
+FAIL [!!] 4b. Teacher creates PUBLISHED assignment (due soon) => Exception calling "GetResponse" with "0" argument(s): "The remote server returned an error: (400) Bad Request."
+FAIL [!!] 4c. Teacher creates PUBLISHED-OVERDUE assignment => Exception calling "GetResponse" with "0" argument(s): "The remote server returned an error: (400) Bad Request."
+=== SECTION 5: Assignment List Verification ===
+FAIL [!!] 5a. Teacher sees all 3 assignments for the class => Expected >=3 assignments, got 0
+FAIL [!!] 5b. DRAFT assignment shows statusLabel=DRAFT => Draft assignment not found in list
+FAIL [!!] 5c. Published (future) assignment shows DUE SOON => Published assignment not found
+FAIL [!!] 5d. Overdue assignment shows OVERDUE => Overdue assignment not found
+FAIL [!!] 5e. Draft assignment has zero attempt rows =>
+FAIL [!!] 5f. Published assignment auto-created attempt for enrolled student =>
+=== SECTION 6: Student Views Tasks ===
+FAIL [!!] 6a. Student sees the Live Quiz (published, due soon) =>
+FAIL [!!] 6b. Student does NOT see Draft Quiz =>
+FAIL [!!] 6c. Student sees overdue assignment =>
+=== SECTION 7: Student Submits ===
+FAIL [!!] 7a. Student submits the Live Quiz => Exception calling "GetResponse" with "0" argument(s): "The remote server returned an error: (404) Not Found."
+FAIL [!!] 7b. After submit, attempt row flips to completed =>
+FAIL [!!] 7c. Completed task removed from student pending task list =>
+=== SECTION 8: Parent View ===
+FAIL [!!] 8a. Parent endpoint responds =>
+=== SECTION 9: Copilot Data Sources ===
+PASS [OK] 9a. Real teacher stats endpoint returns data
+FAIL [!!] 9b. Real teacher insights endpoint responds =>
+PASS [OK] 9c. Demo teacher_1 still works (isolation check)
+======================================
+======================================
+PASSED : 8
+FAILED : 18

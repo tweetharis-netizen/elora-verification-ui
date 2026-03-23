@@ -1,0 +1,59 @@
+﻿powershell : At line:1 
+char:100
+At line:1 char:1
++ powershell 
+-ExecutionPolicy Bypass 
+-Command "& { 
+$l=[System.IO.File]: ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (At li  
+  ne:1 char:100:String) [   
+ ], RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
++ ... est_results_utf8.txt',
+[System.Text.Encoding]::UTF8
+); foreach( in ){ i ...
++                           
+                            
+           ~
+Missing variable name after 
+foreach.
+At line:1 char:3
++ & { =[System.IO.File]::Rea
+dAllLines('test_results_utf8
+.txt',[System.T ...
++   ~
+Missing closing '}' in 
+statement block or type 
+definition.
+At line:1 char:104
++ ... esults_utf8.txt',[Syst
+em.Text.Encoding]::UTF8); 
+foreach( in ){ if( -m ...
++                           
+                            
+          ~
+Unexpected token ')' in 
+expression or statement.
+At line:1 char:188
++ ... AIL \[|PASS \[|===|PAS
+SED|FAILED'){[System.Console
+]::WriteLine()} } }
++                           
+                            
+                  ~
+Unexpected token '}' in 
+expression or statement.
+    + CategoryInfo          
+    : ParserError: (:) [],  
+   ParentContainsErrorRec   
+ ordException
+    + FullyQualifiedErrorId 
+    : MissingVariableNameA  
+  fterForeach
+ 

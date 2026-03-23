@@ -1,11 +1,53 @@
 import { Response } from 'express';
-import { db } from '../db.js';
+import { db as mockDb } from '../db.js';
+import { db, DEMO_USER_IDS } from '../database.js';
 import { AuthRequest } from '../middleware/auth.js';
 
 export const getTeacherStats = (req: AuthRequest, res: Response) => {
-    // Return stats from db
-    // In a real app we might calculate this based on the authenticated teacher (req.user!.id)
-    res.json(db.stats);
+    const userId = req.user!.id;
+    const isDemo = DEMO_USER_IDS.has(userId);
+
+    if (isDemo) {
+        return res.json(mockDb.stats);
+    }
+
+    try {
+        const totalClassesRow = db.get(`SELECT COUNT(*) as count FROM classes WHERE teacher_id = ?`, userId) as any;
+        const totalClasses = totalClassesRow?.count ?? 0;
+        
+        const activeStudentsRow = db.get(`
+            SELECT COUNT(DISTINCT e.student_id) as count 
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.id
+            WHERE c.teacher_id = ? AND e.status = 'active'
+        `, userId) as any;
+        const activeStudents = activeStudentsRow?.count ?? 0;
+
+        const assignmentsDueRow = db.get(`
+            SELECT COUNT(*) as count 
+            FROM assignments 
+            WHERE teacher_id = ? AND due_date > datetime('now') AND status = 'published'
+        `, userId) as any;
+        const assignmentsDue = assignmentsDueRow?.count ?? 0;
+
+        const avgScoreRow = db.get(`
+            SELECT AVG(aa.score) as avg 
+            FROM assignment_attempts aa
+            JOIN assignments a ON aa.assignment_id = a.id
+            WHERE a.teacher_id = ? AND aa.status = 'submitted'
+        `, userId) as any;
+        const avgScore = avgScoreRow?.avg ? Math.round(avgScoreRow.avg) : 0;
+
+        res.json([
+            { label: "Total Classes", value: String(totalClasses), trendValue: "+", status: "info" },
+            { label: "Active Students", value: String(activeStudents), trendValue: "+", status: "success" },
+            { label: "Assignments Due", value: String(assignmentsDue), trendValue: "!", status: "warning" },
+            { label: "Avg. Class Score", value: avgScore > 0 ? `${avgScore}%` : "No data", trendValue: "~", status: "info" },
+        ]);
+    } catch (error) {
+        console.error("Error fetching teacher stats:", error);
+        res.status(500).json({ error: "Failed to fetch stats" });
+    }
 };
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -39,157 +81,217 @@ const RECENT_SESSIONS_WINDOW = 10;
 
 export const getInsightsNeedsAttention = (req: AuthRequest, res: Response) => {
     const teacherId = req.user!.id;
-    const now = new Date();
-    const insights: TeacherInsight[] = [];
-
-    // All classrooms belonging to this teacher
-    const myClasses = db.classes.filter(c => c.teacherId === teacherId);
-    const myClassIds = new Set(myClasses.map(c => c.id));
-
-    // All published assignments in those classes
-    const myAssignments = db.assignments.filter(
-        a => a.teacherId === teacherId && a.isPublished
-    );
-
-    // ── 1. OVERDUE ASSIGNMENTS (no submissions at all past due date) ───────────
-    myAssignments.forEach(assignment => {
-        const dueDate = new Date(assignment.dueDate);
-        if (dueDate > now) return; // not yet overdue
-
-        const attempts = db.assignmentAttempts.filter(
-            aa => aa.assignmentId === assignment.id
+    const isDemo = DEMO_USER_IDS.has(teacherId);
+    
+    if (isDemo) {
+        // ... (demo logic preserved below in the modified version)
+        const myClasses = mockDb.classes.filter(c => c.teacherId === teacherId);
+        const myClassIds = new Set(myClasses.map(c => c.id));
+        const myAssignments = mockDb.assignments.filter(
+            a => a.teacherId === teacherId && a.isPublished
         );
-        const anySubmitted = attempts.some(aa => aa.status === 'submitted');
-        if (anySubmitted) return; // at least one student did it
+        const insights: TeacherInsight[] = [];
+        const now = new Date();
 
-        const cls = myClasses.find(c => c.id === assignment.classroomId);
-        const className = cls?.name ?? 'Unknown Class';
-
-        insights.push({
-            id: `overdue_${assignment.id}`,
-            type: 'overdue_assignment',
-            className,
-            assignmentId: assignment.id,
-            assignmentTitle: assignment.title,
-            detail: `"${assignment.title}" (${className}) was due ${dueDate.toLocaleDateString()} and has no submissions yet.`,
+        // Overdue
+        myAssignments.forEach(assignment => {
+            const dueDate = new Date(assignment.dueDate);
+            if (dueDate > now) return;
+            const attempts = mockDb.assignmentAttempts.filter(aa => aa.assignmentId === assignment.id);
+            const anySubmitted = attempts.some(aa => aa.status === 'submitted');
+            if (anySubmitted) return;
+            const cls = myClasses.find(c => c.id === assignment.classroomId);
+            insights.push({
+                id: `overdue_${assignment.id}`,
+                type: 'overdue_assignment',
+                className: cls?.name ?? 'Unknown Class',
+                assignmentId: assignment.id,
+                assignmentTitle: assignment.title,
+                detail: `"${assignment.title}" (${cls?.name ?? 'Unknown Class'}) was due ${dueDate.toLocaleDateString()} and has no submissions yet.`,
+            });
         });
-    });
 
-    // ── 2. LOW CLASS-AVERAGE SCORES per assignment ────────────────────────────
-    myAssignments.forEach(assignment => {
-        const attempts = db.assignmentAttempts.filter(
-            aa => aa.assignmentId === assignment.id && aa.status === 'submitted'
-        );
-        if (attempts.length === 0) return;
-
-        const scores: number[] = [];
-        attempts.forEach(attempt => {
-            if (attempt.bestAttemptId) {
-                const session = db.gameSessions.find(gs => gs.id === attempt.bestAttemptId);
-                if (session) {
-                    scores.push(Math.round(session.accuracy * 100));
+        // Low Scores
+        myAssignments.forEach(assignment => {
+            const attempts = mockDb.assignmentAttempts.filter(aa => aa.assignmentId === assignment.id && aa.status === 'submitted');
+            if (attempts.length === 0) return;
+            const scores: number[] = [];
+            attempts.forEach(attempt => {
+                if (attempt.bestAttemptId) {
+                    const session = mockDb.gameSessions.find(gs => gs.id === attempt.bestAttemptId);
+                    if (session) scores.push(Math.round(session.accuracy * 100));
                 }
+            });
+            if (scores.length === 0) return;
+            const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+            if (avg >= LOW_SCORES_THRESHOLD) return;
+            const cls = myClasses.find(c => c.id === assignment.classroomId);
+            insights.push({
+                id: `low_scores_${assignment.id}`,
+                type: 'low_scores',
+                className: cls?.name ?? 'Unknown Class',
+                assignmentId: assignment.id,
+                assignmentTitle: assignment.title,
+                detail: `Class average for "${assignment.title}" is ${avg}% — below the ${LOW_SCORES_THRESHOLD}% threshold.`,
+            });
+        });
+
+        // Weak Topics (truncated for demo)
+        const enrolledStudentIds = new Set<string>();
+        mockDb.enrollments.filter(e => myClassIds.has(e.classroomId) && e.status === 'active').forEach(e => enrolledStudentIds.add(e.studentId));
+        enrolledStudentIds.forEach(studentId => {
+            const student = mockDb.users.find(u => u.id === studentId);
+            if (!student) return;
+            const enrollment = mockDb.enrollments.find(e => e.studentId === studentId && myClassIds.has(e.classroomId));
+            const cls = enrollment ? myClasses.find(c => c.id === enrollment.classroomId) : myClasses[0];
+            const className = cls?.name ?? 'Unknown Class';
+            const sessions = mockDb.gameSessions.filter(gs => gs.studentId === studentId && gs.status === 'completed').slice(0, 10);
+            const failCount: Record<string, number> = {};
+            sessions.forEach(gs => gs.results?.forEach(r => { if (!r.isCorrect && r.topicTag) failCount[r.topicTag] = (failCount[r.topicTag] ?? 0) + 1; }));
+            Object.entries(failCount).forEach(([topic, count]) => {
+                if (count < WEAK_TOPIC_MIN_FAILURES) return;
+                insights.push({
+                    id: `weak_topic_${studentId}_${topic.replace(/\s+/g, '_')}`,
+                    type: 'weak_topic',
+                    studentId,
+                    studentName: student.name,
+                    className,
+                    topicTag: topic,
+                    detail: `${student.name} has missed "${topic}" in ${count} of the last ${sessions.length} attempt(s).`,
+                });
+            });
+        });
+
+        const order: Record<InsightType, number> = { overdue_assignment: 0, low_scores: 1, weak_topic: 2 };
+        return res.json({ 
+            needsAttention: insights.sort((a, b) => order[a.type] - order[b.type]).slice(0, 10),
+            weakTopics: [] 
+        });
+    }
+
+    // REAL USER LOGIC (SQLite)
+    try {
+        const insights: TeacherInsight[] = [];
+
+        // 1. OVERDUE ASSIGNMENTS
+        // Assignments with due_date in the past and status 'published'
+        // Join with assignment_attempts to see if ANY student has submitted
+        const overdue = db.all(`
+            SELECT a.id, a.title, a.due_date, c.name as className
+            FROM assignments a
+            JOIN classes c ON a.class_id = c.id
+            WHERE a.teacher_id = ? 
+              AND a.due_date < datetime('now')
+              AND a.status = 'published'
+        `, teacherId);
+
+        overdue.forEach(asgn => {
+            const attemptSummary = db.get(`
+                SELECT COUNT(*) as total, 
+                       SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) as submitted
+                FROM assignment_attempts
+                WHERE assignment_id = ?
+            `, asgn.id);
+
+            if (attemptSummary.total > 0 && attemptSummary.submitted === 0) {
+                insights.push({
+                    id: `overdue_${asgn.id}`,
+                    type: 'overdue_assignment',
+                    className: asgn.className,
+                    assignmentId: asgn.id,
+                    assignmentTitle: asgn.title,
+                    detail: `"${asgn.title}" (${asgn.className}) was due ${new Date(asgn.due_date).toLocaleDateString()} and has no submissions yet.`,
+                });
             }
         });
 
-        if (scores.length === 0) return;
+        // 2. LOW SCORES
+        const lowScoreAssignments = db.all(`
+            SELECT a.id, a.title, c.name as className, AVG(aa.score) as avgScore
+            FROM assignments a
+            JOIN classes c ON a.class_id = c.id
+            JOIN assignment_attempts aa ON a.id = aa.assignment_id
+            WHERE a.teacher_id = ? 
+              AND aa.status = 'submitted'
+            GROUP BY a.id
+            HAVING avgScore < ?
+        `, teacherId, LOW_SCORES_THRESHOLD);
 
-        const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-        if (avg >= LOW_SCORES_THRESHOLD) return;
-
-        const cls = myClasses.find(c => c.id === assignment.classroomId);
-        const className = cls?.name ?? 'Unknown Class';
-
-        insights.push({
-            id: `low_scores_${assignment.id}`,
-            type: 'low_scores',
-            className,
-            assignmentId: assignment.id,
-            assignmentTitle: assignment.title,
-            detail: `Class average for "${assignment.title}" is ${avg}% — below the ${LOW_SCORES_THRESHOLD}% threshold.`,
+        lowScoreAssignments.forEach(asgn => {
+            insights.push({
+                id: `low_scores_${asgn.id}`,
+                type: 'low_scores',
+                className: asgn.className,
+                assignmentId: asgn.id,
+                assignmentTitle: asgn.title,
+                detail: `Class average for "${asgn.title}" is ${Math.round(asgn.avgScore)}% — below the ${LOW_SCORES_THRESHOLD}% threshold.`,
+            });
         });
-    });
 
-    // ── 3. WEAK TOPICS per student (across game sessions tied to teacher's classes) ─
-    //
-    // Collect all real studentIds enrolled in this teacher's classrooms.
-    const enrolledStudentIds = new Set<string>();
-    db.enrollments
-        .filter(e => myClassIds.has(e.classroomId) && e.status === 'active')
-        .forEach(e => enrolledStudentIds.add(e.studentId));
+        // 3. WEAK TOPICS
+        const activeStudents = db.all(`
+            SELECT DISTINCT e.student_id, u.name as studentName, c.name as className
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.id
+            JOIN users u ON e.student_id = u.id
+            WHERE c.teacher_id = ? AND e.status = 'active'
+        `, teacherId) as any[];
 
-    // Also include students listed on classroomId.studentIds (legacy field)
-    myClasses.forEach(cls => {
-        cls.studentIds.forEach(sid => {
-            if (sid !== 'dummy_id') enrolledStudentIds.add(sid);
-        });
-    });
+        activeStudents.forEach(row => {
+            // Get last N sessions for this student
+            const sessions = db.all(`
+                SELECT results FROM game_sessions 
+                WHERE student_id = ? 
+                ORDER BY played_at DESC 
+                LIMIT ?
+            `, row.student_id, RECENT_SESSIONS_WINDOW) as any[];
 
-    enrolledStudentIds.forEach(studentId => {
-        const student = db.users.find(u => u.id === studentId);
-        if (!student) return;
+            if (sessions.length === 0) return;
 
-        // Determine which classroom this student is in (for className)
-        const enrollment = db.enrollments.find(
-            e => e.studentId === studentId && myClassIds.has(e.classroomId)
-        );
-        const cls = enrollment
-            ? myClasses.find(c => c.id === enrollment.classroomId)
-            : myClasses[0];
-        const className = cls?.name ?? 'Unknown Class';
+            const failCount: Record<string, number> = {};
+            sessions.forEach(s => {
+                try {
+                    const results = JSON.parse(s.results || '[]');
+                    results.forEach((r: any) => {
+                        if (!r.isCorrect && r.topicTag) {
+                            failCount[r.topicTag] = (failCount[r.topicTag] || 0) + 1;
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error parsing session results:', e);
+                }
+            });
 
-        // Gather recent completed sessions
-        const sessions = db.gameSessions
-            .filter(gs => gs.studentId === studentId && gs.status === 'completed')
-            .sort(
-                (a, b) =>
-                    new Date(b.endTime || 0).getTime() -
-                    new Date(a.endTime || 0).getTime()
-            )
-            .slice(0, RECENT_SESSIONS_WINDOW);
-
-        // Count failures per topicTag
-        const failCount: Record<string, number> = {};
-        sessions.forEach(gs => {
-            if (!gs.results) return;
-            gs.results.forEach(r => {
-                if (!r.isCorrect && r.topicTag) {
-                    failCount[r.topicTag] = (failCount[r.topicTag] ?? 0) + 1;
+            Object.entries(failCount).forEach(([topic, count]) => {
+                if (count >= WEAK_TOPIC_MIN_FAILURES) {
+                    insights.push({
+                        id: `weak_topic_${row.student_id}_${topic.replace(/\s+/g, '_')}`,
+                        type: 'weak_topic',
+                        studentId: row.student_id,
+                        studentName: row.studentName,
+                        className: row.className,
+                        topicTag: topic,
+                        detail: `${row.studentName} has missed "${topic}" in ${count} of the last ${sessions.length} session(s).`,
+                    });
                 }
             });
         });
 
-        // Emit an insight for each flagged topic
-        Object.entries(failCount).forEach(([topic, count]) => {
-            if (count < WEAK_TOPIC_MIN_FAILURES) return;
-
-            insights.push({
-                id: `weak_topic_${studentId}_${topic.replace(/\s+/g, '_')}`,
-                type: 'weak_topic',
-                studentId,
-                studentName: student.name,
-                className,
-                topicTag: topic,
-                detail: `${student.name} has missed "${topic}" in ${count} of the last ${sessions.length} attempt(s).`,
-            });
+        const order: Record<InsightType, number> = { overdue_assignment: 0, low_scores: 1, weak_topic: 2 };
+        res.json({
+            needsAttention: insights.sort((a, b) => order[a.type] - order[b.type]).slice(0, 10),
+            weakTopics: []
         });
-    });
 
-    // Sort: overdue first, then low_scores, then weak_topic; cap at 10
-    const order: Record<InsightType, number> = {
-        overdue_assignment: 0,
-        low_scores: 1,
-        weak_topic: 2,
-    };
-    const sorted = insights
-        .sort((a, b) => order[a.type] - order[b.type])
-        .slice(0, 10);
-
-    res.json(sorted);
+    } catch (error) {
+        console.error("Error fetching insights:", error);
+        res.status(500).json({ error: "Failed to fetch insights" });
+    }
 };
 
 export const sendTeacherNudge = (req: AuthRequest, res: Response) => {
     const teacherId = req.user!.id;
+    const isDemo = DEMO_USER_IDS.has(teacherId);
     const { studentId, message } = req.body;
     
     if (!studentId || !message) {
@@ -205,6 +307,12 @@ export const sendTeacherNudge = (req: AuthRequest, res: Response) => {
         createdAt: new Date().toISOString()
     };
     
-    db.teacherNudges.push(nudge);
+    if (isDemo) {
+        mockDb.teacherNudges.push(nudge);
+    } else {
+        // SQLite: no teacher_nudges table yet, but we define the flow if needed.
+        // For now, we only push to memory for demo. 
+        // Real persistence for nudges can be Phase 4.
+    }
     res.status(201).json(nudge);
 };

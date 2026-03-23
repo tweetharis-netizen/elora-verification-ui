@@ -6,10 +6,19 @@ export interface ParentChildData {
     gender: 'male' | 'female' | 'non-binary';
 }
 
+export interface ParentChildPerformance {
+    childId: string;
+    upcomingAssignments: any[];
+    recentActivity: any[];
+    weakTopics: string[];
+    subjectScores: Array<{ subject: string; averageScore: number }>;
+}
+
 export interface ParentCopilotContext {
     selectedChildId: string | null;
     selectedSubject: string | null;
     children: ParentChildData[];
+    performanceData?: ParentChildPerformance | null;
 }
 
 export type ParentIntent = 
@@ -135,8 +144,21 @@ export const processParentPrompt = (prompt: string, context: ParentCopilotContex
 
     // ── Response Logic ──
     switch (intent) {
-        case 'childoverview':
-            responseContent = `Overall, ${childName} is doing fine — ${pSub} is keeping up with most of ${pPos} work and there are no red flags this week. There is one assignment that's still pending, which is worth a gentle mention when you get the chance.\n\nWant me to show you what's coming up, or would you like to send ${pObj} a quick nudge?`;
+        case 'childoverview': {
+            const performance = context.performanceData;
+            if (performance) {
+                const weakTopicText = performance.weakTopics.length 
+                    ? `I've noticed ${pSub} might need a little extra help with **${performance.weakTopics[0]}**. ` 
+                    : "";
+                const upcomingCount = performance.upcomingAssignments?.length || 0;
+                const upcomingText = upcomingCount > 0 
+                    ? `There ${upcomingCount === 1 ? 'is' : 'are'} ${upcomingCount} upcoming task${upcomingCount === 1 ? '' : 's'}. ` 
+                    : "";
+                
+                responseContent = `Overall, ${childName} is doing well. ${pSub.charAt(0).toUpperCase() + pSub.slice(1)} is keeping up with work. ${weakTopicText}${upcomingText}Want me to show you what's coming up?`;
+            } else {
+                responseContent = `Overall, ${childName} is doing fine — ${pSub} is keeping up with most of ${pPos} work and there are no red flags this week. There is one assignment that's still pending, which is worth a gentle mention when you get the chance.\n\nWant me to show you what's coming up, or would you like to send ${pObj} a quick nudge?`;
+            }
             steps = [
                 { id: '1', text: `Checking ${childName}'s recent submission and activity data` },
                 { id: '2', text: 'Looking for overdue or missing work' },
@@ -148,6 +170,7 @@ export const processParentPrompt = (prompt: string, context: ParentCopilotContex
                 { label: `Send ${childName} a nudge`, actionType: 'navigate' }
             ];
             break;
+        }
 
         case 'subjectcheck': {
             const mentionedSubject = 
@@ -158,12 +181,24 @@ export const processParentPrompt = (prompt: string, context: ParentCopilotContex
                 /geography/i.test(p) ? 'Geography' :
                 context.selectedSubject || 'that subject';
 
+            const performance = context.performanceData;
+            const subScore = performance?.subjectScores.find(s => s.subject.toLowerCase() === mentionedSubject.toLowerCase());
+            const scoreVal = subScore ? Math.round(subScore.averageScore) : null;
+
             const isStruggling = /(struggle|struggling|bad at|hard|difficult|really)/i.test(p);
 
-            if (isStruggling) {
-                responseContent = `Yes, ${childName}'s ${mentionedSubject} scores have dipped a bit recently — ${pSub} is averaging around 62%, which is slightly below where ${pSub} was last month. That said, ${pSub} is still submitting work and hasn't fallen behind on deadlines. It might be worth a light check-in at home, just to see if ${pSub} wants any extra support.\n\nWant me to show you what ${pPos} next ${mentionedSubject} assignment looks like?`;
+            if (scoreVal !== null) {
+                if (scoreVal < 70) {
+                    responseContent = `Yes, ${childName}'s ${mentionedSubject} scores have dipped a bit — ${pSub} is averaging around ${scoreVal}%, which is lower than we'd like to see. It might be worth a light check-in at home to see if ${pSub} wants any extra support.`;
+                } else {
+                    responseContent = `${childName} is doing great in ${mentionedSubject}! ${pSub.charAt(0).toUpperCase() + pSub.slice(1)} is averaging around ${scoreVal}%, which is a strong performance.`;
+                }
             } else {
-                responseContent = `${childName} is doing okay in ${mentionedSubject} — scores have been around 62%, which is a solid baseline, and ${pSub} has been actively engaging with the material. There's one assignment due soon that ${pSub} hasn't started yet, which is worth a mention.`;
+                if (isStruggling) {
+                    responseContent = `Yes, ${childName}'s ${mentionedSubject} scores have dipped a bit recently — ${pSub} is averaging around 62%, which is slightly below where ${pSub} was last month. That said, ${pSub} is still submitting work and hasn't fallen behind on deadlines. It might be worth a light check-in at home, just to see if ${pSub} wants any extra support.\n\nWant me to show you what ${pPos} next ${mentionedSubject} assignment looks like?`;
+                } else {
+                    responseContent = `${childName} is doing okay in ${mentionedSubject} — scores have been around 62%, which is a solid baseline, and ${pSub} has been actively engaging with the material. There's one assignment due soon that ${pSub} hasn't started yet, which is worth a mention.`;
+                }
             }
             steps = [
                 { id: 's1', text: `Scanning ${mentionedSubject} grade and submission data` },

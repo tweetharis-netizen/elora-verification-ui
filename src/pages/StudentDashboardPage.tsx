@@ -64,10 +64,11 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { 
-    demoStudentData, 
+    demoStudentData,
     demoStudentStreak, 
     demoGameSessions, 
-    demoStudentNudges 
+    demoStudentNudges,
+    demoStudentClasses
 } from '../demo/demoStudentScenarioA';
 
 
@@ -238,6 +239,7 @@ export default function StudentDashboardPage() {
 
     // --- Real Data State ---
     const [assignments, setAssignments] = useState<dataService.StudentAssignment[]>([]);
+    const [studentClasses, setStudentClasses] = useState<dataService.StudentClass[]>([]);
     const [recentPerformance, setRecentPerformance] = useState<{ scores: { score: number; date: string }[]; weakTopics: string[] } | null>(null);
     const [gameSessions, setGameSessions] = useState<dataService.GameSession[]>([]);
     const [streakData, setStreakData] = useState<dataService.StudentStreak | null>(null);
@@ -266,20 +268,23 @@ export default function StudentDashboardPage() {
                     setStreakData(demoStudentStreak);
                     setGameSessions(demoGameSessions);
                     setNudges(demoStudentNudges);
+                    setStudentClasses(demoStudentClasses);
                     setLoading(false);
                     return;
                 }
-                const [studentData, sessions, streak, nudgesData] = await Promise.all([
+                const [studentData, sessions, streak, nudgesData, classesData] = await Promise.all([
                     dataService.getStudentAssignments(),
                     dataService.getStudentGameSessions(),
                     dataService.getStudentStreak(),
-                    dataService.getStudentNudges()
+                    dataService.getStudentNudges(),
+                    dataService.getStudentClasses()
                 ]);
                 setAssignments(studentData.assignments);
                 setRecentPerformance(studentData.recentPerformance);
                 setGameSessions(sessions);
                 setStreakData(streak);
                 setNudges(nudgesData);
+                setStudentClasses(classesData);
             } catch (err: any) {
                 setError(err.message || 'Failed to load data');
             } finally {
@@ -837,27 +842,49 @@ export default function StudentDashboardPage() {
 
                                     {/* STUDENT COPILOT (Phase 1) */}
                                     {!loading && (
-                                        <EloraAssistantCard
-                                            role="student"
-                                            assistantName={currentUser?.assistantName}
-                                            title="Elora Copilot"
-                                            description="Elora suggests what to work on next based on your progress data."
-                                            badgeText="Beta · Elora Copilot"
-                                            helperText="Ask about your learning — suggestions are based on your live data."
-                                            onAsk={handleStudentAskElora}
-                                            suggestedPrompts={[
-                                                "What's overdue?",
-                                                "What should I work on next?",
-                                                "How am I doing this week?"
-                                            ]}
-                                            accentClasses={{
-                                                chipBg: 'bg-[#68507B]/10',
-                                                buttonBg: 'bg-[#68507B]',
-                                                iconBg: 'bg-[#68507B]/10',
-                                                text: 'text-[#68507B]',
-                                            }}
-                                        />
-                                    )}
+                                         <EloraAssistantCard
+                                             role="student"
+                                             assistantName={currentUser?.assistantName}
+                                             title="Elora Copilot"
+                                             description="Elora suggests what to work on next based on your progress data."
+                                             badgeText="Beta · Elora Copilot"
+                                             helperText="Ask about your learning — suggestions are based on your live data."
+                                             onAsk={handleStudentAskElora}
+                                             suggestedPrompts={[
+                                                 "What's overdue?",
+                                                 "What should I work on next?",
+                                                 "How am I doing this week?"
+                                             ]}
+                                             accentClasses={{
+                                                 chipBg: 'bg-[#68507B]/10',
+                                                 buttonBg: 'bg-[#68507B]',
+                                                 iconBg: 'bg-[#68507B]/10',
+                                                 text: 'text-[#68507B]',
+                                             }}
+                                         />
+                                     )}
+ 
+                                     {/* MY CLASSES */}
+                                     {studentClasses.length > 0 && (
+                                         <section className="mt-6">
+                                             <div className="flex items-center gap-2 mb-3">
+                                                 <BookOpen className="w-4 h-4 text-[#68507B]" />
+                                                 <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">My Classes</h3>
+                                             </div>
+                                             <div className="flex flex-wrap gap-2">
+                                                 {studentClasses.map(cls => (
+                                                     <button
+                                                         key={cls.id}
+                                                         onClick={() => handleClassClick(cls.name)}
+                                                         className="px-4 py-2 bg-white border border-[#EAE7DD] hover:border-[#68507B]/30 hover:bg-slate-50 rounded-xl text-sm font-bold text-slate-700 transition-all shadow-sm flex items-center gap-2 group"
+                                                     >
+                                                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                         {cls.subject}
+                                                     </button>
+                                                 ))}
+                                             </div>
+                                         </section>
+                                     )}
 
                                     {/* TODAY'S FOCUS CARD */}
                                     <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">

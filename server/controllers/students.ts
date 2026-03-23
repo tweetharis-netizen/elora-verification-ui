@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { DEMO_USER_IDS, sqliteDb } from '../database.js';
 
 export const getStudentAssignments = (req: AuthRequest, res: Response) => {
     const studentId = req.user!.id;
@@ -38,7 +39,7 @@ export const getStudentGameSessions = (req: AuthRequest, res: Response) => {
 
 export const createStudentGameSession = (req: AuthRequest, res: Response): any => {
     const studentId = req.user!.id;
-    const { packId, score, totalQuestions, accuracy, startTime, endTime, status, results } = req.body;
+    const { packId, classId, score, totalQuestions, accuracy, startTime, endTime, status, results } = req.body;
 
     if (!packId || typeof score !== 'number' || typeof totalQuestions !== 'number' || typeof accuracy !== 'number') {
         return res.status(400).json({ error: 'Missing or invalid fields in request body' });
@@ -48,6 +49,7 @@ export const createStudentGameSession = (req: AuthRequest, res: Response): any =
         id: `gs_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         studentId,
         packId,
+        classId,
         score,
         totalQuestions,
         accuracy,
@@ -59,6 +61,31 @@ export const createStudentGameSession = (req: AuthRequest, res: Response): any =
     };
 
     db.gameSessions.push(newSession);
+
+    // Persist to SQLite for real users
+    if (!DEMO_USER_IDS.has(studentId)) {
+        try {
+            const topicTags = Array.from(new Set((results || []).map((r: any) => r.topicTag).filter(Boolean)));
+            const scorePercentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+            
+            sqliteDb.prepare(`
+                INSERT INTO game_sessions (id, student_id, pack_id, class_id, score, topic_tags, results, played_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                newSession.id,
+                studentId,
+                packId,
+                classId || null,
+                scorePercentage,
+                JSON.stringify(topicTags),
+                JSON.stringify(results || []),
+                newSession.playedAt
+            );
+        } catch (error) {
+            console.error('Error persisting game session to SQLite:', error);
+        }
+    }
+
     return res.status(201).json(newSession);
 };
 

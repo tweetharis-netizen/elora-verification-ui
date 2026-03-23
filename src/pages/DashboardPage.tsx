@@ -206,7 +206,7 @@ export default function DashboardPage() {
                                     {stat.status === 'success' && <TrendingUp size={14} />}
                                     {stat.status === 'info' && <Minus size={14} />}
                                     {stat.status === 'warning' && <AlertCircle size={14} />}
-                                    <span>{stat.trend}</span>
+                                    <span>{stat.trendValue}</span>
                                 </div>
                             </div>
                         ))}

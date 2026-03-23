@@ -1,0 +1,79 @@
+﻿
+=== SECTION 1: Environment Setup ===
+PASS [OK] 1a. Create real teacher in SQLite
+PASS [OK] 1b. Create real student in SQLite
+PASS [OK] 1c. Create real parent in SQLite
+   Auth succeeded. Classes count: 9
+PASS [OK] 1d. Real teacher authenticates via requireAuth middleware
+
+=== SECTION 2: Teacher Class Creation ===
+PASS [OK] 2a. Teacher creates a real class
+   JoinCode: BIP-06N, Students: 0
+PASS [OK] 2b. Class appears in teacher class list
+
+=== SECTION 3: Student Joins Class ===
+   Joined: Science 101
+PASS [OK] 3a. Student joins class using join code
+   Class found with teacherName: Real Ms. Chan
+PASS [OK] 3b. Student class list shows the joined class
+
+=== SECTION 4: Teacher Creates Assignments ===
+PASS [OK] 4a. Teacher creates DRAFT assignment
+PASS [OK] 4b. Teacher creates PUBLISHED assignment (due soon)
+PASS [OK] 4c. Teacher creates PUBLISHED-OVERDUE assignment
+
+=== SECTION 5: Assignment List Verification ===
+   Assignment statuses: DRAFT, DUE SOON, OVERDUE, DRAFT, DUE SOON, OVERDUE, DRAFT, DUE SOON, OVERDUE, DRAFT, DUE SOON, OVERDUE, DRAFT, DUE SOON, OVERDUE, DRAFT, DUE SOON, OVERDUE
+PASS [OK] 5a. Teacher sees all 3 assignments for the class
+   Draft statusLabel: DRAFT
+PASS [OK] 5b. DRAFT assignment shows statusLabel=DRAFT
+   Published statusLabel: DUE SOON
+PASS [OK] 5c. Published (future) assignment shows DUE SOON
+   Overdue statusLabel: OVERDUE
+PASS [OK] 5d. Overdue assignment shows OVERDUE
+   Draft attempts: 0 (correct)
+PASS [OK] 5e. Draft assignment has zero attempt rows
+   Attempt status: not_started
+PASS [OK] 5f. Published assignment auto-created attempt for enrolled student
+
+=== SECTION 6: Student Views Tasks ===
+   Task statusLabel: DUE SOON
+PASS [OK] 6a. Student sees the Live Quiz (published, due soon)
+   Draft correctly hidden from student
+PASS [OK] 6b. Student does NOT see Draft Quiz
+   Overdue task statusLabel: OVERDUE
+PASS [OK] 6c. Student sees overdue assignment
+
+=== SECTION 7: Student Submits ===
+   Submit OK: {"success":true,"attemptId":"att_1774196333385_u_test","status":"submitted","score":87}
+PASS [OK] 7a. Student submits the Live Quiz
+   Score recorded: 87%
+PASS [OK] 7b. After submit, attempt row flips to submitted
+   Completed task correctly marked as SUBMITTED
+PASS [OK] 7c. Completed task status indicates SUBMITTED
+
+=== SECTION 8: Parent View ===
+   Children count: 1
+PASS [OK] 8a. Parent endpoint responds
+
+=== SECTION 9: Copilot Data Sources ===
+   Stats keys: label, status, trend, value
+PASS [OK] 9a. Real teacher stats endpoint returns data
+   Insights items: 6
+PASS [OK] 9b. Real teacher insights endpoint responds
+   Demo still returns 4 stat items
+PASS [OK] 9c. Demo teacher_1 still works (isolation check)
+
+======================================
+  TEST SUMMARY
+======================================
+  PASSED : 27
+  FAILED : 0
+
+IDs used in this test run:
+  teacherId   = u_test_teacher
+  studentId   = u_test_student
+  classId     = class_1774196333259 | joinCode = BIP-06N
+  draftId     = assign_1774196333365_4j8tc
+  publishedId = assign_1774196333379_1yglg
+  overdueId   = assign_1774196333398_j9mrm

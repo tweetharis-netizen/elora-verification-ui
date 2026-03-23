@@ -65,3 +65,14 @@ export const demoStudentNudges: dataService.ParentNudge[] = [
         createdAt: new Date(Date.now() - 1 * 3600000).toISOString(), // 1 hour ago
     },
 ];
+
+export const demoStudentClasses: dataService.StudentClass[] = [
+    {
+        id: 'demo-class-1',
+        name: 'Sec 3 Mathematics',
+        subject: 'Mathematics',
+        teacherName: 'Mr. Michael Lee',
+        joinCode: 'X7B9Q2M',
+        enrolledAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+    },
+];

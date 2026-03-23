@@ -34,7 +34,10 @@ import {
     Heart,
     GraduationCap,
     UserPlus,
+    UserMinus,
+    Target,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
@@ -144,39 +147,51 @@ const StatCard = ({
     label,
     value,
     trend,
+    trendValue,
+    status
 }: {
     icon: React.ReactNode;
     label: string;
     value: string;
     trend?: 'up' | 'down';
-}) => (
-    <div className="bg-white p-5 rounded-2xl border border-[#EAE7DD] shadow-sm flex flex-col gap-3">
-        <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center shrink-0">
-                {icon}
-            </div>
-            {trend && (
-                <div
-                    className={`flex items-center gap-1 text-xs font-semibold ${trend === 'up' ? 'text-teal-600' : 'text-orange-600'
-                        }`}
-                >
-                    {trend === 'up' ? (
-                        <TrendingUp size={14} />
-                    ) : (
-                        <TrendingUp size={14} className="rotate-180" />
-                    )}
-                    <span>2.4%</span>
+    trendValue?: string;
+    status?: string;
+}) => {
+    const isUp = trend === 'up';
+    const isDown = trend === 'down';
+    
+    let statusClass = 'text-teal-600 bg-teal-50 border-teal-100';
+    if (status === 'warning' || isDown) statusClass = 'text-orange-600 bg-orange-50 border-orange-200';
+    if (status === 'info') statusClass = 'text-blue-600 bg-blue-50 border-blue-100';
+    if (status === 'neutral') statusClass = 'text-slate-600 bg-slate-50 border-slate-200';
+
+    return (
+        <div className="bg-white p-5 rounded-2xl border border-[#EAE7DD] shadow-sm flex flex-col gap-3">
+            <div className="flex justify-between items-start">
+                <div className="w-12 h-12 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center shrink-0">
+                    {icon}
                 </div>
-            )}
-        </div>
-        <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                {label}
+                {(trend || trendValue) && (
+                    <div
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusClass}`}
+                    >
+                        {isUp && <TrendingUp size={12} />}
+                        {isDown && <TrendingDown size={12} />}
+                        {trendValue || (isUp ? 'Trending up' : 'Trending down')}
+                    </div>
+                )}
             </div>
-            <div className="text-2xl font-bold text-slate-900">{value}</div>
+            <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                    {label}
+                </div>
+                <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                    {value}
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const StatusBadge = ({ status }: { status: string }) => {
     let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
@@ -682,6 +697,13 @@ const insightMeta: Record<
         rowBg: 'bg-white border-[#EAE7DD] hover:border-orange-200 hover:shadow-sm',
         iconBg: 'bg-orange-50',
         iconColor: 'text-orange-600',
+    },
+    needs_attention: {
+        icon: <UserMinus size={14} />,
+        label: 'Needs Attention',
+        rowBg: 'bg-white border-[#EAE7DD] hover:border-red-100 hover:shadow-sm',
+        iconBg: 'bg-red-50',
+        iconColor: 'text-red-100', // Changed to match style
     },
 };
 
@@ -1378,13 +1400,13 @@ export default function TeacherDashboardPage() {
     }, [isDemo]);
 
     // ── Map real class data → performance display shape ──
-    const classPerformance: DisplayClass[] = myClasses.map((cls) => ({
+    const classPerformance = myClasses.map((cls) => ({
         id: cls.id,
         name: cls.name,
-        // TeacherClass doesn't carry a score field; default to 0 until backend adds it
-        score: 0,
-        // nextTopic gives us one topic; weakTopics stays empty until backend supplies it
-        weakTopics: cls.nextTopic ? [cls.nextTopic] : [],
+        // Use real average score from backend if available, otherwise default to 0
+        score: cls.averageScore ?? 0,
+        // nextTopic gives us one topic; weakTopics stays empty until backend supplies more
+        weakTopics: cls.nextTopic ? (cls.nextTopic.includes(',') ? cls.nextTopic.split(',').map(s => s.trim()) : [cls.nextTopic]) : [],
     }));
 
     // ── Computed Filtered Assignments ──
@@ -1904,22 +1926,29 @@ export default function TeacherDashboardPage() {
                                     icon={<BookOpen className="text-teal-600" size={20} />}
                                     label={classesTodayStat?.label ?? 'Classes Today'}
                                     value={loading ? '…' : classesTodayStat?.value ?? '—'}
+                                    trendValue={classesTodayStat?.trendValue}
+                                    status={classesTodayStat?.status}
                                 />
                                 <StatCard
                                     icon={<Users className="text-teal-600" size={20} />}
                                     label={studentsStat?.label ?? 'Active Students'}
                                     value={loading ? '…' : studentsStat?.value ?? '—'}
+                                    trendValue={studentsStat?.trendValue}
+                                    status={studentsStat?.status}
                                 />
                                 <StatCard
                                     icon={<Clock className="text-orange-500" size={20} />}
                                     label={gradingStat?.label ?? 'Pending Grading'}
                                     value={loading ? '…' : gradingStat?.value ?? '—'}
+                                    trendValue={gradingStat?.trendValue}
+                                    status={gradingStat?.status}
                                 />
                                 <StatCard
                                     icon={<TrendingUp className="text-teal-600" size={20} />}
                                     label={avgScoreStat?.label ?? 'Average Score'}
                                     value={loading ? '…' : avgScoreStat?.value ?? '—'}
-                                    trend="up"
+                                    trendValue={avgScoreStat?.trendValue}
+                                    status={avgScoreStat?.status}
                                 />
                             </div>
 
@@ -2202,19 +2231,25 @@ export default function TeacherDashboardPage() {
                                             </div>
                                         </div>
 
-                                        {loading ? (
-                                            <SectionSkeleton rows={3} />
-                                        ) : classPerformance.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No class data yet"
-                                                detail="Once students complete assignments, their performance will appear here."
-                                            />
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {classPerformance.map((cls) => (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {loading ? (
+                                                Array.from({ length: 3 }).map((_, i) => (
+                                                    <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
+                                                        <SectionSkeleton rows={3} />
+                                                    </div>
+                                                ))
+                                            ) : classPerformance.length === 0 ? (
+                                                <div className="col-span-full">
+                                                    <SectionEmpty
+                                                        headline="No class data yet"
+                                                        detail="Once students complete assignments, their performance will appear here."
+                                                    />
+                                                </div>
+                                            ) : (
+                                                classPerformance.map((cls) => (
                                                     <div
                                                         key={cls.id}
-                                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-[#EAE7DD] hover:border-teal-200 transition-colors cursor-pointer"
+                                                        className="group bg-white rounded-2xl border border-[#EAE7DD] hover:border-teal-200 p-6 flex flex-col gap-6 transition-all hover:shadow-md cursor-pointer overflow-hidden relative"
                                                         onClick={() =>
                                                             setSelectedItem({
                                                                 name: cls.name,
@@ -2223,33 +2258,61 @@ export default function TeacherDashboardPage() {
                                                             })
                                                         }
                                                     >
-                                                        <div>
-                                                            <div className="text-sm font-semibold text-slate-900 mb-1">
-                                                                {cls.name}
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <h3 className="text-sm font-bold text-slate-900 mb-1 group-hover:text-teal-600 transition-colors uppercase tracking-tight">
+                                                                    {cls.name}
+                                                                </h3>
+                                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                    Avg. Proficiency
+                                                                </p>
                                                             </div>
-                                                            {cls.weakTopics.length > 0 && (
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-xs text-slate-500">
-                                                                        Next topic:
-                                                                    </span>
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-2xl font-bold text-slate-900 tracking-tight leading-none mb-1">
+                                                                    {cls.score}%
+                                                                </span>
+                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${cls.score >= 80 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                                                    {cls.score >= 80 ? 'EXCELLENT' : 'NEEDS FOCUS'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Progress bar instead of circle */}
+                                                        <div className="space-y-2">
+                                                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                                <motion.div 
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${cls.score}%` }}
+                                                                    transition={{ duration: 1, ease: "easeOut" }}
+                                                                    className={`h-full rounded-full ${cls.score >= 80 ? 'bg-emerald-500' : cls.score >= 60 ? 'bg-teal-500' : 'bg-orange-500'}`}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {cls.weakTopics.length > 0 && (
+                                                            <div className="pt-4 border-t border-slate-50">
+                                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                    <Target size={12} className="text-orange-400" /> Focus Topics
+                                                                </p>
+                                                                <div className="flex flex-wrap gap-1.5">
                                                                     {cls.weakTopics.map((topic) => (
                                                                         <span
                                                                             key={topic}
-                                                                            className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded text-[11px] font-medium border border-orange-100"
+                                                                            className="px-2 py-0.5 bg-orange-50/50 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-100"
                                                                         >
                                                                             {topic}
                                                                         </span>
                                                                     ))}
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="mt-3 sm:mt-0 flex items-center gap-4">
-                                                            <ChevronRight size={20} className="text-slate-400" />
-                                                        </div>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {/* Decorative accent */}
+                                                        <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-slate-50 rounded-full group-hover:bg-teal-50/50 transition-colors pointer-events-none -z-0" />
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                                ))
+                                            )}
+                                        </div>
                                     </section>
 
 

@@ -27,7 +27,8 @@ import { EloraLogo } from '../components/EloraLogo';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
-import { demoTeacherName, DEMO_CLASS_LEVEL, demoInsights } from '../demo/demoTeacherScenarioA';
+import { demoTeacherName, DEMO_CLASS_LEVEL, demoInsights, demoClasses } from '../demo/demoTeacherScenarioA';
+import * as dataService from '../services/dataService';
 import { 
     CopilotLayout, 
     CopilotMessageBubble, 
@@ -40,11 +41,7 @@ import {
 } from '../components/Copilot/CopilotShared';
 
 
-// Mock classes for the context selector
-const MOCK_CLASSES = [
-    { id: 'demo-class-1', name: 'Sec 3 Mathematics', studentsCount: 32, lastActive: '2 hours ago' },
-    { id: 'demo-class-2', name: 'Sec 4 Physics', studentsCount: 24, lastActive: '1 day ago' },
-];
+// MOCK_CLASSES removed in favor of dynamic classList state
 
 const HorizontalChips: React.FC<{ 
     prompts: string[], 
@@ -114,9 +111,34 @@ const TeacherCopilotPage: React.FC = () => {
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : null);
+    const [classList, setClassList] = useState<any[]>([]);
     const [isContextPopupOpen, setIsContextPopupOpen] = useState(false);
     const dataMessageCountRef = useRef(0);
-    const insights = isDemo ? demoInsights : [];
+    const [insights, setInsights] = useState<any[]>(isDemo ? demoInsights : []);
+    const [teacherStats, setTeacherStats] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (isDemo) {
+            setClassList(demoClasses);
+        } else {
+            // Load all necessary context data for the copilot
+            const loadContextData = async () => {
+                try {
+                    const [classes, stats, rawInsights] = await Promise.all([
+                        dataService.getMyClasses(),
+                        dataService.getTeacherStats(),
+                        dataService.getTeacherInsights()
+                    ]);
+                    setClassList(classes);
+                    setTeacherStats(stats);
+                    setInsights(rawInsights);
+                } catch (err) {
+                    console.error("Failed to load teacher copilot context:", err);
+                }
+            };
+            loadContextData();
+        }
+    }, [isDemo]);
 
     const buildPrompts = (): string[] => {
         const topTopic = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
@@ -134,7 +156,7 @@ const TeacherCopilotPage: React.FC = () => {
                     : 'Draft a general update for parents about learning progress.',
             ];
         } else {
-            const currentClassNameText = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'this class';
+            const currentClassNameText = classList.find(c => c.id === selectedClassId)?.name || 'this class';
             return [
                 `Which students need my attention before Friday in ${currentClassNameText}?`,
                 topTopic
@@ -153,7 +175,7 @@ const TeacherCopilotPage: React.FC = () => {
     // Initial demo state
     useEffect(() => {
         if (isDemo && messages.length === 0) {
-            const contextName = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'All classes';
+            const contextName = classList.find(c => c.id === selectedClassId)?.name || 'All classes';
             setMessages([
                 {
                     id: 'msg-1',
@@ -185,7 +207,7 @@ const TeacherCopilotPage: React.FC = () => {
             return;
         }
 
-        const newClass = MOCK_CLASSES.find(c => c.id === classId);
+        const newClass = classList.find(c => c.id === classId);
         const label = newClass ? newClass.name : 'All classes';
 
         setSelectedClassId(classId);
@@ -201,7 +223,14 @@ const TeacherCopilotPage: React.FC = () => {
     };
 
     const currentPrompts = buildPrompts();
-    const currentClassName = MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'All classes';
+    const currentClass = classList.find(c => c.id === selectedClassId);
+    const currentClassName = currentClass?.name || 'All classes';
+    const currentSubject = currentClass?.subject || null;
+    const currentStudentsCount = currentClass?.studentsCount || 0;
+    
+    const contextPillLabel = selectedClassId && currentSubject
+        ? `@${currentSubject} (${currentStudentsCount})`
+        : currentClassName;
 
     // Scroll to bottom
     useEffect(() => {
@@ -228,14 +257,14 @@ const TeacherCopilotPage: React.FC = () => {
             const lowerQuery = query.toLowerCase().trim();
 
             const currentClassNameText = selectedClassId
-                ? MOCK_CLASSES.find(c => c.id === selectedClassId)?.name || 'this class'
+                ? classList.find(c => c.id === selectedClassId)?.name || 'this class'
                 : 'all classes';
-            const allClassesList = MOCK_CLASSES.map(c => c.name).join(', ');
+            const allClassesList = classList.map(c => c.name).join(', ');
 
             const contextStep = {
                 id: `ctx-${Date.now()}`,
                 text: selectedClassId
-                    ? `Scoped to ${currentClassNameText} — ${MOCK_CLASSES.find(c => c.id === selectedClassId)?.studentsCount ?? '?'} students`
+                    ? `Scoped to ${currentClassNameText} — ${classList.find(c => c.id === selectedClassId)?.studentsCount ?? '?'} students`
                     : `Looking across all your classes (${allClassesList})`,
             };
 
@@ -290,35 +319,39 @@ const TeacherCopilotPage: React.FC = () => {
                 steps = [];
                 content = "I hear your concern, and those feelings are real. While I can't offer wellbeing advice, I can help you look at engagement and progress data to see if there are academic patterns worth noting.\n\nFor anything beyond that, reaching out to the school counselor or a colleague is always a good step.";
             } else if (isOverviewKw(lowerQuery)) {
-                // Class/all-classes overview intent for fuzzy questions like "how is this class doing lately"
+                const summaryScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
+                const classInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
+                const overdue = classInsights.filter(i => i.type === 'overdue_assignment');
+                
                 steps = [
                     contextStep,
-                    { id: 'agg', text: `Checked recent sessions — filtered to the last 7 days.` },
-                    { id: 'flag', text: 'Checked for overdue assignments and weak topic flags.' }
+                    { id: 'agg', text: `Checked performance for ${currentClassNameText}.` },
+                    { id: 'flag', text: overdue.length > 0 ? `Found ${overdue.length} overdue assignments.` : 'No critical flags found.' }
                 ];
+                
                 if (selectedClassId) {
-                    content = `This class has had a mostly steady week — overall they're doing okay. Average accuracy is around **61%**, which is slightly down from last week's 68%, but within a normal range.\n\nThe main thing worth flagging is that **Algebra Quiz 1** still has no submissions, now 3 days overdue. Three students in particular need a check-in: Jordan Lee (28%), Priya Nair (not started), and Jordan Smith (20%).\n\nWant me to show you who needs the most attention?`;
+                    content = `**${currentClassNameText}** is currently at an average accuracy of **${summaryScore}**. ${overdue.length > 0 ? `The most pressing item is **${overdue[0].assignmentTitle}**, which is overdue with no submissions yet.` : 'The class is generally on track with no major flags.'}\n\nWant me to show you who needs the most attention?`;
                 } else {
-                    content = `${getScopePrefix()}Your classes are generally on track this week. Sec 3 Mathematics is averaging **61%** and Sec 4 Physics is holding steady at **74%**. The main thing on my radar is the overdue Algebra Quiz 1 in Sec 3.\n\nWant me to dig into either class, or show you who needs attention across the board?`;
+                    const overdueCount = insights.filter(i => i.type === 'overdue_assignment').length;
+                    content = `${getScopePrefix()}Your classes are generally on track. The average across your groups is **${summaryScore}**. ${overdueCount > 0 ? `I found ${overdueCount} overdue assignments across all classes.` : 'No urgent overdue items on your radar right now.'}\n\nWant me to dig into a specific class or check the global 'Needs Attention' board?`;
                 }
                 actions = [
                     { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' },
-                    { label: selectedClassId ? `Full report for ${currentClassNameText}` : 'See weekly report', actionType: 'navigate', destination: isDemo ? '/teacher/demo' : '/dashboard/teacher' }
+                    { label: selectedClassId ? `Full report for ${currentClassNameText}` : 'See weekly report', actionType: 'navigate', destination: '/dashboard/teacher' }
                 ];
             } else if (isCommunicationKw(lowerQuery)) {
-                const overdueInsight = insights.find(i => i.type === 'overdue_assignment');
-                const weakTopicInsight = insights.find(i => i.type === 'weak_topic');
-                const draftAssignmentTitle = overdueInsight?.assignmentTitle ?? 'the recent assignment';
-                const draftWeakTopic = weakTopicInsight?.topicTag ?? weakTopicInsight?.detail ?? null;
-                const draftClassName = selectedClassId ? currentClassNameText : (overdueInsight?.className ?? 'your class');
+                const overdueInsight = insights.find(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
+                const weakTopicInsight = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText));
+                
+                const draftClassName = overdueInsight?.className || currentClassNameText;
+                const draftAssignmentTitle = overdueInsight?.assignmentTitle || "the latest assignment";
+                const draftWeakTopic = weakTopicInsight?.topicTag || null;
+                const mentionedStudent = insights.find(i => i.studentName);
+                const recipient = mentionedStudent ? `parents of ${mentionedStudent.studentName}` : "parents";
 
-                // Personalize if a student is mentioned
-                const mentionedStudent = insights.find(i => i.studentName && lowerQuery.includes(i.studentName.split(' ')[0].toLowerCase()));
-                const recipient = mentionedStudent ? `${mentionedStudent.studentName}'s family` : `${draftClassName} families`;
-
-                const draftBody = draftWeakTopic
-                    ? `Here's a draft message for ${recipient}:\n\n"Hi, I wanted to let you know that ${draftAssignmentTitle} hasn't had a submission yet. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} is finding ${draftWeakTopic} a bit tricky, that's completely normal — it trips up a lot of students. Please encourage them to attempt it this week; even a first go helps me understand where they are."\n\nFeel free to edit the tone to match your voice before sending.`
-                    : `Here's a draft message for ${recipient}:\n\n"Hi, just a reminder that ${draftAssignmentTitle} is still outstanding. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`;
+                const draftBody = overdueInsight 
+                    ? `Here's a draft message for ${recipient} in **${draftClassName}**:\n\n"Hi, just a reminder that **${draftAssignmentTitle}** is still outstanding. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`
+                    : `Here's a general draft for **${draftClassName}**:\n\n"Dear parents, we're finishing up our work on ${draftWeakTopic || 'the current unit'} this week. Most students are on track, but a little extra practice at home always helps with confidence. Thanks for your continued support!"\n\nEdit as needed before sending.`;
 
                 steps = [
                     contextStep,
@@ -327,7 +360,7 @@ const TeacherCopilotPage: React.FC = () => {
                     { id: 'draft', text: 'Drafted a parent-facing message using this context' }
                 ];
                 content = getScopePrefix() + draftBody;
-                actions = [{ label: `See results for ${draftAssignmentTitle}`, actionType: 'navigate', destination: '/teacher/assignment/demo-asgn-1' }];
+                actions = [{ label: `See assignments for ${draftClassName}`, actionType: 'navigate', destination: '/dashboard/teacher' }];
             } else if (isAboutKw(lowerQuery)) {
                 steps = [];
                 content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
@@ -377,61 +410,82 @@ const TeacherCopilotPage: React.FC = () => {
                         : `For **${targetName}**:\n\n"${firstName}, I can see you're making an effort — keep going. Let's connect briefly next lesson to make sure you feel confident about where you're at."\n\nAdapt as needed.`;
                     content = getScopePrefix() + content;
                 }
-            } else if (isAttentionKw(lowerQuery)) {
+                const groupInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
+                const overdueCount = groupInsights.filter(i => i.type === 'overdue_assignment').length;
+                const lowScoresCount = groupInsights.filter(i => i.type === 'low_scores').length;
+                const weakTopicsCount = groupInsights.filter(i => i.type === 'weak_topic').length;
+
                 steps = [
                     contextStep,
-                    { id: 's1', text: `Loaded assignments for ${currentClassNameText} — found 1 overdue (Algebra Quiz 1).` },
-                    { id: 's2', text: 'Checked recent sessions — filtered to the last 7 days.' },
-                    { id: 's3', text: 'Ranked by urgency: overdue first, then low scores, then weak topics.' }
+                    { id: 's1', text: `Found ${overdueCount} overdue, ${lowScoresCount} low scores, ${weakTopicsCount} weak topics.` },
+                    { id: 's2', text: 'Ranked by urgency: overdue first, then low scores, then weak topics.' }
                 ];
                 
-                if (lowerQuery.includes('improved')) {
-                    content = selectedClassId
-                        ? `In **${currentClassNameText}**, the class has shown general improvement in Index Laws, though Factorisation remains a hurdle. Jordan Lee has shown the most consistent growth in participation this week.`
-                        : getScopePrefix() + `Across all classes, your Sec 4 Physics class has improved the most this week (+12% avg score).`;
-                } else if (lowerQuery.includes('behind') || lowerQuery.includes('risk')) {
-                    content = selectedClassId
-                        ? `In **${currentClassNameText}**, **Jordan Lee** and **Priya Nair** are most at risk due to low quiz scores and inactivity respectively. Checking in with them before Friday is highly recommended.`
-                        : getScopePrefix() + `**Sec 3 Mathematics** is currently the furthest behind schedule, with a key quiz 3 days overdue and no submissions yet.`;
+                if (groupInsights.length === 0) {
+                    content = getScopePrefix() + `Great news — No students currently need attention in **${currentClassNameText}**. Everyone is up to date with their submissions and performing within expected ranges.`;
                 } else {
-                    content = selectedClassId
-                        ? `In **${currentClassNameText}**, three students need your attention before Friday:\n\n**Jordan Lee** — 28% on Algebra Quiz 1 and struggling with factorisation.\n**Priya Nair** — Algebra Quiz 1 hasn't started yet, 3 days overdue.\n**Jordan Smith** — Submitted but scored 20% on the quiz; worth a quick check-in.`
-                        : getScopePrefix() + `**Sec 3 Mathematics**: Jordan Lee (28%), Priya Nair (Overdue).\n**Sec 4 Physics**: Alex Wong (Low participation).`;
+                    const topInsights = groupInsights.slice(0, 3);
+                    const insightLines = topInsights.map(i => {
+                        const namePart = i.studentName ? `**${i.studentName}**` : `**${i.assignmentTitle}**`;
+                        return `• ${namePart} — ${i.detail}`;
+                    }).join('\n');
+                    
+                    content = getScopePrefix() + `In **${currentClassNameText}**, here are the priority areas needing your attention:\n\n${insightLines}`;
                 }
                 actions = [{ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }];
             } else if (isPlanningKw(lowerQuery)) {
+                const planningInsight = insights.find(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
+                const planningTopic = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText))?.topicTag;
+
                 steps = [
                     contextStep,
                     { id: 'load-stats', text: `Checked overdue/upcoming assignments for ${currentClassNameText}.` },
-                    { id: 'check-upcoming', text: 'Checked weak topic flags — none found this week.' }
+                    { id: 'check-upcoming', text: planningTopic ? `Identified weak topic: ${planningTopic}` : 'Checked weak topic flags — none found.' }
                 ];
-                content = getScopePrefix() + `Before your next lesson, I’d recommend focusing on **Algebra – Factorisation**. \n\n**Algebra Quiz 1** is 3 days overdue with no submissions yet, and about half the class is currently scoring below the class average on these topics. A quick recap of factorising quadratic expressions might be a great way to start the next class.`;
+                
+                if (planningInsight) {
+                    content = getScopePrefix() + `Before your next lesson, I'd recommend finishing up **${planningInsight.assignmentTitle}**. It's currently overdue for the class. ${planningTopic ? `A quick recap of **${planningTopic}** could also help the students who are flagging for support.` : ''}`;
+                } else if (planningTopic) {
+                    content = getScopePrefix() + `For your next lesson, focusing on **${planningTopic}** would be my top recommendation. Based on recent data, some students are struggling with this specific area.`;
+                } else {
+                    content = getScopePrefix() + `Everything seems to be on track for **${currentClassNameText}**. You might want to introduce new material in the next lesson as there are no pressing overdue assignments or weak topics.`;
+                }
                 actions = [{ label: 'See practice packs', actionType: 'navigate', destination: '/teacher/practice' }];
             } else if (isTopicKw(lowerQuery)) {
+                const topicScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
+                const topTopic = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText))?.topicTag || "the current topic";
+                
                 steps = [
                     contextStep,
-                    { id: 'fetch', text: `Loaded assignments for ${currentClassNameText} — found Algebra Quiz 1.` },
-                    { id: 'analyze', text: 'Checked recent sessions — filtered to the last 7 days.' }
+                    { id: 'fetch', text: `Loaded data for ${currentClassNameText}.` },
+                    { id: 'analyze', text: `Analyzed performance on key topics including ${topTopic}.` }
                 ];
                 content = selectedClassId
-                    ? `In **${currentClassNameText}**, average accuracy on Algebra – Factorisation is around 61%. 14 of 28 students are currently below the class average. It might be worth assigning one more short practice round.`
-                    : getScopePrefix() + `**Algebra - Factorisation** is a key area for support in Sec 3 Mathematics (61% avg). Your other classes are performing within expected ranges.`;
+                    ? `In **${currentClassNameText}**, average accuracy on **${topTopic}** is around **${topicScore}**. Several students are currently below this average, so it might be worth assigning a short practice round focused on this area.`
+                    : getScopePrefix() + `Across your classes, **${topTopic}** remains a key area for support (avg **${topicScore}**). Most other topics are performing within expected ranges.`;
                 actions = [{ label: 'See class performance', actionType: 'navigate', destination: '/dashboard/teacher' }];
             } else if (isSummaryKw(lowerQuery)) {
+                const summaryScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "N/A";
+                const overdueSummry = insights.filter(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
+                
                 steps = [
                     contextStep,
-                    { id: 'agg', text: `Checked recent sessions — filtered to the last 7 days.` },
-                    { id: 'comp', text: 'Checked weak topic flags — none found this week.' }
+                    { id: 'agg', text: `Gathered performance metrics across ${selectedClassId ? 'this class' : 'all classes'}.` },
+                    { id: 'check-flags', text: overdueSummry.length > 0 ? `Found ${overdueSummry.length} overdue assignments.` : 'No critical flags found.' }
                 ];
-                content = selectedClassId
-                    ? `This class has had a mostly steady week — averaging **61%** accuracy, slightly down from last week's 68%. The main thing to note is that no students have submitted Algebra Quiz 1 yet, now 3 days overdue.\n\nWant me to show you who needs attention most?`
-                    : getScopePrefix() + `Overall your classes are doing okay. Sec 3 Mathematics is at **61%** this week (slightly down), while Sec 4 Physics is holding steady at **74%**. The most pressing flag is the overdue Algebra Quiz 1 in Sec 3.`;
+                
+                if (selectedClassId) {
+                    content = `**${currentClassNameText}** currently has an average accuracy of **${summaryScore}**. ${overdueSummry.length > 0 ? `The most pressing item is **${overdueSummry[0].assignmentTitle}**, which is overdue.` : 'Things are looking steady with no major flags.'}\n\nWant to see more details?`;
+                } else {
+                    const overdueCount = insights.filter(i => i.type === 'overdue_assignment').length;
+                    content = getScopePrefix() + `Overall your classes are performing with an average of **${summaryScore}**. I found ${overdueCount} overdue assignments that might need your attention. \n\nI recommend jumping into the 'Needs Attention' board for the full breakdown.`;
+                }
                 
                 actions = [
                     { 
                         label: selectedClassId ? `See full report for ${currentClassNameText}` : 'See weekly report', 
                         actionType: 'navigate', 
-                        destination: isDemo ? '/teacher/demo' : '/dashboard/teacher' 
+                        destination: '/dashboard/teacher' 
                     },
                     { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }
                 ];
@@ -508,12 +562,11 @@ const TeacherCopilotPage: React.FC = () => {
                                 onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
                             >
-                                <Layers size={14} className="shrink-0" />
                                 {selectedClassId && insights.some(i => i.className === currentClassName) && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
                                 )}
                                 <span className="text-xs font-bold whitespace-nowrap">
-                                    {currentClassName}
+                                    {contextPillLabel}
                                 </span>
                                 <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
                             </button>
@@ -542,7 +595,7 @@ const TeacherCopilotPage: React.FC = () => {
                                                 </div>
                                             </button>
                                             <div className="my-1 border-t border-slate-100" />
-                                            {MOCK_CLASSES.map((cls) => {
+                                            {classList.map((cls) => {
                                                 const classHasInsight = insights.some(i => i.className === cls.name);
                                                 return (
                                                     <button
@@ -630,14 +683,14 @@ const TeacherCopilotPage: React.FC = () => {
                                     onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
                                     className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit shadow-sm"
                                 >
-                                    <Layers size={14} className="shrink-0" />
-                                    {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                                    )}
-                                    <span className="text-xs font-bold whitespace-nowrap">
-                                        {currentClassName}
-                                    </span>
-                                    <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                     <Layers size={14} className="shrink-0" />
+                                     {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                     )}
+                                     <span className="text-xs font-bold whitespace-nowrap">
+                                         {contextPillLabel}
+                                     </span>
+                                     <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
                                 </button>
                             </div>
                         </div>
@@ -680,11 +733,11 @@ const TeacherCopilotPage: React.FC = () => {
                             className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-bold border border-teal-200 whitespace-nowrap"
                         >
                             <Layers size={12} />
-                            {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                            )}
-                            {currentClassName}
-                        </button>
+                             {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                             )}
+                             {contextPillLabel}
+                         </button>
                         <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#14b8a6" />
                     </div>
 
@@ -740,9 +793,9 @@ const TeacherCopilotPage: React.FC = () => {
                                 <div className="flex-1">
                                     <div className="text-[15px] font-bold text-slate-900">All classes</div>
                                 </div>
-                                {!selectedClassId && <Check size={20} className="text-teal-600" />}
-                            </button>
-                            {MOCK_CLASSES.map((cls) => {
+                                 {!selectedClassId && <Check size={20} className="text-teal-600" />}
+                             </button>
+                             {classList.map((cls) => {
                                 const classHasInsight = insights.some(i => i.className === cls.name);
                                 return (
                                     <button

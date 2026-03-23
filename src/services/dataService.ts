@@ -75,7 +75,7 @@ export interface StudentAssignment {
 export interface TeacherStat {
     label: string;
     value: string;
-    trend: string;
+    trendValue?: string;
     status: string;
 }
 
@@ -381,7 +381,7 @@ export const getTeacherAssignmentResults = async (assignmentId: string): Promise
 
 // ── Teacher Insights ──────────────────────────────────────────────────────────
 
-export type InsightType = 'weak_topic' | 'low_scores' | 'overdue_assignment';
+export type InsightType = 'weak_topic' | 'low_scores' | 'overdue_assignment' | 'needs_attention';
 
 export interface TeacherInsight {
     id: string;
@@ -400,7 +400,24 @@ export const getTeacherInsights = async (): Promise<TeacherInsight[]> => {
         headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch teacher insights');
-    return response.json();
+    const data = await response.json();
+    
+    // Transform new backend structure back into a single flat array for the UI
+    const combined: TeacherInsight[] = [...(data.needsAttention || [])];
+    
+    if (data.weakTopics) {
+        data.weakTopics.forEach((wt: any) => {
+            combined.push({
+                id: `wt-${wt.topic}`,
+                type: 'weak_topic',
+                topicTag: wt.topic,
+                className: 'All classes',
+                detail: `Average success rate of ${wt.successRate}% across ${wt.total} attempts.`
+            });
+        });
+    }
+    
+    return combined;
 };
 
 // ── Notifications API ────────────────────────────────────────────────────────

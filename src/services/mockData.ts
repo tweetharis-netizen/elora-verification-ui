@@ -7,10 +7,10 @@ export const teacher = {
 };
 
 export const stats = [
-    { label: "Total Classes", value: "5", trend: "Same as last semester", status: "info" },
-    { label: "Active Students", value: "142", trend: "+12 this week", status: "success" },
-    { label: "Assignments Due", value: "3", trend: "2 need review", status: "warning" },
-    { label: "Avg. Class Score", value: "84%", trend: "Highest this semester! \uD83C\uDF1F", status: "success" },
+    { label: "Total Classes", value: "5", trendValue: "stable", status: "info" },
+    { label: "Active Students", value: "142", trendValue: "+12 this week", status: "success" },
+    { label: "Assignments Due", value: "3", trendValue: "2 need review", status: "warning" },
+    { label: "Avg. Class Score", value: "84%", trendValue: "up", status: "success" },
 ];
 
 export const classes = [

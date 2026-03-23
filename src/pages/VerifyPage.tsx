@@ -53,7 +53,7 @@ export default function VerifyPage() {
         openPersonalize(selectedRole);
     };
 
-    const finalizeAndContinue = (rollForward: boolean) => {
+    const finalizeAndContinue = async (rollForward: boolean) => {
         if (!pendingRole) return;
 
         if (rollForward) {
@@ -71,10 +71,38 @@ export default function VerifyPage() {
                 setNameError('Assistant name must be 20 characters or fewer.');
                 return;
             }
-            login(pendingRole, {
-                preferredName: trimmedPref,
-                assistantName: trimmedAssistant || undefined,
-            });
+
+            // Create a real user in the backend
+            const realId = `u_${Date.now()}`;
+            try {
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: realId,
+                        name: trimmedPref,
+                        email: `${realId}@elora-real.com`,
+                        role: pendingRole
+                    })
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Failed to create real user');
+                }
+
+                login(pendingRole, {
+                    id: realId,
+                    name: trimmedPref,
+                    preferredName: trimmedPref,
+                    assistantName: trimmedAssistant || undefined,
+                });
+            } catch (err) {
+                console.error('Error during real signup, falling back to demo:', err);
+                login(pendingRole, {
+                    preferredName: trimmedPref,
+                    assistantName: trimmedAssistant || undefined,
+                });
+            }
         } else {
             login(pendingRole);
         }

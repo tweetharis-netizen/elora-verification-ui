@@ -11,16 +11,17 @@ export const DEMO_CLASS_NAME = 'Sec 3 Mathematics';
 export const DEMO_CLASS_LEVEL = 'Sec 3';
 
 export const demoStats: dataService.TeacherStat[] = [
-    { label: 'Classes Today', value: '1', trend: 'stable', status: 'success' },
-    { label: 'Active Students', value: '28', trend: 'down', status: 'warning' },
-    { label: 'Pending Grading', value: '4', trend: 'stable', status: 'warning' },
-    { label: 'Average Score', value: '61%', trend: 'down', status: 'warning' },
+    { label: 'Classes Today', value: '1', trendValue: 'stable', status: 'success' },
+    { label: 'Active Students', value: '28', trendValue: 'down', status: 'warning' },
+    { label: 'Pending Grading', value: '4', trendValue: 'stable', status: 'warning' },
+    { label: 'Average Score', value: '61%', trendValue: 'down', status: 'warning' },
 ];
 
 export const demoClasses: dataService.TeacherClass[] = [
     {
         id: 'demo-class-1',
         name: DEMO_CLASS_NAME,
+        subject: 'Mathematics',
         studentsCount: 32,
         nextTopic: 'Algebra – Factorisation',
         time: 'Mon · Wed · Fri, 09:00 AM',

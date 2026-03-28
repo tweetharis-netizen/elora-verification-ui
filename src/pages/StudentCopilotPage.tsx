@@ -112,9 +112,9 @@ const StudentCopilotPage: React.FC = () => {
     const [gameSessions, setGameSessions] = useState<any[]>([]);
 
     useEffect(() => {
-        // Ensure demo user is logically "logged in"
+        // Ensure demo user is logically "logged in" (but don't persist to localStorage)
         if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
-            login('student');
+            login('student', undefined, false);
         }
     }, [isDemo, currentUser, login]);
 
@@ -461,7 +461,6 @@ const StudentCopilotPage: React.FC = () => {
                                     onClick={() => {
                                         setSelectedSubjectId('all');
                                         setIsSubjectSelectorOpen(false);
-                                        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `Switched to All subjects · answers now reflect this subject` }]);
                                     }}
                                     className={`w-full text-left px-4 py-3 text-sm font-bold flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === 'all' ? 'bg-[#68507B]/5' : ''}`}
                                 >
@@ -485,7 +484,6 @@ const StudentCopilotPage: React.FC = () => {
                                         onClick={() => {
                                             setSelectedSubjectId(subj);
                                             setIsSubjectSelectorOpen(false);
-                                            setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'system', content: `Switched to ${subj} · answers now reflect this subject` }]);
                                         }}
                                         className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === subj ? 'bg-[#68507B]/5' : ''}`}
                                     >
@@ -538,7 +536,6 @@ const StudentCopilotPage: React.FC = () => {
             setIsSidebarOpen={setIsSidebarOpen}
             isDemo={isDemo}
             themeColor="#68507B"
-            sidebarColor="#68507B"
             logout={logout}
             navigate={navigate}
             sidebar={sidebarContent}

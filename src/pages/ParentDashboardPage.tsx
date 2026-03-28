@@ -55,6 +55,7 @@ import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { 
     demoChildren, 
     demoChildSummary 
@@ -96,6 +97,7 @@ function SidebarItem({
     collapsed,
     onClick,
     className = "",
+    theme,
 }: {
     icon: any;
     label: string;
@@ -104,16 +106,20 @@ function SidebarItem({
     onClick?: () => void;
     className?: string;
     key?: string | number;
+    theme: RoleSidebarTheme;
 }) {
+    const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+    const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
     return (
         <a
             href="#"
             onClick={(e) => { e.preventDefault(); onClick?.(); }}
-            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                } ${collapsed ? 'justify-center' : ''} ${className}`}
+            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''} ${className}`}
             title={collapsed ? label : undefined}
         >
-            <Icon className="w-5 h-5 shrink-0" />
+            <div className="shrink-0">
+                <Icon className="w-5 h-5" />
+            </div>
             {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
             {/* Active Indicator Circle */}
@@ -649,6 +655,7 @@ export default function ParentDashboardPage() {
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activePage, setActivePage] = useState('overview');
+    const sidebarTheme = getRoleSidebarTheme('parent');
     
     // ── Welcome strip state (persisted via localStorage) ──
     const WELCOME_KEY = 'elora_parent_welcome_dismissed';
@@ -680,10 +687,10 @@ export default function ParentDashboardPage() {
     const { currentUser, login } = useAuth();
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
 
-    // Ensure demo user is "logged in" for backend headers
+    // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
         if (isDemo && currentUser?.id !== 'parent_1' && typeof login === 'function') {
-            login('parent');
+            login('parent', undefined, false);
         }
     }, [isDemo, currentUser, login]);
 
@@ -970,12 +977,10 @@ export default function ParentDashboardPage() {
 
             {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
             <aside
-                className={`text-white flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${isSidebarOpen ? 'w-64' : 'w-20'
-                    }`}
-                style={{ backgroundColor: BRAND }}
+                className={`flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} ${sidebarTheme.text}`}
             >
                 {/* Logo + close toggle */}
-                <div className={`p-6 flex items-center border-b border-white/10 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                <div className={`p-6 flex items-center border-b ${sidebarTheme.headerBorder} ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                     <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
                         <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
                     </Link>
@@ -1006,12 +1011,13 @@ export default function ParentDashboardPage() {
                                     setActivePage(item.id);
                                 }
                             }}
+                            theme={sidebarTheme}
                         />
                     ))}
                 </nav>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-white/10 flex flex-col gap-1">
+                <div className={`p-4 border-t ${sidebarTheme.footerBorder} flex flex-col gap-1`}>
                     {!isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(true)}
@@ -1021,7 +1027,7 @@ export default function ParentDashboardPage() {
                             <PanelLeftOpen className="w-5 h-5" />
                         </button>
                     )}
-                    <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} />
+                    <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                     <button
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors text-white/80 hover:bg-red-500/20 hover:text-white ${!isSidebarOpen ? 'justify-center' : ''}`}
                         title={!isSidebarOpen ? 'Sign out' : undefined}

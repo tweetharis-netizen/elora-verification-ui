@@ -7,10 +7,13 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import Signup from './Signup';
 import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
+import TeacherClassroomPage from './pages/TeacherClassroomPage';
 import TeacherCopilotPage from './pages/TeacherCopilotPage';
 import StudentCopilotPage from './pages/StudentCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
+import StudentClassroomPage from './pages/StudentClassroomPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
+import ParentClassroomPage from './pages/ParentClassroomPage';
 import ParentCopilotPage from './pages/ParentCopilotPage';
 import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
@@ -622,6 +625,26 @@ export default function App() {
           <TeacherDashboardPage />
         </ProtectedRoute>
       } />
+      <Route path="/teacher" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/classes" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage activeTab="classes" />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/classes/:classId" element={
+        <ProtectedRoute>
+          <TeacherClassroomPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/work" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage activeTab="work" />
+        </ProtectedRoute>
+      } />
       <Route path="/teacher/copilot" element={
         <ProtectedRoute>
           <TeacherCopilotPage />
@@ -632,6 +655,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <StudentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/class/:classId"
+        element={
+          <ProtectedRoute>
+            <StudentClassroomPage />
           </ProtectedRoute>
         }
       />
@@ -648,6 +679,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ParentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/parent/child/:childId/class/:classId"
+        element={
+          <ProtectedRoute>
+            <ParentClassroomPage />
           </ProtectedRoute>
         }
       />

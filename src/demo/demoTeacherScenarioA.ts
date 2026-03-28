@@ -4,6 +4,7 @@
 // Nothing here calls any API – it is purely declarative.
 
 import type * as dataService from '../services/dataService';
+import { applySubjectThemeDefaults } from '../lib/classTheme';
 
 // ── Class overview ────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export const demoStats: dataService.TeacherStat[] = [
 ];
 
 export const demoClasses: dataService.TeacherClass[] = [
-    {
+    applySubjectThemeDefaults({
         id: 'demo-class-1',
         name: DEMO_CLASS_NAME,
         subject: 'Mathematics',
@@ -29,7 +30,8 @@ export const demoClasses: dataService.TeacherClass[] = [
         statusMsg: 'Needs Attention',
         activeAssignments: 1,
         averageScore: 61,
-    },
+        playfulBackground: true,
+    }),
 ];
 
 // ── Assignments ───────────────────────────────────────────────────────────────

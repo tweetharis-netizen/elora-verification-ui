@@ -61,6 +61,11 @@ import {
     demoTeacherName,
     DEMO_CLASS_LEVEL,
 } from '../demo/demoTeacherScenarioA';
+import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
+import {
+    ClassroomHeader,
+    ClassroomTabs,
+} from '../components/classroom/ClassroomComponents';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -115,6 +120,7 @@ const NavItem = ({
     onClick,
     collapsed = false,
     className = "",
+    theme,
 }: {
     icon: React.ReactNode;
     label: string;
@@ -122,25 +128,27 @@ const NavItem = ({
     onClick?: () => void;
     collapsed?: boolean;
     className?: string;
-}) => (
-    <a
-        href="#"
-        onClick={(e) => { e.preventDefault(); onClick?.(); }}
-        className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active
-            ? 'bg-teal-800 text-white'
-            : 'text-teal-100 hover:bg-teal-800/50 hover:text-white'
-            } ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
-        title={collapsed ? label : undefined}
-    >
-        <div className="shrink-0">{icon}</div>
-        {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+    theme: RoleSidebarTheme;
+}) => {
+    const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+    const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
+    return (
+        <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); onClick?.(); }}
+            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
+            title={collapsed ? label : undefined}
+        >
+            <div className="shrink-0">{icon}</div>
+            {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
-        {/* Active Indicator Circle */}
-        {active && !collapsed && (
-            <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
-        )}
-    </a>
-);
+            {/* Active Indicator Circle */}
+            {active && !collapsed && (
+                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+            )}
+        </a>
+    );
+};
 
 const StatCard = ({
     icon,
@@ -879,16 +887,24 @@ type NotificationItem = dataService.Notification;
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function TeacherDashboardPage() {
+interface TeacherDashboardProps {
+    initialClassId?: string;
+    initialClassroomTab?: 'stream' | 'classwork' | 'people' | 'grades';
+    forcedClassroomMode?: boolean;
+    activeTab?: 'dashboard' | 'classes' | 'work';
+}
+
+export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) {
     const navigate = useNavigate();
     const { isVerified, logout, currentUser, login } = useAuth();
     const isDemo = useDemoMode();
+    const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode } = props;
     const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
 
-    // Ensure demo user is "logged in" for backend headers
+    // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
         if (isDemo && currentUser?.id !== 'teacher_1' && typeof login === 'function') {
-            login('teacher');
+            login('teacher', undefined, false);
         }
     }, [isDemo, currentUser, login]);
 
@@ -967,6 +983,7 @@ export default function TeacherDashboardPage() {
     } = useNotifications({ userId: currentUser?.id || 'teacher_1', role: 'teacher' });
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const sidebarTheme = getRoleSidebarTheme('teacher');
 
     const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
     const [assignmentResults, setAssignmentResults] = useState<dataService.TeacherAssignmentResults | null>(null);
@@ -1024,7 +1041,14 @@ export default function TeacherDashboardPage() {
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
     const [showAiPanel, setShowAiPanel] = useState(false);
     const [aiPanelPrefill, setAiPanelPrefill] = useState<Partial<AiForm> | undefined>(undefined);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom'>(() => {
+        if (forcedClassroomMode) return 'classroom';
+        if (props.activeTab === 'classes') return 'classes';
+        if (props.activeTab === 'work') return 'dashboard'; // 'work' maps to dashboard for now
+        return 'dashboard';
+    });
+    const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(initialClassId);
+    const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'classwork' | 'people' | 'grades'>(initialClassroomTab);
     const [showCreateClass, setShowCreateClass] = useState(false);
     const [newClassName, setNewClassName] = useState('');
     const [newClassSubject, setNewClassSubject] = useState('');
@@ -1227,6 +1251,12 @@ export default function TeacherDashboardPage() {
         setAssignDueDate('');
         setAssignDescription('');
         setAssigningError(null);
+    };
+
+    const handleViewRosterClick = (classroomId: string) => {
+        setSelectedClassroomId(classroomId);
+        setClassroomActiveTab('people');
+        setActiveTab('classroom');
     };
 
     const handleAssignSubmit = async (e: React.FormEvent) => {
@@ -1718,21 +1748,23 @@ export default function TeacherDashboardPage() {
 
                 {/* Nav */}
                 <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                    <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} />
-                    <NavItem icon={<BookOpen size={20} />} label="Classes" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} collapsed={!isSidebarOpen} />
+                    <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                    <NavItem icon={<BookOpen size={20} />} label="Classes" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
                     <NavItem 
                         icon={<Sparkles size={20} />} 
                         label="Copilot" 
                         onClick={() => navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot')} 
+                        theme={sidebarTheme}
                         collapsed={!isSidebarOpen} 
                     />
                     <NavItem
                         icon={<Gamepad2 size={20} />}
                         label="Practice & quizzes"
                         onClick={() => setShowAiPanel(true)}
+                        theme={sidebarTheme}
                         collapsed={!isSidebarOpen}
                     />
-                    <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} />
+                    <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                 </nav>
 
                 {/* Footer */}
@@ -1746,7 +1778,7 @@ export default function TeacherDashboardPage() {
                             <PanelLeftOpen size={20} />
                         </button>
                     )}
-                    <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} />
+                    <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                     <button
                         onClick={logout}
                         className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -2210,12 +2242,12 @@ export default function TeacherDashboardPage() {
                                     </section>
 
                                     {/* Student Performance Overview */}
-                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm px-5 py-4 lg:px-6 lg:py-4">
+                                        <div className="flex flex-row flex-wrap items-center justify-between gap-3 mb-4">
                                             <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
                                                 Student Performance Overview
                                             </h2>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 shrink-0">
                                                 {['Classes', 'Students', 'Practice & quizzes'].map((tab) => (
                                                     <button
                                                         key={tab}
@@ -2231,10 +2263,10 @@ export default function TeacherDashboardPage() {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
                                             {loading ? (
                                                 Array.from({ length: 3 }).map((_, i) => (
-                                                    <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
+                                                    <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] p-4 h-full">
                                                         <SectionSkeleton rows={3} />
                                                     </div>
                                                 ))
@@ -2249,7 +2281,7 @@ export default function TeacherDashboardPage() {
                                                 classPerformance.map((cls) => (
                                                     <div
                                                         key={cls.id}
-                                                        className="group bg-white rounded-2xl border border-[#EAE7DD] hover:border-teal-200 p-6 flex flex-col gap-6 transition-all hover:shadow-md cursor-pointer overflow-hidden relative"
+                                                        className="group bg-white rounded-2xl border border-[#EAE7DD] hover:border-teal-200 p-4 flex flex-col gap-4 transition-all hover:shadow-sm cursor-pointer overflow-hidden relative h-full"
                                                         onClick={() =>
                                                             setSelectedItem({
                                                                 name: cls.name,
@@ -2321,24 +2353,7 @@ export default function TeacherDashboardPage() {
 
 
 
-                            {/* Quick Actions (below fold) */}
-                            <div className="flex flex-wrap gap-3 mb-8">
-                                <button
-                                    onClick={() => setShowAiPanel(!showAiPanel)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
-                                >
-                                    <Sparkles size={16} /> Create AI Practice
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <Plus size={16} /> Create Assignment
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <FileText size={16} /> Assign Quiz
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-[#EAE7DD] rounded-xl font-medium text-sm transition-colors shadow-sm">
-                                    <MonitorPlay size={16} /> View Class
-                                </button>
-                            </div>
+                            {/* Quick Actions (below fold) - Removed per request */}
 
                             {/* AI Generation Panel (toggled) */}
                             <div id="ai-game-panel-anchor" />
@@ -2454,7 +2469,10 @@ export default function TeacherDashboardPage() {
                                                 </div>
 
                                                 <div className="flex gap-2">
-                                                    <button className="flex-1 py-2 bg-[#FDFBF5] hover:bg-teal-50 text-teal-700 border border-[#EAE7DD] hover:border-teal-200 rounded-xl text-sm font-semibold transition-colors">
+                                                    <button
+                                                        onClick={() => handleViewRosterClick(cls.id)}
+                                                        className="flex-1 py-2 bg-[#FDFBF5] hover:bg-teal-50 text-teal-700 border border-[#EAE7DD] hover:border-teal-200 rounded-xl text-sm font-semibold transition-colors"
+                                                    >
                                                         View Roster
                                                     </button>
                                                     <button
@@ -2471,6 +2489,50 @@ export default function TeacherDashboardPage() {
                                         ))
                                     )}
                                 </div>
+                            </div>
+                        ) : activeTab === 'classroom' ? (
+                            <div className="flex flex-col gap-6">
+                                {myClasses.length > 0 && selectedClassroomId ? (
+                                    <div>
+                                        {loading ? (
+                                            <SectionSkeleton rows={3} />
+                                        ) : (
+                                            <div className="flex flex-col gap-6">
+                                                <ClassroomHeader
+                                                    currentClass={myClasses.find(c => c.id === selectedClassroomId)}
+                                                    classroomTitle={myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom'}
+                                                    role="teacher"
+                                                    subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
+                                                />
+                                                <ClassroomTabs
+                                                    activeTab={classroomActiveTab}
+                                                    onTabChange={setClassroomActiveTab}
+                                                    subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
+                                                    currentClass={myClasses.find(c => c.id === selectedClassroomId)}
+                                                />
+                                                <div className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
+                                                    {classroomActiveTab === 'stream' && (
+                                                        <div className="text-center py-12"><p className="text-slate-600">Stream content will appear here</p></div>
+                                                    )}
+                                                    {classroomActiveTab === 'classwork' && (
+                                                        <div className="text-center py-12"><p className="text-slate-600">Classwork content will appear here</p></div>
+                                                    )}
+                                                    {classroomActiveTab === 'people' && (
+                                                        <div className="text-center py-12"><p className="text-slate-600">People list will appear here</p></div>
+                                                    )}
+                                                    {classroomActiveTab === 'grades' && (
+                                                        <div className="text-center py-12"><p className="text-slate-600">Grades will appear here</p></div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <SectionEmpty
+                                        headline="No classroom selected"
+                                        detail="Please select a classroom to view."
+                                    />
+                                )}
                             </div>
                         ) : null}
                 </div>

@@ -4,6 +4,7 @@
 // Represents "Jordan Lee".
 
 import type * as dataService from '../services/dataService';
+import { applySubjectThemeDefaults } from '../lib/classTheme';
 
 export const demoStudentName = 'Jordan Lee';
 
@@ -67,12 +68,13 @@ export const demoStudentNudges: dataService.ParentNudge[] = [
 ];
 
 export const demoStudentClasses: dataService.StudentClass[] = [
-    {
+    applySubjectThemeDefaults({
         id: 'demo-class-1',
         name: 'Sec 3 Mathematics',
         subject: 'Mathematics',
         teacherName: 'Mr. Michael Lee',
         joinCode: 'X7B9Q2M',
         enrolledAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-    },
+        playfulBackground: true,
+    }),
 ];

@@ -24,6 +24,7 @@ import {
 import { Link } from 'react-router-dom';
 import { EloraLogo } from '../EloraLogo';
 import { CopilotFeedbackRow } from './CopilotFeedbackRow';
+import { getRoleSidebarTheme, type RoleSidebarTheme, type EloraRole } from '../../lib/roleTheme';
 
 // --- Shared Types ---
 export type Step = {
@@ -103,7 +104,6 @@ export const CopilotLayout: React.FC<{
     isDemo: boolean;
     role: 'Teacher' | 'Student' | 'Parent';
     themeColor?: string;
-    sidebarColor?: string;
     logout: () => void;
     navigate: (path: string) => void;
     demoBanner?: React.ReactNode;
@@ -116,32 +116,34 @@ export const CopilotLayout: React.FC<{
     isDemo,
     role,
     themeColor = '#14b8a6', // default teal
-    sidebarColor = '#115e59', // default teal-900
     logout,
     navigate,
     demoBanner,
     demoRoleSwitcher
 }) => {
+    const roleKey = role.toLowerCase() as EloraRole;
+    const sidebarTheme = getRoleSidebarTheme(roleKey);
     // NavItem component inside CopilotLayout (mostly for sidebar)
-    const NavItem = ({ icon, label, active = false, onClick, collapsed }: { icon: any, label: string, active?: boolean, onClick?: () => void, collapsed: boolean }) => (
-        <a
-            onClick={(e) => { e.preventDefault(); onClick?.(); }}
-            href="#"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group relative ${active 
-                    ? `bg-white/11 text-white shadow-sm` 
-                    : `text-white/70 hover:bg-white/5 hover:text-white`
-                } ${collapsed ? 'justify-center' : ''}`}
-            title={collapsed ? label : undefined}
-        >
-            <div className={`${active ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
-                {icon}
-            </div>
-            {!collapsed && <span className="whitespace-nowrap">{label}</span>}
-            {active && !collapsed && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
-            )}
-        </a>
-    );
+    const NavItem = ({ icon, label, active = false, onClick, collapsed }: { icon: any, label: string, active?: boolean, onClick?: () => void, collapsed: boolean }) => {
+        const activeClasses = `${sidebarTheme.navActiveBg} ${sidebarTheme.navActiveText}`;
+        const inactiveClasses = `${sidebarTheme.navInactiveText} ${sidebarTheme.navHoverBg} ${sidebarTheme.navHoverText}`;
+        return (
+            <a
+                onClick={(e) => { e.preventDefault(); onClick?.(); }}
+                href="#"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group relative ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
+                title={collapsed ? label : undefined}
+            >
+                <div className="flex items-center justify-center">
+                    {icon}
+                </div>
+                {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+                {active && !collapsed && (
+                    <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+                )}
+            </a>
+        );
+    };
 
     return (
         <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
@@ -155,10 +157,9 @@ export const CopilotLayout: React.FC<{
             <div className="flex flex-1 overflow-hidden relative">
                 {/* --- Sidebar --- */}
                 <aside
-                    className={`flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}
-                    style={{ backgroundColor: sidebarColor }}
+                    className={`flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} ${sidebarTheme.text}`}
                 >
-                    <div className={`h-20 flex items-center border-b border-white/10 px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                    <div className={`h-20 flex items-center border-b ${sidebarTheme.headerBorder} px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                         <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
                             <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
                         </Link>
@@ -167,7 +168,7 @@ export const CopilotLayout: React.FC<{
                                 onClick={() => setIsSidebarOpen(false)}
                                 className="text-white/50 hover:text-white transition-colors"
                             >
-                                <PanelLeftClose size={18} />
+                                <PanelLeftClose size={20} />
                             </button>
                         )}
                     </div>
@@ -213,7 +214,7 @@ export const CopilotLayout: React.FC<{
                         {role === 'Teacher' && <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} />}
                     </nav>
 
-                    <div className="p-4 border-t border-white/10 space-y-1.5">
+                    <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
                         {!isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(true)}

@@ -20,6 +20,9 @@ export interface Classroom {
     id: string;
     name: string;
     subject: string; // e.g., "Mathematics"
+    themeColor?: 'teal' | 'emerald' | 'indigo' | 'amber' | 'slate';
+    bannerStyle?: 'default' | 'math' | 'science' | 'language' | 'arts';
+    playfulBackground?: boolean;
     teacherId: string;
     joinCode: string;
     studentIds: string[];
@@ -179,6 +182,8 @@ export const classes: Classroom[] = [
         id: "1",
         name: "Sec 3 Mathematics",
         subject: "Mathematics",
+        themeColor: 'teal',
+        bannerStyle: 'math',
         teacherId: "teacher_1",
         joinCode: "X7B9-Q",
         studentIds: ["student_1", "student_2", "student_3", ...Array(29).fill("dummy_id")],
@@ -191,6 +196,8 @@ export const classes: Classroom[] = [
         id: "2",
         name: "Sec 4 Physics",
         subject: "Physics",
+        themeColor: 'slate',
+        bannerStyle: 'default',
         teacherId: "teacher_1",
         joinCode: "PHYS-4",
         studentIds: ["student_1", "student_2", ...Array(26).fill("dummy_id")],
@@ -203,6 +210,8 @@ export const classes: Classroom[] = [
         id: "3",
         name: "Sec 1 Science",
         subject: "Science",
+        themeColor: 'emerald',
+        bannerStyle: 'science',
         teacherId: "teacher_1",
         joinCode: "SCI-11",
         studentIds: Array(40).fill("dummy_id"),
@@ -215,6 +224,8 @@ export const classes: Classroom[] = [
         id: "4",
         name: "Sec 2 Mathematics",
         subject: "Mathematics",
+        themeColor: 'teal',
+        bannerStyle: 'math',
         teacherId: "teacher_1",
         joinCode: "MATH-2",
         studentIds: Array(42).fill("dummy_id"),

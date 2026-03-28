@@ -91,6 +91,9 @@ export interface TeacherClass {
     joinCode?: string;
     activeAssignments: number;
     averageScore: number | null;
+    themeColor?: string;
+    bannerStyle?: string;
+    playfulBackground?: boolean;
 }
 
 export interface ParentChild {
@@ -197,6 +200,9 @@ export interface StudentClass {
     teacherName: string;
     joinCode: string;
     enrolledAt: string;
+    themeColor?: string;
+    bannerStyle?: string;
+    playfulBackground?: boolean;
 }
 
 export interface StudentDashboardData {

@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
-    "dev:client": "vite --port=3000",
+    "dev:client": "vite --port=3000 --host 0.0.0.0",
     "dev:all": "concurrently --kill-others --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
-    "start": "npm run dev:all",
+    "dev:local": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
+    "start": "npm run dev:local",
     "build": "vite build",
     "vercel-build": "vite build",
     "preview": "vite preview",

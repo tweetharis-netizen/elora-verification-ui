@@ -63,6 +63,7 @@ import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { 
     demoStudentData,
     demoStudentStreak, 
@@ -80,6 +81,7 @@ interface SidebarItemProps {
     collapsed?: boolean;
     onClick?: () => void;
     className?: string;
+    theme: RoleSidebarTheme;
 }
 
 // Shared empty-state helper is now imported from src/components/ui/SectionStates.tsx
@@ -91,10 +93,10 @@ export default function StudentDashboardPage() {
     const navigate = useNavigate();
     const isDemo = useDemoMode();
 
-    // Ensure demo user is "logged in" for backend headers
+    // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
         if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
-            login('student');
+            login('student', undefined, false);
         }
     }, [isDemo, currentUser, login]);
 
@@ -102,6 +104,7 @@ export default function StudentDashboardPage() {
 
     const [selectedGamePack, setSelectedGamePack] = useState<any>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const sidebarTheme = getRoleSidebarTheme('student');
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments'>('dashboard');
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
 
@@ -689,9 +692,9 @@ export default function StudentDashboardPage() {
                 {isDemo && <DemoRoleSwitcher />}
 
             {/* SIDEBAR */}
-            <aside className={`bg-[#68507B] text-white flex flex-col h-screen sticky top-0 hidden md:flex shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+            <aside className={`flex flex-col h-screen sticky top-0 hidden md:flex shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} ${sidebarTheme.text}`}>
                 {/* Logo & Close toggle */}
-                <div className={`h-20 flex items-center border-b border-white/10 px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                <div className={`h-20 flex items-center border-b ${sidebarTheme.headerBorder} px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                     <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
                         <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
                     </Link>
@@ -707,20 +710,21 @@ export default function StudentDashboardPage() {
                 </div>
 
                 <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto no-scrollbar">
-                    <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'dashboard'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
-                    <SidebarItem icon={BookOpen} label="My Classes" collapsed={!isSidebarOpen} />
-                    <SidebarItem 
-                        icon={Sparkles} 
-                        label="Copilot" 
-                        collapsed={!isSidebarOpen} 
-                        onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')} 
+                    <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'dashboard'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('dashboard')} theme={sidebarTheme} />
+                    <SidebarItem icon={BookOpen} label="My Classes" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                    <SidebarItem
+                        icon={Sparkles}
+                        label="Copilot"
+                        collapsed={!isSidebarOpen}
+                        onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')}
+                        theme={sidebarTheme}
                     />
-                    <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} />
-                    <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} />
-                    <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} />
+                    <SidebarItem icon={Gamepad2} label="Practice & quizzes" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                    <SidebarItem icon={FileText} label="Assignments & Quizzes" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} theme={sidebarTheme} />
+                    <SidebarItem icon={BarChart2} label="Reports" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                 </nav>
 
-                <div className="p-4 border-t border-white/10 space-y-1.5">
+                <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
                     {!isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(true)}
@@ -730,7 +734,7 @@ export default function StudentDashboardPage() {
                             <PanelLeftOpen size={20} />
                         </button>
                     )}
-                    <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} />
+                    <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                     <button
                         onClick={logout}
                         className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -809,7 +813,7 @@ export default function StudentDashboardPage() {
                             </div>
                         </div>
                     </header>
-                    <div className="max-w-7xl mx-auto space-y-8">
+                    <div className="max-w-7xl w-full mx-auto space-y-8">
                         {activeTab === 'dashboard' && (
                             <DashboardTour 
                                 role="student"
@@ -1693,7 +1697,9 @@ function NextStepsStrip({ recs, onNavigate }: { recs: Rec[]; onNavigate: (href: 
     );
 }
 
-function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className }: SidebarItemProps) {
+function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className = '', theme }: SidebarItemProps) {
+    const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+    const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
     return (
         <a
             href="#"
@@ -1703,14 +1709,10 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className 
                     onClick();
                 }
             }}
-            className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                active
-                    ? 'bg-white/11 text-white shadow-sm'
-                    : 'text-white/70 hover:bg-white/5 hover:text-white'
-                } ${collapsed ? 'justify-center focus:outline-none' : ''} ${className || ''}`}
+            className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
             title={collapsed ? label : undefined}
         >
-            <div className={`shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
+            <div className="shrink-0 transition-transform group-hover:scale-110">
                 <Icon size={20} />
             </div>
             {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}

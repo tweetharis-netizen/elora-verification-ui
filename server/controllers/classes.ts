@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { db, Classroom, Enrollment, users } from '../db.js';
 import { sqliteDb, DEMO_USER_IDS } from '../database.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { resolveClassThemeSettings } from '../utils/classTheme.js';
 
 export const getClasses = (req: AuthRequest, res: Response) => {
     const teacherId = req.user!.id;
@@ -13,6 +14,12 @@ export const getClasses = (req: AuthRequest, res: Response) => {
 
         // Transform to match frontend expectations (studentsCount instead of studentIds)
         const uiClasses = myClasses.map(c => {
+            const classThemeSettings = resolveClassThemeSettings({
+                subject: (c as any).subject ?? 'General',
+                themeColor: (c as any).themeColor,
+                bannerStyle: (c as any).bannerStyle,
+            });
+
             // Compute activeAssignments
             const classAssignments = db.assignments.filter(a => a.classroomId === c.id);
             const todayStr = now.split('T')[0];
@@ -48,6 +55,8 @@ export const getClasses = (req: AuthRequest, res: Response) => {
                 time: c.scheduleTime,
                 status: c.status,
                 statusMsg: c.statusMsg,
+                ...classThemeSettings,
+                playfulBackground: (c as any).playfulBackground ?? false,
                 activeAssignments,
                 averageScore
             };
@@ -63,19 +72,24 @@ export const getClasses = (req: AuthRequest, res: Response) => {
         FROM classes c WHERE c.teacher_id = ?`
     ).all(teacherId) as any[];
 
-    const uiClasses = rows.map(r => ({
-        id: r.id,
-        name: r.name,
-        subject: r.subject,
-        studentsCount: r.student_count,
-        nextTopic: 'TBD',
-        time: r.schedule_time || 'TBD',
-        status: 'info' as const,
-        statusMsg: 'Newly created',
-        joinCode: r.join_code,
-        activeAssignments: 0,
-        averageScore: null,
-    }));
+    const uiClasses = rows.map(r => {
+        const classThemeSettings = resolveClassThemeSettings({ subject: r.subject });
+        return {
+            id: r.id,
+            name: r.name,
+            subject: r.subject,
+            studentsCount: r.student_count,
+            nextTopic: 'TBD',
+            time: r.schedule_time || 'TBD',
+            status: 'info' as const,
+            statusMsg: 'Newly created',
+            joinCode: r.join_code,
+            ...classThemeSettings,
+            playfulBackground: false,
+            activeAssignments: 0,
+            averageScore: null,
+        };
+    });
 
     res.json(uiClasses);
 };
@@ -83,6 +97,8 @@ export const getClasses = (req: AuthRequest, res: Response) => {
 export const createClass = (req: AuthRequest, res: Response) => {
     const teacherId = req.user!.id;
     const { name, subject, scheduleTime } = req.body;
+    const subjectValue = subject || 'General';
+    const classThemeSettings = resolveClassThemeSettings({ subject: subjectValue });
 
     if (DEMO_USER_IDS.has(teacherId)) {
         return res.status(403).json({ error: "Demo classes are read-only" });
@@ -100,12 +116,12 @@ export const createClass = (req: AuthRequest, res: Response) => {
     sqliteDb.prepare(`
         INSERT INTO classes (id, name, subject, teacher_id, join_code, schedule_time)
         VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, name, subject || 'General', teacherId, joinCode, scheduleTime || null);
+    `).run(id, name, subjectValue, teacherId, joinCode, scheduleTime || null);
 
     const newClass = {
         id,
         name,
-        subject: subject || 'General',
+        subject: subjectValue,
         teacherId,
         joinCode,
         studentIds: [],
@@ -114,6 +130,8 @@ export const createClass = (req: AuthRequest, res: Response) => {
         scheduleTime: scheduleTime || 'TBD',
         status: 'info',
         statusMsg: 'Newly created',
+        ...classThemeSettings,
+        playfulBackground: false,
         activeAssignments: 0,
         averageScore: null
     };
@@ -147,7 +165,17 @@ export const joinClass = (req: AuthRequest, res: Response) => {
             }
         }
 
-        return res.json({ classroom: targetClass });
+        const classThemeSettings = resolveClassThemeSettings({
+            subject: targetClass.subject,
+            themeColor: (targetClass as any).themeColor,
+            bannerStyle: (targetClass as any).bannerStyle,
+        });
+
+        return res.json({ classroom: {
+            ...targetClass,
+            ...classThemeSettings,
+            playfulBackground: (targetClass as any).playfulBackground ?? false,
+        } });
     }
 
     const targetClass = sqliteDb.prepare(`SELECT * FROM classes WHERE UPPER(join_code) = UPPER(?)`).get(joinCode) as any;
@@ -164,13 +192,16 @@ export const joinClass = (req: AuthRequest, res: Response) => {
         `).run(`enroll_${Date.now()}`, targetClass.id, studentId);
     }
 
+    const classThemeSettings = resolveClassThemeSettings({ subject: targetClass.subject });
     res.json({ classroom: {
         id: targetClass.id,
         name: targetClass.name,
         subject: targetClass.subject,
         teacherId: targetClass.teacher_id,
         joinCode: targetClass.join_code,
-        scheduleTime: targetClass.schedule_time
+        scheduleTime: targetClass.schedule_time,
+        ...classThemeSettings,
+        playfulBackground: false,
     } });
 };
 
@@ -181,13 +212,20 @@ export const getStudentClasses = (req: AuthRequest, res: Response) => {
         const myClasses = db.classes.filter(c => c.studentIds.includes(studentId));
         return res.json(myClasses.map(c => {
             const teacher = db.users.find(u => u.id === c.teacherId);
+            const classThemeSettings = resolveClassThemeSettings({
+                subject: (c as any).subject ?? 'General',
+                themeColor: (c as any).themeColor,
+                bannerStyle: (c as any).bannerStyle,
+            });
             return {
                 id: c.id,
                 name: c.name,
                 subject: (c as any).subject ?? 'General',
                 teacherName: teacher?.name || 'Unknown',
                 joinCode: c.joinCode,
-                enrolledAt: new Date().toISOString() // approximated for demo
+                enrolledAt: new Date().toISOString(), // approximated for demo
+                ...classThemeSettings,
+                playfulBackground: (c as any).playfulBackground ?? false,
             };
         }));
     }
@@ -200,12 +238,17 @@ export const getStudentClasses = (req: AuthRequest, res: Response) => {
         WHERE e.student_id = ? AND e.status = 'active'
     `).all(studentId) as any[];
 
-    res.json(rows.map(r => ({
-        id: r.id,
-        name: r.name,
-        subject: r.subject,
-        teacherName: r.teacher_name,
-        joinCode: r.join_code,
-        enrolledAt: r.joined_at
-    })));
+    res.json(rows.map(r => {
+        const classThemeSettings = resolveClassThemeSettings({ subject: r.subject });
+        return {
+            id: r.id,
+            name: r.name,
+            subject: r.subject,
+            teacherName: r.teacher_name,
+            joinCode: r.join_code,
+            enrolledAt: r.joined_at,
+            ...classThemeSettings,
+            playfulBackground: false,
+        };
+    }));
 };

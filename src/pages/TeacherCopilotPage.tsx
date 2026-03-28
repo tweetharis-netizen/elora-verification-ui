@@ -207,30 +207,14 @@ const TeacherCopilotPage: React.FC = () => {
             return;
         }
 
-        const newClass = classList.find(c => c.id === classId);
-        const label = newClass ? newClass.name : 'All classes';
-
         setSelectedClassId(classId);
         setIsContextPopupOpen(false);
-
-        // Add system message
-        const systemMsg: Message = {
-            id: `system-${Date.now()}`,
-            role: 'system',
-            content: `Switched to ${label} · answers now reflect ${classId ? 'this class' : 'all classes'}`
-        };
-        setMessages(prev => [...prev, systemMsg]);
     };
 
     const currentPrompts = buildPrompts();
     const currentClass = classList.find(c => c.id === selectedClassId);
     const currentClassName = currentClass?.name || 'All classes';
-    const currentSubject = currentClass?.subject || null;
-    const currentStudentsCount = currentClass?.studentsCount || 0;
-    
-    const contextPillLabel = selectedClassId && currentSubject
-        ? `@${currentSubject} (${currentStudentsCount})`
-        : currentClassName;
+    const contextPillLabel = currentClassName;
 
     // Scroll to bottom
     useEffect(() => {
@@ -540,7 +524,6 @@ const TeacherCopilotPage: React.FC = () => {
             isDemo={isDemo}
             role="Teacher"
             themeColor="#14b8a6"
-            sidebarColor="#134e4a" // teal-900
             logout={logout}
             navigate={navigate}
             demoBanner={isDemo && <DemoBanner />}

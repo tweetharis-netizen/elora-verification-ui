@@ -197,28 +197,13 @@ const ParentCopilotPage: React.FC = () => {
     };
 
     const handleChildChange = (id: string | null) => {
-        const newChild = children.find(c => c.id === id);
         setSelectedChildId(id);
         setIsChildPopupOpen(false);
-        
-        const systemMsg: Message = {
-            id: `system-${Date.now()}`,
-            role: 'system',
-            content: `Switched to ${newChild?.name || 'All children'} · answers now reflect this child`
-        };
-        setMessages(prev => [...prev, systemMsg]);
     };
 
     const handleSubjectChange = (subject: string) => {
         setSelectedSubject(subject);
         setIsSubjectPopupOpen(false);
-        
-        const systemMsg: Message = {
-            id: `system-${Date.now()}`,
-            role: 'system',
-            content: `Filtering by ${subject} · answers now focus on this area`
-        };
-        setMessages(prev => [...prev, systemMsg]);
     };
 
     // Scroll to bottom
@@ -235,7 +220,6 @@ const ParentCopilotPage: React.FC = () => {
             isDemo={isDemo}
             role="Parent"
             themeColor="#f59e0b" // amber-500
-            sidebarColor="#78350f" // amber-900
             logout={logout}
             navigate={navigate}
             demoBanner={isDemo && <DemoBanner />}

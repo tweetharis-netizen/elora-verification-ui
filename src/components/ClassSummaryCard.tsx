@@ -68,12 +68,11 @@ export function ClassSummaryCard({
             <div className={`h-24 w-full relative overflow-hidden bg-gradient-to-br transition-all duration-500 ${backgroundGradient}`}>
                 {/* Playful background pattern if enabled */}
                 {playfulBackground !== false && (
-                    <div className="absolute inset-0 opacity-10 pointer-events-none">
+                    <div className="absolute inset-0 opacity-[0.14] pointer-events-none">
                         <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <pattern id={`pattern-${name.replace(/\s+/g, '-')}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                                <circle cx="2" cy="2" r="1.5" fill="white" fillOpacity="0.4" />
-                                <path d="M20 0 L20 40" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                                <path d="M0 20 L40 20" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
+                            <pattern id={`pattern-${name.replace(/\s+/g, '-')}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <circle cx="2" cy="2" r="1" fill="white" fillOpacity="0.8" />
+                                <rect x="10" y="10" width="1.5" height="1.5" rx="0.5" fill="white" fillOpacity="0.3" />
                             </pattern>
                             <rect width="100" height="100" fill={`url(#pattern-${name.replace(/\s+/g, '-')})`} />
                         </svg>

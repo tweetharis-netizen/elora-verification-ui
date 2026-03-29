@@ -621,6 +621,7 @@ export default function App() {
       <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
       <Route path="/student/demo" element={<StudentDashboardPage />} />
       <Route path="/student/demo/classes" element={<StudentDashboardPage activeTab="classes" />} />
+      <Route path="/student/demo/assignments" element={<StudentDashboardPage activeTab="assignments" />} />
       <Route path="/student/demo/class/:classId" element={<StudentClassroomPage />} />
       <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
       <Route path="/parent/demo" element={<ParentDashboardPage />} />
@@ -677,6 +678,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <StudentClassroomPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/assignments"
+        element={
+          <ProtectedRoute>
+            <StudentDashboardPage activeTab="assignments" />
           </ProtectedRoute>
         }
       />

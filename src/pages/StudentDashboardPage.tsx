@@ -376,12 +376,23 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                     dataService.getStudentNudges(),
                     dataService.getStudentClasses()
                 ]);
-                setAssignments(studentData.assignments);
-                setRecentPerformance(studentData.recentPerformance);
-                setGameSessions(sessions);
-                setStreakData(streak);
-                setNudges(nudgesData);
-                setStudentClasses(classesData);
+
+                if (classesData.length === 0 && !isDemo) {
+                    console.log("No student classes found. Seeding with demo data.");
+                    setAssignments(demoStudentData.assignments);
+                    setRecentPerformance(demoStudentData.recentPerformance);
+                    setStreakData(demoStudentStreak);
+                    setGameSessions(demoGameSessions);
+                    setNudges(demoStudentNudges);
+                    setStudentClasses(demoStudentClasses);
+                } else {
+                    setAssignments(studentData.assignments);
+                    setRecentPerformance(studentData.recentPerformance);
+                    setGameSessions(sessions);
+                    setStreakData(streak);
+                    setNudges(nudgesData);
+                    setStudentClasses(classesData);
+                }
             } catch (err: any) {
                 setError(err.message || 'Failed to load data');
             } finally {
@@ -862,7 +873,11 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                             label="My Classes" 
                             active={activeTab === 'classes'}
                             collapsed={!isSidebarOpen} 
-                            onClick={() => setActiveTab('classes')}
+                            onClick={() => {
+                                navigate(isDemo ? '/student/demo/classes' : '/student/classes');
+                                setActiveTab('classes');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
                             theme={sidebarTheme} 
                         />
                         <SidebarItem
@@ -882,7 +897,18 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                             }}
                             theme={sidebarTheme} 
                         />
-                        <SidebarItem icon={FileText} label="Assignments" active={activeTab === 'assignments'} collapsed={!isSidebarOpen} onClick={() => setActiveTab('assignments')} theme={sidebarTheme} />
+                        <SidebarItem 
+                            icon={FileText} 
+                            label="Assignments" 
+                            active={activeTab === 'assignments'} 
+                            collapsed={!isSidebarOpen} 
+                            onClick={() => {
+                                navigate(isDemo ? '/student/demo/assignments' : '/student/assignments');
+                                setActiveTab('assignments');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }} 
+                            theme={sidebarTheme} 
+                        />
                         <SidebarItem 
                             icon={BarChart2} 
                             label="Reports" 
@@ -981,7 +1007,11 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
 
                                                 <div className="mt-6 flex flex-wrap gap-4">
                                                     <button
-                                                        onClick={() => setActiveTab('classes')}
+                                                        onClick={() => {
+                                                            navigate(isDemo ? '/student/demo/classes' : '/student/classes');
+                                                            setActiveTab('classes');
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
                                                         className="px-6 py-2.5 bg-white text-[#68507B] rounded-xl font-bold text-sm shadow-lg shadow-purple-900/10 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                                                     >
                                                         <BookOpen size={16} />
@@ -1138,7 +1168,11 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                             <h3 className="text-sm font-bold tracking-tight text-slate-800">My Classes</h3>
                                                         </div>
                                                         <button 
-                                                            onClick={() => setActiveTab('classes')}
+                                                            onClick={() => {
+                                                                navigate(isDemo ? '/student/demo/classes' : '/student/classes');
+                                                                setActiveTab('classes');
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}
                                                             className="text-[10px] font-bold text-[#68507B] hover:text-[#5a456a] uppercase tracking-[0.1em] transition-colors"
                                                         >
                                                             VIEW ALL →
@@ -1586,14 +1620,14 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                 </div>
                                             ) : (
                                                 studentClasses.map(cls => (
-                                                    <ClassSummaryCard
-                                                        key={cls.id}
-                                                        role="student"
-                                                        name={cls.name}
-                                                        subject={cls.subject || 'Mathematics'}
-                                                        themeColor={cls.themeColor || 'purple'}
-                                                        playfulBackground={cls.playfulBackground}
-                                                        onEnter={() => navigate(isDemo ? `/student/demo/class/${cls.id}` : `/student/class/${cls.id}`)}
+                                                        <ClassSummaryCard
+                                                            key={cls.id}
+                                                            role="student"
+                                                            name={cls.name}
+                                                            subject={cls.subject || 'Mathematics'}
+                                                            themeColor={cls.themeColor || 'purple'}
+                                                            playfulBackground={cls.playfulBackground ?? true}
+                                                            onEnter={() => navigate(isDemo ? `/student/demo/class/${cls.id}` : `/student/class/${cls.id}`)}
                                                         metaPrimaryNode={
                                                             <div className="flex flex-col gap-2.5">
                                                                 <div className="flex items-center gap-2.5">

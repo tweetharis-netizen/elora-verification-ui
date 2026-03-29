@@ -36,6 +36,7 @@ import {
     UserPlus,
     UserMinus,
     Target,
+    Menu,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -47,7 +48,7 @@ import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { getClassSupportSuggestion, type ClassSuggestion } from '../services/classSuggestionService';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { EloraLogo } from '../components/EloraLogo';
-import EloraAssistantCard, { EloraAssistantSuggestion } from '../components/EloraAssistantCard';
+import { DashboardHeader } from '../components/DashboardHeader';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
@@ -66,6 +67,7 @@ import {
     ClassroomHeader,
     ClassroomTabs,
 } from '../components/classroom/ClassroomComponents';
+import { ClassSummaryCard } from '../components/ClassSummaryCard';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -167,7 +169,7 @@ const StatCard = ({
 }) => {
     const isUp = trend === 'up';
     const isDown = trend === 'down';
-    
+
     let statusClass = 'text-teal-600 bg-teal-50 border-teal-100';
     if (status === 'warning' || isDown) statusClass = 'text-orange-600 bg-orange-50 border-orange-200';
     if (status === 'info') statusClass = 'text-blue-600 bg-blue-50 border-blue-100';
@@ -264,10 +266,10 @@ interface QuestionPreviewItemProps {
     onUpdate?: (updated: dataService.GameQuestion) => void;
 }
 
-const QuestionPreviewItem = ({ 
-    q, 
-    idx, 
-    onUpdate 
+const QuestionPreviewItem = ({
+    q,
+    idx,
+    onUpdate
 }: QuestionPreviewItemProps) => {
     const [showExplanation, setShowExplanation] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -289,13 +291,13 @@ const QuestionPreviewItem = ({
                     </span>
                     {isEditing ? (
                         <div className="flex-1 flex gap-2">
-                            <input 
+                            <input
                                 autoFocus
                                 value={editPrompt}
                                 onChange={(e) => setEditPrompt(e.target.value)}
                                 className="flex-1 px-3 py-1.5 text-sm bg-white border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                             />
-                            <button 
+                            <button
                                 onClick={handleSave}
                                 className="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700"
                             >
@@ -307,7 +309,7 @@ const QuestionPreviewItem = ({
                             <h4 className="font-semibold text-slate-900 text-sm leading-snug">
                                 {q.prompt}
                             </h4>
-                            <button 
+                            <button
                                 onClick={() => setIsEditing(true)}
                                 className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-600 transition-all"
                                 title="Edit question"
@@ -614,7 +616,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                                 <span className="px-2 py-0.5 bg-teal-50 text-teal-600 text-[10px] font-bold rounded-full border border-teal-100 uppercase tracking-wider">Ready to review</span>
                             </div>
                             <p className="text-xs text-slate-400 font-medium">
-                                Topic: <span className="text-slate-600">{generatedGame.topic}</span> &nbsp;·&nbsp; 
+                                Topic: <span className="text-slate-600">{generatedGame.topic}</span> &nbsp;·&nbsp;
                                 Level: <span className="text-slate-600">{generatedGame.level}</span> &nbsp;·&nbsp;
                                 Questions: <span className="text-slate-600">{generatedGame.questions.length}</span>
                             </p>
@@ -634,7 +636,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                             </button>
                         </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="flex items-center justify-between mb-2 px-1">
                             <div className="flex items-center gap-2">
@@ -645,10 +647,10 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         </div>
                         <div className="grid grid-cols-1 gap-5">
                             {generatedGame.questions.map((q, idx) => (
-                                <QuestionPreviewItem 
-                                    key={q.id} 
-                                    q={q} 
-                                    idx={idx} 
+                                <QuestionPreviewItem
+                                    key={q.id}
+                                    q={q}
+                                    idx={idx}
                                     onUpdate={(updated) => handleUpdateQuestion(idx, updated)}
                                 />
                             ))}
@@ -725,7 +727,11 @@ const NeedsAttentionCard = ({
     onDrillDown,
     generatePracticeLabel = 'Generate practice →',
 }: NeedsAttentionCardProps) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     const hasInsights = insights.length > 0;
+    const INITIAL_COUNT = 2;
+    const displayedInsights = isExpanded ? insights : insights.slice(0, INITIAL_COUNT);
+    const hasMore = insights.length > INITIAL_COUNT;
 
     return (
         <section className="mb-6 lg:mb-8">
@@ -760,96 +766,117 @@ const NeedsAttentionCard = ({
                         detail="No students need attention right now."
                     />
                 ) : (
-                    insights.map((insight) => {
-                        const meta = insightMeta[insight.type];
-                        const isClickable = !!insight.assignmentId;
-                        return (
-                            <div
-                                key={insight.id}
-                                onClick={() => {
-                                    if (onDrillDown) {
-                                        const statusFilter =
-                                            insight.type === 'overdue_assignment' ? 'needs_attention' :
-                                                insight.type === 'low_scores' ? 'needs_attention' :
-                                                    insight.type === 'weak_topic' ? 'needs_attention' : undefined;
-                                        onDrillDown({ statusFilter, classFilter: insight.className });
-                                    } else if (isClickable) {
-                                        onInsightClick(insight);
-                                    }
-                                }}
-                                className={`flex items-start gap-3 p-3 rounded-xl border ${meta.rowBg} cursor-pointer hover:brightness-95 transition-all`}
-                            >
-                                {/* Icon badge */}
+                    <>
+                        {displayedInsights.map((insight) => {
+                            const meta = insightMeta[insight.type];
+                            const isClickable = !!insight.assignmentId;
+                            return (
                                 <div
-                                    className={`shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center ${meta.iconBg} ${meta.iconColor}`}
+                                    key={insight.id}
+                                    onClick={() => {
+                                        if (onDrillDown) {
+                                            const statusFilter =
+                                                insight.type === 'overdue_assignment' ? 'needs_attention' :
+                                                    insight.type === 'low_scores' ? 'needs_attention' :
+                                                        insight.type === 'weak_topic' ? 'needs_attention' : undefined;
+                                            onDrillDown({ statusFilter, classFilter: insight.className });
+                                        } else if (isClickable) {
+                                            onInsightClick(insight);
+                                        }
+                                    }}
+                                    className={`flex items-start gap-3 p-3 rounded-xl border ${meta.rowBg} cursor-pointer hover:brightness-95 transition-all`}
                                 >
-                                    {meta.icon}
-                                </div>
-
-                                {/* Content */}
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                        {insight.studentName && (
-                                            <span className="text-xs font-bold text-slate-900">
-                                                {insight.studentName}
-                                            </span>
-                                        )}
-                                        {insight.topicTag && (
-                                            <>
-                                                <span className="text-slate-300">·</span>
-                                                <span className="text-xs font-semibold text-orange-700">
-                                                    {insight.topicTag}
-                                                </span>
-                                            </>
-                                        )}
-                                        {insight.assignmentTitle && !insight.topicTag && (
-                                            <span className="text-xs font-bold text-slate-900 truncate">
-                                                {insight.assignmentTitle}
-                                            </span>
-                                        )}
-                                        <span
-                                            className={`ml-auto text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 ${meta.iconBg} ${meta.iconColor}`}
-                                        >
-                                            {meta.label}
-                                        </span>
+                                    {/* Icon badge */}
+                                    <div
+                                        className={`shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center ${meta.iconBg} ${meta.iconColor}`}
+                                    >
+                                        {meta.icon}
                                     </div>
-                                    <p className="text-xs text-slate-600 leading-relaxed">
-                                        {insight.detail}
-                                    </p>
-                                    {insight.className && (
-                                        <p className="text-[11px] text-slate-400 mt-0.5">
-                                            {insight.className}
-                                            {isClickable && (
-                                                <span className="ml-1 text-teal-600 font-medium">
-                                                    — tap to view results →
+
+                                    {/* Content */}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                            {insight.studentName && (
+                                                <span className="text-xs font-bold text-slate-900">
+                                                    {insight.studentName}
                                                 </span>
                                             )}
+                                            {insight.topicTag && (
+                                                <>
+                                                    <span className="text-slate-300">·</span>
+                                                    <span className="text-xs font-semibold text-orange-700">
+                                                        {insight.topicTag}
+                                                    </span>
+                                                </>
+                                            )}
+                                            {insight.assignmentTitle && !insight.topicTag && (
+                                                <span className="text-xs font-bold text-slate-900 truncate">
+                                                    {insight.assignmentTitle}
+                                                </span>
+                                            )}
+                                            <span
+                                                className={`ml-auto text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 ${meta.iconBg} ${meta.iconColor}`}
+                                            >
+                                                {meta.label}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-600 leading-relaxed">
+                                            {insight.detail}
                                         </p>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                        {(insight.type === 'weak_topic' || insight.type === 'low_scores') && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onAssignPractice(insight); }}
-                                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-100 transition-colors"
-                                            >
-                                                <Sparkles size={11} />
-                                                {generatePracticeLabel}
-                                            </button>
+                                        {insight.className && (
+                                            <p className="text-[11px] text-slate-400 mt-0.5">
+                                                {insight.className}
+                                                {isClickable && (
+                                                    <span className="ml-1 text-teal-600 font-medium">
+                                                        — tap to view results →
+                                                    </span>
+                                                )}
+                                            </p>
                                         )}
-                                        {insight.studentId && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onNudgeStudent(insight); }}
-                                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100 transition-colors"
-                                            >
-                                                <Send size={11} />
-                                                Nudge
-                                            </button>
-                                        )}
+                                        <div className="flex items-center gap-2 mt-2">
+                                            {(insight.type === 'weak_topic' || insight.type === 'low_scores') && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onAssignPractice(insight); }}
+                                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-100 transition-colors"
+                                                >
+                                                    <Sparkles size={11} />
+                                                    {generatePracticeLabel}
+                                                </button>
+                                            )}
+                                            {insight.studentId && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onNudgeStudent(insight); }}
+                                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100 transition-colors"
+                                                >
+                                                    <Send size={11} />
+                                                    Nudge
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })
+                            );
+                        })}
+
+                        {hasMore && (
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 bg-white border border-[#EAE7DD] rounded-xl transition-all hover:shadow-sm"
+                            >
+                                {isExpanded ? (
+                                    <>
+                                        <ChevronUp size={14} />
+                                        Show less
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChevronDown size={14} />
+                                        Show {insights.length - INITIAL_COUNT} more
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </section>
@@ -956,7 +983,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const handleTeacherAskElora = async (prompt: string): Promise<string> => {
         await new Promise(r => setTimeout(r, 600));
         const lowerPrompt = prompt.toLowerCase();
-        
+
         if (lowerPrompt.includes('who needs my attention') || lowerPrompt.includes('attention')) {
             return getClassAttentionList();
         }
@@ -966,7 +993,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         if (lowerPrompt.includes('week') || lowerPrompt.includes('summary')) {
             return getClassWeekSummary();
         }
-        
+
         return "I don't see any recent data for Sec 3 Mathematics this week, so I can't give a summary yet.";
     };
 
@@ -983,6 +1010,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     } = useNotifications({ userId: currentUser?.id || 'teacher_1', role: 'teacher' });
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const sidebarTheme = getRoleSidebarTheme('teacher');
 
     const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
@@ -1106,7 +1134,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [insightDueDate, setInsightDueDate] = useState('');
     const [insightAssigningError, setInsightAssigningError] = useState<string | null>(null);
     const [insightAssigning, setInsightAssigning] = useState(false);
-    
+
     // ── Nudge student state ──
     const [nudgeModalOpen, setNudgeModalOpen] = useState(false);
     const [nudgeInsight, setNudgeInsight] = useState<dataService.TeacherInsight | null>(null);
@@ -1724,111 +1752,127 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                     <DemoRoleSwitcher />
                 </>
             )}
-        <div className="flex flex-1">
-            {/* ── Sidebar ── */}
-            <aside
-                className={`bg-teal-900 text-teal-50 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'
-                    }`}
-            >
-                {/* Logo & Close toggle */}
-                <div className={`h-20 flex items-center border-b border-teal-800/50 px-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                    <Link to="/" className="flex items-center text-teal-50 hover:text-white transition-colors overflow-hidden">
-                        <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
-                    </Link>
-                    {isSidebarOpen && (
-                        <button
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="text-teal-100/50 hover:text-white transition-colors"
-                            title="Close sidebar"
-                        >
-                            <PanelLeftClose size={18} />
-                        </button>
-                    )}
-                </div>
-
-                {/* Nav */}
-                <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                    <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
-                    <NavItem icon={<BookOpen size={20} />} label="Classes" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
-                    <NavItem 
-                        icon={<Sparkles size={20} />} 
-                        label="Copilot" 
-                        onClick={() => navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot')} 
-                        theme={sidebarTheme}
-                        collapsed={!isSidebarOpen} 
+            <div className="flex flex-1">
+                {/* MOBILE BACKDROP (Surface 0) */}
+                {isMobileMenuOpen && (
+                    <div
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden transition-all duration-500 animate-in fade-in"
+                        onClick={() => setIsMobileMenuOpen(false)}
                     />
-                    <NavItem
-                        icon={<Gamepad2 size={20} />}
-                        label="Practice & quizzes"
-                        onClick={() => setShowAiPanel(true)}
-                        theme={sidebarTheme}
-                        collapsed={!isSidebarOpen}
-                    />
-                    <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} />
-                </nav>
+                )}
 
-                {/* Footer */}
-                <div className="p-4 border-t border-teal-800/50 space-y-1.5">
-                    {!isSidebarOpen && (
+                {/* ── Sidebar ── */}
+                <aside
+                    className={`${sidebarTheme.asideBg} ${sidebarTheme.text} flex flex-col md:min-h-screen fixed inset-y-0 left-0 z-[70] md:sticky md:translate-x-0 transition-all duration-500 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 shadow-xl`}
+                >
+                    {/* Logo & Close toggle */}
+                    <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                        <Link to="/" className="flex items-center text-teal-50 hover:text-white transition-colors overflow-hidden shrink-0">
+                            <EloraLogo className="w-10 h-10 text-current drop-shadow-sm transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
+                        </Link>
+
+                        {/* Mobile close toggle */}
                         <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="flex items-center justify-center w-full p-2.5 text-teal-100/50 hover:text-white hover:bg-white/5 rounded-lg transition-colors mb-2"
-                            title="Open sidebar"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="md:hidden p-2 text-teal-100/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                            title="Close menu"
                         >
-                            <PanelLeftOpen size={20} />
+                            <X size={22} />
                         </button>
-                    )}
-                    <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
-                    <button
-                        onClick={logout}
-                        className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
-                        title={!isSidebarOpen ? "Sign out" : undefined}
-                    >
-                        <LogOut size={20} className="shrink-0" />
-                        {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
-                    </button>
-                </div>
-            </aside>
 
-            {/* ── Main Content ── */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                        {/* Desktop collapse toggle */}
+                        {isSidebarOpen && (
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="hidden md:flex text-teal-100/50 hover:text-white transition-colors"
+                                title="Collapse sidebar"
+                            >
+                                <PanelLeftClose size={18} />
+                            </button>
+                        )}
+                    </div>
 
-                    {/* Top Header */}
-                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
-                        <div>
-                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                Teacher Dashboard
-                            </div>
-                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                                {loading ? 'Loading…' : `Good day, ${displayName}`}
-                            </h1>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
-                                <p className="text-[13px] text-slate-500 font-medium">You are signed in as Teacher</p>
-                                {isDemo && (
-                                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
-                                        <span className="text-teal-700 font-bold uppercase tracking-widest text-[9px]">Scenario</span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                        <span>Struggling Class (Sec 3 Mathematics)</span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                        <span className="text-slate-400">Updated just now</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 lg:gap-6">
-                            <div className="relative hidden md:block">
-                                <Search
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                    size={16}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Search classes…"
-                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
-                                />
-                            </div>
-                            <NotificationsPopover 
+                    {/* Nav */}
+                    <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+                        <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <NavItem 
+                            icon={<BookOpen size={20} />} 
+                            label="My Classes" 
+                            active={activeTab === 'classes'} 
+                            onClick={() => setActiveTab('classes')} 
+                            collapsed={!isSidebarOpen} 
+                            theme={sidebarTheme} 
+                        />
+                        <NavItem
+                            icon={<Sparkles size={20} />}
+                            label="Copilot"
+                            onClick={() => navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot')}
+                            theme={sidebarTheme}
+                            collapsed={!isSidebarOpen}
+                        />
+                        <NavItem
+                            icon={<Gamepad2 size={20} />}
+                            label="Practice & quizzes"
+                            active={showAiPanel}
+                            onClick={() => {
+                                setActiveTab('dashboard');
+                                setShowAiPanel(true);
+                                setTimeout(() => {
+                                    document.getElementById('ai-game-panel-anchor')?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                            theme={sidebarTheme}
+                            collapsed={!isSidebarOpen}
+                        />
+                        <NavItem 
+                            icon={<TrendingUp size={20} />} 
+                            label="Reports" 
+                            onClick={() => {
+                                setActiveTab('dashboard');
+                                setTimeout(() => {
+                                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                            collapsed={!isSidebarOpen} 
+                            theme={sidebarTheme} 
+                        />
+                        <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                    </nav>
+
+                    {/* Footer */}
+                    <div className="p-4 border-t border-teal-800/50 space-y-1.5">
+                        {!isSidebarOpen && (
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="flex items-center justify-center w-full p-2.5 text-teal-100/50 hover:text-white hover:bg-white/5 rounded-lg transition-colors mb-2"
+                                title="Open sidebar"
+                            >
+                                <PanelLeftOpen size={20} />
+                            </button>
+                        )}
+                        <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <button
+                            onClick={logout}
+                            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
+                            title={!isSidebarOpen ? "Sign out" : undefined}
+                        >
+                            <LogOut size={20} className="shrink-0" />
+                            {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
+                        </button>
+                    </div>
+                </aside>
+
+                {/* ── Main Content ── */}
+                <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                    <DashboardHeader
+                        role="teacher"
+                        displayName={displayName}
+                        roleLabel="TEACHER"
+                        avatarInitials={initials}
+                        onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+                        searchPlaceholder="Search classes..."
+                        notificationsNode={
+                            <NotificationsPopover
                                 items={
                                     notifications
                                         .slice(0, 10)
@@ -1858,1104 +1902,929 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 headerTextColor="text-teal-600"
                                 emptyMessage="No new notifications"
                             />
-                            <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
-                                <div className="text-right hidden sm:block">
-                                    <div className="text-sm font-semibold text-slate-900">
-                                        {teacherName || 'Teacher'}
+                        }
+                    />
+                    <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+
+                        {/* ── Active View Content ── */}
+                        {activeTab === 'dashboard' ? (
+                            <div className="max-w-7xl mx-auto space-y-6">
+                                {/* ── [Row 0] Hero & Quick Pulse ── */}
+                                <div className="bg-[#2D6A6A] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg border border-[#2D6A6A] flex flex-col justify-center min-h-[220px]">
+                                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
+                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
+
+                                    <div className="relative z-10 flex flex-col h-full">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                            <Users size={12} className="text-teal-200" />
+                                            <span>{myClasses.length} Active Classes</span>
+                                        </div>
+                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white mb-2 leading-tight tracking-tight">
+                                            Welcome back, {teacherName.split(' ')[0]}! <br />
+                                            <span className="text-teal-100">Your classroom is ready for learning.</span>
+                                        </h1>
+                                        <p className="text-white/80 text-sm max-w-xl leading-relaxed font-medium">
+                                            You have {myClasses.reduce((acc, cls) => acc + cls.studentsCount, 0)} students across your active modules. Let's make an impact today!
+                                        </p>
+
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            <button
+                                                onClick={() => setShowAiPanel(true)}
+                                                className="px-5 py-2 bg-white text-[#2D6A6A] rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                            >
+                                                <Sparkles size={16} />
+                                                Generate Practice
+                                            </button>
+                                            <button
+                                                onClick={() => document.getElementById('classes-section')?.scrollIntoView({ behavior: 'smooth' })}
+                                                className="px-5 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md flex items-center gap-2"
+                                            >
+                                                <Users size={16} />
+                                                Manage Classes
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-slate-500 font-medium">Teacher</div>
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm">
-                                    {initials}
+
+                                {/* ── Welcome to Elora strip (new-user onboarding) ── */}
+                                <DashboardTour
+                                    role="teacher"
+                                    isVisible={!welcomeDismissed}
+                                    onAction1={() => setShowAiPanel(true)}
+                                    onAction2={() => navigate('/invite')}
+                                    onDismiss={handleDismissWelcome}
+                                />
+
+                                {/* "What's New" Strip */}
+                                <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">What's new</span>
+                                    <span className="text-sm text-slate-600 font-medium">
+                                        New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
+                                    </span>
+                                    <Link
+                                        to="/our-story"
+                                        className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
+                                    >
+                                        View details
+                                    </Link>
                                 </div>
-                            </div>
-                        </div>
-                    </header>
 
-                    {/* ── Active View Content ── */}
-                    {activeTab === 'dashboard' ? (
-                        <>
-
-                            {/* ── Welcome to Elora strip (new-user onboarding) ── */}
-                            <DashboardTour 
-                                role="teacher"
-                                isVisible={!welcomeDismissed}
-                                onAction1={() => setShowAiPanel(true)}
-                                onAction2={() => navigate('/invite')}
-                                onDismiss={handleDismissWelcome}
-                            />
-
-                            {/* "What's New" Strip */}
-                            <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">What's new</span>
-                                <span className="text-sm text-slate-600 font-medium">
-                                    New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
-                                </span>
-                                <Link 
-                                    to="/our-story" 
-                                    className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
-                                >
-                                    View details
-                                </Link>
-                            </div>
-
-                            {/* Class Health Strip */}
-                            {classHealth && !loading && !insightsLoading && (
-                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
-                                    <div className="flex flex-col flex-1 gap-1 sm:flex-row sm:items-center">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-[14px] font-medium text-slate-900">
-                                                {classHealth.className} <span className="text-slate-500 font-normal px-0.5">– Overall:</span>
-                                            </span>
-                                            <div className={`px-2.5 py-1 rounded-full text-[12px] font-medium border ${classHealth.status === 'At risk'
+                                {/* Class Health Strip */}
+                                {classHealth && !loading && !insightsLoading && (
+                                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
+                                        <div className="flex flex-col flex-1 gap-1 sm:flex-row sm:items-center">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-[14px] font-medium text-slate-900">
+                                                    {classHealth.className} <span className="text-slate-500 font-normal px-0.5">– Overall:</span>
+                                                </span>
+                                                <div className={`px-2.5 py-1 rounded-full text-[12px] font-medium border ${classHealth.status === 'At risk'
                                                     ? 'bg-orange-50 text-orange-700 border-orange-200'
                                                     : classHealth.status === 'Improving'
                                                         ? 'bg-teal-50 text-teal-700 border-teal-200'
                                                         : 'bg-slate-50 text-slate-700 border-slate-200'
-                                                }`}>
-                                                {classHealth.status}
+                                                    }`}>
+                                                    {classHealth.status}
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="text-[13px] text-slate-500 leading-relaxed sm:ml-2">
-                                            <span className="hidden sm:inline mr-2">·</span>
-                                            {classHealth.studentsNeedingSupport > 0 ? (
-                                                <>
-                                                    <button
-                                                        onClick={() => handleDrillDown({ statusFilter: 'needs_attention', classFilter: classHealth.className })}
-                                                        className="font-medium text-orange-600 hover:text-orange-700 hover:underline transition-all"
-                                                    >
-                                                        {classHealth.studentsNeedingSupport} student{classHealth.studentsNeedingSupport !== 1 ? 's' : ''} need support
-                                                    </button>
-                                                    {classHealth.topStruggleTopic && (
-                                                        <span> in <span className="font-medium text-slate-700">{classHealth.topStruggleTopic}</span>.</span>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <span>Great job! Everyone is on track.</span>
-                                            )}
-                                            {classHealth.status === 'Improving' && (
-                                                <span className="inline ml-2 text-teal-600 font-medium">· Trending up this week</span>
-                                            )}
+                                            <div className="text-[13px] text-slate-500 leading-relaxed sm:ml-2">
+                                                <span className="hidden sm:inline mr-2">·</span>
+                                                {classHealth.studentsNeedingSupport > 0 ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleDrillDown({ statusFilter: 'needs_attention', classFilter: classHealth.className })}
+                                                            className="font-medium text-orange-600 hover:text-orange-700 hover:underline transition-all"
+                                                        >
+                                                            {classHealth.studentsNeedingSupport} student{classHealth.studentsNeedingSupport !== 1 ? 's' : ''} need support
+                                                        </button>
+                                                        {classHealth.topStruggleTopic && (
+                                                            <span> in <span className="font-medium text-slate-700">{classHealth.topStruggleTopic}</span>.</span>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span>Great job! Everyone is on track.</span>
+                                                )}
+                                                {classHealth.status === 'Improving' && (
+                                                    <span className="inline ml-2 text-teal-600 font-medium">· Trending up this week</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Error banner */}
-                            {error && (
-                                <div className="mb-6">
-                                    <SectionError
-                                        message="We couldn't load your dashboard data. Please try again."
-                                        onRetry={() => window.location.reload()}
+                                {/* Error banner */}
+                                {error && (
+                                    <div className="mb-6">
+                                        <SectionError
+                                            message="We couldn't load your dashboard data. Please try again."
+                                            onRetry={() => window.location.reload()}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Stats Strip (prioritized above-the-fold) */}
+                                <div id="reports-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                                    <StatCard
+                                        icon={<BookOpen className="text-teal-600" size={20} />}
+                                        label={classesTodayStat?.label ?? 'Classes Today'}
+                                        value={loading ? '…' : classesTodayStat?.value ?? '—'}
+                                        trendValue={classesTodayStat?.trendValue}
+                                        status={classesTodayStat?.status}
+                                    />
+                                    <StatCard
+                                        icon={<Users className="text-teal-600" size={20} />}
+                                        label={studentsStat?.label ?? 'Active Students'}
+                                        value={loading ? '…' : studentsStat?.value ?? '—'}
+                                        trendValue={studentsStat?.trendValue}
+                                        status={studentsStat?.status}
+                                    />
+                                    <StatCard
+                                        icon={<Clock className="text-orange-500" size={20} />}
+                                        label={gradingStat?.label ?? 'Pending Grading'}
+                                        value={loading ? '…' : gradingStat?.value ?? '—'}
+                                        trendValue={gradingStat?.trendValue}
+                                        status={gradingStat?.status}
+                                    />
+                                    <StatCard
+                                        icon={<TrendingUp className="text-teal-600" size={20} />}
+                                        label={avgScoreStat?.label ?? 'Average Score'}
+                                        value={loading ? '…' : avgScoreStat?.value ?? '—'}
+                                        trendValue={avgScoreStat?.trendValue}
+                                        status={avgScoreStat?.status}
                                     />
                                 </div>
-                            )}
 
-                            {/* Stats Strip (prioritized above-the-fold) */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-                                <StatCard
-                                    icon={<BookOpen className="text-teal-600" size={20} />}
-                                    label={classesTodayStat?.label ?? 'Classes Today'}
-                                    value={loading ? '…' : classesTodayStat?.value ?? '—'}
-                                    trendValue={classesTodayStat?.trendValue}
-                                    status={classesTodayStat?.status}
-                                />
-                                <StatCard
-                                    icon={<Users className="text-teal-600" size={20} />}
-                                    label={studentsStat?.label ?? 'Active Students'}
-                                    value={loading ? '…' : studentsStat?.value ?? '—'}
-                                    trendValue={studentsStat?.trendValue}
-                                    status={studentsStat?.status}
-                                />
-                                <StatCard
-                                    icon={<Clock className="text-orange-500" size={20} />}
-                                    label={gradingStat?.label ?? 'Pending Grading'}
-                                    value={loading ? '…' : gradingStat?.value ?? '—'}
-                                    trendValue={gradingStat?.trendValue}
-                                    status={gradingStat?.status}
-                                />
-                                <StatCard
-                                    icon={<TrendingUp className="text-teal-600" size={20} />}
-                                    label={avgScoreStat?.label ?? 'Average Score'}
-                                    value={loading ? '…' : avgScoreStat?.value ?? '—'}
-                                    trendValue={avgScoreStat?.trendValue}
-                                    status={avgScoreStat?.status}
-                                />
-                            </div>
+                                {/* Two-column layout (reorganized: time-sensitive left, reference right) */}
+                                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
 
-                            {/* Two-column layout (reorganized: time-sensitive left, reference right) */}
-                            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 mb-8">
+                                    {/* ── Left column (wider): Time-sensitive items ── */}
+                                    <div className="xl:col-span-2 flex flex-col gap-6">
 
-                                {/* ── Left column (wider): Time-sensitive items ── */}
-                                <div className="xl:col-span-2 flex flex-col gap-8">
-
-                                    {/* Upcoming Assignments */}
-                                    <section
-                                        ref={assignmentsSectionRef}
-                                        className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
-                                            </h2>
-                                            <button className="text-teal-600 hover:text-teal-700 p-1">
-                                                <MoreHorizontal size={20} />
-                                            </button>
-                                        </div>
-
-                                        {/* Slim Filter Bar */}
-                                        <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
-                                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
-
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Statuses</option>
-                                                <option value="needs_attention">Needs Attention</option>
-                                                <option value="on_track">On Track</option>
-                                                <option value="completed">Completed</option>
-                                            </select>
-
-                                            <select
-                                                value={classFilter}
-                                                onChange={(e) => setClassFilter(e.target.value)}
-                                                className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                            >
-                                                <option value="all">All Classes</option>
-                                                {availableClasses.map(cls => (
-                                                    <option key={cls} value={cls}>{cls}</option>
-                                                ))}
-                                            </select>
-
-                                            {(statusFilter !== 'all' || classFilter !== 'all') && (
-                                                <button
-                                                    onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
-                                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
-                                                >
-                                                    Clear filters
+                                        {/* Upcoming Assignments */}
+                                        <section
+                                            ref={assignmentsSectionRef}
+                                            className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
+                                                    Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
+                                                </h2>
+                                                <button className="text-teal-600 hover:text-teal-700 p-1">
+                                                    <MoreHorizontal size={20} />
                                                 </button>
-                                            )}
-                                        </div>
-
-                                        {loading ? (
-                                            <SectionSkeleton rows={2} />
-                                        ) : upcomingAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No upcoming assignments"
-                                                detail="Assignments you create will appear here for quick access."
-                                            />
-                                        ) : filteredAssignments.length === 0 ? (
-                                            <SectionEmpty
-                                                headline="No assignments match filters"
-                                                detail="Try clearing your filters to see more."
-                                            />
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {filteredAssignments.map((item) => {
-                                                    const statusLower = item.status.toLowerCase();
-                                                    const borderColor = 
-                                                        (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
-                                                        (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
-                                                        'border-l-teal-500';
-                                                    
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            className={`p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
-                                                            onClick={() => handleViewAssignment(item.id)}
-                                                        >
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <h3 className="text-sm font-semibold text-slate-900">
-                                                                    {item.title}
-                                                                </h3>
-                                                                <StatusBadge status={item.status} />
-                                                            </div>
-                                                            <p className="text-xs text-slate-600 mb-3">{item.class}</p>
-                                                            <div className="flex items-center justify-between text-xs">
-                                                                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                                                                    <Clock size={14} /> {item.due}
-                                                                </div>
-                                                                {item.total > 0 && (
-                                                                    <div className="font-semibold text-slate-700">
-                                                                        {item.submitted}/{item.total}{' '}
-                                                                        <span className="text-slate-400 font-normal">
-                                                                            submitted
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
                                             </div>
-                                        )}
 
-                                        <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
-                                            View all assignments
-                                        </button>
-                                    </section>
+                                            {/* Slim Filter Bar */}
+                                            <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
+                                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
 
-                                    {/* ── Needs Attention (live data) ── */}
-                                    <NeedsAttentionCard
-                                        insights={insights.slice(0, 5)}
-                                        loading={insightsLoading}
-                                        error={insightsError}
-                                        onInsightClick={(insight) => {
-                                            if (insight.assignmentId) {
-                                                handleViewAssignment(insight.assignmentId);
-                                            }
-                                        }}
-                                        onAssignPractice={handleGeneratePractice}
-                                        onNudgeStudent={handleNudgeClick}
-                                        onDrillDown={handleDrillDown}
-                                        generatePracticeLabel="Generate practice →"
-                                    />
+                                                <select
+                                                    value={statusFilter}
+                                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                                    className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                                >
+                                                    <option value="all">All Statuses</option>
+                                                    <option value="needs_attention">Needs Attention</option>
+                                                    <option value="on_track">On Track</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
 
-                                </div>
+                                                <select
+                                                    value={classFilter}
+                                                    onChange={(e) => setClassFilter(e.target.value)}
+                                                    className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                                >
+                                                    <option value="all">All Classes</option>
+                                                    {availableClasses.map(cls => (
+                                                        <option key={cls} value={cls}>{cls}</option>
+                                                    ))}
+                                                </select>
 
-                                 {/* ── Right column (narrower): Reference items ── */}
-                                 <div className="xl:col-span-2 flex flex-col gap-8">
- 
-                                     {!loading && (
-                                         <EloraAssistantCard
-                                             role="teacher"
-                                             assistantName={currentUser?.assistantName}
-                                             title="Get a classroom-ready action plan"
-                                             description="Elora suggests targeted teaching moves based on your class health and insight data."
-                                             badgeText="Beta · Elora Copilot"
-                                             helperText="Ask about your class — suggestions are based on your live data."
-                                             onAsk={handleTeacherAskElora}
-                                             suggestedPrompts={[
-                                                 'Who needs my attention?',
-                                                 'How are we doing in Algebra – Factorisation?',
-                                                 'How did this week go?'
-                                             ]}
-                                             accentClasses={{
-                                                 chipBg: 'bg-teal-50',
-                                                 buttonBg: 'bg-teal-600',
-                                                 iconBg: 'bg-teal-50',
-                                                 text: 'text-teal-700',
-                                             }}
-                                             status={eloraStatus}
-                                             suggestion={eloraSuggestion ? {
-                                                 kind: eloraSuggestion.kind,
-                                                 title: eloraSuggestion.title,
-                                                 body: eloraSuggestion.body,
-                                                 suggestedTargets: eloraSuggestion.suggestedTargets,
-                                             } : null}
-                                             error={eloraError}
-                                             onRefresh={() => fetchEloraSuggestionRef.current?.()}
-                                             isDemo={isDemo}
-                                             defaultExpanded={isDemo && activeTab === 'dashboard'}
-                                         />
-                                     )}
- 
-                                     {/* My Classes table */}
-                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
-                                        <div className="p-5 lg:p-6 border-b border-[#EAE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                My Classes
-                                            </h2>
-                                            <div className="flex items-center gap-2 bg-[#FDFBF5] p-1 rounded-lg border border-[#EAE7DD]">
-                                                {['This week', 'This month', 'All time'].map((f) => (
+                                                {(statusFilter !== 'all' || classFilter !== 'all') && (
                                                     <button
-                                                        key={f}
-                                                        onClick={() => setFilter(f)}
-                                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${filter === f
-                                                            ? 'bg-white text-slate-900 shadow-sm border border-[#EAE7DD]'
-                                                            : 'text-slate-500 hover:text-slate-700'
-                                                            }`}
+                                                        onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
+                                                        className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
                                                     >
-                                                        {f}
+                                                        Clear filters
                                                     </button>
-                                                ))}
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="overflow-x-auto">
+
                                             {loading ? (
-                                                <div className="px-6 py-4"><SectionSkeleton rows={3} /></div>
-                                            ) : myClasses.length === 0 ? (
-                                                <div className="px-6 py-2">
-                                                    <SectionEmpty
-                                                        headline="No classes yet"
-                                                        detail="Create a class to get started, then share the join code with your students."
-                                                    />
-                                                </div>
+                                                <SectionSkeleton rows={2} />
+                                            ) : upcomingAssignments.length === 0 ? (
+                                                <SectionEmpty
+                                                    headline="No upcoming assignments"
+                                                    detail="Assignments you create will appear here for quick access."
+                                                />
+                                            ) : filteredAssignments.length === 0 ? (
+                                                <SectionEmpty
+                                                    headline="No assignments match filters"
+                                                    detail="Try clearing your filters to see more."
+                                                />
                                             ) : (
-                                                <table className="w-full text-left border-collapse">
-                                                    <thead>
-                                                        <tr className="bg-[#FDFBF5] border-b border-[#EAE7DD]">
-                                                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                                                Class Name
-                                                            </th>
-                                                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                                                Next Topic
-                                                            </th>
-                                                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                                                Students
-                                                            </th>
-                                                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                                                Status
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-[#EAE7DD]">
-                                                        {myClasses.map((cls) => (
-                                                            <tr
-                                                                key={cls.id}
-                                                                className="hover:bg-slate-50 cursor-pointer transition-colors"
-                                                                onClick={() =>
-                                                                    setSelectedItem({
-                                                                        name: cls.name,
-                                                                        class: `${cls.studentsCount} students`,
-                                                                        tag: cls.nextTopic,
-                                                                        status: cls.statusMsg,
-                                                                    })
-                                                                }
+                                                <div className="space-y-4">
+                                                    {filteredAssignments.map((item) => {
+                                                        const statusLower = item.status.toLowerCase();
+                                                        const borderColor =
+                                                            (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
+                                                                (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
+                                                                    'border-l-teal-500';
+
+                                                        return (
+                                                            <div
+                                                                key={item.id}
+                                                                className={`p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
+                                                                onClick={() => handleViewAssignment(item.id)}
                                                             >
-                                                                <td className="px-6 py-4">
-                                                                    <div className="text-sm font-semibold text-slate-900">
-                                                                        {cls.name}
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h3 className="text-sm font-semibold text-slate-900">
+                                                                        {item.title}
+                                                                    </h3>
+                                                                    <StatusBadge status={item.status} />
+                                                                </div>
+                                                                <p className="text-xs text-slate-600 mb-3">{item.class}</p>
+                                                                <div className="flex items-center justify-between text-xs">
+                                                                    <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                                                        <Clock size={14} /> {item.due}
                                                                     </div>
-                                                                    <div className="text-xs text-slate-500 mt-0.5">
-                                                                        {cls.time}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                                    {cls.nextTopic}
-                                                                </td>
-                                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                                    {cls.studentsCount}
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <StatusBadge status={cls.status === 'success' ? 'Active' : cls.statusMsg} />
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                        </div>
-                                    </section>
-
-                                    {/* Student Performance Overview */}
-                                    <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm px-5 py-4 lg:px-6 lg:py-4">
-                                        <div className="flex flex-row flex-wrap items-center justify-between gap-3 mb-4">
-                                            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                Student Performance Overview
-                                            </h2>
-                                            <div className="flex gap-2 shrink-0">
-                                                {['Classes', 'Students', 'Practice & quizzes'].map((tab) => (
-                                                    <button
-                                                        key={tab}
-                                                        onClick={() => setPerfTab(tab)}
-                                                        className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${perfTab === tab
-                                                            ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                                            : 'bg-white text-slate-500 border border-[#EAE7DD] hover:bg-slate-50'
-                                                            }`}
-                                                    >
-                                                        {tab}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
-                                            {loading ? (
-                                                Array.from({ length: 3 }).map((_, i) => (
-                                                    <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] p-4 h-full">
-                                                        <SectionSkeleton rows={3} />
-                                                    </div>
-                                                ))
-                                            ) : classPerformance.length === 0 ? (
-                                                <div className="col-span-full">
-                                                    <SectionEmpty
-                                                        headline="No class data yet"
-                                                        detail="Once students complete assignments, their performance will appear here."
-                                                    />
-                                                </div>
-                                            ) : (
-                                                classPerformance.map((cls) => (
-                                                    <div
-                                                        key={cls.id}
-                                                        className="group bg-white rounded-2xl border border-[#EAE7DD] hover:border-teal-200 p-4 flex flex-col gap-4 transition-all hover:shadow-sm cursor-pointer overflow-hidden relative h-full"
-                                                        onClick={() =>
-                                                            setSelectedItem({
-                                                                name: cls.name,
-                                                                class: cls.name,
-                                                                score: cls.score > 0 ? cls.score : undefined,
-                                                            })
-                                                        }
-                                                    >
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <h3 className="text-sm font-bold text-slate-900 mb-1 group-hover:text-teal-600 transition-colors uppercase tracking-tight">
-                                                                    {cls.name}
-                                                                </h3>
-                                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                                                                    Avg. Proficiency
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="text-2xl font-bold text-slate-900 tracking-tight leading-none mb-1">
-                                                                    {cls.score}%
-                                                                </span>
-                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${cls.score >= 80 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                                                    {cls.score >= 80 ? 'EXCELLENT' : 'NEEDS FOCUS'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Progress bar instead of circle */}
-                                                        <div className="space-y-2">
-                                                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                                <motion.div 
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${cls.score}%` }}
-                                                                    transition={{ duration: 1, ease: "easeOut" }}
-                                                                    className={`h-full rounded-full ${cls.score >= 80 ? 'bg-emerald-500' : cls.score >= 60 ? 'bg-teal-500' : 'bg-orange-500'}`}
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {cls.weakTopics.length > 0 && (
-                                                            <div className="pt-4 border-t border-slate-50">
-                                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                                    <Target size={12} className="text-orange-400" /> Focus Topics
-                                                                </p>
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {cls.weakTopics.map((topic) => (
-                                                                        <span
-                                                                            key={topic}
-                                                                            className="px-2 py-0.5 bg-orange-50/50 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-100"
-                                                                        >
-                                                                            {topic}
-                                                                        </span>
-                                                                    ))}
+                                                                    {item.total > 0 && (
+                                                                        <div className="font-semibold text-slate-700">
+                                                                            {item.submitted}/{item.total}{' '}
+                                                                            <span className="text-slate-400 font-normal">
+                                                                                submitted
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                        
-                                                        {/* Decorative accent */}
-                                                        <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-slate-50 rounded-full group-hover:bg-teal-50/50 transition-colors pointer-events-none -z-0" />
-                                                    </div>
-                                                ))
+                                                        );
+                                                    })}
+                                                </div>
                                             )}
-                                        </div>
-                                    </section>
+
+                                            <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
+                                                View all assignments
+                                            </button>
+                                        </section>
+
+                                        {/* ── Needs Attention (live data) ── */}
+                                        <NeedsAttentionCard
+                                            insights={insights.slice(0, 5)}
+                                            loading={insightsLoading}
+                                            error={insightsError}
+                                            onInsightClick={(insight) => {
+                                                if (insight.assignmentId) {
+                                                    handleViewAssignment(insight.assignmentId);
+                                                }
+                                            }}
+                                            onAssignPractice={handleGeneratePractice}
+                                            onNudgeStudent={handleNudgeClick}
+                                            onDrillDown={handleDrillDown}
+                                            generatePracticeLabel="Generate practice →"
+                                        />
+
+                                    </div>
+
+                                    {/* ── Right column (narrower): Reference items ── */}
+                                    <div className="xl:col-span-2 flex flex-col gap-6">
+
+                                        {/* My Classes table */}
+                                        <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
+                                            <div className="p-5 lg:p-6 border-b border-[#EAE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
+                                                    My Classes
+                                                </h2>
+                                                <div className="flex items-center gap-2 bg-[#FDFBF5] p-1 rounded-lg border border-[#EAE7DD]">
+                                                    {['This week', 'This month', 'All time'].map((f) => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setFilter(f)}
+                                                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${filter === f
+                                                                ? 'bg-white text-slate-900 shadow-sm border border-[#EAE7DD]'
+                                                                : 'text-slate-500 hover:text-slate-700'
+                                                                }`}
+                                                        >
+                                                            {f}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                {loading ? (
+                                                    <div className="px-6 py-4"><SectionSkeleton rows={3} /></div>
+                                                ) : myClasses.length === 0 ? (
+                                                    <div className="px-6 py-2">
+                                                        <SectionEmpty
+                                                            headline="No classes yet"
+                                                            detail="Create a class to get started, then share the join code with your students."
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-[#FDFBF5] border-b border-[#EAE7DD]">
+                                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                                                    Class Name
+                                                                </th>
+                                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                                                    Next Topic
+                                                                </th>
+                                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                                                    Students
+                                                                </th>
+                                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                                                    Status
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-[#EAE7DD]">
+                                                            {myClasses.map((cls) => (
+                                                                <tr
+                                                                    key={cls.id}
+                                                                    className="hover:bg-slate-50 cursor-pointer transition-colors"
+                                                                    onClick={() =>
+                                                                        setSelectedItem({
+                                                                            name: cls.name,
+                                                                            class: `${cls.studentsCount} students`,
+                                                                            tag: cls.nextTopic,
+                                                                            status: cls.statusMsg,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="text-sm font-semibold text-slate-900">
+                                                                            {cls.name}
+                                                                        </div>
+                                                                        <div className="text-xs text-slate-500 mt-0.5">
+                                                                            {cls.time}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                                                        {cls.nextTopic}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                                                        {cls.studentsCount}
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <StatusBadge status={cls.status === 'success' ? 'Active' : cls.statusMsg} />
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+                                        </section>
 
 
+
+                                    </div>
                                 </div>
-                            </div>
 
 
 
-                            {/* Quick Actions (below fold) - Removed per request */}
+                                {/* Quick Actions (below fold) - Removed per request */}
 
-                            {/* AI Generation Panel (toggled) */}
-                            <div id="ai-game-panel-anchor" />
-                            {showAiPanel && (
-                                <React.Fragment key={JSON.stringify(aiPanelPrefill)}>
-                                <AiGamePanel
-                                    initialValues={aiPanelPrefill}
-                                    onClose={() => { setShowAiPanel(false); setAiPanelPrefill(undefined); }}
-                                    onReview={(pack) => {
-                                        setReviewGamePack(pack);
-                                        setReviewQuestionIndex(0);
-                                    }}
-                                    onAssign={handleAssignClick}
-                                />
-                                </React.Fragment>
-                            )}
-                        </>) : activeTab === 'classes' ? (
-                            <div className="flex flex-col gap-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Manage Classes</h2>
-                                    <button
-                                        onClick={() => setShowCreateClass(true)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
-                                    >
-                                        <Plus size={16} /> Create New Class
-                                    </button>
+                                {/* AI Generation Panel (toggled) */}
+                                <div id="ai-game-panel-anchor" />
+                                {showAiPanel && (
+                                    <React.Fragment key={JSON.stringify(aiPanelPrefill)}>
+                                        <AiGamePanel
+                                            initialValues={aiPanelPrefill}
+                                            onClose={() => { setShowAiPanel(false); setAiPanelPrefill(undefined); }}
+                                            onReview={(pack) => {
+                                                setReviewGamePack(pack);
+                                                setReviewQuestionIndex(0);
+                                            }}
+                                            onAssign={handleAssignClick}
+                                        />
+                                    </React.Fragment>
+                                )}
+                            </div>) : activeTab === 'classes' ? (
+                                <div id="classes-section" className="flex flex-col gap-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Manage Classes</h2>
+                                        <button
+                                            onClick={() => setShowCreateClass(true)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm"
+                                        >
+                                            <Plus size={16} /> Create New Class
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {loading ? (
+                                            <div className="col-span-full bg-white rounded-2xl border border-[#EAE7DD] p-6">
+                                                <SectionSkeleton rows={3} />
+                                            </div>
+                                        ) : myClasses.length === 0 ? (
+                                            <div className="col-span-full py-4 bg-white rounded-2xl border border-[#EAE7DD] border-dashed">
+                                                <SectionEmpty
+                                                    headline="No classes yet"
+                                                    detail='Click "Create New Class" to set up your first class and share the join code with students.'
+                                                />
+                                            </div>
+                                        ) : (
+                                            myClasses.map(cls => (
+                                                <ClassSummaryCard
+                                                    key={cls.id}
+                                                    role="teacher"
+                                                    name={cls.name}
+                                                    subject={cls.subject || 'Subject'}
+                                                    themeColor="green" // to use emerald/teal gradient
+                                                    onEnter={() => handleViewRosterClick(cls.id)}
+                                                    metaPrimaryNode={
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="flex items-center gap-2 text-[13px] text-slate-600 font-medium">
+                                                                <Users size={16} className="text-teal-600" />
+                                                                <span>{cls.studentsCount} Students</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-[13px] text-slate-600 font-medium">
+                                                                <FileText size={16} className="text-teal-600" />
+                                                                <span>{cls.activeAssignments || 0} Active Assignments</span>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    metaSecondaryNode={
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>Code:</span>
+                                                            <span className="font-mono bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded tracking-wider">
+                                                                {cls.joinCode || '...'}
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                />
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {loading ? (
-                                        <div className="col-span-full bg-white rounded-2xl border border-[#EAE7DD] p-6">
-                                            <SectionSkeleton rows={3} />
-                                        </div>
-                                    ) : myClasses.length === 0 ? (
-                                        <div className="col-span-full py-4 bg-white rounded-2xl border border-[#EAE7DD] border-dashed">
-                                            <SectionEmpty
-                                                headline="No classes yet"
-                                                detail='Click "Create New Class" to set up your first class and share the join code with students.'
-                                            />
+                            ) : activeTab === 'classroom' ? (
+                                <div className="flex flex-col gap-6">
+                                    {myClasses.length > 0 && selectedClassroomId ? (
+                                        <div>
+                                            {loading ? (
+                                                <SectionSkeleton rows={3} />
+                                            ) : (
+                                                <div className="flex flex-col gap-6">
+                                                    <ClassroomHeader
+                                                        currentClass={myClasses.find(c => c.id === selectedClassroomId)}
+                                                        classroomTitle={myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom'}
+                                                        role="teacher"
+                                                        subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
+                                                    />
+                                                    <ClassroomTabs
+                                                        activeTab={classroomActiveTab}
+                                                        onTabChange={setClassroomActiveTab}
+                                                        subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
+                                                        currentClass={myClasses.find(c => c.id === selectedClassroomId)}
+                                                    />
+                                                    <div className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
+                                                        {classroomActiveTab === 'stream' && (
+                                                            <div className="text-center py-12"><p className="text-slate-600">Stream content will appear here</p></div>
+                                                        )}
+                                                        {classroomActiveTab === 'classwork' && (
+                                                            <div className="text-center py-12"><p className="text-slate-600">Classwork content will appear here</p></div>
+                                                        )}
+                                                        {classroomActiveTab === 'people' && (
+                                                            <div className="text-center py-12"><p className="text-slate-600">People list will appear here</p></div>
+                                                        )}
+                                                        {classroomActiveTab === 'grades' && (
+                                                            <div className="text-center py-12"><p className="text-slate-600">Grades will appear here</p></div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
-                                        myClasses.map(cls => (
-                                            <div key={cls.id} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 flex flex-col gap-4 hover:border-teal-200 transition-colors">
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <div className="min-w-0">
-                                                        <h3 className="text-lg font-semibold text-slate-900 truncate">{cls.name}</h3>
-                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                            {cls.subject && (
-                                                                <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-semibold border border-teal-200">
-                                                                    {cls.subject}
-                                                                </span>
-                                                            )}
-                                                            <p className="text-sm text-slate-500">{cls.studentsCount} Students Enrolled</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-start gap-2 shrink-0">
-                                                        {(!cls.activeAssignments || cls.activeAssignments === 0) ? (
-                                                            <span className="hidden sm:inline-flex px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-semibold border border-slate-200 whitespace-nowrap mt-1">
-                                                                No active assignments
-                                                            </span>
-                                                        ) : (
-                                                            <span className="hidden sm:inline-flex px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-semibold border border-teal-200 whitespace-nowrap mt-1">
-                                                                {cls.activeAssignments} active assignment{cls.activeAssignments !== 1 ? 's' : ''}
-                                                            </span>
-                                                        )}
-                                                        <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
-                                                            <Users size={20} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3 mt-1">
-                                                    <div className="bg-[#FDFBF5] p-3 rounded-xl border border-[#EAE7DD]">
-                                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                                            Active Assign.
-                                                        </div>
-                                                        <div className="font-semibold text-slate-800">
-                                                            {cls.activeAssignments}
-                                                        </div>
-                                                    </div>
-                                                    <div className="bg-[#FDFBF5] p-3 rounded-xl border border-[#EAE7DD] flex flex-col justify-center">
-                                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                                                            Avg Score
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            {cls.averageScore === null ? (
-                                                                <span className="text-slate-500 italic text-xs leading-tight">
-                                                                    Assign a Pack to begin tracking
-                                                                </span>
-                                                            ) : (
-                                                                <span className={`px-2 py-0.5 rounded-md text-sm font-bold border ${cls.averageScore >= 80 ? 'bg-teal-50 text-teal-700 border-teal-200' :
-                                                                    cls.averageScore >= 50 ? 'bg-slate-50 text-slate-800 border-slate-200' :
-                                                                        'bg-orange-50 text-orange-700 border-orange-200'
-                                                                    }`}>
-                                                                    {cls.averageScore}%
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 mt-auto">
-                                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Join Code</div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-lg font-mono font-bold text-slate-800 tracking-widest">{cls.joinCode || 'N/A'}</span>
-                                                        <button
-                                                            onClick={() => navigator.clipboard.writeText(cls.joinCode || '')}
-                                                            className="text-teal-600 hover:text-teal-700 text-xs font-semibold"
-                                                        >
-                                                            Copy
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleViewRosterClick(cls.id)}
-                                                        className="flex-1 py-2 bg-[#FDFBF5] hover:bg-teal-50 text-teal-700 border border-[#EAE7DD] hover:border-teal-200 rounded-xl text-sm font-semibold transition-colors"
-                                                    >
-                                                        View Roster
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleAssignToClassClick(cls.id);
-                                                        }}
-                                                        className="flex-1 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-colors"
-                                                    >
-                                                        Assign Work
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
+                                        <SectionEmpty
+                                            headline="No classroom selected"
+                                            detail="Please select a classroom to view."
+                                        />
                                     )}
                                 </div>
+                            ) : null}
+                    </div>
+                </main>
+
+                {/* ── Detail Modal ── */}
+                {selectedItem && (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="flex items-center justify-between p-5 border-b border-[#EAE7DD] bg-[#FDFBF5]">
+                                <h3 className="text-lg font-semibold text-slate-900">Details</h3>
+                                <button
+                                    onClick={() => setSelectedItem(null)}
+                                    className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
-                        ) : activeTab === 'classroom' ? (
-                            <div className="flex flex-col gap-6">
-                                {myClasses.length > 0 && selectedClassroomId ? (
-                                    <div>
-                                        {loading ? (
-                                            <SectionSkeleton rows={3} />
-                                        ) : (
-                                            <div className="flex flex-col gap-6">
-                                                <ClassroomHeader
-                                                    currentClass={myClasses.find(c => c.id === selectedClassroomId)}
-                                                    classroomTitle={myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom'}
-                                                    role="teacher"
-                                                    subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
-                                                />
-                                                <ClassroomTabs
-                                                    activeTab={classroomActiveTab}
-                                                    onTabChange={setClassroomActiveTab}
-                                                    subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
-                                                    currentClass={myClasses.find(c => c.id === selectedClassroomId)}
-                                                />
-                                                <div className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
-                                                    {classroomActiveTab === 'stream' && (
-                                                        <div className="text-center py-12"><p className="text-slate-600">Stream content will appear here</p></div>
-                                                    )}
-                                                    {classroomActiveTab === 'classwork' && (
-                                                        <div className="text-center py-12"><p className="text-slate-600">Classwork content will appear here</p></div>
-                                                    )}
-                                                    {classroomActiveTab === 'people' && (
-                                                        <div className="text-center py-12"><p className="text-slate-600">People list will appear here</p></div>
-                                                    )}
-                                                    {classroomActiveTab === 'grades' && (
-                                                        <div className="text-center py-12"><p className="text-slate-600">Grades will appear here</p></div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+                            <div className="p-6">
+                                <div className="mb-4">
+                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                        Name
                                     </div>
-                                ) : (
-                                    <SectionEmpty
-                                        headline="No classroom selected"
-                                        detail="Please select a classroom to view."
-                                    />
+                                    <div className="text-base font-medium text-slate-900">
+                                        {String(selectedItem.name ?? '')}
+                                    </div>
+                                </div>
+                                <div className="mb-4">
+                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                        Class
+                                    </div>
+                                    <div className="text-base font-medium text-slate-900">
+                                        {String(selectedItem.class ?? selectedItem.name ?? '')}
+                                    </div>
+                                </div>
+                                {selectedItem.tag != null && (
+                                    <div className="mb-4">
+                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Next Topic
+                                        </div>
+                                        <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-sm font-medium">
+                                            {String(selectedItem.tag)}
+                                        </span>
+                                    </div>
+                                )}
+                                {selectedItem.score != null && (
+                                    <div className="mb-4">
+                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Average Score
+                                        </div>
+                                        <div className="text-2xl font-bold text-teal-600">
+                                            {String(selectedItem.score)}%
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-                        ) : null}
-                </div>
-            </main>
-
-            {/* ── Detail Modal ── */}
-            {selectedItem && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="flex items-center justify-between p-5 border-b border-[#EAE7DD] bg-[#FDFBF5]">
-                            <h3 className="text-lg font-semibold text-slate-900">Details</h3>
-                            <button
-                                onClick={() => setSelectedItem(null)}
-                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-6">
-                            <div className="mb-4">
-                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                    Name
-                                </div>
-                                <div className="text-base font-medium text-slate-900">
-                                    {String(selectedItem.name ?? '')}
-                                </div>
+                            <div className="p-5 border-t border-[#EAE7DD] bg-slate-50 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setSelectedItem(null)}
+                                    className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => setSelectedItem(null)}
+                                    className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition-colors"
+                                >
+                                    View Full Report
+                                </button>
                             </div>
-                            <div className="mb-4">
-                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                    Class
-                                </div>
-                                <div className="text-base font-medium text-slate-900">
-                                    {String(selectedItem.class ?? selectedItem.name ?? '')}
-                                </div>
-                            </div>
-                            {selectedItem.tag != null && (
-                                <div className="mb-4">
-                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                        Next Topic
-                                    </div>
-                                    <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-sm font-medium">
-                                        {String(selectedItem.tag)}
-                                    </span>
-                                </div>
-                            )}
-                            {selectedItem.score != null && (
-                                <div className="mb-4">
-                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                        Average Score
-                                    </div>
-                                    <div className="text-2xl font-bold text-teal-600">
-                                        {String(selectedItem.score)}%
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-5 border-t border-[#EAE7DD] bg-slate-50 flex justify-end gap-3">
-                            <button
-                                onClick={() => setSelectedItem(null)}
-                                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
-                            >
-                                Close
-                            </button>
-                            <button
-                                onClick={() => setSelectedItem(null)}
-                                className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition-colors"
-                            >
-                                View Full Report
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Assign Modal */}
-            {showAssignModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900">Assign Work</h3>
-                            <button onClick={() => setShowAssignModal(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleAssignSubmit} className="flex flex-col gap-5">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Practice / Assignment</label>
-                                {availablePacks.length === 0 && !packToAssign ? (
-                                    <div className="text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-2">
-                                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                                        <p>No practice sessions available yet. Use the <strong>AI Generation Panel</strong> to create one first!</p>
-                                    </div>
-                                ) : packToAssign ? (
-                                    <div className="text-slate-900 font-medium px-4 py-3 bg-slate-50 border border-[#EAE7DD] rounded-xl flex justify-between items-center">
-                                        <span>{packToAssign.title}</span>
-                                        <Sparkles size={14} className="text-teal-600" />
-                                    </div>
-                                ) : (
+                {/* Assign Modal */}
+                {showAssignModal && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900">Assign Work</h3>
+                                <button onClick={() => setShowAssignModal(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleAssignSubmit} className="flex flex-col gap-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Practice / Assignment</label>
+                                    {availablePacks.length === 0 && !packToAssign ? (
+                                        <div className="text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-2">
+                                            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                            <p>No practice sessions available yet. Use the <strong>AI Generation Panel</strong> to create one first!</p>
+                                        </div>
+                                    ) : packToAssign ? (
+                                        <div className="text-slate-900 font-medium px-4 py-3 bg-slate-50 border border-[#EAE7DD] rounded-xl flex justify-between items-center">
+                                            <span>{packToAssign.title}</span>
+                                            <Sparkles size={14} className="text-teal-600" />
+                                        </div>
+                                    ) : (
+                                        <select
+                                            required
+                                            value={assignPackId}
+                                            onChange={(e) => setAssignPackId(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
+                                        >
+                                            <option value="" disabled>-- Select work to assign --</option>
+                                            {availablePacks.map(p => (
+                                                <option key={p.id} value={p.id}>{p.title} ({p.topic})</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Class</label>
                                     <select
                                         required
-                                        value={assignPackId}
-                                        onChange={(e) => setAssignPackId(e.target.value)}
+                                        value={assignClassId}
+                                        onChange={(e) => setAssignClassId(e.target.value)}
                                         className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
                                     >
-                                        <option value="" disabled>-- Select work to assign --</option>
-                                        {availablePacks.map(p => (
-                                            <option key={p.id} value={p.id}>{p.title} ({p.topic})</option>
+                                        <option value="" disabled>-- Select a class --</option>
+                                        {myClasses.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
                                     </select>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Class</label>
-                                <select
-                                    required
-                                    value={assignClassId}
-                                    onChange={(e) => setAssignClassId(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
-                                >
-                                    <option value="" disabled>-- Select a class --</option>
-                                    {myClasses.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Due Date</label>
-                                <input
-                                    required
-                                    type="date"
-                                    value={assignDueDate}
-                                    onChange={(e) => setAssignDueDate(e.target.value)}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description (Optional)</label>
-                                <textarea
-                                    value={assignDescription}
-                                    onChange={(e) => setAssignDescription(e.target.value)}
-                                    placeholder="Add instructions for your students..."
-                                    rows={3}
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 resize-none bg-white"
-                                />
-                            </div>
-                            {assigningError && (
-                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
-                                    {assigningError}
                                 </div>
-                            )}
-                            <div className="flex justify-end gap-3 mt-2">
-                                <button type="button" onClick={() => setShowAssignModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={assigning} className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors">
-                                    {assigning ? 'Assigning...' : 'Assign Pack'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Targeted Practice Modal (Milestone 2) */}
-            {insightAssignModalOpen && insightToAssign && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setInsightAssignModalOpen(false)} />
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Sparkles className="text-teal-600 w-5 h-5" />
-                                Targeted Practice
-                            </h3>
-                            <button onClick={() => setInsightAssignModalOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-xl flex gap-3">
-                            <AlertCircle className="shrink-0 text-orange-500 mt-0.5" size={18} />
-                            <div>
-                                <h4 className="font-semibold text-slate-800 text-sm">Addressing Insight:</h4>
-                                <p className="text-sm text-slate-600 mt-1">
-                                    {insightToAssign.type === 'weak_topic'
-                                        ? `${insightToAssign.studentName} is struggling with ${insightToAssign.topicTag}.`
-                                        : `${insightToAssign.className} needs review on ${insightToAssign.assignmentTitle || 'recent topics'}.`}
-                                </p>
-                            </div>
-                        </div>
-
-                        {insightGenerating ? (
-                            <div className="flex flex-col items-center justify-center py-8">
-                                <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-teal-600 animate-spin mb-3"></div>
-                                <p className="text-slate-600 font-medium">✨ AI is crafting practice questions...</p>
-                                <p className="text-xs text-slate-400 mt-2 italic">(Mocked LLM generation)</p>
-                            </div>
-                        ) : insightGeneratedPack ? (
-                            <form onSubmit={handleInsightAssignSubmit} className="flex flex-col gap-5">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Generated Pack</label>
-                                    <div className="text-slate-900 font-medium px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl flex justify-between items-center">
-                                        <span>{insightGeneratedPack.title}</span>
-                                        <span className="text-xs font-bold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">5 Qs</span>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Due Date</label>
+                                    <input
+                                        required
+                                        type="date"
+                                        value={assignDueDate}
+                                        onChange={(e) => setAssignDueDate(e.target.value)}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description (Optional)</label>
+                                    <textarea
+                                        value={assignDescription}
+                                        onChange={(e) => setAssignDescription(e.target.value)}
+                                        placeholder="Add instructions for your students..."
+                                        rows={3}
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 resize-none bg-white"
+                                    />
+                                </div>
+                                {assigningError && (
+                                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                        {assigningError}
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-2 px-1">
-                                        {insightGeneratedPack.description}
+                                )}
+                                <div className="flex justify-end gap-3 mt-2">
+                                    <button type="button" onClick={() => setShowAssignModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={assigning} className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors">
+                                        {assigning ? 'Assigning...' : 'Assign Pack'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Targeted Practice Modal (Milestone 2) */}
+                {insightAssignModalOpen && insightToAssign && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setInsightAssignModalOpen(false)} />
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="text-teal-600 w-5 h-5" />
+                                    Targeted Practice
+                                </h3>
+                                <button onClick={() => setInsightAssignModalOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-xl flex gap-3">
+                                <AlertCircle className="shrink-0 text-orange-500 mt-0.5" size={18} />
+                                <div>
+                                    <h4 className="font-semibold text-slate-800 text-sm">Addressing Insight:</h4>
+                                    <p className="text-sm text-slate-600 mt-1">
+                                        {insightToAssign.type === 'weak_topic'
+                                            ? `${insightToAssign.studentName} is struggling with ${insightToAssign.topicTag}.`
+                                            : `${insightToAssign.className} needs review on ${insightToAssign.assignmentTitle || 'recent topics'}.`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {insightGenerating ? (
+                                <div className="flex flex-col items-center justify-center py-8">
+                                    <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-teal-600 animate-spin mb-3"></div>
+                                    <p className="text-slate-600 font-medium">✨ AI is crafting practice questions...</p>
+                                    <p className="text-xs text-slate-400 mt-2 italic">(Mocked LLM generation)</p>
+                                </div>
+                            ) : insightGeneratedPack ? (
+                                <form onSubmit={handleInsightAssignSubmit} className="flex flex-col gap-5">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Generated Pack</label>
+                                        <div className="text-slate-900 font-medium px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl flex justify-between items-center">
+                                            <span>{insightGeneratedPack.title}</span>
+                                            <span className="text-xs font-bold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">5 Qs</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-2 px-1">
+                                            {insightGeneratedPack.description}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Target</label>
+                                            <div className="px-4 py-2.5 bg-slate-50 border border-[#EAE7DD] rounded-xl text-sm font-medium text-slate-700">
+                                                {insightToAssign.studentName || insightToAssign.className}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Due Date</label>
+                                            <input
+                                                required
+                                                type="date"
+                                                value={insightDueDate}
+                                                onChange={(e) => setInsightDueDate(e.target.value)}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {insightAssigningError && (
+                                        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                            {insightAssigningError}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end gap-3 mt-2">
+                                        <button type="button" onClick={() => setInsightAssignModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" disabled={insightAssigning} className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2">
+                                            <Send size={16} />
+                                            {insightAssigning ? 'Sending...' : 'Assign Now'}
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : null}
+                        </div>
+                    </div>
+                )}
+
+                {/* Nudge Modal */}
+                {nudgeModalOpen && nudgeInsight && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setNudgeModalOpen(false)} />
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Send className="text-orange-500 w-5 h-5" />
+                                    Send a Nudge
+                                </h3>
+                                <button onClick={() => setNudgeModalOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-xl flex gap-3">
+                                <AlertCircle className="shrink-0 text-orange-500 mt-0.5" size={18} />
+                                <div>
+                                    <h4 className="font-semibold text-slate-800 text-sm">To: {nudgeInsight.studentName}</h4>
+                                    <p className="text-sm text-slate-600 mt-1">
+                                        {nudgeInsight.type === 'weak_topic'
+                                            ? `Identifying that they are struggling with ${nudgeInsight.topicTag}.`
+                                            : `Addressing ${nudgeInsight.assignmentTitle || 'recent performance'}.`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Your Message</label>
+                                    <textarea
+                                        autoFocus
+                                        value={nudgeText}
+                                        onChange={(e) => setNudgeText(e.target.value)}
+                                        placeholder={`Hi ${nudgeInsight.studentName.split(' ')[0]}, just a quick nudge to...`}
+                                        rows={4}
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 resize-none bg-white"
+                                    />
+                                    <p className="text-xs text-slate-400 mt-2 px-1">
+                                        This will appear as a personal message on their dashboard.
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Target</label>
-                                        <div className="px-4 py-2.5 bg-slate-50 border border-[#EAE7DD] rounded-xl text-sm font-medium text-slate-700">
-                                            {insightToAssign.studentName || insightToAssign.className}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Due Date</label>
-                                        <input
-                                            required
-                                            type="date"
-                                            value={insightDueDate}
-                                            onChange={(e) => setInsightDueDate(e.target.value)}
-                                            min={new Date().toISOString().split('T')[0]}
-                                            className="w-full px-3 py-2.5 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
-                                        />
-                                    </div>
-                                </div>
-
-                                {insightAssigningError && (
+                                {nudgeError && (
                                     <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
-                                        {insightAssigningError}
+                                        {nudgeError}
                                     </div>
                                 )}
 
                                 <div className="flex justify-end gap-3 mt-2">
-                                    <button type="button" onClick={() => setInsightAssignModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                    <button type="button" onClick={() => setNudgeModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
                                         Cancel
                                     </button>
-                                    <button type="submit" disabled={insightAssigning} className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2">
-                                        <Send size={16} />
-                                        {insightAssigning ? 'Sending...' : 'Assign Now'}
+                                    <button
+                                        onClick={handleSendNudge}
+                                        disabled={isSendingNudge || !nudgeText.trim()}
+                                        className="px-5 py-2.5 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                                    >
+                                        {isSendingNudge ? (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send size={16} />
+                                                Send Nudge
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* ── Create Class Modal ── */}
+                {showCreateClass && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowCreateClass(false); setCreateClassError(null); }} />
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Plus className="text-teal-600 w-5 h-5" />
+                                    Create New Class
+                                </h3>
+                                <button
+                                    onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
+                                    className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleCreateClass} className="flex flex-col gap-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Class Name <span className="text-red-500">*</span></label>
+                                    <input
+                                        required
+                                        type="text"
+                                        value={newClassName}
+                                        onChange={(e) => setNewClassName(e.target.value)}
+                                        placeholder="e.g. Sec 3 Mathematics"
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Subject <span className="text-red-500">*</span></label>
+                                    <select
+                                        required
+                                        value={newClassSubject}
+                                        onChange={(e) => setNewClassSubject(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white text-slate-700"
+                                    >
+                                        <option value="" disabled>-- Select a subject --</option>
+                                        <option>Mathematics</option>
+                                        <option>Science</option>
+                                        <option>English</option>
+                                        <option>Physics</option>
+                                        <option>Chemistry</option>
+                                        <option>Biology</option>
+                                        <option>History</option>
+                                        <option>Geography</option>
+                                        <option>Literature</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Schedule <span className="text-slate-400 font-normal">(optional)</span></label>
+                                    <input
+                                        type="text"
+                                        value={newClassSchedule}
+                                        onChange={(e) => setNewClassSchedule(e.target.value)}
+                                        placeholder="e.g. Mon & Wed, 2:00 PM"
+                                        className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
+                                    />
+                                    <p className="text-xs text-slate-400 mt-1.5 px-1">This will be shown on the class card for quick reference.</p>
+                                </div>
+
+                                {createClassError && (
+                                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                        {createClassError}
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end gap-3 mt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
+                                        className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={creatingClass}
+                                        className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                                    >
+                                        {creatingClass ? (
+                                            <><RefreshCw className="w-4 h-4 animate-spin" /> Creating...</>
+                                        ) : (
+                                            <><Plus size={16} /> Create Class</>
+                                        )}
                                     </button>
                                 </div>
                             </form>
-                        ) : null}
-                    </div>
-                </div>
-            )}
-
-            {/* Nudge Modal */}
-            {nudgeModalOpen && nudgeInsight && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setNudgeModalOpen(false)} />
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Send className="text-orange-500 w-5 h-5" />
-                                Send a Nudge
-                            </h3>
-                            <button onClick={() => setNudgeModalOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-xl flex gap-3">
-                            <AlertCircle className="shrink-0 text-orange-500 mt-0.5" size={18} />
-                            <div>
-                                <h4 className="font-semibold text-slate-800 text-sm">To: {nudgeInsight.studentName}</h4>
-                                <p className="text-sm text-slate-600 mt-1">
-                                    {nudgeInsight.type === 'weak_topic'
-                                        ? `Identifying that they are struggling with ${nudgeInsight.topicTag}.`
-                                        : `Addressing ${nudgeInsight.assignmentTitle || 'recent performance'}.`}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Your Message</label>
-                                <textarea
-                                    autoFocus
-                                    value={nudgeText}
-                                    onChange={(e) => setNudgeText(e.target.value)}
-                                    placeholder={`Hi ${nudgeInsight.studentName.split(' ')[0]}, just a quick nudge to...`}
-                                    rows={4}
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 resize-none bg-white"
-                                />
-                                <p className="text-xs text-slate-400 mt-2 px-1">
-                                    This will appear as a personal message on their dashboard.
-                                </p>
-                            </div>
-
-                            {nudgeError && (
-                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
-                                    {nudgeError}
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-3 mt-2">
-                                <button type="button" onClick={() => setNudgeModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-                                    Cancel
-                                </button>
-                                <button 
-                                    onClick={handleSendNudge}
-                                    disabled={isSendingNudge || !nudgeText.trim()} 
-                                    className="px-5 py-2.5 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
-                                >
-                                    {isSendingNudge ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send size={16} />
-                                            Send Nudge
-                                        </>
-                                    )}
-                                </button>
-                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-            {/* ── Create Class Modal ── */}
-            {showCreateClass && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowCreateClass(false); setCreateClassError(null); }} />
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Plus className="text-teal-600 w-5 h-5" />
-                                Create New Class
-                            </h3>
-                            <button
-                                onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
-                                className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleCreateClass} className="flex flex-col gap-5">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Class Name <span className="text-red-500">*</span></label>
-                                <input
-                                    required
-                                    type="text"
-                                    value={newClassName}
-                                    onChange={(e) => setNewClassName(e.target.value)}
-                                    placeholder="e.g. Sec 3 Mathematics"
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Subject <span className="text-red-500">*</span></label>
-                                <select
-                                    required
-                                    value={newClassSubject}
-                                    onChange={(e) => setNewClassSubject(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white text-slate-700"
-                                >
-                                    <option value="" disabled>-- Select a subject --</option>
-                                    <option>Mathematics</option>
-                                    <option>Science</option>
-                                    <option>English</option>
-                                    <option>Physics</option>
-                                    <option>Chemistry</option>
-                                    <option>Biology</option>
-                                    <option>History</option>
-                                    <option>Geography</option>
-                                    <option>Literature</option>
-                                    <option>Other</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Schedule <span className="text-slate-400 font-normal">(optional)</span></label>
-                                <input
-                                    type="text"
-                                    value={newClassSchedule}
-                                    onChange={(e) => setNewClassSchedule(e.target.value)}
-                                    placeholder="e.g. Mon & Wed, 2:00 PM"
-                                    className="w-full px-4 py-3 rounded-xl border border-[#EAE7DD] text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-white"
-                                />
-                                <p className="text-xs text-slate-400 mt-1.5 px-1">This will be shown on the class card for quick reference.</p>
-                            </div>
-
-                            {createClassError && (
-                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
-                                    {createClassError}
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-3 mt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowCreateClass(false); setCreateClassError(null); }}
-                                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={creatingClass}
-                                    className="px-5 py-2.5 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm transition-colors flex items-center gap-2"
-                                >
-                                    {creatingClass ? (
-                                        <><RefreshCw className="w-4 h-4 animate-spin" /> Creating...</>
-                                    ) : (
-                                        <><Plus size={16} /> Create Class</>
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
         </div>
     );
 }

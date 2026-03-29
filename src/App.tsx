@@ -64,20 +64,21 @@ export const Header = () => {
   return (
     <header className="absolute top-0 left-0 right-0 z-50 border-b border-white/10 bg-elora-400/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer text-white">
-          <Link to="/" className="flex items-center hover:opacity-90 transition-opacity">
-            <EloraLogo className="w-8 h-8" withWordmark={true} />
+        <div className="flex flex-1 items-center gap-2 cursor-pointer text-white">
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <EloraLogo className="w-8 h-8" />
+            <span className="font-bold text-xl tracking-tight">Elora</span>
           </Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/80">
+        <nav className="hidden md:flex items-center justify-center gap-8 text-sm font-medium text-white/80">
           <a href="#" className="hover:text-white transition-colors">Platform</a>
           <a href="#" className="hover:text-white transition-colors">Solutions</a>
           <a href="#" className="hover:text-white transition-colors">Resources</a>
           <a href="#" className="hover:text-white transition-colors">Pricing</a>
         </nav>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex flex-1 justify-end items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
           <Link to="/teacher/demo" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
             Try a live demo
@@ -571,8 +572,9 @@ export const Footer = () => {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs">
-        <div className="flex items-center text-white mb-4 md:mb-0">
-          <EloraLogo className="w-6 h-6" withWordmark={true} />
+        <div className="flex items-center gap-2.5 text-white mb-4 md:mb-0">
+          <EloraLogo className="w-6 h-6" />
+          <span className="font-bold text-lg tracking-tight">Elora</span>
         </div>
         <div className="flex items-center gap-6">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
@@ -615,10 +617,14 @@ export default function App() {
 
       {/* Demo routes – no auth required */}
       <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
+      <Route path="/teacher/demo/class/:classId" element={<TeacherClassroomPage />} />
       <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
       <Route path="/student/demo" element={<StudentDashboardPage />} />
+      <Route path="/student/demo/classes" element={<StudentDashboardPage activeTab="classes" />} />
+      <Route path="/student/demo/class/:classId" element={<StudentClassroomPage />} />
       <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
       <Route path="/parent/demo" element={<ParentDashboardPage />} />
+      <Route path="/parent/demo/child/:childId/class/:classId" element={<ParentClassroomPage />} />
       <Route path="/parent/copilot/demo" element={<ParentCopilotPage />} />
       <Route path="/dashboard/teacher" element={
         <ProtectedRoute>
@@ -655,6 +661,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <StudentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/classes"
+        element={
+          <ProtectedRoute>
+            <StudentDashboardPage activeTab="classes" />
           </ProtectedRoute>
         }
       />

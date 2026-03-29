@@ -34,8 +34,9 @@ function resolveClassroomTheme({
     bannerStyle,
     playfulBackground,
     subject,
+    role,
 }: any) {
-    return inferClassTheme({
+    const inferred = inferClassTheme({
         id: currentClass?.id || theme?.id || 'classroom',
         name: currentClass?.name || theme?.name || 'Classroom',
         subject: subject ?? theme?.subject ?? currentClass?.subject,
@@ -47,6 +48,12 @@ function resolveClassroomTheme({
                 ? playfulBackground
                 : currentClass?.playfulBackground,
     });
+    
+    if (role === 'student' || role === 'student_demo') {
+        inferred.themeColor = 'purple';
+    }
+    
+    return inferred;
 }
 
 export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher', sublines, onOpenSettings, theme, themeColor, themeAccent, bannerStyle, playfulBackground, subject }: any) {
@@ -57,6 +64,7 @@ export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher'
         bannerStyle,
         playfulBackground,
         subject,
+        role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
     const isPlayful = resolvedTheme.playfulBackground;
@@ -145,12 +153,13 @@ export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher'
     );
 }
 
-export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeAccent, theme, subject, currentClass }: any) {
+export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeAccent, theme, subject, currentClass, role = 'teacher' }: any) {
     const resolvedTheme = resolveClassroomTheme({
         currentClass,
         theme,
         themeColor: themeColor ?? themeAccent,
         subject,
+        role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
     const displayTabs = tabs || [
@@ -171,7 +180,7 @@ export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeA
                         className={`group relative px-4 py-3 my-2 rounded-full text-[15px] font-semibold transition-colors duration-200 outline-none
                             ${isActive
                                 ? `${themeStyles.tabActiveBg} ${themeStyles.tabActiveText}`
-                                : `text-slate-600 hover:bg-slate-50/70 ${themeStyles.tabHoverText}`}`}
+                                : `text-slate-600 ${role === 'student' ? 'hover:bg-purple-50/70 hover:text-purple-700' : `hover:bg-slate-50/70 ${themeStyles.tabHoverText}`}`}`}
                     >
                         {tab.label}
                         <div
@@ -190,6 +199,7 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
         theme,
         themeColor: themeColor ?? themeAccent,
         subject,
+        role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
 
@@ -358,6 +368,7 @@ export function ClassworkTab({ classroomTopicGroups, onNavigateToWork, role = 't
         theme,
         themeColor: themeColor ?? themeAccent,
         subject,
+        role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
 
@@ -421,6 +432,7 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
         theme,
         themeColor: themeColor ?? themeAccent,
         subject,
+        role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
     const students = currentClass?.students || mockStudents; // Fallback to mock data if empty
@@ -446,8 +458,8 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
                             </>
                         ) : (
                             <>
-                                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                    <User className="text-slate-500 w-5 h-5" />
+                                <div className={`w-10 h-10 rounded-full ${themeStyles.chipBg} border ${themeStyles.chipBorder} flex items-center justify-center shrink-0`}>
+                                    <User className={`${themeStyles.chipText} w-5 h-5`} />
                                 </div>
                                 <span className="font-semibold text-slate-900">Mr. T. Explorer</span>
                             </>
@@ -478,7 +490,7 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
 export function GradesTab({ currentClass, role = 'teacher', themeColor, subject }: any) {
     const themeStyles = getClassThemeVariants({
         subject: subject ?? currentClass?.subject,
-        themeColor: themeColor ?? currentClass?.themeColor,
+        themeColor: role === 'student' ? 'purple' : themeColor ?? currentClass?.themeColor,
     });
     const students = currentClass?.students || mockStudents;
     const assignments = [

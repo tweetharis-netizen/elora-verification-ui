@@ -29,6 +29,7 @@ import {
     RefreshCw,
     Heart,
     Sparkles,
+    Menu,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -43,12 +44,12 @@ import {
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
 import { getDemoGamePack, getGamePackById, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
-import EloraAssistantCard from '../components/EloraAssistantCard';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { EloraLogo } from '../components/EloraLogo';
+import { DashboardHeader } from '../components/DashboardHeader';
 import { Link } from 'react-router-dom';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
@@ -56,17 +57,18 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
-import { 
-    demoChildren, 
-    demoChildSummary 
+import {
+    demoChildren,
+    demoChildSummary
 } from '../demo/demoParentScenarioA';
+import { ClassSummaryCard } from '../components/ClassSummaryCard';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
 const BRAND = '#DB844A';
 
 const SIDEBAR_ITEMS = [
     { icon: LayoutDashboard, label: 'Overview', id: 'overview' },
-    { icon: Sparkles, label: 'Elora Copilot', id: 'copilot' },
+    { icon: Sparkles, label: 'Copilot', id: 'copilot' },
     { icon: Users, label: 'Children', id: 'children' },
     { icon: BarChart2, label: 'Progress & Reports', id: 'progress' },
     { icon: FileText, label: 'Assignments & Quizzes', id: 'assignments' },
@@ -114,11 +116,11 @@ function SidebarItem({
         <a
             href="#"
             onClick={(e) => { e.preventDefault(); onClick?.(); }}
-            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''} ${className}`}
+            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
             title={collapsed ? label : undefined}
         >
             <div className="shrink-0">
-                <Icon className="w-5 h-5" />
+                <Icon size={20} />
             </div>
             {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
@@ -175,34 +177,6 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-function ChildSelector({
-    children,
-    activeId,
-    onSelect,
-}: {
-    children: { id: string; name: string; level: string }[];
-    activeId: string | null;
-    onSelect: (id: string) => void;
-}) {
-    return (
-        <div className="flex items-center gap-2">
-            {children.map((child) => (
-                <button
-                    key={child.id}
-                    onClick={() => onSelect(child.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all ${activeId === child.id
-                        ? 'text-white border-transparent shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                    style={activeId === child.id ? { backgroundColor: BRAND, borderColor: BRAND } : {}}
-                >
-                    <UserCircle2 className="w-3.5 h-3.5" />
-                    {child.name} – {child.level}
-                </button>
-            ))}
-        </div>
-    );
-}
 
 function ProgressSection({
     subjectScores,
@@ -654,9 +628,10 @@ export default function ParentDashboardPage() {
     const navigate = useNavigate();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activePage, setActivePage] = useState('overview');
     const sidebarTheme = getRoleSidebarTheme('parent');
-    
+
     // ── Welcome strip state (persisted via localStorage) ──
     const WELCOME_KEY = 'elora_parent_welcome_dismissed';
     const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(
@@ -684,7 +659,7 @@ export default function ParentDashboardPage() {
     const [nudgeText, setNudgeText] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-    const { currentUser, login } = useAuth();
+    const { currentUser, login, logout } = useAuth();
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
@@ -965,7 +940,7 @@ export default function ParentDashboardPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-x-hidden">
             {isDemo && (
                 <>
                     <DemoBanner />
@@ -973,113 +948,97 @@ export default function ParentDashboardPage() {
                 </>
             )}
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1">
+                {/* MOBILE BACKDROP */}
+                {isMobileMenuOpen && (
+                    <div
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden transition-all duration-500 animate-in fade-in"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    />
+                )}
 
-            {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-            <aside
-                className={`flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} ${sidebarTheme.text}`}
-            >
-                {/* Logo + close toggle */}
-                <div className={`p-6 flex items-center border-b ${sidebarTheme.headerBorder} ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-                    <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
-                        <EloraLogo className="w-8 h-8 text-current" withWordmark={isSidebarOpen} />
-                    </Link>
-                    {isSidebarOpen && (
+                {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+                <aside
+                    id="parent-sidebar"
+                    className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all duration-500 ease-in-out 
+                        ${isSidebarOpen ? 'w-64' : 'w-20'} 
+                        ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20
+                        md:sticky md:top-0 md:min-h-screen md:translate-x-0 
+                        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+                        ${sidebarTheme.text}
+                    `}
+                >
+                    {/* Logo + Header area */}
+                    <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                        <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
+                            <EloraLogo className="w-10 h-10 text-current drop-shadow-sm transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
+                        </Link>
+
+                        {/* Mobile close toggle */}
                         <button
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="text-white/60 hover:text-white transition-colors"
-                            title="Close sidebar"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="md:hidden p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                            title="Close menu"
                         >
-                            <PanelLeftClose className="w-4 h-4" />
+                            <X size={22} />
                         </button>
-                    )}
-                </div>
+                    </div>
 
-                {/* Nav */}
-                <nav className="flex-1 px-4 py-4 space-y-1 overflow-hidden">
-                    {SIDEBAR_ITEMS.map((item) => (
-                        <SidebarItem
-                            key={item.id}
-                            icon={item.icon}
-                            label={item.label}
-                            active={activePage === item.id}
-                            collapsed={!isSidebarOpen}
-                            onClick={() => {
-                                if (item.id === 'copilot') {
-                                    navigate('/parent/copilot');
-                                } else {
-                                    setActivePage(item.id);
-                                }
-                            }}
-                            theme={sidebarTheme}
-                        />
-                    ))}
-                </nav>
+                    {/* Navigation Items */}
+                    <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
+                        {SIDEBAR_ITEMS.map((item) => (
+                            <SidebarItem
+                                key={item.id}
+                                icon={item.icon}
+                                label={item.label}
+                                active={activePage === item.id}
+                                collapsed={!isSidebarOpen}
+                                onClick={() => {
+                                    if (item.id === 'copilot') {
+                                        navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot');
+                                    } else {
+                                        setActivePage(item.id);
+                                    }
+                                }}
+                                theme={sidebarTheme}
+                            />
+                        ))}
+                    </nav>
 
-                {/* Footer */}
-                <div className={`p-4 border-t ${sidebarTheme.footerBorder} flex flex-col gap-1`}>
-                    {!isSidebarOpen && (
+                    {/* Footer / System menu */}
+                    <div className={`p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
+                        {!isSidebarOpen && (
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="flex items-center justify-center w-full p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all group mb-2"
+                                title="Expand sidebar"
+                            >
+                                <PanelLeftOpen size={22} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                        )}
+
+                        <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                         <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="flex items-center justify-center w-full p-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
-                            title="Open sidebar"
+                            onClick={logout}
+                            className={`flex w-full items-center gap-4 px-5 py-3.5 rounded-2xl text-[13px] font-bold text-white/60 hover:bg-white/10 hover:text-white transition-all group ${!isSidebarOpen ? 'justify-center' : ''}`}
+                            title={!isSidebarOpen ? "Sign out" : undefined}
                         >
-                            <PanelLeftOpen className="w-5 h-5" />
+                            <LogOut size={22} className="shrink-0 group-hover:-translate-x-1 transition-transform" />
+                            {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                         </button>
-                    )}
-                    <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
-                    <button
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors text-white/80 hover:bg-red-500/20 hover:text-white ${!isSidebarOpen ? 'justify-center' : ''}`}
-                        title={!isSidebarOpen ? 'Sign out' : undefined}
-                    >
-                        <LogOut className="w-5 h-5 shrink-0" />
-                        {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
-                    </button>
-                </div>
-            </aside>
+                    </div>
+                </aside>
 
-            {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    {/* HEADER */}
-                    <header className="flex flex-col md:flex-row md:items-center justify-between py-4 px-0 border-b border-[#EAE7DD] mb-6 gap-4">
-                        <div>
-                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                Parent Dashboard
-                            </div>
-                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                                {`Good day, ${parentName}`}
-                            </h1>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
-                                <p className="text-[13px] text-slate-500 font-medium">You are signed in as Parent</p>
-                                {isDemo && (
-                                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg w-fit">
-                                        <span className="text-[#DB844A] font-bold uppercase tracking-widest text-[9px]">Scenario</span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                        <span>Struggling Class (Sec 3 Mathematics)</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 lg:gap-6">
-                            <div className="relative hidden md:block">
-                                <Search
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                    size={16}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Search classes…"
-                                    className="pl-9 pr-4 py-2 bg-white border border-[#EAE7DD] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 w-56 shadow-sm transition-all"
-                                />
-                            </div>
-                            <div className="hidden md:block">
-                                <ChildSelector
-                                    children={childrenList}
-                                    activeId={activeChildId}
-                                    onSelect={setActiveChildId as any}
-                                />
-                            </div>
+                {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
+                <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                    <DashboardHeader
+                        role="parent"
+                        displayName={parentName}
+                        roleLabel="PARENT"
+                        avatarInitials={parentInitials}
+                        onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+                        searchPlaceholder="Search kids' progress..."
+                        notificationsNode={
                             <NotificationsPopover
                                 items={popoverNotifications}
                                 unreadCount={notificationsUnreadCount}
@@ -1088,129 +1047,216 @@ export default function ParentDashboardPage() {
                                 badgeColor="bg-orange-500"
                                 unreadDotColor="bg-orange-500"
                                 unreadBgColor="bg-orange-50/20"
-                                headerTextColor="text-teal-600"
+                                headerTextColor="text-orange-600"
                             />
-                            <div className="flex items-center gap-3 pl-4 lg:pl-6 border-l border-[#EAE7DD]">
-                                <div className="text-right hidden sm:block">
-                                    <div className="text-sm font-semibold text-slate-900">
-                                        {parentName}
+                        }
+                    />
+                    <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+
+                        <div className="max-w-7xl mx-auto space-y-8">
+
+                            {activePage === 'overview' && (
+                                <div className="bg-[#DB844A] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg border border-[#DB844A] flex flex-col justify-center min-h-[220px]">
+                                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
+                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
+
+                                    <div className="relative z-10 flex flex-col h-full text-white">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                            <Heart size={12} className="text-orange-200" />
+                                            <span>Tracking {childrenList.length} children</span>
+                                        </div>
+                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 leading-tight tracking-tight">
+                                            Hi, {parentName.split(' ')[0]}! <br />
+                                            <span className="text-orange-100">See what {activeChild?.name} is learning today.</span>
+                                        </h1>
+                                        <p className="text-white/80 text-sm max-w-xl leading-relaxed font-medium">
+                                            {activeChild?.name} is currently working on {activeChild?.level}. Stay engaged with real-time updates and supportive nudges.
+                                        </p>
+
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            <button
+                                                onClick={() => setNudgeOpen(true)}
+                                                className="px-5 py-2 bg-white text-[#DB844A] rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                            >
+                                                <Send size={16} />
+                                                Send a Nudge
+                                            </button>
+                                            <button
+                                                onClick={() => setActivePage('progress')}
+                                                className="px-5 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md flex items-center gap-2"
+                                            >
+                                                <BookOpen size={16} />
+                                                View Reports
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-slate-500 font-medium">Parent</div>
                                 </div>
-                                <div
-                                    className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-semibold border border-teal-200 shadow-sm"
-                                >
-                                    {parentInitials}
+                            )}
+
+                            {activePage !== 'overview' && (
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                    <div>
+                                        <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">
+                                            {activePage === 'progress' && 'Progress & Reports'}
+                                            {activePage === 'assignments' && 'Assignments & Quizzes'}
+                                            {activePage === 'messages' && 'Messages & Tips'}
+                                            {activePage === 'children' && 'My Children'}
+                                        </h1>
+                                        {activeChild && (
+                                            <p className="text-[15px] text-slate-500 mt-1">
+                                                Viewing{' '}
+                                                <span className="font-medium" style={{ color: BRAND }}>
+                                                    {activeChild.name}
+                                                </span>{' '}
+                                                – {activeChild.level}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <button
+                                            onClick={() => setNudgeOpen(true)}
+                                            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm hover:opacity-90"
+                                            style={{ backgroundColor: BRAND }}
+                                        >
+                                            <Send className="w-4 h-4" />
+                                            Send a Nudge
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </header>
+                            )}
 
-                    <div className="max-w-7xl mx-auto space-y-8">
-
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                            <div>
-                                <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">
-                                    {activePage === 'overview' && `Hi, ${parentName}`}
-                                    {activePage === 'overview' && showNudgeSuccess && (
-                                        <span className="text-sm font-medium text-teal-600 animate-in fade-in slide-in-from-left-2 duration-300 ml-3">
-                                            ✓ Message sent to {activeChild?.name}!
-                                        </span>
-                                    )}
-                                    {activePage === 'progress' && 'Progress & Reports'}
-                                    {activePage === 'assignments' && 'Assignments & Quizzes'}
-                                    {activePage === 'messages' && 'Messages & Tips'}
-                                    {activePage === 'children' && 'My Children'}
-                                </h1>
-                                {activeChild && (
-                                    <p className="text-[15px] text-slate-500 mt-1">
-                                        Viewing{' '}
-                                        <span className="font-medium" style={{ color: BRAND }}>
-                                            {activeChild.name}
-                                        </span>{' '}
-                                        – {activeChild.level}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                                {/* Mobile child pills */}
-                                <div className="flex md:hidden">
-                                    <ChildSelector
-                                        children={childrenList}
-                                        activeId={activeChildId}
-                                        onSelect={setActiveChildId as any}
+                            {/* ── DATA VIEW ── */}
+                            {isLoading && !activeChild ? (
+                                <div className="space-y-6">
+                                    <SectionSkeleton rows={3} />
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <SectionSkeleton rows={5} />
+                                        <SectionSkeleton rows={5} />
+                                    </div>
+                                </div>
+                            ) : loadError && !activeChild ? (
+                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                    <SectionError
+                                        message="We encountered an issue loading your family data. Please try again."
+                                        onRetry={handleRetry}
                                     />
                                 </div>
-                                <button
-                                    onClick={() => setNudgeOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm hover:opacity-90"
-                                    style={{ backgroundColor: BRAND }}
-                                >
-                                    <Send className="w-4 h-4" />
-                                    Send a Nudge
-                                </button>
-                                <button
-                                    onClick={() => setActivePage('progress')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg text-[14px] font-medium transition-colors shadow-sm"
-                                >
-                                    <BookOpen className="w-4 h-4" />
-                                    View Reports
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ── DATA VIEW ── */}
-                        {isLoading && !activeChild ? (
-                            <div className="space-y-8">
-                                <SectionSkeleton rows={3} />
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    <SectionSkeleton rows={5} />
-                                    <SectionSkeleton rows={5} />
+                            ) : !activeChild ? (
+                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                    <SectionEmpty
+                                        headline="No children found"
+                                        detail="It looks like there are no students linked to this parent account. Please contact support if this is an error."
+                                    />
                                 </div>
-                            </div>
-                        ) : loadError && !activeChild ? (
-                            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
-                                <SectionError
-                                    message="We encountered an issue loading your family data. Please try again."
-                                    onRetry={handleRetry}
-                                />
-                            </div>
-                        ) : !activeChild ? (
-                            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
-                                <SectionEmpty
-                                    headline="No children found"
-                                    detail="It looks like there are no students linked to this parent account. Please contact support if this is an error."
-                                />
-                            </div>
-                        ) : (
-                            <div className="relative">
-                                {/* Loading Overlay (Optional, but user wanted sections to handle it) */}
-                                {/* We now pass isLoading and loadError to sections individually */}
-                                <>
+                            ) : (
+                                <div className="relative">
+                                    {/* Loading Overlay (Optional, but user wanted sections to handle it) */}
+                                    {/* We now pass isLoading and loadError to sections individually */}
+                                    <>
 
-                                    {/* ── OVERVIEW ──────────────────────────────────────────────── */}
-                                    {activePage === 'overview' && (
-                                        <>
-                                            <DashboardTour 
-                                                role="parent"
-                                                isVisible={!welcomeDismissed}
-                                                onAction1={() => {
-                                                    const card = document.getElementById('elora-assistant-card');
-                                                    card?.scrollIntoView({ behavior: 'smooth' });
-                                                }}
-                                                onAction2={() => setActivePage('progress')}
-                                                onDismiss={handleDismissWelcome}
-                                            />
-                                            {/* TODAY AT A GLANCE – SUMMARY TILES */}
-                                            <div>
-                                                <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                                                    Today at a glance – {activeChild?.name}
-                                                </h2>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {/* ── OVERVIEW ──────────────────────────────────────────────── */}
+                                        {activePage === 'overview' && (
+                                            <>
+                                                <DashboardTour
+                                                    role="parent"
+                                                    isVisible={!welcomeDismissed}
+                                                    onAction1={() => setActivePage('copilot')}
+                                                    onAction2={() => setActivePage('progress')}
+                                                    onDismiss={handleDismissWelcome}
+                                                />
+                                                {/* TODAY AT A GLANCE – SUMMARY TILES */}
+                                                <div>
+                                                    <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                                        Today at a glance – {activeChild?.name}
+                                                    </h2>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        {isLoading ? (
+                                                            Array.from({ length: 4 }).map((_, i) => (
+                                                                <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 flex items-center gap-4 animate-pulse">
+                                                                    <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
+                                                                    <div className="flex-1 space-y-2">
+                                                                        <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                                                                        <div className="h-4 bg-slate-200 rounded w-3/4" />
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : loadError ? (
+                                                            <div className="col-span-full">
+                                                                <SectionError
+                                                                    message={`We couldn't load ${activeChild?.name}'s stats.`}
+                                                                    onRetry={handleRetry}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            stats.map((stat, i) => (
+                                                                <SummaryCard
+                                                                    key={i}
+                                                                    icon={stat.icon}
+                                                                    label={stat.label}
+                                                                    value={stat.value}
+                                                                    trend={stat.trend}
+                                                                />
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* TWO-COLUMN LAYOUT */}
+                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                                                    <div className="lg:col-span-2 space-y-6">
+                                                        <ProgressSection
+                                                            subjectScores={subjectScores}
+                                                            weakTopics={weakTopics}
+                                                            perfTab={perfTab}
+                                                            onTabChange={setPerfTab}
+                                                            isLoading={isLoading}
+                                                            isError={!!loadError}
+                                                            onRetry={handleRetry}
+                                                            childName={activeChild?.name}
+                                                            lastUpdated={lastUpdated}
+                                                        />
+                                                        <ActivityList
+                                                            activities={recentActivity}
+                                                            filter={activityFilter}
+                                                            onFilterChange={setActivityFilter}
+                                                            onActivityClick={handleActivityClick}
+                                                            isLoading={isLoading}
+                                                            isError={!!loadError}
+                                                            onRetry={handleRetry}
+                                                            childName={activeChild?.name}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-6 lg:mt-8">
+                                                        <UpcomingList
+                                                            items={upcoming}
+                                                            onViewAll={() => setActivePage('assignments')}
+                                                            isLoading={isLoading}
+                                                            isError={!!loadError}
+                                                            onRetry={handleRetry}
+                                                            childName={activeChild?.name}
+                                                        />
+                                                        <MessageFeed
+                                                            messages={messages}
+                                                            tips={tips}
+                                                            activeTab={msgTab}
+                                                            onTabChange={setMsgTab}
+                                                            isLoading={isLoading}
+                                                            isError={!!loadError}
+                                                            onRetry={handleRetry}
+                                                            childName={activeChild?.name}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* ── PROGRESS & REPORTS ────────────────────────────────────── */}
+                                        {activePage === 'progress' && (
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     {isLoading ? (
-                                                        Array.from({ length: 4 }).map((_, i) => (
-                                                            <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 flex items-center gap-4 animate-pulse">
+                                                        Array.from({ length: 3 }).map((_, i) => (
+                                                            <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-6 flex items-center gap-4 animate-pulse">
                                                                 <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
                                                                 <div className="flex-1 space-y-2">
                                                                     <div className="h-2.5 bg-slate-100 rounded w-1/2" />
@@ -1220,318 +1266,224 @@ export default function ParentDashboardPage() {
                                                         ))
                                                     ) : loadError ? (
                                                         <div className="col-span-full">
-                                                            <SectionError
-                                                                message={`We couldn't load ${activeChild?.name}'s stats.`}
-                                                                onRetry={handleRetry}
-                                                            />
+                                                            <SectionError message={`We couldn't load ${activeChild?.name}'s status cards.`} onRetry={handleRetry} />
                                                         </div>
                                                     ) : (
                                                         stats.map((stat, i) => (
-                                                            <SummaryCard
-                                                                key={i}
-                                                                icon={stat.icon}
-                                                                label={stat.label}
-                                                                value={stat.value}
-                                                                trend={stat.trend}
-                                                            />
+                                                            <SummaryCard key={i} icon={stat.icon} label={stat.label} value={stat.value} trend={stat.trend} />
                                                         ))
                                                     )}
                                                 </div>
-                                            </div>
-
-                                            {/* TWO-COLUMN LAYOUT */}
-                                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
-                                                <div className="lg:col-span-2 space-y-8">
-                                                    <ProgressSection
-                                                        subjectScores={subjectScores}
-                                                        weakTopics={weakTopics}
-                                                        perfTab={perfTab}
-                                                        onTabChange={setPerfTab}
-                                                        isLoading={isLoading}
-                                                        isError={!!loadError}
-                                                        onRetry={handleRetry}
-                                                        childName={activeChild?.name}
-                                                        lastUpdated={lastUpdated}
-                                                    />
-                                                    <ActivityList
-                                                        activities={recentActivity}
-                                                        filter={activityFilter}
-                                                        onFilterChange={setActivityFilter}
-                                                        onActivityClick={handleActivityClick}
-                                                        isLoading={isLoading}
-                                                        isError={!!loadError}
-                                                        onRetry={handleRetry}
-                                                        childName={activeChild?.name}
-                                                    />
-                                                </div>
-                                                <div className="space-y-8 lg:mt-10" id="elora-assistant-card">
-                                                    <EloraAssistantCard
-                                                        role="parent"
-                                                        assistantName={currentUser?.assistantName}
-                                                        title={`Ask Elora about ${activeChild?.name || 'your child'}'s learning`}
-                                                        description="Get a clear explanation of how they're doing and what to focus on next."
-                                                        suggestedPrompts={[
-                                                            'What should we focus on this week?',
-                                                            'Explain today\'s weak topics in simple terms.',
-                                                            `How can I support ${activeChild?.name || 'my child'} before the next test?`,
-                                                            `Is ${activeChild?.name || 'my child'} on track in math and English?`,
-                                                        ]}
-                                                        accentClasses={{
-                                                            chipBg: 'bg-orange-50',
-                                                            buttonBg: 'bg-orange-500',
-                                                            iconBg: 'bg-orange-50',
-                                                            text: 'text-orange-700',
-                                                        }}
-                                                        status={eloraStatus}
-                                                        suggestion={eloraSuggestion}
-                                                        error={eloraError}
-                                                        emptyStateText={`Ask Elora one question about ${activeChild?.name || 'your child'}'s learning to start.`}
-                                                    />
-                                                    <UpcomingList
-                                                        items={upcoming}
-                                                        onViewAll={() => setActivePage('assignments')}
-                                                        isLoading={isLoading}
-                                                        isError={!!loadError}
-                                                        onRetry={handleRetry}
-                                                        childName={activeChild?.name}
-                                                    />
-                                                    <MessageFeed
-                                                        messages={messages}
-                                                        tips={tips}
-                                                        activeTab={msgTab}
-                                                        onTabChange={setMsgTab}
-                                                        isLoading={isLoading}
-                                                        isError={!!loadError}
-                                                        onRetry={handleRetry}
-                                                        childName={activeChild?.name}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {/* ── PROGRESS & REPORTS ────────────────────────────────────── */}
-                                    {activePage === 'progress' && (
-                                        <div className="space-y-8">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {isLoading ? (
-                                                    Array.from({ length: 3 }).map((_, i) => (
-                                                        <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-6 flex items-center gap-4 animate-pulse">
-                                                            <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
-                                                            <div className="flex-1 space-y-2">
-                                                                <div className="h-2.5 bg-slate-100 rounded w-1/2" />
-                                                                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                                                <ProgressSection
+                                                    subjectScores={subjectScores}
+                                                    weakTopics={weakTopics}
+                                                    perfTab={perfTab}
+                                                    onTabChange={setPerfTab}
+                                                    isLoading={isLoading}
+                                                    isError={!!loadError}
+                                                    onRetry={handleRetry}
+                                                    childName={activeChild?.name}
+                                                    lastUpdated={lastUpdated}
+                                                />
+                                                {!isLoading && !loadError && (
+                                                    weakTopics.length > 0 ? (
+                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                            <div className="flex items-center">
+                                                                <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-orange-50 text-orange-700 border-orange-200">
+                                                                    Needs practice
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="text-[14px] font-medium text-slate-900">
+                                                                    {weakTopics.join(', ')}
+                                                                </span>
+                                                                <span className="text-[13px] text-slate-500 leading-relaxed">
+                                                                    {activeChild?.name} could use a bit more support here.
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                    ))
-                                                ) : loadError ? (
-                                                    <div className="col-span-full">
-                                                        <SectionError message={`We couldn't load ${activeChild?.name}'s status cards.`} onRetry={handleRetry} />
-                                                    </div>
-                                                ) : (
-                                                    stats.map((stat, i) => (
-                                                        <SummaryCard key={i} icon={stat.icon} label={stat.label} value={stat.value} trend={stat.trend} />
-                                                    ))
+                                                    ) : (
+                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                            <div className="flex items-center">
+                                                                <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-teal-50 text-teal-700 border-teal-200">
+                                                                    On track
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="text-[14px] font-medium text-slate-900">
+                                                                    Looking great overall
+                                                                </span>
+                                                                <span className="text-[13px] text-slate-500 leading-relaxed">
+                                                                    Everyone is on track in the current topics.
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )
                                                 )}
                                             </div>
-                                            <ProgressSection
-                                                subjectScores={subjectScores}
-                                                weakTopics={weakTopics}
-                                                perfTab={perfTab}
-                                                onTabChange={setPerfTab}
-                                                isLoading={isLoading}
-                                                isError={!!loadError}
-                                                onRetry={handleRetry}
-                                                childName={activeChild?.name}
-                                                lastUpdated={lastUpdated}
-                                            />
-                                            {!isLoading && !loadError && (
-                                                weakTopics.length > 0 ? (
-                                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                                                        <div className="flex items-center">
-                                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-orange-50 text-orange-700 border-orange-200">
-                                                                Needs practice
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="text-[14px] font-medium text-slate-900">
-                                                                {weakTopics.join(', ')}
-                                                            </span>
-                                                            <span className="text-[13px] text-slate-500 leading-relaxed">
-                                                                {activeChild?.name} could use a bit more support here.
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                                                        <div className="flex items-center">
-                                                            <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-teal-50 text-teal-700 border-teal-200">
-                                                                On track
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="text-[14px] font-medium text-slate-900">
-                                                                Looking great overall
-                                                            </span>
-                                                            <span className="text-[13px] text-slate-500 leading-relaxed">
-                                                                Everyone is on track in the current topics.
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            )}
-                                        </div>
-                                    )}
+                                        )}
 
-                                    {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
-                                    {activePage === 'assignments' && (
-                                        <div className="space-y-8">
-                                            <UpcomingList
-                                                items={upcoming}
-                                                onViewAll={() => setActivePage('assignments')}
-                                                isLoading={isLoading}
-                                                isError={!!loadError}
-                                                onRetry={handleRetry}
-                                                childName={activeChild?.name}
-                                            />
-                                            <ActivityList
-                                                activities={recentActivity}
-                                                filter={activityFilter}
-                                                onFilterChange={setActivityFilter}
-                                                onActivityClick={handleActivityClick}
-                                                isLoading={isLoading}
-                                                isError={!!loadError}
-                                                onRetry={handleRetry}
-                                                childName={activeChild?.name}
-                                            />
-                                        </div>
-                                    )}
+                                        {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
+                                        {activePage === 'assignments' && (
+                                            <div className="space-y-6">
+                                                <UpcomingList
+                                                    items={upcoming}
+                                                    onViewAll={() => setActivePage('assignments')}
+                                                    isLoading={isLoading}
+                                                    isError={!!loadError}
+                                                    onRetry={handleRetry}
+                                                    childName={activeChild?.name}
+                                                />
+                                                <ActivityList
+                                                    activities={recentActivity}
+                                                    filter={activityFilter}
+                                                    onFilterChange={setActivityFilter}
+                                                    onActivityClick={handleActivityClick}
+                                                    isLoading={isLoading}
+                                                    isError={!!loadError}
+                                                    onRetry={handleRetry}
+                                                    childName={activeChild?.name}
+                                                />
+                                            </div>
+                                        )}
 
-                                    {/* ── MESSAGES & TIPS ───────────────────────────────────────── */}
-                                    {activePage === 'messages' && (
-                                        <div className="max-w-2xl">
-                                            <MessageFeed
-                                                messages={messages}
-                                                tips={tips}
-                                                activeTab={msgTab}
-                                                onTabChange={setMsgTab}
-                                                isLoading={isLoading}
-                                                isError={!!loadError}
-                                                onRetry={handleRetry}
-                                                childName={activeChild?.name}
-                                            />
-                                        </div>
-                                    )}
+                                        {/* ── MESSAGES & TIPS ───────────────────────────────────────── */}
+                                        {activePage === 'messages' && (
+                                            <div className="max-w-2xl">
+                                                <MessageFeed
+                                                    messages={messages}
+                                                    tips={tips}
+                                                    activeTab={msgTab}
+                                                    onTabChange={setMsgTab}
+                                                    isLoading={isLoading}
+                                                    isError={!!loadError}
+                                                    onRetry={handleRetry}
+                                                    childName={activeChild?.name}
+                                                />
+                                            </div>
+                                        )}
 
-                                    {/* ── CHILDREN ──────────────────────────────────────────────── */}
-                                    {activePage === 'children' && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {childrenList.map(child => (
-                                                <button
-                                                    key={child.id}
-                                                    onClick={() => { setActiveChildId(child.id); setActivePage('overview'); }}
-                                                    className={`p-6 rounded-xl border text-left transition-all hover:shadow-md ${activeChildId === child.id ? 'border-transparent shadow-md' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                                                    style={activeChildId === child.id ? { backgroundColor: `${BRAND}10`, borderColor: BRAND } : {}}
-                                                >
-                                                    <div
-                                                        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[18px] font-bold mb-4"
-                                                        style={{ backgroundColor: BRAND }}
-                                                    >
-                                                        {child.name.charAt(0)}
-                                                    </div>
-                                                    <div className="text-[16px] font-semibold text-slate-900">{child.name}</div>
-                                                    <div className="text-[13px] text-slate-500 mt-1">{(child as any).level || 'Student'}</div>
-                                                    {activeChildId === child.id && (
-                                                        <div className="mt-3 text-[12px] font-semibold" style={{ color: BRAND }}>Currently viewing</div>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+                                        {/* ── CHILDREN ──────────────────────────────────────────────── */}
+                                        {activePage === 'children' && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                                {childrenList.map(child => (
+                                                    <ClassSummaryCard
+                                                        key={child.id}
+                                                        role="parent"
+                                                        name={child.name}
+                                                        subject={child.level}
+                                                        themeColor={activeChildId === child.id ? 'orange' : undefined}
+                                                        onEnter={() => {
+                                                            setActiveChildId(child.id);
+                                                            setActivePage('overview');
+                                                        }}
+                                                        metaPrimaryNode={
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                                    <span className="text-[12px] font-medium text-slate-600">Active in Math Classroom</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 text-slate-400 text-[11px] font-medium">
+                                                                    <Clock size={14} />
+                                                                    <span>Last active 2h ago</span>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                        metaSecondaryNode={
+                                                            activeChildId === child.id ? (
+                                                                <span className="text-orange-600 font-bold uppercase tracking-widest text-[9px] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
+                                                                    Selected
+                                                                </span>
+                                                            ) : undefined
+                                                        }
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
 
-                                    {/* Bottom padding */}
-                                    <div className="h-8" />
+                                        {/* Bottom padding */}
+                                        <div className="h-8" />
 
-                                </>
-                            </div>
-                        )}
-
-                    </div>
-                </div>
-            </main>
-
-            {/* ── SEND A NUDGE MODAL ──────────────────────────────────────────── */}
-            {nudgeOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span
-                                        className="px-2 py-0.5 text-[11px] font-semibold rounded-md"
-                                        style={{ backgroundColor: `${BRAND}15`, color: BRAND }}
-                                    >
-                                        {activeChild?.name} – {activeChild?.level}
-                                    </span>
+                                    </>
                                 </div>
-                                <h2 className="text-[20px] font-semibold text-slate-900">Send a Nudge</h2>
-                                <p className="text-[13px] text-slate-500 mt-1">Encourage {activeChild?.name || 'your child'} to get back on track.</p>
-                            </div>
-                            <button
-                                onClick={() => setNudgeOpen(false)}
-                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+                            )}
 
-                        <div className="p-6 space-y-4">
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    `Keep it up, ${activeChild?.name || 'buddy'}! 💪`,
-                                    'Time to practice! ⏰',
-                                    `Don't forget your assignment! 📝`,
-                                ].map((preset) => (
-                                    <button
-                                        key={preset}
-                                        onClick={() => setNudgeText(preset)}
-                                        className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-[13px] font-medium text-slate-700 rounded-lg hover:border-slate-300 transition-colors"
-                                    >
-                                        {preset}
-                                    </button>
-                                ))}
-                            </div>
-                            <textarea
-                                value={nudgeText}
-                                onChange={(e) => setNudgeText(e.target.value)}
-                                rows={3}
-                                placeholder={`Write a custom message to ${activeChild?.name || 'your child'}…`}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[14px] text-slate-700 focus:outline-none resize-none placeholder:text-slate-400 focus:ring-2"
-                                style={{ '--tw-ring-color': `${BRAND}40` } as any}
-                            />
-                        </div>
-
-                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button
-                                onClick={() => setNudgeOpen(false)}
-                                className="px-4 py-2 text-[14px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                                disabled={isSendingNudge}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSendNudge}
-                                disabled={!nudgeText.trim() || isSendingNudge}
-                                className="px-5 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
-                                style={{ backgroundColor: BRAND }}
-                            >
-                                <Send className="w-4 h-4" />
-                                {isSendingNudge ? 'Sending...' : 'Send Nudge'}
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                </main>
+
+                {/* ── SEND A NUDGE MODAL ──────────────────────────────────────────── */}
+                {nudgeOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span
+                                            className="px-2 py-0.5 text-[11px] font-semibold rounded-md"
+                                            style={{ backgroundColor: `${BRAND}15`, color: BRAND }}
+                                        >
+                                            {activeChild?.name} – {activeChild?.level}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-[20px] font-semibold text-slate-900">Send a Nudge</h2>
+                                    <p className="text-[13px] text-slate-500 mt-1">Encourage {activeChild?.name || 'your child'} to get back on track.</p>
+                                </div>
+                                <button
+                                    onClick={() => setNudgeOpen(false)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        `Keep it up, ${activeChild?.name || 'buddy'}! 💪`,
+                                        'Time to practice! ⏰',
+                                        `Don't forget your assignment! 📝`,
+                                    ].map((preset) => (
+                                        <button
+                                            key={preset}
+                                            onClick={() => setNudgeText(preset)}
+                                            className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-[13px] font-medium text-slate-700 rounded-lg hover:border-slate-300 transition-colors"
+                                        >
+                                            {preset}
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={nudgeText}
+                                    onChange={(e) => setNudgeText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Write a custom message to ${activeChild?.name || 'your child'}…`}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[14px] text-slate-700 focus:outline-none resize-none placeholder:text-slate-400 focus:ring-2"
+                                    style={{ '--tw-ring-color': `${BRAND}40` } as any}
+                                />
+                            </div>
+
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setNudgeOpen(false)}
+                                    className="px-4 py-2 text-[14px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                                    disabled={isSendingNudge}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSendNudge}
+                                    disabled={!nudgeText.trim() || isSendingNudge}
+                                    className="px-5 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+                                    style={{ backgroundColor: BRAND }}
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {isSendingNudge ? 'Sending...' : 'Send Nudge'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

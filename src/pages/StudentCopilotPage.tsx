@@ -26,6 +26,7 @@ import {
     CopilotMessageBubble, 
     CopilotEmptyState, 
     CopilotMobileHeader,
+    CopilotAuthGate,
     Message, 
     Step, 
     ActionChip,
@@ -99,8 +100,9 @@ const StudentCopilotPage: React.FC = () => {
     const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
+    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
+    
     // Context Selector State
     const [selectedSubjectId, setSelectedSubjectId] = useState('all');
     const [isSubjectSelectorOpen, setIsSubjectSelectorOpen] = useState(false);
@@ -113,6 +115,7 @@ const StudentCopilotPage: React.FC = () => {
 
     useEffect(() => {
         // Ensure demo user is logically "logged in" (but don't persist to localStorage)
+        // Wait: If they are unauthenticated and we show the gate, we might still want the side nav to work
         if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
             login('student', undefined, false);
         }
@@ -427,7 +430,7 @@ const StudentCopilotPage: React.FC = () => {
         <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6]">
             {/* Sidebar Header */}
             <div className="p-6 border-b border-[#EAE7DD]">
-                <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Elora Copilot</h2>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
                 <p className="text-sm font-medium text-[#68507B] flex items-center gap-1.5">
                     <Sparkles size={14} />
                     Connected to your progress
@@ -544,8 +547,12 @@ const StudentCopilotPage: React.FC = () => {
         >
             <CopilotMobileHeader themeColor="#68507B" />
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-                {messages.length === 0 ? (
+            {isUnauthenticated ? (
+                <CopilotAuthGate role="Student" themeColor="#68507B" />
+            ) : (
+                <>
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+                        {messages.length === 0 ? (
                     <CopilotEmptyState
                         themeColor="#68507B"
                         userName={currentUser?.name}
@@ -656,13 +663,15 @@ const StudentCopilotPage: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="text-center mt-3">
-                        <p className="text-[11px] text-slate-400">
-                            Elora Copilot is an AI assistant and may occasionally make mistakes.
-                        </p>
+                        <div className="text-center mt-3">
+                            <p className="text-[11px] text-slate-400">
+                                Copilot is an AI assistant and may occasionally make mistakes.
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
+                </>
+            )}
         </CopilotLayout>
     );
 };

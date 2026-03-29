@@ -141,7 +141,7 @@ export default function StudentClassroomPage() {
         <div className="flex h-screen bg-[#FDFBF5] flex-col overflow-hidden font-sans">
             <header className="h-14 bg-white border-b border-[#EAE7DD] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/dashboard/student')} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
+                    <button onClick={() => navigate('/dashboard/student')} className="inline-flex items-center gap-1.5 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors">
                         <ChevronLeft size={16} /> Back to Dashboard
                     </button>
                 </div>
@@ -171,6 +171,7 @@ export default function StudentClassroomPage() {
                                     bannerStyle={currentTheme?.bannerStyle}
                                     subject={currentClass?.subject}
                                     currentClass={currentClass}
+                                    role="student"
                                 />
                             </div>
 

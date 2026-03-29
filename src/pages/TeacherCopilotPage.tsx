@@ -34,6 +34,7 @@ import {
     CopilotMessageBubble, 
     CopilotEmptyState, 
     CopilotMobileHeader,
+    CopilotAuthGate,
     Message, 
     Step, 
     ActionChip,
@@ -103,6 +104,7 @@ const TeacherCopilotPage: React.FC = () => {
     const { isVerified, logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
+    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
@@ -531,7 +533,7 @@ const TeacherCopilotPage: React.FC = () => {
             sidebar={
                 <>
                     <div className="p-6 border-b border-[#EAE7DD]">
-                        <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Elora Copilot</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
                         <p className="text-sm font-medium text-teal-600 flex items-center gap-1.5">
                             <Sparkles size={14} />
                             Connected to class data
@@ -636,8 +638,12 @@ const TeacherCopilotPage: React.FC = () => {
         >
             <CopilotMobileHeader themeColor="#14b8a6" />
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-                {messages.length === 0 ? (
+            {isUnauthenticated ? (
+                <CopilotAuthGate role="Teacher" themeColor="#14b8a6" />
+            ) : (
+                <>
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+                    {messages.length === 0 ? (
                     <CopilotEmptyState
                         themeColor="#14b8a6"
                         userName={displayName}
@@ -803,6 +809,8 @@ const TeacherCopilotPage: React.FC = () => {
                     </div>
                 </div>
             )}
+            </>
+        )}
         </CopilotLayout>
     );
 };

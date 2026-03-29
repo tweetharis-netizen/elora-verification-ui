@@ -1,4 +1,4 @@
-# Elora Copilot Update Summary
+# Copilot Update Summary
 
 ## 1. Small-talk / Greetings Detection
 Detected via case-insensitive keywords ('hi', 'hey', etc.) OR if the message is short (<= 6 words) and matches no other intent keywords.

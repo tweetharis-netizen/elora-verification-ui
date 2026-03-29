@@ -28,9 +28,9 @@ export function EloraLogo({ className = 'w-8 h-8', withWordmark = false }: Elora
 
   if (withWordmark) {
     return (
-      <div className="flex items-center gap-2 text-inherit">
+      <div className="flex items-center gap-3">
         {SvgIcon}
-        <span className="font-bold text-xl tracking-tight">Elora</span>
+        <span className="text-xl font-bold tracking-tight text-inherit">Elora</span>
       </div>
     );
   }

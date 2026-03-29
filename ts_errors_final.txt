@@ -1,0 +1,1 @@
+C:/Users/tweet/Documents/Elora/src/pages/TeacherCopilotPage.tsx:811:17 - error TS1005: ')' expected.

@@ -1,4 +1,4 @@
-export type ClassThemeColorKey = 'teal' | 'emerald' | 'indigo' | 'amber' | 'slate';
+export type ClassThemeColorKey = 'teal' | 'emerald' | 'indigo' | 'amber' | 'slate' | 'purple';
 export type ClassBannerStyle = 'default' | 'math' | 'science' | 'language' | 'arts';
 
 export type ClassLike = {
@@ -197,6 +197,37 @@ export const CLASS_THEME_COLORS: Record<ClassThemeColorKey, ClassThemeColorStyle
         nextTopicBg: 'bg-slate-100',
         nextTopicBorder: 'border-slate-300',
         nextTopicText: 'text-slate-800',
+    },
+    purple: {
+        banner: 'from-[#8b5cf6] to-[#6d28d9]', 
+        accent: 'text-purple-500',
+        chipBg: 'bg-purple-50',
+        chipBorder: 'border-purple-200',
+        chipText: 'text-purple-700',
+        outlineBorder: 'border-purple-200',
+        outlineText: 'text-purple-700',
+        outlineHoverBg: 'hover:bg-purple-50',
+        solidBg: 'bg-purple-600',
+        solidHoverBg: 'hover:bg-purple-700',
+        cardHoverRing: 'hover:ring-purple-200/90',
+        cardHoverShadow: 'hover:shadow-purple-100/80',
+        tabActiveBg: 'bg-purple-100',
+        tabActiveText: 'text-purple-800',
+        tabHoverText: 'hover:text-purple-700',
+        tabUnderline: 'bg-purple-500',
+        headerCodeBorder: 'border-purple-200/70',
+        headerSubjectBg: 'bg-white/15',
+        headerSubjectBorder: 'border-purple-200/70',
+        headerSubjectText: 'text-white',
+        topicBorder: 'border-purple-400',
+        streamLabelBg: 'bg-purple-50',
+        streamLabelText: 'text-purple-700',
+        streamIconBg: 'bg-purple-100',
+        streamIconText: 'text-purple-700',
+        gradesBorder: 'border-purple-300',
+        nextTopicBg: 'bg-purple-50',
+        nextTopicBorder: 'border-purple-200',
+        nextTopicText: 'text-purple-800',
     },
 };
 

@@ -70,9 +70,10 @@ export function ClassSummaryCard({
                 {playfulBackground !== false && (
                     <div className="absolute inset-0 opacity-10 pointer-events-none">
                         <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <pattern id={`pattern-${name.replace(/\s+/g, '-')}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                                <circle cx="2" cy="2" r="1" fill="white" />
-                                <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="white" fillOpacity="0.5" />
+                            <pattern id={`pattern-${name.replace(/\s+/g, '-')}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <circle cx="2" cy="2" r="1.5" fill="white" fillOpacity="0.4" />
+                                <path d="M20 0 L20 40" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
+                                <path d="M0 20 L40 20" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
                             </pattern>
                             <rect width="100" height="100" fill={`url(#pattern-${name.replace(/\s+/g, '-')})`} />
                         </svg>

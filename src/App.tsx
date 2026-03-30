@@ -617,6 +617,7 @@ export default function App() {
 
       {/* Demo routes – no auth required */}
       <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
+      <Route path="/teacher/demo/classes" element={<TeacherDashboardPage activeTab="classes" />} />
       <Route path="/teacher/demo/class/:classId" element={<TeacherClassroomPage />} />
       <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
       <Route path="/student/demo" element={<StudentDashboardPage />} />

@@ -100,7 +100,10 @@ const StudentCopilotPage: React.FC = () => {
     const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
+    // In demo mode the useEffect below always calls login() to seed the demo user,
+    // so we never want to show the auth gate. Only block unauthenticated access on
+    // production routes (isDemo === false).
+    const isUnauthenticated = !isDemo && !currentUser;
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     
     // Context Selector State

@@ -402,7 +402,14 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                     setStudentClasses(classesData);
                 }
             } catch (err: any) {
-                setError(err.message || 'Failed to load data');
+                // API unreachable (e.g. Vercel with no backend) — fall back to demo data for visual parity
+                console.warn('Student API unavailable, falling back to demo data:', err);
+                setAssignments(demoStudentData.assignments);
+                setRecentPerformance(demoStudentData.recentPerformance);
+                setStreakData(demoStudentStreak);
+                setGameSessions(demoGameSessions);
+                setNudges(demoStudentNudges);
+                setStudentClasses(demoStudentClasses);
             } finally {
                 setLoading(false);
             }

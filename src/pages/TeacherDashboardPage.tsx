@@ -39,7 +39,7 @@ import {
     Menu,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
@@ -923,6 +923,7 @@ interface TeacherDashboardProps {
 
 export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) {
     const navigate = useNavigate();
+    const { hash } = useLocation();
     const { isVerified, logout, currentUser, login } = useAuth();
     const isDemo = useDemoMode();
     const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode } = props;
@@ -1075,6 +1076,26 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         if (props.activeTab === 'work') return 'dashboard'; // 'work' maps to dashboard for now
         return 'dashboard';
     });
+
+    // Synchronize activeTab state when prop changes (e.g. from browser back/forward navigation)
+    useEffect(() => {
+        if (props.activeTab === 'classes') {
+            setActiveTab('classes');
+        } else if (props.activeTab === 'dashboard' || props.activeTab === 'work') {
+            setActiveTab('dashboard');
+        }
+        
+        // Deep linking hash synchronization
+        if (hash === '#practice') {
+            setActiveTab('dashboard');
+            setShowAiPanel(true);
+        } else if (hash === '#reports') {
+            setActiveTab('dashboard');
+            setTimeout(() => {
+                document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [props.activeTab, hash]);
     const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(initialClassId);
     const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'classwork' | 'people' | 'grades'>(initialClassroomTab);
     const [showCreateClass, setShowCreateClass] = useState(false);
@@ -1810,12 +1831,25 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                     {/* Nav */}
                     <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                        <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <NavItem 
+                            icon={<LayoutDashboard size={20} />} 
+                            label="Dashboard" 
+                            active={activeTab === 'dashboard' && !hash} 
+                            onClick={() => {
+                                navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher');
+                                setActiveTab('dashboard');
+                            }} 
+                            collapsed={!isSidebarOpen} 
+                            theme={sidebarTheme} 
+                        />
                         <NavItem 
                             icon={<BookOpen size={20} />} 
                             label="My Classes" 
                             active={activeTab === 'classes'} 
-                            onClick={() => setActiveTab('classes')} 
+                            onClick={() => {
+                                navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes');
+                                setActiveTab('classes');
+                            }} 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
                         />
@@ -1829,8 +1863,9 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <NavItem
                             icon={<Gamepad2 size={20} />}
                             label="Practice & quizzes"
-                            active={showAiPanel}
+                            active={activeTab === 'dashboard' && hash === '#practice'} 
                             onClick={() => {
+                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
                                 setActiveTab('dashboard');
                                 setShowAiPanel(true);
                                 setTimeout(() => {
@@ -1843,7 +1878,9 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <NavItem 
                             icon={<TrendingUp size={20} />} 
                             label="Reports" 
+                            active={activeTab === 'dashboard' && hash === '#reports'} 
                             onClick={() => {
+                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#reports`);
                                 setActiveTab('dashboard');
                                 setTimeout(() => {
                                     document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });

@@ -58,7 +58,7 @@ import {
 import MotivationBanner from '../components/MotivationBanner';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
@@ -190,6 +190,7 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className 
 export default function StudentDashboardPage({ activeTab: initialTab = 'dashboard' }: { activeTab?: 'dashboard' | 'assignments' | 'classes' } = {}) {
     const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
+    const { hash } = useLocation();
     const isDemo = useDemoMode();
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
@@ -207,6 +208,13 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
     const sidebarTheme = getRoleSidebarTheme('student');
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
+
+    // Synchronize activeTab state when prop changes (e.g. from browser back/forward navigation)
+    useEffect(() => {
+        if (initialTab !== activeTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
 
     // ── Welcome strip state (persisted via localStorage) ──
     const WELCOME_KEY = 'elora_student_welcome_dismissed';
@@ -856,19 +864,18 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
 
                     {/* Navigation Items */}
                     <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
-                        <SidebarItem 
-                            icon={LayoutDashboard} 
-                            label="Overview" 
-                            active={activeTab === 'dashboard'} 
-                            collapsed={!isSidebarOpen} 
+                        <SidebarItem
+                            icon={LayoutDashboard}
+                            label="Overview"
+                            active={activeTab === 'dashboard' && !hash} 
+                            collapsed={!isSidebarOpen}
                             onClick={() => {
-                                setActiveTab('dashboard');
                                 navigate(isDemo ? '/student/demo' : '/dashboard/student');
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }} 
-                            theme={sidebarTheme} 
+                                setActiveTab('dashboard');
+                            }}
+                            theme={sidebarTheme}
                         />
-                        <SidebarItem 
+                        <SidebarItem
                             icon={BookOpen} 
                             label="My Classes" 
                             active={activeTab === 'classes'}
@@ -890,10 +897,14 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                         <SidebarItem 
                             icon={Gamepad2} 
                             label="Practice & Quizzes" 
+                            active={activeTab === 'dashboard' && hash === '#practice'} 
                             collapsed={!isSidebarOpen} 
                             onClick={() => {
+                                navigate(`${isDemo ? '/student/demo' : '/dashboard/student'}#practice`);
                                 setActiveTab('dashboard');
-                                setTimeout(() => document.getElementById('tasks-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                                setTimeout(() => {
+                                    document.getElementById('practice-section')?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
                             }}
                             theme={sidebarTheme} 
                         />
@@ -910,12 +921,16 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                             theme={sidebarTheme} 
                         />
                         <SidebarItem 
-                            icon={BarChart2} 
+                            icon={TrendingUp} 
                             label="Reports" 
+                            active={activeTab === 'dashboard' && hash === '#reports'} 
                             collapsed={!isSidebarOpen} 
                             onClick={() => {
+                                navigate(`${isDemo ? '/student/demo' : '/dashboard/student'}#reports`);
                                 setActiveTab('dashboard');
-                                setTimeout(() => document.getElementById('mastery-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                                setTimeout(() => {
+                                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
                             }}
                             theme={sidebarTheme} 
                         />

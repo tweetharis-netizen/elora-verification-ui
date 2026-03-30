@@ -20,7 +20,8 @@ import {
     GraduationCap,
     BarChart2,
     FileText,
-    MessageSquare
+    MessageSquare,
+    TrendingUp
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EloraLogo } from '../EloraLogo';
@@ -202,7 +203,15 @@ export const CopilotLayout: React.FC<{
                                 <NavItem
                                     icon={<BookOpen size={20} />}
                                     label={role === 'Teacher' ? "Classes" : "My Classes"}
-                                    onClick={() => { }}
+                                    onClick={() => {
+                                        if (isDemo) {
+                                            if (role === 'Teacher') navigate('/teacher/demo#classes');
+                                            else navigate('/student/demo#classes');
+                                        } else {
+                                            if (role === 'Teacher') navigate('/dashboard/teacher#classes');
+                                            else navigate('/dashboard/student#classes');
+                                        }
+                                    }}
                                     collapsed={!isSidebarOpen}
                                 />
                             )}
@@ -215,28 +224,53 @@ export const CopilotLayout: React.FC<{
                                 collapsed={!isSidebarOpen}
                             />
 
-                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} />}
-                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} />}
-                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} />}
-                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} />}
+                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => {}} />}
 
                             {role !== 'Parent' && (
                                 <NavItem
                                     icon={<Gamepad2 size={20} />}
-                                    label={role === 'Teacher' ? "Practice & quizzes" : "Practice & Quizzes"}
-                                    onClick={() => { }}
+                                    label="Practice & Quizzes"
+                                    onClick={() => {
+                                        if (isDemo) {
+                                            if (role === 'Teacher') navigate('/teacher/demo#practice');
+                                            else navigate('/student/demo#practice');
+                                        } else {
+                                            if (role === 'Teacher') navigate('/dashboard/teacher#practice');
+                                            else navigate('/dashboard/student#practice');
+                                        }
+                                    }}
                                     collapsed={!isSidebarOpen}
                                 />
                             )}
 
                             {role === 'Student' && (
                                 <>
-                                    <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} />
-                                    <NavItem icon={<BarChart2 size={20} />} label="Reports" collapsed={!isSidebarOpen} />
+                                    <NavItem 
+                                        icon={<FileText size={20} />} 
+                                        label="Assignments" 
+                                        collapsed={!isSidebarOpen} 
+                                        onClick={() => navigate(isDemo ? '/student/demo/assignments' : '/student/assignments')}
+                                    />
+                                    <NavItem 
+                                        icon={<TrendingUp size={20} />} 
+                                        label="Reports" 
+                                        collapsed={!isSidebarOpen} 
+                                        onClick={() => navigate(isDemo ? '/student/demo#reports' : '/dashboard/student#reports')}
+                                    />
                                 </>
                             )}
 
-                            {role === 'Teacher' && <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} />}
+                            {role === 'Teacher' && (
+                                <NavItem 
+                                    icon={<Users size={20} />} 
+                                    label="Students" 
+                                    collapsed={!isSidebarOpen} 
+                                    onClick={() => navigate(isDemo ? '/teacher/demo#students' : '/dashboard/teacher#students')}
+                                />
+                            )}
                         </nav>
 
                         <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>

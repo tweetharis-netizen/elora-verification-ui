@@ -23,8 +23,8 @@ import {
     Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
-import * as dataService from '../services/dataService';
+import { useAuth } from '../../auth/AuthContext';
+import * as dataService from '../../services/dataService';
 
 // DEV_HELPER: Shown when a user hits /dashboard/teacher without being verified.
 // Remove or gate this component behind an env flag before shipping to production.

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, BookOpen, Gamepad2, Trophy, Settings, LogOut, Sparkles } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
-import { getStudentAssignments, StudentAssignment, getStudentGameSessions, GameSession } from '../services/dataService';
+import { useAuth } from '../../auth/AuthContext';
+import { getStudentAssignments, StudentAssignment, getStudentGameSessions, GameSession } from '../../services/dataService';
 
 const TIPS = [
     "Spacing out your practice over a few days helps your brain remember things much better!",

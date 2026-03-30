@@ -15,8 +15,8 @@ import {
     Info,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
-import { getParentChildren, getParentChildSummary, ParentChild, ParentChildSummary } from '../services/dataService';
+import { useAuth } from '../../auth/AuthContext';
+import { getParentChildren, getParentChildSummary, ParentChild, ParentChildSummary } from '../../services/dataService';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

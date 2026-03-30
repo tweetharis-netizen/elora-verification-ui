@@ -15,6 +15,8 @@ import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { getRoleSidebarTheme } from '../lib/roleTheme';
+import { useSidebarState } from '../hooks/useSidebarState';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -63,7 +65,7 @@ const HorizontalChips: React.FC<{
     }, [prompts]);
 
     return (
-        <div className="relative md:hidden">
+        <div className="relative">
             <div 
                 ref={scrollRef}
                 onScroll={checkScroll}
@@ -104,7 +106,7 @@ const StudentCopilotPage: React.FC = () => {
     // so we never want to show the auth gate. Only block unauthenticated access on
     // production routes (isDemo === false).
     const isUnauthenticated = !isDemo && !currentUser;
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     
     // Context Selector State
     const [selectedSubjectId, setSelectedSubjectId] = useState('all');
@@ -193,6 +195,13 @@ const StudentCopilotPage: React.FC = () => {
 
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
+        
+        // Reset textarea height after sending
+        const textarea = document.querySelector('textarea');
+        if (textarea) {
+            textarea.style.height = '52px';
+        }
+        
         setIsThinking(true);
 
         const lowerQuery = query.toLowerCase().trim();
@@ -628,12 +637,6 @@ const StudentCopilotPage: React.FC = () => {
             {/* Input Bar */}
             <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
                 <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.length > 0 && (
-                        <div className="relative">
-                            <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#68507B" />
-                        </div>
-                    )}
-
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setMessages([])}
@@ -653,8 +656,13 @@ const StudentCopilotPage: React.FC = () => {
                                     }
                                 }}
                                 placeholder="Ask Copilot a question..."
-                                className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/30 focus:border-[#68507B] resize-none flex-1 min-h-[52px] max-h-32"
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/20 focus:border-[#68507B]/20 resize-none flex-1 min-h-[52px] max-h-48 overflow-y-auto transition-[height] duration-100"
                                 rows={1}
+                                onInput={(e) => {
+                                    const target = e.currentTarget;
+                                    target.style.height = 'auto';
+                                    target.style.height = `${Math.min(target.scrollHeight, 192)}px`;
+                                }}
                                 style={{ height: '52px' }}
                             />
                             <button

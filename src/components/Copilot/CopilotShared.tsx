@@ -21,7 +21,8 @@ import {
     BarChart2,
     FileText,
     MessageSquare,
-    TrendingUp
+    TrendingUp,
+    Trophy
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EloraLogo } from '../EloraLogo';
@@ -202,14 +203,14 @@ export const CopilotLayout: React.FC<{
                             {role !== 'Parent' && (
                                 <NavItem
                                     icon={<BookOpen size={20} />}
-                                    label={role === 'Teacher' ? "Classes" : "My Classes"}
+                                    label="My Classes"
                                     onClick={() => {
                                         if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo#classes');
-                                            else navigate('/student/demo#classes');
+                                            if (role === 'Teacher') navigate('/teacher/demo/classes');
+                                            else navigate('/student/demo/classes');
                                         } else {
-                                            if (role === 'Teacher') navigate('/dashboard/teacher#classes');
-                                            else navigate('/dashboard/student#classes');
+                                            if (role === 'Teacher') navigate('/teacher/classes');
+                                            else navigate('/student/classes');
                                         }
                                     }}
                                     collapsed={!isSidebarOpen}
@@ -224,18 +225,18 @@ export const CopilotLayout: React.FC<{
                                 collapsed={!isSidebarOpen}
                             />
 
-                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="Children" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
+                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
+                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
+                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
 
                             {role !== 'Parent' && (
                                 <NavItem
                                     icon={<Gamepad2 size={20} />}
-                                    label="Practice & Quizzes"
+                                    label={role === 'Teacher' ? "Practice & quizzes" : "Practice & Quizzes"}
                                     onClick={() => {
                                         if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo#practice');
+                                            if (role === 'Teacher') navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
                                             else navigate('/student/demo#practice');
                                         } else {
                                             if (role === 'Teacher') navigate('/dashboard/teacher#practice');
@@ -246,31 +247,40 @@ export const CopilotLayout: React.FC<{
                                 />
                             )}
 
-                            {role === 'Student' && (
-                                <>
-                                    <NavItem 
-                                        icon={<FileText size={20} />} 
-                                        label="Assignments" 
-                                        collapsed={!isSidebarOpen} 
-                                        onClick={() => navigate(isDemo ? '/student/demo/assignments' : '/student/assignments')}
-                                    />
-                                    <NavItem 
-                                        icon={<TrendingUp size={20} />} 
-                                        label="Reports" 
-                                        collapsed={!isSidebarOpen} 
-                                        onClick={() => navigate(isDemo ? '/student/demo#reports' : '/dashboard/student#reports')}
-                                    />
-                                </>
+                            {(role === 'Student' || role === 'Teacher') && (
+                                <NavItem 
+                                    icon={<TrendingUp size={20} />} 
+                                    label="Reports" 
+                                    collapsed={!isSidebarOpen} 
+                                    onClick={() => {
+                                        if (isDemo) {
+                                            if (role === 'Teacher') navigate('/teacher/demo#reports');
+                                            else navigate('/student/demo#reports');
+                                        } else {
+                                            if (role === 'Teacher') navigate('/dashboard/teacher#reports');
+                                            else navigate('/dashboard/student#reports');
+                                        }
+                                    }}
+                                />
                             )}
 
-                            {role === 'Teacher' && (
+                            {role === 'Student' && (
+                                <NavItem 
+                                    icon={<FileText size={20} />} 
+                                    label="Assignments" 
+                                    collapsed={!isSidebarOpen} 
+                                    onClick={() => navigate(isDemo ? '/student/demo/assignments' : '/student/assignments')}
+                                />
+                            )}
+
+                            {/* role === 'Teacher' && (
                                 <NavItem 
                                     icon={<Users size={20} />} 
                                     label="Students" 
                                     collapsed={!isSidebarOpen} 
                                     onClick={() => navigate(isDemo ? '/teacher/demo#students' : '/dashboard/teacher#students')}
                                 />
-                            )}
+                            ) */}
                         </nav>
 
                         <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
@@ -282,7 +292,7 @@ export const CopilotLayout: React.FC<{
                                     <PanelLeftOpen size={20} />
                                 </button>
                             )}
-                            <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} />
+                            {/* <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} /> */}
                             <button
                                 onClick={logout}
                                 className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}

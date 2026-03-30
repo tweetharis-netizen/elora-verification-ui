@@ -31,6 +31,7 @@ export const demoClasses: dataService.TeacherClass[] = [
         activeAssignments: 1,
         averageScore: 61,
         playfulBackground: true,
+        progress: 75,
     }),
 ];
 

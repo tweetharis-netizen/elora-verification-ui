@@ -72,6 +72,7 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
+import { useSidebarState } from '../hooks/useSidebarState';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -203,18 +204,31 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
     const [gamePackFilter, setGamePackFilter] = useState('All');
 
     const [selectedGamePack, setSelectedGamePack] = useState<any>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const sidebarTheme = getRoleSidebarTheme('student');
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
 
-    // Synchronize activeTab state when prop changes (e.g. from browser back/forward navigation)
+    // Synchronize activeTab state and handle hash deep-linking (e.g. from Copilot navigation)
     useEffect(() => {
         if (initialTab !== activeTab) {
             setActiveTab(initialTab);
         }
-    }, [initialTab]);
+
+        // Handle deep-linking hashes
+        if (hash === '#practice') {
+            setActiveTab('dashboard');
+            setTimeout(() => {
+                document.getElementById('practice-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 500);
+        } else if (hash === '#reports') {
+            setActiveTab('dashboard');
+            setTimeout(() => {
+                document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 500);
+        }
+    }, [initialTab, hash]);
 
     // ── Welcome strip state (persisted via localStorage) ──
     const WELCOME_KEY = 'elora_student_welcome_dismissed';
@@ -686,17 +700,34 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
     const notificationsUnreadCount = popoverNotifications.filter(n => !n.isRead).length;
 
 
+    // Helper to compute hours until due for urgency coloring
+    const getHoursUntilDue = (isoDate?: string): number => {
+        if (!isoDate) return 999;
+        return (new Date(isoDate).getTime() - Date.now()) / (1000 * 60 * 60);
+    };
+
     // Map assignments to "Upcoming items" for the right column
-    const upcomingItems = pendingAssignments.slice(0, 4).map(asgn => ({
-        id: asgn.id,
-        title: asgn.title,
-        subjectClass: asgn.className,
-        dueDate: asgn.statusLabel || (asgn.dueDate ? `Due ${new Date(asgn.dueDate).toLocaleDateString()}` : 'No due date'),
-        status: asgn.status === 'danger' ? 'Overdue' : asgn.status === 'warning' ? 'Due soon' : 'On track',
-        originalClassStatus: asgn.status,
-        gamePackId: (asgn as any).gamePackId,
-        attemptId: (asgn as any).attemptId,
-    }));
+    const upcomingItems = pendingAssignments.slice(0, 4).map(asgn => {
+        const hours = getHoursUntilDue(asgn.dueDate);
+        const isOverdue = asgn.status === 'danger' || hours < 0;
+        
+        let label = '';
+        if (isOverdue) label = 'Overdue';
+        else if (hours < 24) label = `Due in ${Math.ceil(hours)}h`;
+        else label = `Due in ${Math.ceil(hours / 24)}d`;
+
+        return {
+            id: asgn.id,
+            title: asgn.title,
+            subjectClass: asgn.className,
+            dueDate: label,
+            status: isOverdue ? 'Overdue' : (hours < 48 ? 'Due soon' : 'Later'),
+            hoursUntilDue: hours,
+            originalClassStatus: asgn.status,
+            gamePackId: (asgn as any).gamePackId,
+            attemptId: (asgn as any).attemptId,
+        };
+    });
 
     // ── Next Steps recommendation logic ────────────────────────────────────────
     // All deterministic; no randomisation; derived only from existing API data.
@@ -1349,8 +1380,15 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                         return (
                                                             <>
                                                                 {displayedUpcoming.map(item => {
+                                                                    const hours = (item as any).hoursUntilDue;
                                                                     const isOverdue = item.status === 'Overdue';
-                                                                    const isSoon = item.status === 'Due soon';
+                                                                    const isUrgent = !isOverdue && hours < 24;
+                                                                    const isSoon = !isOverdue && hours >= 24 && hours < 48;
+
+                                                                    let statusClasses = 'bg-indigo-50 text-indigo-800 border-indigo-200';
+                                                                    if (isOverdue) statusClasses = 'bg-rose-50 text-rose-800 border-rose-200';
+                                                                    else if (isUrgent) statusClasses = 'bg-red-50 text-red-800 border-red-200';
+                                                                    else if (isSoon) statusClasses = 'bg-amber-50 text-amber-800 border-amber-200';
 
                                                                     return (
                                                                         <div
@@ -1364,15 +1402,12 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                                     <div className="flex items-center gap-2 mt-1.5">
                                                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.subjectClass}</span>
                                                                                         <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                                                        <span className={`text-[11px] font-bold ${isOverdue ? 'text-red-500' : 'text-slate-500'}`}>
+                                                                                        <span className={`text-[11px] font-bold ${isOverdue || isUrgent ? 'text-red-500' : 'text-slate-500'}`}>
                                                                                             {item.dueDate}
                                                                                         </span>
                                                                                     </div>
                                                                                 </div>
-                                                                                <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold border uppercase tracking-wider shadow-sm ${isOverdue ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                                    isSoon ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                                        'bg-white text-slate-400 border-[#EAE7DD]'
-                                                                                    }`}>
+                                                                                <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold border uppercase tracking-wider shadow-sm ${statusClasses}`}>
                                                                                     {item.status}
                                                                                 </span>
                                                                             </div>

@@ -10,6 +10,7 @@ export interface ClassSummaryCardProps {
     playfulBackground?: boolean;
     metaPrimaryNode?: React.ReactNode;
     metaSecondaryNode?: React.ReactNode;
+    progress?: number;
     onEnter: () => void;
 }
 
@@ -21,6 +22,7 @@ export function ClassSummaryCard({
     playfulBackground = true,
     metaPrimaryNode,
     metaSecondaryNode,
+    progress,
     onEnter
 }: ClassSummaryCardProps) {
 
@@ -95,8 +97,27 @@ export function ClassSummaryCard({
                             </span>
                         )}
                     </div>
-                    <h3 className={`text-[18px] font-bold text-slate-900 leading-tight ${roleStyles.textHover} transition-colors line-clamp-1`}>{name}</h3>
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className={`text-[18px] font-bold text-slate-900 leading-tight ${roleStyles.textHover} transition-colors line-clamp-1`}>{name}</h3>
+                        {progress !== undefined && (
+                            <div className="shrink-0 flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-full">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Curriculum</span>
+                                <span className={`text-[11px] font-black ${roleStyles.text}`}>{progress}%</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
+                {progress !== undefined && (
+                    <div className="mb-5 space-y-1.5">
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                                className={`h-full bg-gradient-to-r ${backgroundGradient} transition-all duration-1000 ease-out`} 
+                                style={{ width: `${progress}%` }} 
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {metaPrimaryNode && (
                     <div className="mb-5">

@@ -54,6 +54,7 @@ import { Link } from 'react-router-dom';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
+import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
@@ -627,7 +628,7 @@ function MessageFeed({
 export default function ParentDashboardPage() {
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activePage, setActivePage] = useState('overview');
     const sidebarTheme = getRoleSidebarTheme('parent');

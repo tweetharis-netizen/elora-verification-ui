@@ -16,6 +16,7 @@ import {
     PeopleTab,
     GradesTab
 } from '../components/classroom/ClassroomComponents';
+import { ClassroomBreadcrumb } from '../components/layout/ClassroomBreadcrumb';
 
 type ClassroomTab = 'stream' | 'classwork' | 'people' | 'grades';
 const VALID_TABS: ClassroomTab[] = ['stream', 'classwork', 'people', 'grades'];
@@ -154,6 +155,12 @@ export default function StudentClassroomPage() {
                         <SectionSkeleton rows={3} />
                     ) : (
                         <div className="flex flex-col">
+                            <ClassroomBreadcrumb
+                                items={[
+                                    { label: 'Classes', href: isDemo ? '/student/demo/classes' : '/student/classes' },
+                                    { label: currentClass?.name || 'Classroom' }
+                                ]}
+                            />
                             <div className="flex flex-col">
                                 <ClassroomHeader
                                     currentClass={currentClass}

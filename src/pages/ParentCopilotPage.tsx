@@ -23,6 +23,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { useSidebarState } from '../hooks/useSidebarState';
 import {
     CopilotLayout,
     CopilotMessageBubble,
@@ -109,7 +110,7 @@ const ParentCopilotPage: React.FC = () => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
@@ -172,6 +173,13 @@ const ParentCopilotPage: React.FC = () => {
 
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
+        
+        // Reset textarea height after sending
+        const textarea = document.querySelector('textarea');
+        if (textarea) {
+            textarea.style.height = '52px';
+        }
+        
         setIsThinking(true);
 
         // Process with intent handler
@@ -421,23 +429,9 @@ const ParentCopilotPage: React.FC = () => {
 
                     <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
                         <div className="max-w-4xl mx-auto space-y-4">
-                            <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                <button
-                                    onClick={() => setIsChildPopupOpen(true)}
-                                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-[11px] font-bold border border-orange-200 whitespace-nowrap"
-                                >
-                                    <User size={12} />
-                                    {currentChild?.name || 'Child'}
-                                </button>
-                                <button
-                                    onClick={() => setIsSubjectPopupOpen(true)}
-                                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-white text-slate-700 rounded-full text-[11px] font-bold border border-slate-200 whitespace-nowrap"
-                                >
-                                    <BookOpen size={12} />
-                                    {selectedSubject}
-                                </button>
-                                <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#DB844A" />
-                            </div>
+                                <div className="flex-1 md:hidden">
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-wider">CONTEXT</p>
+                                </div>
 
                             <div className="flex items-center gap-3">
                                 <button
@@ -457,8 +451,13 @@ const ParentCopilotPage: React.FC = () => {
                                             }
                                         }}
                                         placeholder={`Ask about ${childName}'s learning...`}
-                                        className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 resize-none min-h-[52px] max-h-32"
+                                        className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/20 resize-none flex-1 min-h-[52px] max-h-48 overflow-y-auto transition-[height] duration-100"
                                         rows={1}
+                                        onInput={(e) => {
+                                            const target = e.currentTarget;
+                                            target.style.height = 'auto';
+                                            target.style.height = `${Math.min(target.scrollHeight, 192)}px`;
+                                        }}
                                         style={{ height: '52px' }}
                                     />
                                     <button

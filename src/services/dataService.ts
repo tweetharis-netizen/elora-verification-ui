@@ -94,6 +94,7 @@ export interface TeacherClass {
     themeColor?: string;
     bannerStyle?: string;
     playfulBackground?: boolean;
+    progress?: number;
 }
 
 export interface ParentChild {

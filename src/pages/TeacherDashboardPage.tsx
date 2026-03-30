@@ -52,6 +52,7 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
+import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import {
@@ -67,6 +68,7 @@ import {
     ClassroomHeader,
     ClassroomTabs,
 } from '../components/classroom/ClassroomComponents';
+import { ClassroomBreadcrumb } from '../components/layout/ClassroomBreadcrumb';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
@@ -681,6 +683,7 @@ interface NeedsAttentionCardProps {
     onNudgeStudent: (insight: dataService.TeacherInsight) => void;
     onDrillDown?: (filters: { statusFilter?: string, classFilter?: string }) => void;
     generatePracticeLabel?: string;
+    onRetry?: () => void;
 }
 
 const insightMeta: Record<
@@ -713,7 +716,7 @@ const insightMeta: Record<
         label: 'Needs Attention',
         rowBg: 'bg-white border-[#EAE7DD] hover:border-red-100 hover:shadow-sm',
         iconBg: 'bg-red-50',
-        iconColor: 'text-red-100', // Changed to match style
+        iconColor: 'text-red-600',
     },
 };
 
@@ -726,6 +729,7 @@ const NeedsAttentionCard = ({
     onNudgeStudent,
     onDrillDown,
     generatePracticeLabel = 'Generate practice →',
+    onRetry,
 }: NeedsAttentionCardProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const hasInsights = insights.length > 0;
@@ -734,7 +738,7 @@ const NeedsAttentionCard = ({
     const hasMore = insights.length > INITIAL_COUNT;
 
     return (
-        <section className="mb-6 lg:mb-8">
+        <section className="mb-4 lg:mb-5">
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
                 <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)] shrink-0" />
@@ -744,7 +748,7 @@ const NeedsAttentionCard = ({
             </div>
 
             {/* Body */}
-            <div className="space-y-2.5 relative z-10">
+            <div className="space-y-2 relative z-10">
                 {loading ? (
                     // Skeleton rows
                     [1, 2].map((n) => (
@@ -757,8 +761,16 @@ const NeedsAttentionCard = ({
                         </div>
                     ))
                 ) : error ? (
-                    <div className="bg-white/70 p-3 rounded-xl border border-red-100 text-xs text-red-600">
-                        {error}
+                    <div className="bg-white/70 p-4 rounded-xl border border-red-100 flex flex-col gap-2">
+                        <p className="text-xs text-red-600">{error}</p>
+                        {onRetry && (
+                            <button
+                                onClick={onRetry}
+                                className="text-xs font-semibold text-teal-700 underline self-start hover:text-teal-900 transition-colors"
+                            >
+                                Try again
+                            </button>
+                        )}
                     </div>
                 ) : !hasInsights ? (
                     <SectionEmpty
@@ -784,7 +796,7 @@ const NeedsAttentionCard = ({
                                             onInsightClick(insight);
                                         }
                                     }}
-                                    className={`flex items-start gap-3 p-3 rounded-xl border ${meta.rowBg} cursor-pointer hover:brightness-95 transition-all`}
+                                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border ${meta.rowBg} cursor-pointer hover:brightness-[0.98] transition-all`}
                                 >
                                     {/* Icon badge */}
                                     <div
@@ -853,6 +865,14 @@ const NeedsAttentionCard = ({
                                                 </button>
                                             )}
                                         </div>
+                                    </div>
+                                    <div className="flex items-center self-center ml-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onInsightClick(insight); }}
+                                            className="inline-flex items-center px-3 py-1 text-[11px] font-semibold rounded-full bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-all focus:ring-2 focus:ring-teal-500/20 active:scale-95"
+                                        >
+                                            {insight.type === 'overdue_assignment' ? 'Grade now' : 'View'}
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -1010,7 +1030,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         markAllRead: handleMarkAllRead
     } = useNotifications({ userId: currentUser?.id || 'teacher_1', role: 'teacher' });
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const sidebarTheme = getRoleSidebarTheme('teacher');
 
@@ -1085,7 +1105,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setActiveTab('dashboard');
         }
         
-        // Deep linking hash synchronization
+        // Deep linking hash synchronization for internal sections
         if (hash === '#practice') {
             setActiveTab('dashboard');
             setShowAiPanel(true);
@@ -1093,7 +1113,12 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setActiveTab('dashboard');
             setTimeout(() => {
                 document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+            }, 500);
+        } else if (hash === '#resources') {
+            setActiveTab('dashboard');
+            setTimeout(() => {
+                document.getElementById('resources-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 500);
         }
     }, [props.activeTab, hash]);
     const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(initialClassId);
@@ -1359,107 +1384,55 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     };
 
     useEffect(() => {
-        const loadData = async () => {
-            // ── Demo mode: bypass real fetches and seed scenario A ──
-            if (isDemo) {
-                setStats(demoStats);
-                setMyClasses(demoClasses);
-                setUpcomingAssignments(
-                    demoAssignments.map((a) => ({
-                        id: a.id,
-                        title: a.title,
-                        class: a.className,
-                        due: a.statusLabel,
-                        status: a.status,
-                        submitted: 0,
-                        total: 32,
-                    }))
-                );
-                setTeacherName(demoTeacherName);
-                setLoading(false);
-                return;
+        const initializeDashboard = async () => {
+            setLoading(true);
+            setInsightsLoading(true);
+
+            // Force demo data since we are in SPA mode with no backend
+            setStats(demoStats);
+            setMyClasses(demoClasses);
+            setUpcomingAssignments(
+                demoAssignments.map((a) => ({
+                    id: a.id,
+                    title: a.title,
+                    class: a.className,
+                    due: a.statusLabel,
+                    status: a.status,
+                    submitted: 0,
+                    total: 32,
+                }))
+            );
+            setTeacherName(demoTeacherName);
+            setInsights(demoInsights);
+            
+            // Available packs for game creation
+            try {
+                const packs = await dataService.getAvailableGamePacks();
+                setAvailablePacks(packs);
+            } catch (err) {
+                console.warn("Failed to load available packs, falling back to empty list", err);
+                setAvailablePacks([]);
             }
 
-            try {
-                setLoading(true);
-                const [s, c, a, t] = await Promise.all([
-                    dataService.getTeacherStats(),
-                    dataService.getMyClasses(),
-                    dataService.getUpcomingAssignments(),
-                    dataService.getTeacherProfile(),
-                ]);
-                
-                // --- Auto-seed with demo data if the API results are empty ---
-                if (c.length === 0 && !isDemo) {
-                    console.log("No classes found. Seeding with demo data for visual parity.");
-                    setStats(demoStats);
-                    setMyClasses(demoClasses);
-                    setUpcomingAssignments(
-                        demoAssignments.map((a) => ({
-                            id: a.id,
-                            title: a.title,
-                            class: a.className,
-                            due: a.statusLabel,
-                            status: a.status,
-                            submitted: 0,
-                            total: 32,
-                        }))
-                    );
-                } else {
-                    setStats(s);
-                    setMyClasses(c);
-                    setUpcomingAssignments(
-                        a.map((asgn) => ({
-                            id: asgn.id,
-                            title: asgn.title,
-                            class: asgn.className,
-                            due: asgn.dueDate
-                                ? new Date(asgn.dueDate).toLocaleDateString()
-                                : asgn.statusLabel ?? asgn.status ?? '',
-                            status: asgn.statusLabel ?? asgn.status ?? 'Scheduled',
-                            submitted: 0,
-                            total: 0,
-                        }))
-                    );
-                }
-                
-                setTeacherName((t as { name?: string })?.name ?? 'Teacher');
-            } catch (err: unknown) {
-                // API unreachable (e.g. Vercel with no backend) — fall back to demo data for visual parity
-                console.warn('API unavailable, falling back to demo data:', err);
-                setStats(demoStats);
-                setMyClasses(demoClasses);
-                setUpcomingAssignments(
-                    demoAssignments.map((a) => ({
-                        id: a.id,
-                        title: a.title,
-                        class: a.className,
-                        due: a.statusLabel,
-                        status: a.status,
-                        submitted: 0,
-                        total: 32,
-                    }))
-                );
-                setTeacherName(demoTeacherName);
-            } finally {
-                setLoading(false);
-            }
+            // Kick off the Elora suggestion immediately after data is set
+            fetchEloraSuggestion(demoInsights);
+
+            setLoading(false);
+            setInsightsLoading(false);
         };
 
-        /** Fetch (or re-fetch) the Ask Elora suggestion. */
+        // Expose fetchEloraSuggestion for the "Ask again" button.
         const fetchEloraSuggestion = async (insightData?: dataService.TeacherInsight[]) => {
             setEloraStatus('loading');
             setEloraError(null);
             try {
-                // classId and className come from the first class (same demo class used for Class Health).
-                // We read them from `myClasses` captured in the closure; if not yet loaded,
-                // we use safe fallbacks so the mock always returns something.
-                const firstClassId = 'class-1'; // fallback until myClasses resolves
-                const firstClassName = 'Math 101'; // fallback
+                const firstClassId = 'class-1';
+                const firstClassName = 'Sec 3 Mathematics';
+                const dataToUse = insightData ?? demoInsights;
                 const suggestion = await getClassSupportSuggestion(
                     firstClassId,
                     firstClassName,
-                    insightData ?? insights
+                    dataToUse
                 );
                 setEloraSuggestion(suggestion);
                 setEloraStatus('success');
@@ -1468,45 +1441,9 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 setEloraStatus('error');
             }
         };
-
-        // Expose fetchEloraSuggestion for the "Ask again" button.
-        // We store it in a ref so the button can call it without re-registering the effect.
         fetchEloraSuggestionRef.current = fetchEloraSuggestion;
 
-        const loadInsights = async () => {
-            // ── Demo mode: use seeded insights ──
-            if (isDemo) {
-                setInsights(demoInsights);
-                setInsightsLoading(false);
-                fetchEloraSuggestion(demoInsights);
-                return;
-            }
-            try {
-                setInsightsLoading(true);
-                setInsightsError(null);
-                const data = await dataService.getTeacherInsights();
-                setInsights(data);
-                // Kick off the Elora suggestion immediately after insights arrive.
-                fetchEloraSuggestion(data);
-            } catch (err: unknown) {
-                setInsightsError(err instanceof Error ? err.message : 'Failed to load insights');
-            } finally {
-                setInsightsLoading(false);
-            }
-        };
-
-        const loadPacks = async () => {
-            try {
-                const packs = await dataService.getAvailableGamePacks();
-                setAvailablePacks(packs);
-            } catch (err) {
-                console.error("Failed to load available packs", err);
-            }
-        };
-
-        loadData();
-        loadInsights();
-        loadPacks();
+        initializeDashboard();
     }, [isDemo]);
 
     // ── Map real class data → performance display shape ──
@@ -1651,6 +1588,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }
     const handleViewAssignment = async (id: string) => {
         setLoadingResults(true);
+        setAssignmentResults(null); // clear stale data before new fetch
         setSelectedAssignmentId(id);
         try {
             const results = await dataService.getTeacherAssignmentResults(id);
@@ -1851,8 +1789,10 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             label="Dashboard" 
                             active={activeTab === 'dashboard' && !hash} 
                             onClick={() => {
+                                setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher');
                                 setActiveTab('dashboard');
+                                setShowAiPanel(false);
                             }} 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
@@ -1862,8 +1802,10 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             label="My Classes" 
                             active={activeTab === 'classes'} 
                             onClick={() => {
+                                setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes');
                                 setActiveTab('classes');
+                                setShowAiPanel(false);
                             }} 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
@@ -1871,7 +1813,11 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <NavItem
                             icon={<Sparkles size={20} />}
                             label="Copilot"
-                            onClick={() => navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot')}
+                            onClick={() => {
+                                setIsMobileMenuOpen(false);
+                                navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot');
+                                setShowAiPanel(false);
+                            }}
                             theme={sidebarTheme}
                             collapsed={!isSidebarOpen}
                         />
@@ -1880,6 +1826,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             label="Practice & quizzes"
                             active={activeTab === 'dashboard' && hash === '#practice'} 
                             onClick={() => {
+                                setIsMobileMenuOpen(false);
                                 navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
                                 setActiveTab('dashboard');
                                 setShowAiPanel(true);
@@ -1895,8 +1842,10 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             label="Reports" 
                             active={activeTab === 'dashboard' && hash === '#reports'} 
                             onClick={() => {
+                                setIsMobileMenuOpen(false);
                                 navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#reports`);
                                 setActiveTab('dashboard');
+                                setShowAiPanel(false);
                                 setTimeout(() => {
                                     document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
                                 }, 100);
@@ -1904,7 +1853,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
                         />
-                        <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        {/* <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} /> */}
                     </nav>
 
                     {/* Footer */}
@@ -1918,7 +1867,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 <PanelLeftOpen size={20} />
                             </button>
                         )}
-                        <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        {/* <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} /> */}
                         <button
                             onClick={logout}
                             className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -2250,6 +2199,15 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                             onNudgeStudent={handleNudgeClick}
                                             onDrillDown={handleDrillDown}
                                             generatePracticeLabel="Generate practice →"
+                                            onRetry={() => {
+                                                setInsightsLoading(true);
+                                                setInsightsError(null);
+                                                // Force demo data refresh
+                                                setTimeout(() => {
+                                                    setInsights(demoInsights);
+                                                    setInsightsLoading(false);
+                                                }, 500);
+                                            }}
                                         />
 
                                     </div>
@@ -2401,6 +2359,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     name={cls.name}
                                                     subject={cls.subject || 'Subject'}
                                                     themeColor="green" // to use emerald/teal gradient
+                                                    progress={cls.progress}
                                                     onEnter={() => handleViewRosterClick(cls.id)}
                                                     metaPrimaryNode={
                                                         <div className="flex flex-col gap-2">
@@ -2435,6 +2394,12 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                 <SectionSkeleton rows={3} />
                                             ) : (
                                                 <div className="flex flex-col gap-6">
+                                                    <ClassroomBreadcrumb
+                                                        items={[
+                                                            { label: 'Classes', href: isDemo ? '/teacher/demo/classes' : '/teacher/classes' },
+                                                            { label: myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom' }
+                                                        ]}
+                                                    />
                                                     <ClassroomHeader
                                                         currentClass={myClasses.find(c => c.id === selectedClassroomId)}
                                                         classroomTitle={myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom'}

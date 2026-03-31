@@ -36,6 +36,7 @@ import {
     CopilotEmptyState,
     CopilotMobileHeader,
     CopilotAuthGate,
+    CopilotAuthHint,
     Message,
     Step,
     ActionChip,
@@ -106,6 +107,7 @@ const TeacherCopilotPage: React.FC = () => {
     const navigate = useNavigate();
     const isDemo = useDemoMode();
     const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
+    const [showAuthHint, setShowAuthHint] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
@@ -225,6 +227,10 @@ const TeacherCopilotPage: React.FC = () => {
     }, [messages, isThinking]);
 
     const handleSend = (text: string) => {
+        if (isUnauthenticated) {
+            setShowAuthHint(true);
+            return;
+        }
         const query = text.trim();
         if (!query) return;
 
@@ -539,109 +545,132 @@ const TeacherCopilotPage: React.FC = () => {
             demoBanner={isDemo && <DemoBanner />}
             demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
             sidebar={
-                <>
-                    <div className="p-6 border-b border-[#EAE7DD]">
-                        <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
-                        <p className="text-sm font-medium text-teal-600 flex items-center gap-1.5">
-                            <Sparkles size={14} />
-                            Connected to class data
-                        </p>
+                isUnauthenticated ? (
+                    <div className="p-6">
+                        <div className="flex items-center gap-2 mb-6">
+                            <EloraLogo className="w-8 h-8" />
+                            <span className="text-xl font-bold tracking-tight text-teal-600">Elora</span>
+                        </div>
+                        <div className="p-4 bg-teal-50 rounded-2xl border border-teal-100">
+                            <p className="text-sm text-teal-800 leading-relaxed italic">
+                                "The best classroom support starts with seeing what matters most in your class data."
+                            </p>
+                        </div>
+                        
+                        <div className="mt-8 space-y-4 opacity-50 pointer-events-none">
+                             <div className="h-4 w-24 bg-slate-200 rounded" />
+                             <div className="space-y-2">
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                             </div>
+                        </div>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
-                        {/* Context Selection Pill */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
-                            >
-                                {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                                )}
-                                <span className="text-xs font-bold whitespace-nowrap">
-                                    {contextPillLabel}
-                                </span>
-                                <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {/* Desktop Popover */}
-                            {isContextPopupOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-30 hidden md:block" onClick={() => setIsContextPopupOpen(false)} />
-                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="px-4 py-2 mb-1">
-                                            <p className="text-[11px] font-medium text-slate-400">Copilot will answer using data from this class only.</p>
-                                        </div>
-                                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                                            <button
-                                                onClick={() => handleContextChange(null)}
-                                                className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${!selectedClassId ? 'bg-teal-50/50' : ''}`}
-                                            >
-                                                <div className={`mt-0.5 p-1 rounded-md ${!selectedClassId ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                    <GraduationCap size={14} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-bold text-slate-900">All classes</span>
-                                                        {!selectedClassId && <Check size={16} className="text-teal-600" />}
-                                                    </div>
-                                                </div>
-                                            </button>
-                                            <div className="my-1 border-t border-slate-100" />
-                                            {classList.map((cls) => {
-                                                const classHasInsight = insights.some(i => i.className === cls.name);
-                                                return (
-                                                    <button
-                                                        key={cls.id}
-                                                        onClick={() => handleContextChange(cls.id)}
-                                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
-                                                    >
-                                                        <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                            <BookOpen size={14} />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
-                                                                    {classHasInsight && <span className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-0.5" />}
-                                                                    {cls.name}
-                                                                </span>
-                                                                {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
-                                                            </div>
-                                                            <p className="text-[11px] text-slate-500">{cls.studentsCount} students</p>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                ) : (
+                    <>
+                        <div className="p-6 border-b border-[#EAE7DD]">
+                            <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
+                            <p className="text-sm font-medium text-teal-600 flex items-center gap-1.5">
+                                <Sparkles size={14} />
+                                Connected to class data
+                            </p>
                         </div>
 
-                        {/* Prompt Chips */}
-                        <div>
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
-                            <div className="flex flex-col gap-2">
-                                {currentPrompts.map((prompt, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleSend(prompt)}
-                                        className="text-left text-sm text-teal-700 font-medium bg-teal-50 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 transition-colors px-4 py-3 rounded-xl flex items-start gap-2"
-                                    >
-                                        <span className="flex-1 leading-snug">{prompt}</span>
-                                        <ArrowRight size={16} className="shrink-0 text-teal-500 opacity-50 mt-0.5" />
-                                    </button>
-                                ))}
+                        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
+                            {/* Context Selection Pill */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
+                                >
+                                    {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                    )}
+                                    <span className="text-xs font-bold whitespace-nowrap">
+                                        {contextPillLabel}
+                                    </span>
+                                    <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Desktop Popover */}
+                                {isContextPopupOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-30 hidden md:block" onClick={() => setIsContextPopupOpen(false)} />
+                                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="px-4 py-2 mb-1">
+                                                <p className="text-[11px] font-medium text-slate-400">Copilot will answer using data from this class only.</p>
+                                            </div>
+                                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                                <button
+                                                    onClick={() => handleContextChange(null)}
+                                                    className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${!selectedClassId ? 'bg-teal-50/50' : ''}`}
+                                                >
+                                                    <div className={`mt-0.5 p-1 rounded-md ${!selectedClassId ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <GraduationCap size={14} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm font-bold text-slate-900">All classes</span>
+                                                            {!selectedClassId && <Check size={16} className="text-teal-600" />}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                                <div className="my-1 border-t border-slate-100" />
+                                                {classList.map((cls) => {
+                                                    const classHasInsight = insights.some(i => i.className === cls.name);
+                                                    return (
+                                                        <button
+                                                            key={cls.id}
+                                                            onClick={() => handleContextChange(cls.id)}
+                                                            className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
+                                                        >
+                                                            <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                                <BookOpen size={14} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
+                                                                        {classHasInsight && <span className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-0.5" />}
+                                                                        {cls.name}
+                                                                    </span>
+                                                                    {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500">{cls.studentsCount} students</p>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Prompt Chips */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
+                                <div className="flex flex-col gap-2">
+                                    {currentPrompts.map((prompt, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleSend(prompt)}
+                                            className="text-left text-sm text-teal-700 font-medium bg-teal-50 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 transition-colors px-4 py-3 rounded-xl flex items-start gap-2"
+                                        >
+                                            <span className="flex-1 leading-snug">{prompt}</span>
+                                            <ArrowRight size={16} className="shrink-0 text-teal-500 opacity-50 mt-0.5" />
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-6 border-t border-[#EAE7DD]">
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                            I'm best at questions about class data, assessment feedback, communication drafts, and topic explanations based on your Elora records.
-                        </p>
-                    </div>
-                </>
+                        <div className="p-6 border-t border-[#EAE7DD]">
+                            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                                I'm best at questions about class data, assessment feedback, communication drafts, and topic explanations based on your Elora records.
+                            </p>
+                        </div>
+                    </>
+                )
             }
         >
             <CopilotMobileHeader themeColor="#14b8a6" />
@@ -810,6 +839,12 @@ const TeacherCopilotPage: React.FC = () => {
                     )}
                 </>
             )}
+
+            <CopilotAuthHint 
+                isVisible={showAuthHint} 
+                onClose={() => setShowAuthHint(false)} 
+                themeColor="#14b8a6"
+            />
         </CopilotLayout>
     );
 };

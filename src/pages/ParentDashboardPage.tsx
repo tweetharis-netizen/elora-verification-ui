@@ -55,6 +55,7 @@ import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/Se
 import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { useSidebarState } from '../hooks/useSidebarState';
+import { useAuthGate } from '../hooks/useAuthGate';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
@@ -627,6 +628,7 @@ function MessageFeed({
 
 export default function ParentDashboardPage() {
     const navigate = useNavigate();
+    const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -863,7 +865,11 @@ export default function ParentDashboardPage() {
         .slice(0, 2)
         .join('');
 
-    const handleActivityClick = async (activity: any) => {
+    const handleOpenNudge = withGate(() => setNudgeOpen(true), "send supportive nudges");
+
+    const handleViewReports = withGate(() => setActivePage('progress'), "view detailed student reports");
+
+    const handleActivityClick = withGate(async (activity: any) => {
         if (activity.type === 'quiz' && activity.status === 'at_risk') {
             try {
                 // Fetch demo pack to show in review mode
@@ -875,11 +881,11 @@ export default function ParentDashboardPage() {
                 console.error("Failed to load game pack for review", error);
             }
         }
-    };
+    }, "review student assessments");
 
     const [showNudgeSuccess, setShowNudgeSuccess] = useState(false);
 
-    const handleSendNudge = async () => {
+    const handleSendNudge = withGate(async () => {
         if (!activeChildId || !nudgeText.trim()) return;
         setIsSendingNudge(true);
         try {
@@ -896,7 +902,7 @@ export default function ParentDashboardPage() {
         } finally {
             setIsSendingNudge(false);
         }
-    };
+    }, "send supportive nudges");
 
     if (reviewGamePack && reviewActivity) {
         const question = reviewGamePack.questions[reviewQuestionIndex];
@@ -1076,14 +1082,14 @@ export default function ParentDashboardPage() {
 
                                         <div className="mt-6 flex flex-wrap gap-3">
                                             <button
-                                                onClick={() => setNudgeOpen(true)}
+                                                onClick={() => handleOpenNudge()}
                                                 className="px-5 py-2 bg-white text-[#DB844A] rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                                             >
                                                 <Send size={16} />
                                                 Send a Nudge
                                             </button>
                                             <button
-                                                onClick={() => setActivePage('progress')}
+                                                onClick={() => handleViewReports()}
                                                 className="px-5 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md flex items-center gap-2"
                                             >
                                                 <BookOpen size={16} />
@@ -1115,7 +1121,7 @@ export default function ParentDashboardPage() {
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <button
-                                            onClick={() => setNudgeOpen(true)}
+                                            onClick={() => handleOpenNudge()}
                                             className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm hover:opacity-90"
                                             style={{ backgroundColor: BRAND }}
                                         >

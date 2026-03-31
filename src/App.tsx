@@ -19,6 +19,7 @@ import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentGamePage from './pages/StudentGamePage';
+import AuthGateDemoPage from './pages/AuthGateDemoPage';
 import { EloraLogo } from './components/EloraLogo';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 
@@ -614,6 +615,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/verify" element={<VerifyPage />} />
       <Route path="/our-story" element={<OurStoryPage />} />
+      <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
 
       {/* Demo routes – no auth required */}
       <Route path="/teacher/demo" element={<TeacherDashboardPage />} />

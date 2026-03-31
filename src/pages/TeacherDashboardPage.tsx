@@ -52,9 +52,11 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
+import { useAuthGate } from '../hooks/useAuthGate';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { AuthGate } from '../components/auth/AuthGate';
 import {
     demoStats,
     demoClasses,
@@ -148,7 +150,10 @@ const NavItem = ({
 
             {/* Active Indicator Circle */}
             {active && !collapsed && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+                <motion.div
+                    layoutId="activeIndicator"
+                    className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current"
+                />
             )}
         </a>
     );
@@ -390,6 +395,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
     });
     const [generating, setGenerating] = useState(false);
     const [generatedGame, setGeneratedGame] = useState<dataService.GamePack | null>(null);
+    const { withGate } = useAuthGate();
 
     const isDemo = true; // Hardcoded or from hook for this component's scope if needed.
 
@@ -1214,20 +1220,11 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
     // ── Generate practice prefill hook ──
     const handleGeneratePractice = (insight: dataService.TeacherInsight) => {
-        // Derive the level from the class name (e.g. "Sec 3 Mathematics" → "Sec 3")
-        const derivedLevel = insight.className
-            ? insight.className.replace(/\s+(mathematics|science|english|physics|chemistry|biology|history|geography)\b.*/i, '').trim()
-            : DEMO_CLASS_LEVEL;
-
-        const prefill: Partial<AiForm> = {
-            topic: insight.topicTag ?? insight.assignmentTitle ?? 'Targeted Practice',
-            level: derivedLevel,
-            questionCount: 5,
-            difficulty: 'mixed',
-        };
-        setAiPanelPrefill(prefill);
+        setAiPanelPrefill({ 
+            topic: insight.topicTag || insight.assignmentTitle || 'Targeted Practice', 
+            level: insight.className || 'General' 
+        });
         setShowAiPanel(true);
-        // Scroll the AI panel into view after state update
         setTimeout(() => {
             document.getElementById('ai-game-panel-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 80);
@@ -1237,9 +1234,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         setInsightToAssign(insight);
         setInsightAssignModalOpen(true);
         setInsightGenerating(true);
-        setInsightGeneratedPack(null);
         setInsightAssigningError(null);
-        setInsightDueDate('');
+        setInsightGeneratedPack(null);
 
         try {
             const pack = await dataService.generateGamePack({
@@ -2857,6 +2853,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         </div>
                     </div>
                 )}
+
             </div>
         </div>
     );

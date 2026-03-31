@@ -71,6 +71,8 @@ interface AuthState {
     currentUser: CurrentUser | null;
     /** True when a user is logged in. Convenience alias for !!currentUser. */
     isVerified: boolean;
+    /** True if the user is in a temporary "guest/demo" session (not persisted). */
+    isGuest: boolean;
     /** The current user's role (null when not logged in). */
     role: UserRole | null;
     /**
@@ -98,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
         loadFromStorage
     );
+    const [isGuest, setIsGuest] = useState<boolean>(() => {
+        // Init: guest if we have a user but nothing in storage
+        return !!currentUser && !localStorage.getItem(LS_KEY);
+    });
 
     // On mount (and whenever currentUser changes), push the user into dataService
     // so all fetch helpers pick up the right headers automatically.
@@ -126,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         dsSetCurrentUser(user);
+        setIsGuest(!persist);
     };
 
     const updateProfile = (data: Partial<CurrentUser>) => {
@@ -139,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = () => {
         setCurrentUser(null);
+        setIsGuest(false);
         localStorage.removeItem(LS_KEY);
         dsSetCurrentUser(null);
     };
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const value: AuthState = {
         currentUser,
         isVerified: currentUser !== null,
+        isGuest: isGuest,
         role: currentUser?.role ?? null,
         login,
         updateProfile,

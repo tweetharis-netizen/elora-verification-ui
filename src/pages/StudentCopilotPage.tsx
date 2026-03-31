@@ -12,6 +12,7 @@ import {
     Check
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { EloraLogo } from '../components/EloraLogo';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
@@ -29,6 +30,7 @@ import {
     CopilotEmptyState, 
     CopilotMobileHeader,
     CopilotAuthGate,
+    CopilotAuthHint,
     Message, 
     Step, 
     ActionChip,
@@ -105,7 +107,8 @@ const StudentCopilotPage: React.FC = () => {
     // In demo mode the useEffect below always calls login() to seed the demo user,
     // so we never want to show the auth gate. Only block unauthenticated access on
     // production routes (isDemo === false).
-    const isUnauthenticated = !isDemo && !currentUser;
+    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
+    const [showAuthHint, setShowAuthHint] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     
     // Context Selector State
@@ -184,6 +187,10 @@ const StudentCopilotPage: React.FC = () => {
     }, [messages, isThinking]);
 
     const handleSend = (text: string) => {
+        if (isUnauthenticated) {
+            setShowAuthHint(true);
+            return;
+        }
         const query = text.trim();
         if (!query) return;
 
@@ -438,7 +445,28 @@ const StudentCopilotPage: React.FC = () => {
         }
     };
 
-    const sidebarContent = (
+    const sidebarContent = isUnauthenticated ? (
+        <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6] p-6">
+            <div className="flex items-center gap-2 mb-6">
+                <EloraLogo className="w-8 h-8" />
+                <span className="text-xl font-bold tracking-tight text-[#68507B]">Elora</span>
+            </div>
+            <div className="p-4 bg-[#68507B]/5 rounded-2xl border border-[#68507B]/10">
+                <p className="text-sm text-[#68507B] leading-relaxed italic">
+                    "Your personal learning journey starts with understanding your strengths and focus areas."
+                </p>
+            </div>
+            
+            <div className="mt-8 space-y-4 opacity-50 pointer-events-none">
+                 <div className="h-4 w-24 bg-slate-200 rounded" />
+                 <div className="space-y-2">
+                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                 </div>
+            </div>
+        </div>
+    ) : (
         <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6]">
             {/* Sidebar Header */}
             <div className="p-6 border-b border-[#EAE7DD]">
@@ -543,6 +571,7 @@ const StudentCopilotPage: React.FC = () => {
             </div>
         </div>
     );
+
 
     return (
         <CopilotLayout
@@ -683,6 +712,12 @@ const StudentCopilotPage: React.FC = () => {
                 </div>
                 </>
             )}
+
+            <CopilotAuthHint 
+                isVisible={showAuthHint} 
+                onClose={() => setShowAuthHint(false)} 
+                themeColor="#68507B"
+            />
         </CopilotLayout>
     );
 };

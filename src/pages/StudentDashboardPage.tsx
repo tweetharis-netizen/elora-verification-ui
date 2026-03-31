@@ -73,6 +73,7 @@ import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { useSidebarState } from '../hooks/useSidebarState';
+import { useAuthGate } from '../hooks/useAuthGate';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -192,6 +193,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
     const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
     const { hash } = useLocation();
+    const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
     const isDemo = useDemoMode();
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
@@ -244,6 +246,11 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         const route = isDemo ? `/student/demo/class/${classId}` : `/student/class/${classId}`;
         navigate(`${route}?tab=${tab}`);
     };
+
+    const handleLaunchGame = withGate((gamePackId: string, attemptId?: string) => {
+        const url = attemptId ? `/play/${gamePackId}?attemptId=${attemptId}` : `/play/${gamePackId}`;
+        navigate(url);
+    }, "start practice tasks");
 
     type AskEloraStatus = 'idle' | 'loading' | 'success' | 'error';
     const [eloraStatus, setEloraStatus] = useState<AskEloraStatus>('idle');
@@ -558,7 +565,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         );
     }
 
-    const handleJoinClass = async (e: React.FormEvent) => {
+    const handleJoinClass = withGate(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!joinCode.trim()) return;
         setJoiningClass(true);
@@ -575,16 +582,16 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         } finally {
             setJoiningClass(false);
         }
-    };
+    }, "join a new class");
 
-    const handleMarkNudgeRead = async (id: string) => {
+    const handleMarkNudgeRead = withGate(async (id: string) => {
         try {
             await dataService.markNudgeAsRead(id);
             setNudges(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         } catch (error) {
             console.error("Failed to mark nudge as read", error);
         }
-    };
+    }, "interact with teacher nudges");
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
@@ -1134,7 +1141,10 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
                                         <NextStepsStrip
                                             recs={nextSteps}
-                                            onNavigate={(href) => navigate(href)}
+                                            onNavigate={(href) => {
+                                                const gatedNav = () => navigate(href);
+                                                gatedNav();
+                                            }}
                                         />
                                     </div>
 
@@ -1168,7 +1178,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                         {displayedTasks.map(item => (
                                                                             <div
                                                                                 key={item.id}
-                                                                                onClick={() => navigate(`/play/${(item as any).gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId}`)}
+                                                                                onClick={() => handleLaunchGame((item as any).gamePackId || 'practice-general', (item as any).attemptId)}
                                                                                 className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all group cursor-pointer shadow-sm hover:border-[#68507B]/20"
                                                                             >
                                                                                 <div className="w-10 h-10 rounded-lg bg-[#68507B] flex items-center justify-center text-white shadow-lg shadow-purple-900/10 transition-transform group-hover:scale-110">
@@ -1393,7 +1403,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                     return (
                                                                         <div
                                                                             key={item.id}
-                                                                            onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${(item as any).attemptId || ''}`)}
+                                                                            onClick={() => handleLaunchGame(item.gamePackId || 'practice-general', (item as any).attemptId)}
                                                                             className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group"
                                                                         >
                                                                             <div className="flex justify-between items-start gap-4">

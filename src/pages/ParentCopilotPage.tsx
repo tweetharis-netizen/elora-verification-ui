@@ -30,6 +30,7 @@ import {
     CopilotEmptyState,
     CopilotMobileHeader,
     CopilotAuthGate,
+    CopilotAuthHint,
     Message,
     ActionChip,
     getParentGreeting,
@@ -110,6 +111,8 @@ const ParentCopilotPage: React.FC = () => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
+    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
+    const [showAuthHint, setShowAuthHint] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -162,6 +165,10 @@ const ParentCopilotPage: React.FC = () => {
     };
 
     const handleSend = async (text: string) => {
+        if (isUnauthenticated) {
+            setShowAuthHint(true);
+            return;
+        }
         const query = text.trim();
         if (!query) return;
 
@@ -224,9 +231,8 @@ const ParentCopilotPage: React.FC = () => {
     const currentPrompts = buildPrompts();
 
     // ── Auth Gate Logic for Demo Mode ──────────────────────────────────────────
-    // In demo mode (/parent/copilot/demo), if we have no persisted user, 
-    // we show a sign-up/login gate instead of the live chat.
-    const showAuthGate = isDemo && !currentUser;
+    // isUnauthenticated is true if in demo mode and no user is persisted.
+    // ─────────────────────────────────────────────────────────────────────────────
 
     return (
         <CopilotLayout
@@ -240,16 +246,25 @@ const ParentCopilotPage: React.FC = () => {
             demoBanner={isDemo && <DemoBanner />}
             demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
             sidebar={
-                showAuthGate ? (
+                isUnauthenticated ? (
                     <div className="p-6">
                         <div className="flex items-center gap-2 mb-6">
                             <EloraLogo className="w-8 h-8" />
-                            <span className="text-xl font-bold tracking-tight text-white">Elora</span>
+                            <span className="text-xl font-bold tracking-tight text-orange-600">Elora</span>
                         </div>
-                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                            <p className="text-sm text-white/60 leading-relaxed italic">
+                        <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                            <p className="text-sm text-orange-800 leading-relaxed italic">
                                 "The best support at home starts with seeing what matters most at school."
                             </p>
+                        </div>
+
+                        <div className="mt-8 space-y-4 opacity-50 pointer-events-none">
+                             <div className="h-4 w-24 bg-slate-200 rounded" />
+                             <div className="space-y-2">
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
+                             </div>
                         </div>
                     </div>
                 ) : (
@@ -358,17 +373,12 @@ const ParentCopilotPage: React.FC = () => {
             }
         >
             <CopilotMobileHeader themeColor="#DB844A" />
-
-            {showAuthGate ? (
-                <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <CopilotAuthGate
-                        role="parent"
-                        themeColor="#DB844A"
-                        title="Welcome to the Parent Copilot"
-                        description="Sign up for Elora to get personalized AI-powered insights, real-time alerts on your child's progress, and direct parent-teacher communication tools."
-                        className="h-full shadow-none border-none bg-transparent"
-                    />
-                </div>
+            
+            {isUnauthenticated ? (
+                <CopilotAuthGate
+                    role="Parent"
+                    themeColor="#DB844A"
+                />
             ) : (
                 <>
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
@@ -473,6 +483,12 @@ const ParentCopilotPage: React.FC = () => {
                     </div>
                 </>
             )}
+
+            <CopilotAuthHint 
+                isVisible={showAuthHint} 
+                onClose={() => setShowAuthHint(false)} 
+                themeColor="#DB844A"
+            />
         </CopilotLayout>
     );
 };

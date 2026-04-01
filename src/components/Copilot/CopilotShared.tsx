@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
     Sparkles,
     ChevronUp,
@@ -22,8 +21,7 @@ import {
     BarChart2,
     FileText,
     MessageSquare,
-    TrendingUp,
-    Trophy
+    TrendingUp
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EloraLogo } from '../EloraLogo';
@@ -204,14 +202,14 @@ export const CopilotLayout: React.FC<{
                             {role !== 'Parent' && (
                                 <NavItem
                                     icon={<BookOpen size={20} />}
-                                    label="My Classes"
+                                    label={role === 'Teacher' ? "Classes" : "My Classes"}
                                     onClick={() => {
                                         if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo/classes');
-                                            else navigate('/student/demo/classes');
+                                            if (role === 'Teacher') navigate('/teacher/demo#classes');
+                                            else navigate('/student/demo#classes');
                                         } else {
-                                            if (role === 'Teacher') navigate('/teacher/classes');
-                                            else navigate('/student/classes');
+                                            if (role === 'Teacher') navigate('/dashboard/teacher#classes');
+                                            else navigate('/dashboard/student#classes');
                                         }
                                     }}
                                     collapsed={!isSidebarOpen}
@@ -226,18 +224,18 @@ export const CopilotLayout: React.FC<{
                                 collapsed={!isSidebarOpen}
                             />
 
-                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="Children" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
-                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
-                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
-                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => navigate(isDemo ? '/parent/demo' : '/dashboard/parent')} />}
+                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => {}} />}
 
                             {role !== 'Parent' && (
                                 <NavItem
                                     icon={<Gamepad2 size={20} />}
-                                    label={role === 'Teacher' ? "Practice & quizzes" : "Practice & Quizzes"}
+                                    label="Practice & Quizzes"
                                     onClick={() => {
                                         if (isDemo) {
-                                            if (role === 'Teacher') navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
+                                            if (role === 'Teacher') navigate('/teacher/demo#practice');
                                             else navigate('/student/demo#practice');
                                         } else {
                                             if (role === 'Teacher') navigate('/dashboard/teacher#practice');
@@ -248,40 +246,31 @@ export const CopilotLayout: React.FC<{
                                 />
                             )}
 
-                            {(role === 'Student' || role === 'Teacher') && (
-                                <NavItem 
-                                    icon={<TrendingUp size={20} />} 
-                                    label="Reports" 
-                                    collapsed={!isSidebarOpen} 
-                                    onClick={() => {
-                                        if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo#reports');
-                                            else navigate('/student/demo#reports');
-                                        } else {
-                                            if (role === 'Teacher') navigate('/dashboard/teacher#reports');
-                                            else navigate('/dashboard/student#reports');
-                                        }
-                                    }}
-                                />
-                            )}
-
                             {role === 'Student' && (
-                                <NavItem 
-                                    icon={<FileText size={20} />} 
-                                    label="Assignments" 
-                                    collapsed={!isSidebarOpen} 
-                                    onClick={() => navigate(isDemo ? '/student/demo/assignments' : '/student/assignments')}
-                                />
+                                <>
+                                    <NavItem 
+                                        icon={<FileText size={20} />} 
+                                        label="Assignments" 
+                                        collapsed={!isSidebarOpen} 
+                                        onClick={() => navigate(isDemo ? '/student/demo/assignments' : '/student/assignments')}
+                                    />
+                                    <NavItem 
+                                        icon={<TrendingUp size={20} />} 
+                                        label="Reports" 
+                                        collapsed={!isSidebarOpen} 
+                                        onClick={() => navigate(isDemo ? '/student/demo#reports' : '/dashboard/student#reports')}
+                                    />
+                                </>
                             )}
 
-                            {/* role === 'Teacher' && (
+                            {role === 'Teacher' && (
                                 <NavItem 
                                     icon={<Users size={20} />} 
                                     label="Students" 
                                     collapsed={!isSidebarOpen} 
                                     onClick={() => navigate(isDemo ? '/teacher/demo#students' : '/dashboard/teacher#students')}
                                 />
-                            ) */}
+                            )}
                         </nav>
 
                         <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
@@ -293,7 +282,7 @@ export const CopilotLayout: React.FC<{
                                     <PanelLeftOpen size={20} />
                                 </button>
                             )}
-                            {/* <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} /> */}
+                            <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} />
                             <button
                                 onClick={logout}
                                 className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -306,8 +295,13 @@ export const CopilotLayout: React.FC<{
                     </aside>
 
                     {/* --- Main Content Area --- */}
-                    <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                        {/* Chat Area — full width */}
+                    <div className="flex-1 flex flex-col md:flex-row h-screen overflow-hidden">
+                        {/* Left Column (Context Sidebar) */}
+                        <div className="hidden md:flex w-72 bg-white border-r border-[#EAE7DD] flex-col shrink-0 overflow-hidden">
+                            {sidebar}
+                        </div>
+
+                        {/* Right Column (Chat Area) */}
                         <div className="flex-1 flex flex-col bg-[#FDFBF5] relative min-w-0">
                             {children}
                         </div>
@@ -587,50 +581,37 @@ export const CopilotEmptyState: React.FC<{
 export const CopilotAuthGate: React.FC<{
     themeColor?: string;
     role: 'Teacher' | 'Student' | 'Parent';
-    title?: string;
-    description?: string;
-    className?: string;
-}> = ({ role, title, description, className, themeColor }) => {
-    // Determine the accent color based on role if themeColor is not explicitly provided
-    const accentColor = themeColor || (role === 'Teacher' ? '#14b8a6' : role === 'Student' ? '#68507B' : '#DB844A');
-    const accentBg = role === 'Teacher' ? 'bg-teal-50' : role === 'Student' ? 'bg-purple-50' : 'bg-orange-50';
-    const accentText = role === 'Teacher' ? 'text-teal-600' : role === 'Student' ? 'text-purple-600' : 'text-orange-600';
-    const accentButton = role === 'Teacher' ? 'bg-teal-600 hover:bg-teal-700' : role === 'Student' ? 'bg-[#68507B] hover:bg-[#5a456a]' : 'bg-[#DB844A] hover:bg-[#c67642]';
-
+}> = ({ themeColor = '#14b8a6', role }) => {
     return (
-        <div className={`flex h-full items-center justify-center bg-[#fafaf9] px-4 py-8 ${className || ''}`}>
-            <div className="max-w-md w-full bg-white rounded-[32px] px-10 py-10 shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-100 text-center">
-                {/* Icon wrapper */}
-                <div className={`mx-auto w-16 h-16 ${accentBg} rounded-2xl flex items-center justify-center mb-6 ${accentText}`}>
+        <div className="flex-1 flex items-center justify-center p-6 h-full">
+            <div className="bg-white border border-[#EAE7DD] rounded-2xl p-8 md:p-12 max-w-md w-full text-center shadow-sm">
+                <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-sm" style={{ backgroundColor: themeColor + '15', color: themeColor }}>
                     <Sparkles className="w-8 h-8" />
                 </div>
-
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 tracking-tight">
-                    {title || "Sign in to use Copilot"}
+                <h2 className="text-2xl font-bold text-slate-900 mb-3">
+                    Sign in to use Copilot
                 </h2>
-                
-                <p className="text-sm text-slate-600 mb-8 leading-relaxed">
-                    {description || `Elora Copilot uses real-time class data to provide personalized assistance. Sign up or log in to unlock the full experience.`}
+                <p className="text-slate-500 mb-8 leading-relaxed">
+                    Elora Copilot uses real-time class data to provide personalized assistance. Sign up or log in to unlock the full experience.
                 </p>
-
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-3">
                     <Link
                         to="/signup"
-                        className={`w-full mb-3 inline-flex items-center justify-center py-3 rounded-xl ${accentButton} text-white text-sm font-semibold transition shadow-sm`}
+                        className="w-full py-3 px-4 rounded-xl font-medium text-white transition-transform hover:-translate-y-0.5 shadow-sm"
+                        style={{ backgroundColor: themeColor }}
                     >
                         Sign up for free
                     </Link>
-                    
                     <Link
                         to="/login"
-                        className="w-full inline-flex items-center justify-center py-3 rounded-xl bg-slate-50 text-slate-700 text-sm font-semibold border border-slate-200 hover:bg-slate-100 transition"
+                        className="w-full py-3 px-4 rounded-xl font-medium transition-colors border"
+                        style={{ color: themeColor, backgroundColor: themeColor + '05', borderColor: themeColor + '20' }}
                     >
                         Log in
                     </Link>
-                    
                     <Link
                         to={`/${role.toLowerCase()}/demo`}
-                        className="mt-6 text-xs text-slate-400 cursor-pointer hover:text-slate-600 hover:underline underline-offset-2"
+                        className="mt-4 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors inline-block"
                     >
                         Explore dashboard
                     </Link>
@@ -639,53 +620,3 @@ export const CopilotAuthGate: React.FC<{
         </div>
     );
 };
-
-/**
- * A subtle hint/toast for unauthenticated users interacting with gated elements
- */
-export const CopilotAuthHint: React.FC<{
-    isVisible: boolean;
-    onClose: () => void;
-    themeColor?: string;
-}> = ({ isVisible, onClose, themeColor = '#14b8a6' }) => {
-    useEffect(() => {
-        if (isVisible) {
-            const timer = setTimeout(() => {
-                onClose();
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [isVisible, onClose]);
-
-    return (
-        <AnimatePresence>
-            {isVisible && (
-                <motion.div 
-                    initial={{ opacity: 0, y: 20, x: '-50%' }}
-                    animate={{ opacity: 1, y: 0, x: '-50%' }}
-                    exit={{ opacity: 0, y: 20, x: '-50%' }}
-                    className="fixed bottom-8 left-1/2 z-[100] w-full max-w-xs px-4"
-                >
-                    <div 
-                        className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3"
-                    >
-                        <div 
-                            className="p-1.5 rounded-lg flex-shrink-0"
-                            style={{ backgroundColor: themeColor + '30', color: themeColor }}
-                        >
-                            <Sparkles size={16} />
-                        </div>
-                        <p className="text-sm font-medium">Sign in to use Copilot</p>
-                        <button 
-                            onClick={onClose}
-                            className="ml-auto text-white/40 hover:text-white transition-colors"
-                        >
-                            <Plus size={18} className="rotate-45" />
-                        </button>
-                    </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
-};
-

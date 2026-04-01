@@ -23,14 +23,12 @@ import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
-import { useSidebarState } from '../hooks/useSidebarState';
 import {
     CopilotLayout,
     CopilotMessageBubble,
     CopilotEmptyState,
     CopilotMobileHeader,
     CopilotAuthGate,
-    CopilotAuthHint,
     Message,
     ActionChip,
     getParentGreeting,
@@ -111,9 +109,7 @@ const ParentCopilotPage: React.FC = () => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
-    const [showAuthHint, setShowAuthHint] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
@@ -165,10 +161,6 @@ const ParentCopilotPage: React.FC = () => {
     };
 
     const handleSend = async (text: string) => {
-        if (isUnauthenticated) {
-            setShowAuthHint(true);
-            return;
-        }
         const query = text.trim();
         if (!query) return;
 
@@ -180,13 +172,6 @@ const ParentCopilotPage: React.FC = () => {
 
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
-        
-        // Reset textarea height after sending
-        const textarea = document.querySelector('textarea');
-        if (textarea) {
-            textarea.style.height = '52px';
-        }
-        
         setIsThinking(true);
 
         // Process with intent handler
@@ -231,8 +216,9 @@ const ParentCopilotPage: React.FC = () => {
     const currentPrompts = buildPrompts();
 
     // ── Auth Gate Logic for Demo Mode ──────────────────────────────────────────
-    // isUnauthenticated is true if in demo mode and no user is persisted.
-    // ─────────────────────────────────────────────────────────────────────────────
+    // In demo mode (/parent/copilot/demo), if we have no persisted user, 
+    // we show a sign-up/login gate instead of the live chat.
+    const showAuthGate = isDemo && !currentUser;
 
     return (
         <CopilotLayout
@@ -246,25 +232,16 @@ const ParentCopilotPage: React.FC = () => {
             demoBanner={isDemo && <DemoBanner />}
             demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
             sidebar={
-                isUnauthenticated ? (
+                showAuthGate ? (
                     <div className="p-6">
                         <div className="flex items-center gap-2 mb-6">
                             <EloraLogo className="w-8 h-8" />
-                            <span className="text-xl font-bold tracking-tight text-orange-600">Elora</span>
+                            <span className="text-xl font-bold tracking-tight text-white">Elora</span>
                         </div>
-                        <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                            <p className="text-sm text-orange-800 leading-relaxed italic">
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <p className="text-sm text-white/60 leading-relaxed italic">
                                 "The best support at home starts with seeing what matters most at school."
                             </p>
-                        </div>
-
-                        <div className="mt-8 space-y-4 opacity-50 pointer-events-none">
-                             <div className="h-4 w-24 bg-slate-200 rounded" />
-                             <div className="space-y-2">
-                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                                 <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                             </div>
                         </div>
                     </div>
                 ) : (
@@ -373,12 +350,17 @@ const ParentCopilotPage: React.FC = () => {
             }
         >
             <CopilotMobileHeader themeColor="#DB844A" />
-            
-            {isUnauthenticated ? (
-                <CopilotAuthGate
-                    role="Parent"
-                    themeColor="#DB844A"
-                />
+
+            {showAuthGate ? (
+                <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                    <CopilotAuthGate
+                        role="parent"
+                        themeColor="#DB844A"
+                        title="Welcome to the Parent Copilot"
+                        description="Sign up for Elora to get personalized AI-powered insights, real-time alerts on your child's progress, and direct parent-teacher communication tools."
+                        className="h-full shadow-none border-none bg-transparent"
+                    />
+                </div>
             ) : (
                 <>
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
@@ -439,9 +421,23 @@ const ParentCopilotPage: React.FC = () => {
 
                     <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
                         <div className="max-w-4xl mx-auto space-y-4">
-                                <div className="flex-1 md:hidden">
-                                    <p className="text-[10px] font-bold text-slate-400 tracking-wider">CONTEXT</p>
-                                </div>
+                            <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                <button
+                                    onClick={() => setIsChildPopupOpen(true)}
+                                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-[11px] font-bold border border-orange-200 whitespace-nowrap"
+                                >
+                                    <User size={12} />
+                                    {currentChild?.name || 'Child'}
+                                </button>
+                                <button
+                                    onClick={() => setIsSubjectPopupOpen(true)}
+                                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-white text-slate-700 rounded-full text-[11px] font-bold border border-slate-200 whitespace-nowrap"
+                                >
+                                    <BookOpen size={12} />
+                                    {selectedSubject}
+                                </button>
+                                <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#DB844A" />
+                            </div>
 
                             <div className="flex items-center gap-3">
                                 <button
@@ -461,13 +457,8 @@ const ParentCopilotPage: React.FC = () => {
                                             }
                                         }}
                                         placeholder={`Ask about ${childName}'s learning...`}
-                                        className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/20 resize-none flex-1 min-h-[52px] max-h-48 overflow-y-auto transition-[height] duration-100"
+                                        className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 resize-none min-h-[52px] max-h-32"
                                         rows={1}
-                                        onInput={(e) => {
-                                            const target = e.currentTarget;
-                                            target.style.height = 'auto';
-                                            target.style.height = `${Math.min(target.scrollHeight, 192)}px`;
-                                        }}
                                         style={{ height: '52px' }}
                                     />
                                     <button
@@ -483,12 +474,6 @@ const ParentCopilotPage: React.FC = () => {
                     </div>
                 </>
             )}
-
-            <CopilotAuthHint 
-                isVisible={showAuthHint} 
-                onClose={() => setShowAuthHint(false)} 
-                themeColor="#DB844A"
-            />
         </CopilotLayout>
     );
 };

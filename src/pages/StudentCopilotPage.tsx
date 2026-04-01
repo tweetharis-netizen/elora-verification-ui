@@ -12,12 +12,9 @@ import {
     Check
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { EloraLogo } from '../components/EloraLogo';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
-import { getRoleSidebarTheme } from '../lib/roleTheme';
-import { useSidebarState } from '../hooks/useSidebarState';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -30,7 +27,6 @@ import {
     CopilotEmptyState, 
     CopilotMobileHeader,
     CopilotAuthGate,
-    CopilotAuthHint,
     Message, 
     Step, 
     ActionChip,
@@ -67,7 +63,7 @@ const HorizontalChips: React.FC<{
     }, [prompts]);
 
     return (
-        <div className="relative">
+        <div className="relative md:hidden">
             <div 
                 ref={scrollRef}
                 onScroll={checkScroll}
@@ -107,9 +103,8 @@ const StudentCopilotPage: React.FC = () => {
     // In demo mode the useEffect below always calls login() to seed the demo user,
     // so we never want to show the auth gate. Only block unauthenticated access on
     // production routes (isDemo === false).
-    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
-    const [showAuthHint, setShowAuthHint] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
+    const isUnauthenticated = !isDemo && !currentUser;
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     
     // Context Selector State
     const [selectedSubjectId, setSelectedSubjectId] = useState('all');
@@ -187,10 +182,6 @@ const StudentCopilotPage: React.FC = () => {
     }, [messages, isThinking]);
 
     const handleSend = (text: string) => {
-        if (isUnauthenticated) {
-            setShowAuthHint(true);
-            return;
-        }
         const query = text.trim();
         if (!query) return;
 
@@ -202,13 +193,6 @@ const StudentCopilotPage: React.FC = () => {
 
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
-        
-        // Reset textarea height after sending
-        const textarea = document.querySelector('textarea');
-        if (textarea) {
-            textarea.style.height = '52px';
-        }
-        
         setIsThinking(true);
 
         const lowerQuery = query.toLowerCase().trim();
@@ -445,28 +429,7 @@ const StudentCopilotPage: React.FC = () => {
         }
     };
 
-    const sidebarContent = isUnauthenticated ? (
-        <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6] p-6">
-            <div className="flex items-center gap-2 mb-6">
-                <EloraLogo className="w-8 h-8" />
-                <span className="text-xl font-bold tracking-tight text-[#68507B]">Elora</span>
-            </div>
-            <div className="p-4 bg-[#68507B]/5 rounded-2xl border border-[#68507B]/10">
-                <p className="text-sm text-[#68507B] leading-relaxed italic">
-                    "Your personal learning journey starts with understanding your strengths and focus areas."
-                </p>
-            </div>
-            
-            <div className="mt-8 space-y-4 opacity-50 pointer-events-none">
-                 <div className="h-4 w-24 bg-slate-200 rounded" />
-                 <div className="space-y-2">
-                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                     <div className="h-10 w-full bg-slate-100 rounded-xl" />
-                 </div>
-            </div>
-        </div>
-    ) : (
+    const sidebarContent = (
         <div className="flex flex-col h-full overflow-hidden bg-[#faf9f6]">
             {/* Sidebar Header */}
             <div className="p-6 border-b border-[#EAE7DD]">
@@ -572,7 +535,6 @@ const StudentCopilotPage: React.FC = () => {
         </div>
     );
 
-
     return (
         <CopilotLayout
             role="Student"
@@ -666,6 +628,12 @@ const StudentCopilotPage: React.FC = () => {
             {/* Input Bar */}
             <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
                 <div className="max-w-4xl mx-auto space-y-4">
+                    {messages.length > 0 && (
+                        <div className="relative">
+                            <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#68507B" />
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setMessages([])}
@@ -685,13 +653,8 @@ const StudentCopilotPage: React.FC = () => {
                                     }
                                 }}
                                 placeholder="Ask Copilot a question..."
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/20 focus:border-[#68507B]/20 resize-none flex-1 min-h-[52px] max-h-48 overflow-y-auto transition-[height] duration-100"
+                                className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/30 focus:border-[#68507B] resize-none flex-1 min-h-[52px] max-h-32"
                                 rows={1}
-                                onInput={(e) => {
-                                    const target = e.currentTarget;
-                                    target.style.height = 'auto';
-                                    target.style.height = `${Math.min(target.scrollHeight, 192)}px`;
-                                }}
                                 style={{ height: '52px' }}
                             />
                             <button
@@ -712,12 +675,6 @@ const StudentCopilotPage: React.FC = () => {
                 </div>
                 </>
             )}
-
-            <CopilotAuthHint 
-                isVisible={showAuthHint} 
-                onClose={() => setShowAuthHint(false)} 
-                themeColor="#68507B"
-            />
         </CopilotLayout>
     );
 };

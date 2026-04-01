@@ -1,7 +1,0 @@
-
-> react-example@0.0.0 lint
-> tsc --noEmit
-
-src/pages/TeacherDashboardPage.tsx(2191,45): error TS2322: Type '(suggestion: { topic: string; level: string; }) => void' is not assignable to type '(insight: TeacherInsight) => void'.
-  Types of parameters 'suggestion' and 'insight' are incompatible.
-    Type 'TeacherInsight' is missing the following properties from type '{ topic: string; level: string; }': topic, level

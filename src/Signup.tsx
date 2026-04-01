@@ -1,6 +1,7 @@
 // src/Signup.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { UserRole } from './auth/AuthContext';
 
 // Signup no longer receives setIsAuthenticated – auth state is managed by AuthContext.
@@ -8,11 +9,13 @@ import { UserRole } from './auth/AuthContext';
 export default function Signup() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<UserRole>('teacher');
+  const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Navigate to /verify and pass the chosen role in router state.
-    navigate('/verify', { state: { role: selectedRole } });
+    // Navigate to /verify and pass the chosen role and name in router state.
+    navigate('/verify', { state: { role: selectedRole, name: fullName } });
   };
 
   return (
@@ -55,12 +58,12 @@ export default function Signup() {
       {/* Right Column: Form */}
       <div className="flex-1 flex flex-col justify-center p-8 lg:p-16 bg-white">
         <div className="w-full max-w-md mx-auto">
-          <h3 className="font-serif text-3xl text-elora-400 mb-2">Create an account</h3>
-          <p className="text-gray-500 mb-8">Join Elora to start your learning journey.</p>
+          <h3 className="font-serif text-3xl text-elora-400 mb-2">Set up your Elora space</h3>
+          <p className="text-gray-500 mb-8">A calm, shared home for teachers, students, and parents.</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-elora-400 mb-2">I am a...</label>
+              <label className="block text-sm font-medium text-elora-400 mb-2">I am joining as a...</label>
               <div className="flex gap-3">
                 {(['teacher', 'student', 'parent'] as UserRole[]).map((r) => (
                   <label key={r} className="flex-1 cursor-pointer">
@@ -81,18 +84,20 @@ export default function Signup() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="fullName">Full name</label>
+              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="fullName">What should we call you?</label>
               <input
                 type="text"
                 id="fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
-                placeholder="Jane Doe"
+                placeholder="e.g. Alex Rivera"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="email">Email address</label>
+              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="email">School or personal email</label>
               <input
                 type="email"
                 id="email"
@@ -103,27 +108,38 @@ export default function Signup() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
-                placeholder="••••••••"
-                required
-              />
+              <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="password">Create a secure password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
+                  placeholder="8+ characters to keep your space safe"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-elora-400 p-1.5 rounded-lg transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               className="w-full bg-elora-400 hover:bg-elora-300 text-white font-medium rounded-xl px-4 py-3.5 mt-2 transition-colors shadow-sm flex justify-center items-center"
             >
-              Create my Elora account
+              Begin my journey
             </button>
           </form>
 
           <p className="mt-8 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-elora-200 hover:text-elora-300 transition-colors">Sign in</Link>
+            <Link to="/login" className="font-medium text-elora-200 hover:text-elora-300 transition-colors">Sign in here</Link>
           </p>
         </div>
       </div>

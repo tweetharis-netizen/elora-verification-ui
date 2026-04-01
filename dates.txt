@@ -1,0 +1,15 @@
+﻿d0eed6e Wed Apr 1 01:37:53 2026 fix(TeacherDashboard): resolve TS2322 linting error for onAssignPractice callback
+177cf8c Tue Mar 31 00:41:36 2026 feat: Stabilize Copilot navigation sidebars across Teacher, Student, Parent roles and remove redundant suggestions from chat UI
+844c149 Mon Mar 30 19:59:44 2026 fix: demo/prod parity - api fallback to demo data, fix teacher greeting name, fix copilot auth gate glitch
+8c323bb Mon Mar 30 19:38:35 2026 fix: add missing /teacher/demo/classes route
+7e5d19b Mon Mar 30 19:14:09 2026 feat: finalize dashboard navigation and UI modernization for Student, Teacher, and Parent views
+4ca092b Mon Mar 30 00:22:41 2026 feat: standardize student dashboard navigation and add missing assignment routes
+81aaeab Sun Mar 29 23:56:50 2026 Design Standardization: Parity for student dashboards and class summary banners for a premium aesthetic
+642ec90 Sun Mar 29 23:34:16 2026 fix(build): add missing DashboardHeader component to resolve Vercel build failure
+c5a9313 Sun Mar 29 23:27:11 2026 feat: standardized student class banners with playful backgrounds and subject themes
+648dabc Sat Mar 28 23:44:31 2026 Refine theming and classroom layouts (teacher/student/parent)
+ed86497 Mon Mar 23 18:17:34 2026 Refine dashboards: remove messy stat card text and redesign Student Performance Overview into gorgeous progress cards
+17914c2 Sun Mar 22 22:31:49 2026 chore: add elora.db to gitignore
+1c934ef Sun Mar 22 22:30:42 2026 feat: Teacher Classes and Stats Updates & Subject Tags
+14cdb1b Sun Mar 22 21:58:02 2026 Refactor Copilot: perform natural-language quality pass on Teacher, Student, and Parent Copilots. Improved intent detection, answer clarity, and added probabilistic feedback frequency.
+010545d Sun Mar 22 21:12:41 2026 feat: standardise per-answer feedback across all Copilots (Teacher, Student, Parent) with CopilotFeedbackRow

@@ -1,0 +1,16 @@
+﻿commit 010545df3a48a5951a8941ecc1d90d42067f06cc
+Author: tweetharis-netizen <tweetharis@gmail.com>
+Date:   Sun Mar 22 21:12:41 2026 +0800
+
+    feat: standardise per-answer feedback across all Copilots (Teacher, Student, Parent) with CopilotFeedbackRow
+
+ src/App.tsx                                   |  10 +
+ src/components/Copilot/CopilotFeedbackRow.tsx |  50 +++
+ src/components/Copilot/CopilotShared.tsx      | 194 +++++++++---
+ src/hooks/useDemoMode.ts                      |   4 +-
+ src/lib/parentIntentHandler.ts                | 187 +++++++++++
+ src/pages/ParentCopilotPage.tsx               | 437 ++++++++++++++++++++++++++
+ src/pages/ParentDashboardPage.tsx             |  10 +-
+ src/pages/StudentCopilotPage.tsx              | 194 ++++++++----
+ src/pages/TeacherCopilotPage.tsx              | 177 ++++++++---
+ 9 files changed, 1118 insertions(+), 145 deletions(-)

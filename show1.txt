@@ -1,0 +1,20 @@
+﻿commit 177cf8c22733fb51c117b75339ee1335c55793cc
+Author: tweetharis-netizen <tweetharis@gmail.com>
+Date:   Tue Mar 31 00:41:36 2026 +0800
+
+    feat: Stabilize Copilot navigation sidebars across Teacher, Student, Parent roles and remove redundant suggestions from chat UI
+
+ src/components/ClassSummaryCard.tsx           |  23 +-
+ src/components/Copilot/CopilotShared.tsx      |  68 +++--
+ src/components/layout/ClassroomBreadcrumb.tsx |  37 +++
+ src/demo/demoTeacherScenarioA.ts              |   1 +
+ src/hooks/useSidebarState.ts                  |  27 ++
+ src/pages/ParentCopilotPage.tsx               |  37 ++-
+ src/pages/ParentDashboardPage.tsx             |   3 +-
+ src/pages/StudentClassroomPage.tsx            |   7 +
+ src/pages/StudentCopilotPage.tsx              |  26 +-
+ src/pages/StudentDashboardPage.tsx            |  73 +++--
+ src/pages/TeacherCopilotPage.tsx              | 377 +++++++++++++-------------
+ src/pages/TeacherDashboardPage.tsx            | 241 +++++++---------
+ src/services/dataService.ts                   |   1 +
+ 13 files changed, 516 insertions(+), 405 deletions(-)

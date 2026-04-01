@@ -1398,7 +1398,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                     total: 32,
                 }))
             );
-            setTeacherName(demoTeacherName);
+            if (isDemo) setTeacherName(demoTeacherName);
             setInsights(demoInsights);
             
             // Available packs for game creation

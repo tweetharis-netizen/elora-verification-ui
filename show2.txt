@@ -1,0 +1,12 @@
+﻿commit 14cdb1be922dee8f7528124242fa87ef8396a362
+Author: tweetharis-netizen <tweetharis@gmail.com>
+Date:   Sun Mar 22 21:58:02 2026 +0800
+
+    Refactor Copilot: perform natural-language quality pass on Teacher, Student, and Parent Copilots. Improved intent detection, answer clarity, and added probabilistic feedback frequency.
+
+ src/components/Copilot/CopilotShared.tsx |  19 ++-
+ src/lib/parentIntentHandler.ts           | 193 +++++++++++++++++++++++--------
+ src/pages/ParentCopilotPage.tsx          |   7 +-
+ src/pages/StudentCopilotPage.tsx         |  31 ++++-
+ src/pages/TeacherCopilotPage.tsx         |  63 +++++++---
+ 5 files changed, 236 insertions(+), 77 deletions(-)

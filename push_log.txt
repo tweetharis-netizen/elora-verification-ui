@@ -1,0 +1,20 @@
+﻿git : To https://github.c
+om/tweetharis-netizen/elo
+ra-verification-ui.git
+At line:1 char:1
++ git push 2>&1 | 
+Out-File -Encoding utf8 
+push_log.txt
++ ~~~~~~~~~~~~~
+    + CategoryInfo       
+       : NotSpecified:   
+  (To https://gith...f   
+ ication-ui.git:Strin    
+g) [], RemoteExcepti    
+on
+    + FullyQualifiedErro 
+   rId : NativeCommandE  
+  rror
+ 
+   d0eed6e..6d6fb65  
+main -> main

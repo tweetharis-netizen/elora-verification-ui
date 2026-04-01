@@ -1,6 +1,7 @@
 // src/Login.tsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth, UserRole } from './auth/AuthContext';
 
 const DASHBOARD_PATHS: Record<UserRole, string> = {
@@ -17,6 +18,7 @@ export default function Login() {
     const location = useLocation();
     const prefilledRole = (location.state as { role?: UserRole } | null)?.role ?? 'teacher';
     const [selectedRole, setSelectedRole] = useState<UserRole>(prefilledRole);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,8 +38,8 @@ export default function Login() {
                     <Link to="/" className="inline-block mb-6">
                         <h1 className="font-serif text-3xl text-elora-400 tracking-tight">Elora.</h1>
                     </Link>
-                    <h2 className="font-serif text-2xl text-elora-400 mb-2">Welcome back</h2>
-                    <p className="text-gray-500 text-sm">Sign in to continue your learning journey.</p>
+                    <h2 className="font-serif text-2xl text-elora-400 mb-2">Welcome back to your space</h2>
+                    <p className="text-gray-500 text-sm">Pick up exactly where you left off.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -66,7 +68,7 @@ export default function Login() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="login-email">Email address</label>
+                        <label className="block text-sm font-medium text-elora-400 mb-1.5" htmlFor="login-email">Your email</label>
                         <input
                             type="email"
                             id="login-email"
@@ -81,26 +83,36 @@ export default function Login() {
                             <label className="block text-sm font-medium text-elora-400" htmlFor="login-password">Password</label>
                             <a href="#" className="text-xs font-medium text-elora-200 hover:text-elora-300 transition-colors">Forgot password?</a>
                         </div>
-                        <input
-                            type="password"
-                            id="login-password"
-                            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
-                            placeholder="••••••••"
-                            required
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                id="login-password"
+                                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-elora-400 p-1.5 rounded-lg transition-colors"
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
                         className="w-full bg-elora-400 hover:bg-elora-300 text-white font-medium rounded-xl px-4 py-3.5 mt-4 transition-colors shadow-sm flex justify-center items-center"
                     >
-                        Sign in to Elora
+                        Enter your space
                     </button>
                 </form>
 
                 <p className="mt-8 text-center text-sm text-gray-500">
                     New here?{' '}
-                    <Link to="/signup" className="font-medium text-elora-200 hover:text-elora-300 transition-colors">Create an account</Link>
+                    <Link to="/signup" className="font-medium text-elora-200 hover:text-elora-300 transition-colors">Set up your space</Link>
                 </p>
             </div>
         </main>

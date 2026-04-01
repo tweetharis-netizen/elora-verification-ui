@@ -1,0 +1,16 @@
+﻿d0eed6e fix(TeacherDashboard): resolve TS2322 linting error for onAssignPractice callback
+177cf8c feat: Stabilize Copilot navigation sidebars across Teacher, Student, Parent roles and remove redundant suggestions from chat UI
+844c149 fix: demo/prod parity - api fallback to demo data, fix teacher greeting name, fix copilot auth gate glitch
+7e5d19b feat: finalize dashboard navigation and UI modernization for Student, Teacher, and Parent views
+81aaeab Design Standardization: Parity for student dashboards and class summary banners for a premium aesthetic
+648dabc Refine theming and classroom layouts (teacher/student/parent)
+ed86497 Refine dashboards: remove messy stat card text and redesign Student Performance Overview into gorgeous progress cards
+14cdb1b Refactor Copilot: perform natural-language quality pass on Teacher, Student, and Parent Copilots. Improved intent detection, answer clarity, and added probabilistic feedback frequency.
+010545d feat: standardise per-answer feedback across all Copilots (Teacher, Student, Parent) with CopilotFeedbackRow
+4466cd9 Standardize Student Dashboard UI and synchronize Copilot dashboard cards with Teacher patterns
+f7e6de6 feat(copilot): standardize and polish Student Copilot UI to match Teacher dashboard
+10b4795 Refactor: Standardize Teacher and Student Copilot UI using shared components
+3f8aa0d feat: Add Student Copilot Page
+34b48c6 feat(copilot): evolve teacher copilot with enhanced intent handling, randomized scoping prefixes, and improved data-grounded thinking steps
+27736aa Refactor Teacher Copilot: broaden intents, improve deterministic thinking steps, and refine tone.
+f1e8e39 feat: implement Elora Copilot for Teachers with responsive layout and deterministic responses

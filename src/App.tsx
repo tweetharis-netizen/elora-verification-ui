@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, Cell, ResponsiveContainer } from 'recharts';
-import { CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield, Sparkles, Menu, X, ChevronRight } from 'lucide-react';
+import {
+  CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield,
+  Sparkles, Menu, X, ChevronRight, Mail, GraduationCap, Heart
+} from 'lucide-react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import Signup from './Signup';
 import Login from './Login';
@@ -73,16 +76,16 @@ export const Header = () => {
         </div>
 
         <nav className="hidden md:flex items-center justify-center gap-8 text-sm font-medium text-white/80">
-          <a href="#" className="hover:text-white transition-colors">Platform</a>
-          <a href="#" className="hover:text-white transition-colors">Solutions</a>
-          <a href="#" className="hover:text-white transition-colors">Resources</a>
-          <a href="#" className="hover:text-white transition-colors">Pricing</a>
+          <a href="#features" className="hover:text-white transition-colors">Platform</a>
+          <a href="#roles" className="hover:text-white transition-colors">Roles</a>
+          <a href="#pilot" className="hover:text-white transition-colors">Pilot</a>
+          <Link to="/our-story" className="hover:text-white transition-colors">Story</Link>
         </nav>
 
         <div className="hidden md:flex flex-1 justify-end items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors">Log in</Link>
-          <Link to="/teacher/demo" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
-            Try a live demo
+          <Link to="/signup" className="bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/90 transition-colors shadow-sm hover:shadow block">
+            Create account
           </Link>
         </div>
 
@@ -94,14 +97,14 @@ export const Header = () => {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-elora-400 border-b border-white/10 px-6 py-4 space-y-4">
-          <a href="#" className="block text-white/80 hover:text-white font-medium">Platform</a>
-          <a href="#" className="block text-white/80 hover:text-white font-medium">Solutions</a>
-          <a href="#" className="block text-white/80 hover:text-white font-medium">Resources</a>
-          <a href="#" className="block text-white/80 hover:text-white font-medium">Pricing</a>
+          <a href="#features" onClick={() => setIsOpen(false)} className="block text-white/80 hover:text-white font-medium">Platform</a>
+          <a href="#roles" onClick={() => setIsOpen(false)} className="block text-white/80 hover:text-white font-medium">Roles</a>
+          <a href="#pilot" onClick={() => setIsOpen(false)} className="block text-white/80 hover:text-white font-medium">Pilot</a>
+          <Link to="/our-story" onClick={() => setIsOpen(false)} className="block text-white/80 hover:text-white font-medium">Story</Link>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
-            <Link to="/login" className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
-            <Link to="/teacher/demo" className="block w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium text-center">
-              Try a live demo
+            <Link to="/login" onClick={() => setIsOpen(false)} className="block text-white/80 hover:text-white font-medium text-center">Log in</Link>
+            <Link to="/signup" onClick={() => setIsOpen(false)} className="block w-full bg-white text-elora-400 px-4 py-2 rounded-md text-sm font-medium text-center">
+              Create account
             </Link>
           </div>
         </div>
@@ -110,9 +113,11 @@ export const Header = () => {
   );
 };
 
+// ─── 1) Hero ──────────────────────────────────────────────────────────────────
+
 const Hero = () => {
   return (
-    <section className="relative bg-elora-400 text-white pt-32 pb-24 border-b border-white/10 overflow-hidden min-h-[90vh] flex items-center">
+    <section id="hero" className="relative bg-elora-400 text-white pt-32 pb-24 border-b border-white/10 overflow-hidden min-h-[90vh] flex items-center">
       <div className="absolute inset-0 bg-grid pointer-events-none"></div>
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10 w-full">
         <div>
@@ -122,14 +127,20 @@ const Hero = () => {
             <span className="font-serif italic text-elora-100">platform</span> for education
           </h1>
           <p className="text-lg text-white/70 mb-8 max-w-md leading-relaxed">
-            Connect your classrooms, empower teachers, and deploy intelligent tools to automate admin work, track progress, and improve learning outcomes.
+            Connect your classrooms and restore calm to the learning experience. Built to handle administrative drift so you can focus on what matters: mentoring and supporting.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            <Link to="/teacher/demo" className="bg-elora-100 hover:bg-elora-200 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/10 shadow-md">
-              Try a live demo
-            </Link>
-            <Link to="/signup" className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20">
-              Start for free
+            <a
+              href="#roles"
+              className="bg-white text-elora-400 px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+            >
+              Enter Demo
+            </a>
+            <Link
+              to="/our-story"
+              className="flex items-center justify-center bg-transparent hover:bg-white/5 text-white px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 border border-white/20"
+            >
+              Our Story
             </Link>
           </div>
         </div>
@@ -228,60 +239,145 @@ const Hero = () => {
   );
 };
 
+// ─── 2) Tour ──────────────────────────────────────────────────────────────────
+
+const ProductTourSection = () => {
+  const perspectives = [
+    {
+      title: 'Teacher',
+      subtitle: 'Co-Pilot',
+      icon: Users,
+      color: 'text-accent-orange',
+      bg: 'bg-accent-orange/20',
+      border: 'border-accent-orange/20',
+      desc: 'Automate admin drift, generate AI practices, and track every student with calm precision.',
+    },
+    {
+      title: 'Student',
+      subtitle: 'Guide',
+      icon: BookOpen,
+      color: 'text-accent-green',
+      bg: 'bg-accent-green/20',
+      border: 'border-accent-green/20',
+      desc: 'A personalised learning assistant that meets each student exactly where they are.',
+    },
+    {
+      title: 'Parent',
+      subtitle: 'Advocate',
+      icon: Shield,
+      color: 'text-accent-pink',
+      bg: 'bg-accent-pink/20',
+      border: 'border-accent-pink/20',
+      desc: 'No more guessing. A calm, clear window into your child\'s day and learning milestones.',
+    },
+  ];
+
+  return (
+    <section id="tour" className="bg-elora-300 text-white py-32 border-b border-white/10 relative overflow-hidden">
+      <div className="absolute inset-0 bg-grid pointer-events-none opacity-30"></div>
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="text-center max-w-3xl mx-auto mb-20">
+          <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">One Platform</p>
+          <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
+            One platform. <span className="font-serif italic text-accent-pink">Three perspectives.</span>
+          </h2>
+          <p className="text-white/70 text-lg leading-relaxed">
+            Learning shouldn't be a <span className="font-serif italic">black box</span>. Elora brings teachers, students, and parents into the same conversation with a unified interface designed for clarity, not complexity.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8 perspective-1000">
+          {perspectives.map((p, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 30, rotateX: 8 }}
+              whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.5, delay: i * 0.12 }}
+              className="relative p-8 rounded-3xl bg-elora-400/60 border border-white/10 hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 duration-300 flex flex-col"
+            >
+              <div className="absolute top-6 right-6 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                {p.subtitle}
+              </div>
+              <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-6 border ${p.border}`}>
+                <p.icon className="w-6 h-6" />
+              </div>
+              <h3 className="text-2xl font-medium mb-3 text-white">{p.title}</h3>
+              <p className="text-white/60 text-sm leading-relaxed flex-grow">{p.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="text-center mt-14">
+          <a
+            href="#roles"
+            className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm font-medium transition-colors group"
+          >
+            Explore the demo
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─── 3) Roles ─────────────────────────────────────────────────────────────────
+
 const RoleSelectionSection = () => {
   return (
-    <section id="role-selection" className="bg-elora-300 text-white py-32 border-b border-white/10 relative overflow-hidden">
+    <section id="roles" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
       <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
+        <p className="text-accent-orange text-xs font-bold uppercase tracking-widest mb-4">Live Demo</p>
         <h2 className="text-3xl md:text-5xl font-sans font-medium mb-6 tracking-tight">Explore as any role</h2>
-        <p className="text-white/70 mb-12 max-w-2xl mx-auto text-lg leading-relaxed">Select a dashboard below to test the end-to-end experience with our demo profiles.</p>
+        <p className="text-white/70 mb-12 max-w-2xl mx-auto text-lg leading-relaxed">
+          Experience the end-to-end flow exactly as it's used in the classroom. Choose a profile below to jump straight into the live dashboard environment—no signup required.
+        </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* Teacher Card */}
           <Link
-            to="/login"
-            state={{ role: 'teacher' }}
+            to="/teacher/demo"
             className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
           >
             <div className="w-12 h-12 bg-accent-orange/20 text-accent-orange rounded-xl flex items-center justify-center mb-6 border border-accent-orange/20 group-hover:scale-110 transition-transform">
               <Users className="w-6 h-6" />
             </div>
             <h3 className="text-2xl font-medium mb-3 text-white">Teacher</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI practice & quizzes, manage class sessions, and analyze student engagement.</p>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI practice & quizzes, manage class sessions, and analyze student engagement without the dashboard fatigue.</p>
             <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Try Teacher Flow <ChevronRight className="w-4 h-4" />
+              Enter Teacher Demo <ChevronRight className="w-4 h-4" />
             </div>
           </Link>
 
           {/* Student Card */}
           <Link
-            to="/login"
-            state={{ role: 'student' }}
+            to="/student/demo"
             className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
           >
             <div className="w-12 h-12 bg-accent-green/20 text-accent-green rounded-xl flex items-center justify-center mb-6 border border-accent-green/20 group-hover:scale-110 transition-transform">
               <BookOpen className="w-6 h-6" />
             </div>
             <h3 className="text-2xl font-medium mb-3 text-white">Student</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">View upcoming tasks, play interactive learning games, and track your streak.</p>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">View upcoming tasks, play interactive learning games, and track your streak with your personal AI guide.</p>
             <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Try Student Flow <ChevronRight className="w-4 h-4" />
+              Enter Student Demo <ChevronRight className="w-4 h-4" />
             </div>
           </Link>
 
           {/* Parent Card */}
           <Link
-            to="/login"
-            state={{ role: 'parent' }}
+            to="/parent/demo"
             className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
           >
             <div className="w-12 h-12 bg-accent-pink/20 text-accent-pink rounded-xl flex items-center justify-center mb-6 border border-accent-pink/20 group-hover:scale-110 transition-transform">
               <Shield className="w-6 h-6" />
             </div>
             <h3 className="text-2xl font-medium mb-3 text-white">Parent</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Monitor student progress, review assignments, and confirm verified achievements.</p>
+            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Monitor student progress, review assignments, and confirm verified achievements. No more guessing.</p>
             <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Try Parent Flow <ChevronRight className="w-4 h-4" />
+              Enter Parent Demo <ChevronRight className="w-4 h-4" />
             </div>
           </Link>
         </div>
@@ -290,108 +386,21 @@ const RoleSelectionSection = () => {
   );
 };
 
-const FeatureSection = () => {
-  return (
-    <section className="bg-elora-300 text-white py-32 border-b border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 bg-grid pointer-events-none"></div>
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
-            The foundation for <span className="font-serif italic text-accent-yellow">modern learning</span>
-          </h2>
-          <p className="text-white/70 text-lg">
-            Transform fragmented tools into a unified educational experience. Elora brings everything together securely.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Feature Card 1 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-elora-400/60 border border-white/10 rounded-2xl p-8 hover:bg-elora-400/80 transition-colors cursor-pointer group flex flex-col h-full"
-          >
-            <div className="w-12 h-12 rounded-xl bg-accent-orange/20 flex items-center justify-center mb-6 border border-accent-orange/20">
-              <Users className="w-6 h-6 text-accent-orange" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3">Classes dashboard</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Manage all your classes from a single, organized view with real-time status updates.</p>
-            <div className="bg-white rounded-xl border border-white/20 p-4 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-elora-400">Math 101</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-accent-green/20 text-accent-green px-2 py-1 rounded">Active</span>
-              </div>
-              <div className="h-2 bg-elora-400/5 rounded-full w-full overflow-hidden">
-                <div className="h-full bg-accent-green w-3/4 rounded-full"></div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Feature Card 2 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-elora-400/60 border border-white/10 rounded-2xl p-8 hover:bg-elora-400/80 transition-colors cursor-pointer group flex flex-col h-full"
-          >
-            <div className="w-12 h-12 rounded-xl bg-accent-green/20 flex items-center justify-center mb-6 border border-accent-green/20">
-              <BookOpen className="w-6 h-6 text-accent-green" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3">Lesson storyboard</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Plan and visualize your curriculum with intuitive drag-and-drop building blocks.</p>
-            <div className="bg-white rounded-xl border border-white/20 p-3 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 space-y-2">
-              <div className="bg-elora-100/10 border border-elora-100/20 p-2 rounded flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-elora-100/30"></div>
-                <div className="h-2 bg-elora-400/20 rounded w-24"></div>
-              </div>
-              <div className="bg-elora-100/10 border border-elora-100/20 p-2 rounded flex items-center gap-2 ml-4">
-                <div className="w-4 h-4 rounded bg-accent-orange/30"></div>
-                <div className="h-2 bg-elora-400/20 rounded w-16"></div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Feature Card 3 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-elora-400/60 border border-white/10 rounded-2xl p-8 hover:bg-elora-400/80 transition-colors cursor-pointer group flex flex-col h-full"
-          >
-            <div className="w-12 h-12 rounded-xl bg-accent-pink/20 flex items-center justify-center mb-6 border border-accent-pink/20">
-              <BarChart3 className="w-6 h-6 text-accent-pink" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3">Analytics overview</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Track student performance and identify areas for improvement instantly.</p>
-            <div className="bg-white rounded-xl border border-white/20 p-4 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 flex items-end gap-2 h-24">
-              <div className="w-full bg-elora-100/20 rounded-t-sm h-1/3"></div>
-              <div className="w-full bg-elora-100/40 rounded-t-sm h-2/3"></div>
-              <div className="w-full bg-accent-pink rounded-t-sm h-full"></div>
-              <div className="w-full bg-elora-100/30 rounded-t-sm h-1/2"></div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-};
+// ─── 4) Features ──────────────────────────────────────────────────────────────
 
 const ProductUISection = () => {
   return (
-    <section className="bg-elora-100 text-elora-400 py-32 border-b border-elora-400/10 relative overflow-hidden">
+    <section id="features" className="bg-elora-100 text-elora-400 py-32 border-b border-elora-400/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-dark pointer-events-none opacity-20"></div>
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
+            <p className="text-elora-300 text-xs font-bold uppercase tracking-widest mb-4 opacity-60">Platform</p>
             <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
-              <span className="font-serif italic text-white">Automate</span> the routine, focus on teaching
+              <span className="font-serif italic text-white">Automate</span> the routine, focus on teaching.
             </h2>
             <p className="text-elora-400/80 text-lg mb-8">
-              Elora Assistant chat and smart workflows handle grading, scheduling, and parent communications automatically.
+              Turn fragmented data into clear, honest, and actionable insights for every family. Elora handles grading and scheduling so you can return to core human connection.
             </p>
             <ul className="space-y-4 mb-8">
               {['Smart grading suggestions', 'Automated progress reports', 'Instant parent updates'].map((item, i) => (
@@ -403,9 +412,12 @@ const ProductUISection = () => {
                 </li>
               ))}
             </ul>
-            <button className="bg-elora-400 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-md">
+            <a
+              href="#pilot"
+              className="inline-block bg-elora-400 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+            >
               See how it works
-            </button>
+            </a>
           </div>
 
           <div className="relative h-[450px] w-full perspective-1000">
@@ -473,38 +485,149 @@ const ProductUISection = () => {
   );
 };
 
-const LogoStrip = () => {
+// ─── 5) Pilot ─────────────────────────────────────────────────────────────────
+
+const PilotProgramSection = () => {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubmitted(true);
+    }
+  };
+
   return (
-    <section className="bg-elora-200 py-20 border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-6">
-        <p className="text-center text-white/60 text-xs font-bold uppercase tracking-widest mb-10">
-          Trusted by innovative schools worldwide
-        </p>
-        <div className="flex flex-wrap justify-center gap-10 md:gap-20 opacity-80">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1, duration: 0.4 }}
-              className="flex items-center gap-2 text-white font-serif italic text-xl md:text-2xl"
-            >
-              <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center border border-white/20">
-                <Shield className="w-4 h-4" />
+    <section id="pilot" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
+      <div className="absolute inset-0 bg-grid pointer-events-none opacity-30"></div>
+      <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="space-y-8"
+        >
+          {/* Verified Badge */}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-white/20 bg-white/5 text-[11px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
+              <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-accent-green" />
+              Verified Education Partner
+            </div>
+          </div>
+
+          <div>
+            <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">Singapore Pilot</p>
+            <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight mb-6">
+              The Elora <span className="font-serif italic text-accent-pink">Pilot</span> Program.
+            </h2>
+            <p className="text-white/70 text-lg max-w-2xl mx-auto leading-relaxed">
+              I'm looking for 5 innovative classrooms in Singapore to help shape the future of Elora. Join a community moving away from <span className="font-serif italic">dashboard fatigue</span> and toward human-first learning.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-6 max-w-2xl mx-auto text-left">
+            {[
+              { icon: GraduationCap, label: '5 Classrooms', sub: 'Singapore-based schools' },
+              { icon: Heart, label: 'Human-first', sub: 'Mentor, don\'t manage' },
+              { icon: Sparkles, label: 'Shape Elora', sub: 'Direct product input' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                <item.icon className="w-5 h-5 text-accent-yellow mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-sm">{item.label}</p>
+                  <p className="text-white/50 text-xs mt-0.5">{item.sub}</p>
+                </div>
               </div>
-              Academy {i}
-            </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {/* Waitlist Form */}
+          <div className="max-w-md mx-auto">
+            {submitted ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-6 rounded-2xl bg-white/10 border border-white/20 text-center"
+              >
+                <CheckCircle2 className="w-8 h-8 text-accent-green mx-auto mb-3" />
+                <p className="font-semibold text-white text-lg">Thanks! I'll be in touch.</p>
+                <p className="text-white/60 text-sm mt-1">— <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder of Elora</p>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@school.edu.sg"
+                    required
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/15 transition-all text-sm"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="bg-white text-elora-400 px-6 py-3 rounded-lg font-medium hover:bg-white/90 transition-all hover:-translate-y-0.5 shadow-md whitespace-nowrap"
+                >
+                  Join the Waitlist
+                </button>
+              </form>
+            )}
+          </div>
+        </motion.div>
       </div>
     </section>
   );
 };
 
+// ─── 6) Story / Founder ───────────────────────────────────────────────────────
+
+const FounderSection = () => {
+  return (
+    <section id="story" className="py-40 bg-elora-300 relative border-t border-white/10">
+      <div className="max-w-4xl mx-auto px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="space-y-8"
+        >
+          <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest">Built with a Vision</p>
+          <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight">
+            A calmer way to understand <br />
+            <span className="font-serif italic text-accent-pink">learning, together.</span>
+          </h2>
+          <div className="w-20 h-px bg-white/20 mx-auto"></div>
+          <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed font-serif">
+            As a student in Singapore, I saw the gap between those who can afford help and those who can't. I founded Elora to end the era of "dashboard fatigue." Our goal is to handle the complexity of learning management so that teachers and parents can return to what they do best — mentoring and supporting.
+          </p>
+          <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
+            — <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder & CEO of Elora
+          </p>
+
+          <div className="pt-4">
+            <Link
+              to="/our-story"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/90 text-sm font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+            >
+              Read the full story
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// ─── 7) Final CTA ─────────────────────────────────────────────────────────────
+
 const FinalCTA = () => {
   return (
-    <section className="bg-elora-300 text-white py-32 relative overflow-hidden">
+    <section id="cta" className="bg-elora-300 text-white py-32 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
       <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
         <motion.div
@@ -513,17 +636,32 @@ const FinalCTA = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-4xl md:text-6xl font-sans font-medium mb-8 tracking-tight">
-            Ready to transform your <br className="hidden md:block" />
-            <span className="font-serif italic text-accent-pink">school's workflow?</span>
+          <h2 className="text-4xl md:text-6xl font-sans font-medium mb-6 tracking-tight">
+            Ready to see it <br className="hidden md:block" />
+            <span className="font-serif italic text-accent-pink">in action?</span>
           </h2>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
-            <Link to="/signup" className="block text-center w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-xl">
-              Get started for free
+          <p className="text-white/70 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+            Jump straight into the demo and see how Elora transforms the classroom experience.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              to="/teacher/demo"
+              className="block text-center w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-xl"
+            >
+              Teacher Demo
             </Link>
-            <button className="w-full sm:w-auto bg-transparent border border-white/20 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5">
-              Talk to sales
-            </button>
+            <Link
+              to="/student/demo"
+              className="block text-center w-full sm:w-auto bg-transparent border border-white/30 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5"
+            >
+              Student Demo
+            </Link>
+            <Link
+              to="/parent/demo"
+              className="block text-center w-full sm:w-auto bg-transparent border border-white/30 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5"
+            >
+              Parent Demo
+            </Link>
           </div>
         </motion.div>
       </div>
@@ -531,45 +669,52 @@ const FinalCTA = () => {
   );
 };
 
+// ─── Footer ───────────────────────────────────────────────────────────────────
+
 export const Footer = () => {
   return (
     <footer className="bg-elora-400 text-white/60 py-16 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
         <div>
-          <h4 className="text-white font-medium mb-5">Platform</h4>
+          <h4 className="text-white font-medium mb-5">Product</h4>
           <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Integrations</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-white font-medium mb-5">Solutions</h4>
-          <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">For Teachers</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">For Admins</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">For Districts</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Case Studies</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-white font-medium mb-5">Resources</h4>
-          <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Webinars</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Community</a></li>
+            <li><a href="#features" className="hover:text-white transition-colors">Platform</a></li>
+            <li><a href="#roles" className="hover:text-white transition-colors">Roles</a></li>
+            <li><a href="#pilot" className="hover:text-white transition-colors">Pilot Program</a></li>
           </ul>
         </div>
         <div>
           <h4 className="text-white font-medium mb-5">Company</h4>
           <ul className="space-y-3 text-sm">
             <li><Link to="/our-story" className="hover:text-white transition-colors">Our Story</Link></li>
-            <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Partners</a></li>
+            <li>
+              <a
+                href="https://www.linkedin.com/in/shaikharis/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white transition-colors"
+              >
+                LinkedIn
+              </a>
+            </li>
           </ul>
+        </div>
+        <div>
+          <h4 className="text-white font-medium mb-5">Demos</h4>
+          <ul className="space-y-3 text-sm">
+            <li><Link to="/teacher/demo" className="hover:text-white transition-colors">Teacher Demo</Link></li>
+            <li><Link to="/student/demo" className="hover:text-white transition-colors">Student Demo</Link></li>
+            <li><Link to="/parent/demo" className="hover:text-white transition-colors">Parent Demo</Link></li>
+          </ul>
+        </div>
+        <div>
+          <div className="flex items-center gap-2.5 text-white mb-4">
+            <EloraLogo className="w-7 h-7" />
+            <span className="font-bold text-lg tracking-tight">Elora</span>
+          </div>
+          <p className="text-xs text-white/40 leading-relaxed">
+            Building human-first learning management for Singapore's classrooms.
+          </p>
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs">
@@ -580,12 +725,14 @@ export const Footer = () => {
         <div className="flex items-center gap-6">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
           <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-          <p>© 2026 Elora Inc. All rights reserved.</p>
+          <p>© 2026 Elora. All rights reserved.</p>
         </div>
       </div>
     </footer>
   );
 };
+
+// ─── Home Page ────────────────────────────────────────────────────────────────
 
 const Home = () => {
   return (
@@ -593,10 +740,11 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <ProductTourSection />
         <RoleSelectionSection />
-        <FeatureSection />
         <ProductUISection />
-        <LogoStrip />
+        <PilotProgramSection />
+        <FounderSection />
         <FinalCTA />
       </main>
       <Footer />

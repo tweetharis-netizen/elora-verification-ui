@@ -30,23 +30,23 @@ import {
     CopilotMobileHeader,
     CopilotAuthGate,
     Message,
+    Step,
     ActionChip,
     getParentGreeting,
     getPronoun,
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
 import { EloraLogo } from '../components/EloraLogo';
-import { ParentChildData, ParentChildPerformance, processParentPrompt } from '../lib/parentIntentHandler';
+import { askElora } from '../services/askElora';
 import { getParentChildren, getParentChildSummary } from '../services/dataService';
+import { demoChildren as scenarioChildren, demoChildSummary, demoParentName } from '../demo/demoParentScenarioA';
 
 // Mock child data for demo
-const DEMO_CHILDREN: ParentChildData[] = [
-    {
-        id: 'liam-1',
-        name: 'Liam',
-        gender: 'male'
-    }
-];
+const DEMO_CHILDREN = scenarioChildren.map(c => ({
+    id: c.id,
+    name: c.name,
+    gender: 'male' as const // Jordan is male in the scenario
+}));
 
 const SUBJECTS = ['All subjects', 'Math', 'Science', 'English', 'History', 'Geography'];
 
@@ -117,9 +117,9 @@ const ParentCopilotPage: React.FC = () => {
     
     
     // Parent Context
-    const [children, setChildren] = useState<ParentChildData[]>(isDemo ? DEMO_CHILDREN : []);
-    const [selectedChildId, setSelectedChildId] = useState<string | null>(isDemo ? 'liam-1' : null);
-    const [performanceData, setPerformanceData] = useState<ParentChildPerformance | null>(null);
+    const [children, setChildren] = useState<any[]>(isDemo ? DEMO_CHILDREN : []);
+    const [selectedChildId, setSelectedChildId] = useState<string | null>(isDemo ? DEMO_CHILDREN[0].id : null);
+    const [performanceData, setPerformanceData] = useState<any | null>(isDemo ? demoChildSummary : null);
     const [selectedSubject, setSelectedSubject] = useState<string>('All subjects');
     
     const [isChildPopupOpen, setIsChildPopupOpen] = useState(false);
@@ -174,28 +174,53 @@ const ParentCopilotPage: React.FC = () => {
         setInputValue('');
         setIsThinking(true);
 
-        // Process with intent handler
-        setTimeout(() => {
-            const result = processParentPrompt(query, {
-                selectedChildId: selectedChildId,
-                selectedSubject: selectedSubject === 'All subjects' ? null : selectedSubject,
-                children: children,
-                performanceData: performanceData
+        try {
+            // Context enrichment for parent
+            const contextStep: Step = {
+                id: `ctx-${Date.now()}`,
+                text: `Checking ${childName}'s recent data…`
+            };
+
+            const data = isDemo ? demoChildSummary : performanceData;
+            const weakTopic = data?.weakTopics?.[0] ?? "none";
+            const upcomingCount = data?.upcoming?.length ?? 0;
+            const avgScore = data?.child?.score ? `${data.child.score}%` : "not available";
+
+            const contextStr = [
+                `You are helping the parent of ${childName}.`,
+                `${childName} is currently in ${currentChild?.grade || "their current class"}.`,
+                `Average accuracy: ${avgScore}.`,
+                weakTopic !== "none" ? `Struggling area: ${weakTopic}.` : "No major struggling areas detected.",
+                upcomingCount > 0 ? `There are ${upcomingCount} upcoming assignments.` : "No major assignments coming up.",
+                selectedSubject !== 'All subjects' ? `Specifically asking about ${selectedSubject}.` : ""
+            ].filter(Boolean).join(' ');
+
+            const response = await askElora({
+                message: query,
+                role: 'parent',
+                context: contextStr
             });
 
-            const assistantMessage: Message = {
-                id: `assistant-${Date.now()}`,
+            const assistantMsg: Message = {
+                id: Date.now().toString() + '-a',
                 role: 'assistant',
-                content: result.content,
-                steps: result.steps,
-                actions: result.actions,
-                intent: result.intent,
+                steps: [contextStep],
+                content: response,
                 showFeedback: shouldShowFeedback()
             };
 
-            setMessages(prev => [...prev, assistantMessage]);
+            setMessages(prev => [...prev, assistantMsg]);
+        } catch (error) {
+            console.error('Parent Copilot Error:', error);
+            const errorMsg: Message = {
+                id: Date.now().toString() + '-err',
+                role: 'assistant',
+                content: "I'm having a little trouble connecting to my brain right now. Please try again or check your connection!"
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
             setIsThinking(false);
-        }, 1500);
+        }
     };
 
     const handleChildChange = (id: string | null) => {
@@ -367,7 +392,7 @@ const ParentCopilotPage: React.FC = () => {
                         {messages.length === 0 ? (
                             <CopilotEmptyState
                                 themeColor="#DB844A"
-                                userName={currentUser?.name || (isDemo ? 'Mr. Lee' : 'Parent')}
+                                userName={currentUser?.name || (isDemo ? demoParentName : 'Parent')}
                                 customGreeting={getParentGreeting(currentChild?.name)}
                                 description={`I'm here to give you a clear, calm view of ${childName}'s progress. I'll flag what matters and help you support ${getPronoun(currentChild?.gender || 'non-binary').pObj} at home.`}
                                 prompts={currentPrompts}

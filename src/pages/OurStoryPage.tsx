@@ -268,7 +268,7 @@ const OurStoryPage = () => {
                 As a student in Singapore, I saw the gap between those who can afford help and those who can’t. I founded Elora to end the era of “dashboard fatigue.” Our goal is to handle the complexity of learning management so that teachers and parents can return to what they do best — mentoring and supporting. Less data-entry, more real connection.
               </p>
               <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
-                — Shaik Haris, Founder & CEO of Elora
+                — <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder & CEO of Elora
               </p>
 
               <div className="pt-12">

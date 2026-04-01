@@ -40,6 +40,7 @@ import {
     ActionChip,
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
+import { askElora } from '../services/askElora';
 
 
 // MOCK_CLASSES removed in favor of dynamic classList state
@@ -118,6 +119,11 @@ const TeacherCopilotPage: React.FC = () => {
     const dataMessageCountRef = useRef(0);
     const [insights, setInsights] = useState<any[]>(isDemo ? demoInsights : []);
     const [teacherStats, setTeacherStats] = useState<any[]>([]);
+
+    const shouldShowFeedback = () => {
+        dataMessageCountRef.current += 1;
+        return dataMessageCountRef.current % 3 === 0;
+    };
 
     useEffect(() => {
         if (isDemo) {
@@ -223,7 +229,7 @@ const TeacherCopilotPage: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
 
-    const handleSend = (text: string) => {
+    const handleSend = async (text: string) => {
         const query = text.trim();
         if (!query) return;
 
@@ -237,275 +243,58 @@ const TeacherCopilotPage: React.FC = () => {
         setInputValue('');
         setIsThinking(true);
 
-        // Simulate thinking & response
-        setTimeout(() => {
-            setIsThinking(false);
-            const lowerQuery = query.toLowerCase().trim();
-
+        try {
             const currentClassNameText = selectedClassId
                 ? classList.find(c => c.id === selectedClassId)?.name || 'this class'
                 : 'all classes';
-            const allClassesList = classList.map(c => c.name).join(', ');
-
-            const contextStep = {
+            
+            const contextStep: Step = {
                 id: `ctx-${Date.now()}`,
                 text: selectedClassId
                     ? `Scoped to ${currentClassNameText} — ${classList.find(c => c.id === selectedClassId)?.studentsCount ?? '?'} students`
-                    : `Looking across all your classes (${allClassesList})`,
+                    : `Looking across all your classes (${classList.map(c => c.name).join(', ')})`,
             };
 
-            // Intent Detection Helpers
-            const isSmallTalkKw = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you)$/i.test(q.replace(/[?!.]/g, ''));
-            const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this|how do i use this/i.test(q);
-            const isCommunicationKw = (q: string) => /message|email|note|parent|families|tell|say/i.test(q);
-            const isExplanationKw = (q: string) => /explain|help me understand|what is (?!elora|this|copilot)|give me a summary of (?!the class|how)/i.test(q);
-            const isFeedbackKw = (q: string) => /feedback|comment|what should i say/i.test(q);
-            const isAttentionKw = (q: string) => /attention|struggling|help|behind|at risk|falling behind|improved|most improved|worried about|worry about|miss|slipping|quietly/i.test(q);
-            const isPlanningKw = (q: string) => /before friday|this week|today|next lesson|next class|work on|focus on|main thing|should i focus/i.test(q);
-            const isTopicKw = (q: string) => /factorisation|algebra|topic|performance|doing on|index laws|fractions/i.test(q);
-            // Overview: "how is this class doing", "how are they doing", "is everything ok", "any patterns"
-            const isOverviewKw = (q: string) => 
-                /(how is|how are|how's) (this class|the class|they|we|my class|my classes) (doing|getting on|overall|lately)/i.test(q) ||
-                /(is everything|is it) (ok|okay|mostly ok|fine|alright)/i.test(q) ||
-                /(should i be worried|anything (i should|on my radar)|anything you think|are there any patterns|any patterns)/i.test(q) ||
-                /how am i doing|how are my classes doing|anything urgent|should i be|on my radar/i.test(q);
-            const isSummaryKw = (q: string) => /summary|report|weekly|how are we doing/.test(q);
-            // Teacher low-confidence / lost
-            const isTeacherLostKw = (q: string) => /feeling (a bit |)lost|overwhelm|don'?t know where to start|not sure what to do/i.test(q);
-            const isSensitiveKw = (q: string) => /stress|anxious|unhappy|sad|upset|burnt out/i.test(q);
+            // Enrichment: Build context from demo/real data
+            const classInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
+            const overdueCount = classInsights.filter(i => i.type === 'overdue_assignment').length;
+            const weakTopics = Array.from(new Set(classInsights.filter(i => i.type === 'weak_topic').map(i => i.topicTag))).filter(Boolean);
+            const avgScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
 
-            const hasSupportedIntent = isAboutKw(lowerQuery) || isCommunicationKw(lowerQuery) || isExplanationKw(lowerQuery) || isFeedbackKw(lowerQuery) || isPlanningKw(lowerQuery) || isAttentionKw(lowerQuery) || isTopicKw(lowerQuery) || isSummaryKw(lowerQuery) || isSensitiveKw(lowerQuery) || isOverviewKw(lowerQuery) || isTeacherLostKw(lowerQuery);
+            const contextStr = [
+                `You are currently looking at ${currentClassNameText}.`,
+                `Average class score: ${avgScore}.`,
+                overdueCount > 0 ? `There are ${overdueCount} overdue assignments.` : 'No assignments are currently overdue.',
+                weakTopics.length > 0 ? `Students are struggling with: ${weakTopics.join(', ')}.` : '',
+                `Total classes: ${classList.length}.`
+            ].filter(Boolean).join(' ');
 
-            const isSmallTalk = isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello";
-            const isUnknown = !isSmallTalk && !isAboutKw(lowerQuery) && !hasSupportedIntent;
-
-            let content = "";
-            let steps: Step[] = [];
-            let actions: ActionChip[] = [];
-
-            const getScopePrefix = () => {
-                if (selectedClassId) return "";
-                const variations = [
-                    "Across all your classes, here's what I found...",
-                    "Checking across all your current classes...",
-                    "Looking at everything across all classes...",
-                    "Based on data from all your classes..."
-                ];
-                return variations[Math.floor(Math.random() * variations.length)] + "\n\n";
-            };
-
-            if (isSmallTalk) {
-                steps = [];
-                content = "Hey! I work best when you ask me about your Elora classes — data, topics, students, or upcoming deadlines. Try something like:\n• 'Who needs my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short note to parents about Algebra Quiz 1 being overdue.'";
-            } else if (isTeacherLostKw(lowerQuery)) {
-                steps = [];
-                content = "That's completely understandable — there's a lot to keep track of. Let me help you focus on what matters most right now.\n\nThe quickest thing I can do is show you which students need your attention and flag anything that's overdue. Want me to start there?";
-                actions = [{ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }];
-            } else if (isSensitiveKw(lowerQuery)) {
-                steps = [];
-                content = "I hear your concern, and those feelings are real. While I can't offer wellbeing advice, I can help you look at engagement and progress data to see if there are academic patterns worth noting.\n\nFor anything beyond that, reaching out to the school counselor or a colleague is always a good step.";
-            } else if (isOverviewKw(lowerQuery)) {
-                const summaryScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
-                const classInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
-                const overdue = classInsights.filter(i => i.type === 'overdue_assignment');
-                
-                steps = [
-                    contextStep,
-                    { id: 'agg', text: `Checked performance for ${currentClassNameText}.` },
-                    { id: 'flag', text: overdue.length > 0 ? `Found ${overdue.length} overdue assignments.` : 'No critical flags found.' }
-                ];
-                
-                if (selectedClassId) {
-                    content = `**${currentClassNameText}** is currently at an average accuracy of **${summaryScore}**. ${overdue.length > 0 ? `The most pressing item is **${overdue[0].assignmentTitle}**, which is overdue with no submissions yet.` : 'The class is generally on track with no major flags.'}\n\nWant me to show you who needs the most attention?`;
-                } else {
-                    const overdueCount = insights.filter(i => i.type === 'overdue_assignment').length;
-                    content = `${getScopePrefix()}Your classes are generally on track. The average across your groups is **${summaryScore}**. ${overdueCount > 0 ? `I found ${overdueCount} overdue assignments across all classes.` : 'No urgent overdue items on your radar right now.'}\n\nWant me to dig into a specific class or check the global 'Needs Attention' board?`;
-                }
-                actions = [
-                    { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' },
-                    { label: selectedClassId ? `Full report for ${currentClassNameText}` : 'See weekly report', actionType: 'navigate', destination: '/dashboard/teacher' }
-                ];
-            } else if (isCommunicationKw(lowerQuery)) {
-                const overdueInsight = insights.find(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
-                const weakTopicInsight = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText));
-                
-                const draftClassName = overdueInsight?.className || currentClassNameText;
-                const draftAssignmentTitle = overdueInsight?.assignmentTitle || "the latest assignment";
-                const draftWeakTopic = weakTopicInsight?.topicTag || null;
-                const mentionedStudent = insights.find(i => i.studentName);
-                const recipient = mentionedStudent ? `parents of ${mentionedStudent.studentName}` : "parents";
-
-                const draftBody = overdueInsight 
-                    ? `Here's a draft message for ${recipient} in **${draftClassName}**:\n\n"Hi, just a reminder that **${draftAssignmentTitle}** is still outstanding. If ${mentionedStudent ? mentionedStudent.studentName.split(' ')[0] : 'your child'} needs a hand getting started, encourage them to give it a try this week — it's a short session and I'm happy to follow up with anyone who needs extra support."\n\nEdit as needed before sending.`
-                    : `Here's a general draft for **${draftClassName}**:\n\n"Dear parents, we're finishing up our work on ${draftWeakTopic || 'the current unit'} this week. Most students are on track, but a little extra practice at home always helps with confidence. Thanks for your continued support!"\n\nEdit as needed before sending.`;
-
-                steps = [
-                    contextStep,
-                    { id: 'load-asgn', text: `Loaded assignments for ${draftClassName} — found ${overdueInsight ? `"${draftAssignmentTitle}" (overdue)` : 'no overdue assignments'}` },
-                    { id: 'check-topic', text: draftWeakTopic ? `Checked top weak topic: ${draftWeakTopic}` : 'No specific weak topic flagged this week' },
-                    { id: 'draft', text: 'Drafted a parent-facing message using this context' }
-                ];
-                content = getScopePrefix() + draftBody;
-                actions = [{ label: `See assignments for ${draftClassName}`, actionType: 'navigate', destination: '/dashboard/teacher' }];
-            } else if (isAboutKw(lowerQuery)) {
-                steps = [];
-                content = "Elora is a teaching platform that tracks your classes, assignments, topics, and how students are progressing. I'm the Copilot built into Elora — I read your class data and turn it into suggestions, summaries, and drafts. I only work with what's actually in your data; I don't guess beyond that.\n\nYou can ask me things like:\n• 'Which students need my attention before Friday?'\n• 'Explain Algebra – Factorisation simply for this class.'\n• 'Draft a short message to parents about an overdue assignment.'";
-            } else if (isExplanationKw(lowerQuery)) {
-                steps = [];
-                const topics: Record<string, string> = {
-                    'factorisation': "Factorisation is the process of breaking down an expression into a product of simpler factors. For Sec 3, I'd suggest explaining it as the 'reverse of expansion'.",
-                    'index laws': "Index laws are rules used to simplify expressions involving powers of the same base. Key ones to remember are adding indices when multiplying and subtracting when dividing.",
-                    'algebra': "Algebra uses symbols to represent numbers in formulas and equations. It's about finding the unknown or expressing relationships clearly.",
-                    'fractions': "Fractions represent parts of a whole, defined by a numerator (top) and denominator (bottom)."
-                };
-                const matchedTopic = Object.keys(topics).find(t => lowerQuery.includes(t));
-                content = matchedTopic ? topics[matchedTopic] : "I'm not exactly sure about that topic, but I'd suggest focusing on breaking it down into smaller, visual steps for this class.";
-                
-                content += "\n\n**Quick suggestion:** You could assign a short 5-minute practice pack to help the 14 students who are currently below the class average.";
-                actions = [{ label: 'See practice packs for this topic', actionType: 'navigate', destination: '/teacher/practice' }];
-            } else if (isFeedbackKw(lowerQuery)) {
-                const allStudentInsights = insights.filter(i => i.studentName);
-                const mentionedInsight = allStudentInsights.find(insight => {
-                    if (!insight.studentName) return false;
-                    const firstName = insight.studentName.split(' ')[0].toLowerCase();
-                    return lowerQuery.includes(firstName);
-                });
-
-                const targetInsight = mentionedInsight ?? allStudentInsights[0] ?? null;
-                const targetName = targetInsight?.studentName ?? null;
-                const targetTopic = targetInsight?.topicTag ?? null;
-                const targetDetail = targetInsight?.detail ?? null;
-
-                if (!targetName) {
-                    steps = [];
-                    const knownNames = allStudentInsights
-                        .map(i => i.studentName)
-                        .filter(Boolean)
-                        .slice(0, 4)
-                        .join(', ');
-                    content = `Who would you like to give feedback to? I can see data for: ${knownNames || 'students in your classes'}. Try asking "What feedback should I give [name]?"`;
-                } else {
-                    steps = [
-                        contextStep,
-                        { id: 'find-student', text: `Checked data for ${targetName}` },
-                        { id: 'load-insight', text: targetDetail ?? `Found insight for ${targetName}` },
-                    ];
-                    const firstName = targetName.split(' ')[0];
-                    content = targetTopic
-                        ? `For **${targetName}**, here's a suggestion:\n\n"${firstName}, I can see you've been working hard on ${targetTopic}. It's a tricky area and you're not alone — let's spend a few minutes on it next lesson to clear up the parts that are causing you trouble. If you want to get ahead of it, try one short practice round before we meet."\n\nAdapt the tone to match your relationship with them.`
-                        : `For **${targetName}**:\n\n"${firstName}, I can see you're making an effort — keep going. Let's connect briefly next lesson to make sure you feel confident about where you're at."\n\nAdapt as needed.`;
-                    content = getScopePrefix() + content;
-                }
-                const groupInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
-                const overdueCount = groupInsights.filter(i => i.type === 'overdue_assignment').length;
-                const lowScoresCount = groupInsights.filter(i => i.type === 'low_scores').length;
-                const weakTopicsCount = groupInsights.filter(i => i.type === 'weak_topic').length;
-
-                steps = [
-                    contextStep,
-                    { id: 's1', text: `Found ${overdueCount} overdue, ${lowScoresCount} low scores, ${weakTopicsCount} weak topics.` },
-                    { id: 's2', text: 'Ranked by urgency: overdue first, then low scores, then weak topics.' }
-                ];
-                
-                if (groupInsights.length === 0) {
-                    content = getScopePrefix() + `Great news — No students currently need attention in **${currentClassNameText}**. Everyone is up to date with their submissions and performing within expected ranges.`;
-                } else {
-                    const topInsights = groupInsights.slice(0, 3);
-                    const insightLines = topInsights.map(i => {
-                        const namePart = i.studentName ? `**${i.studentName}**` : `**${i.assignmentTitle}**`;
-                        return `• ${namePart} — ${i.detail}`;
-                    }).join('\n');
-                    
-                    content = getScopePrefix() + `In **${currentClassNameText}**, here are the priority areas needing your attention:\n\n${insightLines}`;
-                }
-                actions = [{ label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }];
-            } else if (isPlanningKw(lowerQuery)) {
-                const planningInsight = insights.find(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
-                const planningTopic = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText))?.topicTag;
-
-                steps = [
-                    contextStep,
-                    { id: 'load-stats', text: `Checked overdue/upcoming assignments for ${currentClassNameText}.` },
-                    { id: 'check-upcoming', text: planningTopic ? `Identified weak topic: ${planningTopic}` : 'Checked weak topic flags — none found.' }
-                ];
-                
-                if (planningInsight) {
-                    content = getScopePrefix() + `Before your next lesson, I'd recommend finishing up **${planningInsight.assignmentTitle}**. It's currently overdue for the class. ${planningTopic ? `A quick recap of **${planningTopic}** could also help the students who are flagging for support.` : ''}`;
-                } else if (planningTopic) {
-                    content = getScopePrefix() + `For your next lesson, focusing on **${planningTopic}** would be my top recommendation. Based on recent data, some students are struggling with this specific area.`;
-                } else {
-                    content = getScopePrefix() + `Everything seems to be on track for **${currentClassNameText}**. You might want to introduce new material in the next lesson as there are no pressing overdue assignments or weak topics.`;
-                }
-                actions = [{ label: 'See practice packs', actionType: 'navigate', destination: '/teacher/practice' }];
-            } else if (isTopicKw(lowerQuery)) {
-                const topicScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
-                const topTopic = insights.find(i => i.type === 'weak_topic' && (!selectedClassId || i.className === currentClassNameText))?.topicTag || "the current topic";
-                
-                steps = [
-                    contextStep,
-                    { id: 'fetch', text: `Loaded data for ${currentClassNameText}.` },
-                    { id: 'analyze', text: `Analyzed performance on key topics including ${topTopic}.` }
-                ];
-                content = selectedClassId
-                    ? `In **${currentClassNameText}**, average accuracy on **${topTopic}** is around **${topicScore}**. Several students are currently below this average, so it might be worth assigning a short practice round focused on this area.`
-                    : getScopePrefix() + `Across your classes, **${topTopic}** remains a key area for support (avg **${topicScore}**). Most other topics are performing within expected ranges.`;
-                actions = [{ label: 'See class performance', actionType: 'navigate', destination: '/dashboard/teacher' }];
-            } else if (isSummaryKw(lowerQuery)) {
-                const summaryScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "N/A";
-                const overdueSummry = insights.filter(i => i.type === 'overdue_assignment' && (!selectedClassId || i.className === currentClassNameText));
-                
-                steps = [
-                    contextStep,
-                    { id: 'agg', text: `Gathered performance metrics across ${selectedClassId ? 'this class' : 'all classes'}.` },
-                    { id: 'check-flags', text: overdueSummry.length > 0 ? `Found ${overdueSummry.length} overdue assignments.` : 'No critical flags found.' }
-                ];
-                
-                if (selectedClassId) {
-                    content = `**${currentClassNameText}** currently has an average accuracy of **${summaryScore}**. ${overdueSummry.length > 0 ? `The most pressing item is **${overdueSummry[0].assignmentTitle}**, which is overdue.` : 'Things are looking steady with no major flags.'}\n\nWant to see more details?`;
-                } else {
-                    const overdueCount = insights.filter(i => i.type === 'overdue_assignment').length;
-                    content = getScopePrefix() + `Overall your classes are performing with an average of **${summaryScore}**. I found ${overdueCount} overdue assignments that might need your attention. \n\nI recommend jumping into the 'Needs Attention' board for the full breakdown.`;
-                }
-                
-                actions = [
-                    { 
-                        label: selectedClassId ? `See full report for ${currentClassNameText}` : 'See weekly report', 
-                        actionType: 'navigate', 
-                        destination: '/dashboard/teacher' 
-                    },
-                    { label: 'See who needs attention', actionType: 'navigate', destination: 'needs-attention' }
-                ];
-            } else if (isUnknown) {
-                steps = [];
-                const topWeakTopicForContext = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
-                const contextHint = selectedClassId
-                  ? `things I can help you with for ${currentClassNameText}`
-                  : 'things I can help you with across your classes';
-                content = `I didn't quite follow that. Here are some ${contextHint}:\n• 'Which students need my attention before Friday?'\n• 'How is this class doing on ${topWeakTopicForContext ?? 'the current topic'}?'\n• 'Draft a note to parents about an overdue assignment.'\n• 'What should I focus on before our next lesson?'`;
-            }
-
-            const resolvedIntent = isSmallTalk ? 'smalltalk' :
-                isTeacherLostKw(lowerQuery) ? 'teacherlost' :
-                isSensitiveKw(lowerQuery) ? 'sensitive' :
-                isOverviewKw(lowerQuery) ? 'overview' :
-                isCommunicationKw(lowerQuery) ? 'communication' :
-                isAttentionKw(lowerQuery) ? 'attention' :
-                isPlanningKw(lowerQuery) ? 'planning' :
-                isTopicKw(lowerQuery) ? 'topic' :
-                isSummaryKw(lowerQuery) ? 'summary' : 'unknown';
+            const response = await askElora({
+                message: query,
+                role: 'teacher',
+                context: contextStr
+            });
 
             const assistantMsg: Message = {
                 id: Date.now().toString() + '-a',
                 role: 'assistant',
-                steps: steps,
-                content: content,
-                actions: actions.length > 0 ? actions : undefined,
-                intent: resolvedIntent,
+                steps: [contextStep],
+                content: response,
                 showFeedback: shouldShowFeedback()
             };
 
             setMessages(prev => [...prev, assistantMsg]);
-        }, 1500);
+        } catch (error) {
+            console.error('Teacher Copilot Error:', error);
+            const errorMsg: Message = {
+                id: Date.now().toString() + '-err',
+                role: 'assistant',
+                content: "I'm sorry, I'm having trouble connecting to my brain right now. Please try again or check your connection!"
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     const handleActionClick = (action: ActionChip) => {

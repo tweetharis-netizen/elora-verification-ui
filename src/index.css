@@ -57,6 +57,10 @@
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--elora-darkest);
   color: white;

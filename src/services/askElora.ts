@@ -1,10 +1,16 @@
-export async function askElora(prompt: string): Promise<string> {
-  const response = await fetch("/api/gemini-suggest", {
+export interface AskEloraOptions {
+  message: string;
+  role: 'teacher' | 'student' | 'parent';
+  context?: string;
+}
+
+export async function askElora({ message, role, context }: AskEloraOptions): Promise<string> {
+  const response = await fetch("/api/ai/ask", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt: message, role, context }),
   });
 
   if (!response.ok) {

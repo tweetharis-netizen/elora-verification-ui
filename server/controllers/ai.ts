@@ -184,3 +184,164 @@ export const generateGame = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({ error: 'Failed to generate game pack via AI' });
     }
 };
+
+export const getSystemPrompt = (role: 'teacher' | 'student' | 'parent'): string => {
+  const commonInstructions = "Use short, clear paragraphs. Sound calm and encouraging. Avoid over-apologising and don't mention internal tools or logs.";
+  
+  if (role === 'teacher') {
+    return `You are Elora, a calm, supportive assistant for a teacher. Help them reduce admin noise and support students. Use a warm, professional tone, and always suggest one concrete next step they can take. ${commonInstructions}`;
+  }
+  if (role === 'student') {
+    return `You are Elora, a calm study companion for a student. Help them see what's coming up, break work into smaller steps, and explain tricky topics in simple language. ${commonInstructions}`;
+  }
+  if (role === 'parent') {
+    return `You are Elora, a clear, non-judgmental assistant for a parent. Help them understand their child's school life, summarize progress, and suggest ways to support learning at home. Use a warm tone and simple language. ${commonInstructions}`;
+  }
+  return `You are Elora, a helpful assistant. ${commonInstructions}`;
+};
+
+export const askEloraHandler = async (req: Request, res: Response): Promise<void> => {
+  const { prompt, role, context } = req.body;
+  const userRole = (role as 'teacher' | 'student' | 'parent') || 'teacher';
+
+  try {
+    if (!prompt || typeof prompt !== 'string') {
+      res.status(400).json({ error: 'A valid "prompt" string is required in the request body.' });
+      return;
+    }
+    
+    const message = prompt.trim().toLowerCase();
+    
+    // ── Greeting Shortcut (ALL roles) ─────────────────────────────────────────
+    const isGreeting = message === 'hi' || message === 'hello' || message === 'hey' || message === 'hi elora' || message === 'hello elora' || (message.split(' ').length < 5 && (message.includes('hi') || message.includes('hello') || message.includes('hey')));
+    
+    if (isGreeting) {
+      let text = "Hello! I am Elora. How can I assist you today?";
+      if (userRole === 'teacher') {
+        text = "Hello! I’m Elora. I’m here to help you manage your classes, reduce admin work, and support your students. What can I do for you today?";
+      } else if (userRole === 'student') {
+        text = "Hey! I’m Elora. I can help you see what’s coming up, revise tricky topics, or plan your study time. What would you like to work on?";
+      } else if (userRole === 'parent') {
+        text = "Hi! I’m Elora. I can help you understand how your child is doing and what might help them next. What are you curious about?";
+      }
+      res.json({ text });
+      return;
+    }
+
+    // ── Capabilities Shortcut (ALL roles) ─────────────────────────────────────
+    const isWhatCanYouDo = message.includes('what can you do') || message === 'help' || message === 'help me' || message.includes('how can you help');
+    
+    if (isWhatCanYouDo) {
+      let text = "I am a helpful assistant.";
+      if (userRole === 'teacher') {
+        text = "Here are a few things I can help with:\n• Summarise which students need attention this week.\n• Draft gentle nudges to students or parents.\n• Help you plan a lesson or quiz.\n• Explain what’s happening in your class data in plain language.";
+      } else if (userRole === 'student') {
+        text = "I can:\n• Show you what’s due next.\n• Help you break study into small steps.\n• Explain topics you’re stuck on in simple language.";
+      } else if (userRole === 'parent') {
+        text = "I can:\n• Give you a simple overview of how your child is doing.\n• Suggest questions to ask their teacher.\n• Help you understand upcoming work and how to support at home.";
+      }
+      res.json({ text });
+      return;
+    }
+
+    // ── Identity Shortcut (ALL roles) ─────────────────────────────────────────
+    const isIdentity = message.includes('who are you') || message.includes('what are you') || message.includes('are you elora') || message.includes('who is elora');
+    
+    if (isIdentity) {
+      let text = "I am Elora, your AI assistant.";
+      if (userRole === 'teacher') {
+        text = "I’m Elora, your AI teaching assistant. I help you keep track of which students need attention, plan lessons, and reduce admin noise so you can focus on mentoring.";
+      } else if (userRole === 'student') {
+        text = "I’m Elora, your study companion. I help you see what’s coming up, break work into smaller steps, and explain tricky topics in simple language.";
+      } else if (userRole === 'parent') {
+        text = "I’m Elora, your assistant for understanding your child’s school life. I can summarise how they’re doing, highlight what’s coming up, and suggest ways you can support them at home.";
+      }
+      res.json({ text });
+      return;
+    }
+
+    // ── Real AI Call ────────────────────────────────────────────────────────
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      res.status(500).json({ error: 'LLM API service is not configured on the server.' });
+      return;
+    }
+
+    const model = 'llama-3.3-70b-versatile';
+    const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+
+    const baseSystemPrompt = getSystemPrompt(userRole);
+    let finalSystemPrompt = baseSystemPrompt;
+    if (context) {
+      finalSystemPrompt += `\n\nContext about this teacher's current class (do not repeat this verbatim, just use it to inform your answer): ${context}`;
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: finalSystemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 512,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Groq API Error details:", JSON.stringify(errorData, null, 2));
+      
+      // Role-specific fallback for errors
+      let errorFallback = "I’m having a bit of trouble connecting right now. While I find my way back, feel free to check your main dashboard insights.";
+      if (userRole === 'teacher') {
+        errorFallback = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
+      } else if (userRole === 'student') {
+        errorFallback = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
+      } else if (userRole === 'parent') {
+        errorFallback = "I’m having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about Jordan’s progress.";
+      }
+      
+      res.json({ text: errorFallback });
+      return;
+    }
+
+    const data = await response.json();
+    let finalOutput = data.choices?.[0]?.message?.content || "";
+
+    // ── Fallback for empty/invalid responses ──────────────────────────────────
+    if (!finalOutput || finalOutput.trim().length === 0) {
+      if (userRole === 'teacher') {
+        finalOutput = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
+      } else if (userRole === 'student') {
+        finalOutput = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
+      } else if (userRole === 'parent') {
+        finalOutput = "I’m having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about Jordan’s progress.";
+      } else {
+        finalOutput = "I’m having a bit of trouble connecting right now. I'll be back shortly!";
+      }
+    }
+
+    if (finalOutput.length > 800) {
+      finalOutput = finalOutput.substring(0, 800) + '...';
+    }
+    
+    res.json({ text: finalOutput });
+  } catch (error) {
+    console.error('Error in askEloraHandler:', error);
+    let catchFallback = "I encountered an unexpected error. Please try again later.";
+    if (userRole === 'teacher') {
+      catchFallback = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
+    } else if (userRole === 'student') {
+      catchFallback = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
+    } else if (userRole === 'parent') {
+      catchFallback = "I’m having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about Jordan’s progress.";
+    }
+    res.json({ text: catchFallback });
+  }
+};

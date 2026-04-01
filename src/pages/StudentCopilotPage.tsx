@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { askElora } from '../services/askElora';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -181,7 +182,7 @@ const StudentCopilotPage: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
 
-    const handleSend = (text: string) => {
+    const handleSend = async (text: string) => {
         const query = text.trim();
         if (!query) return;
 
@@ -195,232 +196,39 @@ const StudentCopilotPage: React.FC = () => {
         setInputValue('');
         setIsThinking(true);
 
-        const lowerQuery = query.toLowerCase().trim();
+        try {
+            // Build Context for Elora
+            const contextStr = [
+                `Subject Selector: ${selectedSubjectName}.`,
+                primaryFocusTopic ? `Your current focus area is ${primaryFocusTopic}.` : '',
+                filteredPending[0] ? `Upcoming/Overdue task: "${filteredPending[0].title}" (Status: ${filteredPending[0].statusLabel || filteredPending[0].status}).` : 'No urgent assignments.',
+                streakData ? `Average this week: ${streakData.scoreThisWeek}%. Trend: ${streakData.trend}.` : ''
+            ].filter(Boolean).join(' ');
 
-        // ── Intent Classifiers ──
-        const isSmallTalkKw = (q: string) => /^(hi|hello|hey|thanks|thank you|how are you)$/i.test(q.replace(/[?!.]/g, ''));
-        const isAboutKw = (q: string) => /what is (elora|this|copilot)|what can you do|how should i use this/i.test(q);
-        const isOverdueKw = (q: string) => /overdue|unfinished|not finished|not done|what's overdue|todo|haven't finished/i.test(q);
-        const isNextActionKw = (q: string) => /next|20 minutes|work on|should i work on|do now|best use of my time/i.test(q);
-        // Summary: also catch "how am i doing", "am i doing ok", "am i behind", "am i okay in school"
-        const isSummaryKw = (q: string) => /week|summary|overview|progress|(how am i doing)|(am i (doing|behind|okay|ok|keeping up))|(how am i going)/i.test(q);
-        const isFocusTopicKw = (q: string) => /topic to focus on|area to focus on|growth area|what to work on|focus area|weakest topic/i.test(q);
-        const isWhyPatternKw = (q: string) => /why do i keep getting|why do i keep missing|why do i keep getting this wrong/i.test(q);
-        const isPrepareQuizKw = (q: string) => /prepare for the next quiz|prepare for the quiz|prepare for test|get ready for/i.test(q);
-        const isExplainKw = (q: string) => /explain|what is|help me understand/i.test(q);
-        // Sensitive: wellbeing
-        const isSensitiveKw = (q: string) => /sad|depressed|hurt|mean|bully|stress|lonely|anxious|unhappy/i.test(q);
-        // Fear / low confidence: "i feel dumb", "scared to fail", "i'm stupid"
-        const isFearKw = (q: string) => /(feel (dumb|stupid|useless|like i can'?t))|(scared (i'?m going to|to) fail)|(going to fail)|(i'?m (so |really |)(bad|terrible|rubbish) at)/i.test(q);
+            const response = await askElora({
+                message: query,
+                role: 'student',
+                context: contextStr
+            });
 
-        const getScopePrefix = () => {
-            if (selectedSubjectId !== 'all') return "";
-            const variations = [
-                "Across all your subjects, here's what I found...",
-                "Checking across all your current work...",
-                "Looking at everything across all subjects...",
-                "Based on your data from all subjects..."
-            ];
-            return variations[Math.floor(Math.random() * variations.length)] + "\n\n";
-        };
-
-        setTimeout(() => {
-            setIsThinking(false);
-
-            let content = "";
-            let steps: Step[] = [];
-            let actions: ActionChip[] = [];
-
-            // Context-aware Step generator helper
-            const getCtxStep = () => {
-                return selectedSubjectId === 'all' 
-                    ? { id: 'ctx', text: 'Context: All subjects — scoping all lookups across your full schedule' } 
-                    : { id: 'ctx', text: `Context: ${selectedSubjectId} — scoping all lookups to this subject only` };
-            };
-
-            if (isSensitiveKw(lowerQuery)) {
-                content = "I hear that you're feeling this way, and that sounds genuinely tough. While I don't give personal advice, I'd really encourage you to talk to a teacher, counselor, or parent. They can provide the support you need right now.\n\nI'm still here if you want to take a look at your workload or take a pause from studying.";
-            } else if (isFearKw(lowerQuery)) {
-                content = "That's a really normal feeling, and it doesn't mean you're not capable. Lots of students feel this way — especially before a big quiz or when a topic feels hard.\n\nLet me check where you actually stand, because the data often tells a different story than how we feel.";
-                steps = [
-                    getCtxStep(),
-                    { id: 'check-scores', text: 'Checked your recent scores and submission rate' }
-                ];
-                if (streakData) {
-                    const thisWeekScore = streakData.scoreThisWeek ?? 0;
-                    content += `\n\nRight now, you're averaging **${thisWeekScore}%** this week${primaryFocusTopic ? ` and your main area to focus on is **${primaryFocusTopic}**` : ' and your scores are fairly balanced'}. You're not failing — there's one thing worth working on, and I can help you focus on it.`;
-                    if (primaryFocusTopic) actions.push({ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
-                }
-                actions.unshift({ label: 'Show me where I stand', actionType: 'navigate', destination: '/dashboard/student' });
-            } else if (isSummaryKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'check-scores', text: 'Checked your average score this week and last week' },
-                    { id: 'check-asgn', text: 'Checked how many assignments you’ve submitted out of those due' },
-                    { id: 'check-streak', text: 'Checked your practice streak for this week' }
-                ];
-                if (!streakData || streakData.weeklyScores.length === 0) {
-                    content = "I don't have enough data to give you a full summary yet — keep at it and I'll have more to show you soon!";
-                } else {
-                    const ctxStr = selectedSubjectId === 'all' ? 'Across all your subjects' : `For your ${selectedSubjectId} work`;
-                    const thisWeekScore = streakData.scoreThisWeek ?? 0;
-                    const priorWeekScore = streakData.scorePriorWeek ?? 0;
-                    const subCount = filteredAssignments.filter(a => ['completed', 'success', 'submitted'].includes(a.status || '')).length;
-                    const totalCount = filteredAssignments.length;
-
-                    content = getScopePrefix() + `You're doing okay overall — there are a couple of things worth focusing on, but nothing is out of control. ${ctxStr}, your average score is **${thisWeekScore}%** this week, compared with ${priorWeekScore}% last week.\n\nYou've submitted ${subCount} of ${totalCount > 0 ? totalCount : 'your'} assignments. ${primaryFocusTopic ? `The best next step is to work on **${primaryFocusTopic}** — I can open a practice round for you.` : 'Your scores are looking balanced across all topics — nice work.'}`;
-                    actions = [{ label: "See my remaining work", actionType: 'navigate', destination: '/dashboard/student' }];
-                    if (primaryFocusTopic) actions.push({ label: `Practice ${primaryFocusTopic} now`, actionType: 'navigate', destination: '/play/practice-general' });
-                }
-
-            } else if (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") {
-                content = "Hey! I'm your Elora assistant. I'm here to help you stay on top of your work and improve your scores. \n\nWhat can I help you with right now? Try asking about your unfinished assignments or what to focus on next.";
-            } else if (isAboutKw(lowerQuery)) {
-                content = "Elora is a platform for tracking your progress and assignments. I'm your Student Copilot, designed to help you figure out what to work on, understand tricky topics, and get ready for quizzes. \n\nTry asking: \n• 'What should I do right now?' \n• 'What assignments haven’t I finished?' \n• 'Explain Factorisation simply.'";
-            } else if (isOverdueKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'load-data', text: 'Loaded your assignment attempts and filtered to not finished' },
-                    { id: 'sort', text: 'Sorted them by urgency' }
-                ];
-
-                const sorted = [...filteredPending].sort((a, b) => {
-                    if (!a.dueDate) return 1;
-                    if (!b.dueDate) return -1;
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                });
-
-                if (sorted.length === 0) {
-                    content = `I don't see any unfinished assignments ${selectedSubjectId === 'all' ? '' : `for ${selectedSubjectId} `}— your schedule looks clear right now.`;
-                } else {
-                    content = getScopePrefix() + `You have ${sorted.length} assignment${sorted.length > 1 ? 's' : ''} still to do:\n`;
-                    sorted.slice(0, 5).forEach(asgn => {
-                        const isOverdue = asgn.dueDate && new Date(asgn.dueDate).getTime() < Date.now();
-                        let dueText = '';
-                        if (asgn.dueDate) {
-                            const diffDays = Math.floor((Date.now() - new Date(asgn.dueDate).getTime()) / 86400000);
-                            dueText = isOverdue ? (diffDays > 0 ? `was due ${diffDays} day${diffDays > 1 ? 's' : ''} ago` : 'was due today') : `is due in ${Math.ceil(-diffDays)} day${Math.ceil(-diffDays) !== 1 ? 's' : ''}`;
-                        }
-                        content += `\n• **${asgn.title}** — ${dueText || 'has no due date'}.`;
-                    });
-                    actions = [{ label: `Start ${sorted[0].title}`, actionType: 'navigate', destination: '/dashboard/student' }];
-                }
-            } else if (isNextActionKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'load-data', text: 'Checked your pending assignments and their due dates' },
-                    { id: 'load-performance', text: 'Analyzed your recent practice performance looking for topics to focus on' }
-                ];
-
-                const urgent = [...filteredPending].sort((a, b) => {
-                    if (!a.dueDate) return 1;
-                    if (!b.dueDate) return -1;
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                })[0];
-
-                if (urgent) {
-                    content = getScopePrefix() + `The most important thing to start now is **${urgent.title}** because it is the most urgent on your list.`;
-                    if (primaryFocusTopic) {
-                        content += `\n\nIf you have extra time, follow that up with a short practice round on **${primaryFocusTopic}** to boost your scores.`;
-                        actions.push({ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' });
-                    }
-                    actions.unshift({ label: `Start ${urgent.title}`, actionType: 'navigate', destination: '/dashboard/student' });
-                } else if (primaryFocusTopic) {
-                    content = getScopePrefix() + `Across your subjects, the best use of your time right now is to practice **${primaryFocusTopic}**. This is the topic you've been finding most tricky recently.`;
-                    actions = [{ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
-                } else {
-                    content = "Your schedule looks great! You've cleared your priority assignments and your recent scores are balanced. You could explore a new topic or take a well-earned break.";
-                }
-            } else if (isFocusTopicKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'check-topics', text: 'Analyzed your recent practice results by topic' },
-                    { id: 'find-focus-area', text: 'Found the topic where you have the most room to grow' }
-                ];
-
-                if (primaryFocusTopic) {
-                    content = getScopePrefix() + `Right now, your main focus area is **${primaryFocusTopic}**. Working on this first will have the biggest impact on your overall progress.`;
-                    actions = [
-                        { label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
-                        { label: `Explain ${primaryFocusTopic} simply`, actionType: 'navigate', destination: '#' }
-                    ];
-                } else {
-                    content = "I don't see a single topic to focus on right now — your recent results are fairly balanced.";
-                }
-            } else if (isWhyPatternKw(lowerQuery)) {
-                const topicInQuery = Object.keys(topicExplanations).find(t => lowerQuery.includes(t.toLowerCase()));
-                const actualTopic = topicInQuery || primaryFocusTopic;
-
-                steps = [
-                    { id: 'load-pattern', text: `Loaded your recent practice sessions for ${actualTopic || 'your work'}` },
-                    { id: 'find-pattern', text: 'Looked for patterns in where you’re getting questions wrong' }
-                ];
-
-                if (actualTopic) {
-                    content = `I can see you're finding **${actualTopic}** tricky, but your wrong answers are spread out across different question types. It may help to slow down and focus on the worked examples in that topic.`;
-                    actions = [{ label: `Practice ${actualTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
-                } else {
-                    content = "I haven't detected a clear pattern yet, but I'll keep analyzing your practice rounds as you complete them!";
-                }
-            } else if (isPrepareQuizKw(lowerQuery)) {
-                steps = [
-                    getCtxStep(),
-                    { id: 'find-quiz', text: 'Found your next upcoming quiz or test' },
-                    { id: 'check-quiz-topics', text: 'Checked which topics it covers' },
-                    { id: 'compare-performance', text: 'Compared that with your current focus areas' }
-                ];
-
-                const nextQuiz = filteredPending.find(a => /quiz|test/i.test(a.title));
-                
-                if (nextQuiz) {
-                    content = getScopePrefix() + `Your next quiz is **${nextQuiz.title}**. The most important thing for you to focus on is any growth areas in that area. Spending just 15–20 minutes on specific practice rounds before the quiz will help you feel more confident!`;
-                    actions = [{ label: "Show me what's on the quiz", actionType: 'navigate', destination: '/dashboard/student' }];
-                } else {
-                    content = getScopePrefix() + "I don't see any upcoming quizzes on your schedule right now, so you can use this time for general practice or clearing any overdue work.";
-                    actions = [{ label: "Start a practice round now", actionType: 'navigate', destination: '/play/practice-general' }];
-                }
-            } else if (isExplainKw(lowerQuery)) {
-                const matchedTopic = Object.keys(topicExplanations).find(t => lowerQuery.includes(t.toLowerCase().split(' – ')[0]));
-                if (matchedTopic) {
-                    content = topicExplanations[matchedTopic];
-                    actions = [
-                        { label: `Practice ${matchedTopic}`, actionType: 'navigate', destination: '/play/practice-general' },
-                        { label: "Ask another question", actionType: 'navigate', destination: '#' }
-                    ];
-                } else if (primaryFocusTopic) {
-                    content = `I'm not exactly sure which topic you mean, but since you've been working on **${primaryFocusTopic}** lately, here's a simple explanation: \n\n${topicExplanations[primaryFocusTopic] || "It's an important concept that builds on what you've learned. Try some practice questions to see how it works!"}`;
-                    actions = [{ label: `Practice ${primaryFocusTopic}`, actionType: 'navigate', destination: '/play/practice-general' }];
-                } else {
-                    content = "Which topic would you like me to explain? I can help with things like Factorisation, Quadratic Equations, or Kinematics.";
-                }
-            } else {
-                content = "I'm not sure I can help with that one, but I'm great at questions about your work — like what to do next, what's overdue, or why a topic is tricky. \n\nTry asking: \n• 'What should I do right now?' \n• 'How am I doing this week?' \n• 'Explain Factorisation simply.'";
-            }
-
-            const resolvedIntent = isSensitiveKw(lowerQuery) ? 'sensitive' :
-                isFearKw(lowerQuery) ? 'fearconfidence' :
-                isSummaryKw(lowerQuery) ? 'summary' :
-                (isSmallTalkKw(lowerQuery) || lowerQuery === "hi" || lowerQuery === "hello") ? 'smalltalk' :
-                isAboutKw(lowerQuery) ? 'about' :
-                isOverdueKw(lowerQuery) ? 'overdue' :
-                isNextActionKw(lowerQuery) ? 'nextaction' :
-                isFocusTopicKw(lowerQuery) ? 'focustopic' :
-                isWhyPatternKw(lowerQuery) ? 'whypattern' :
-                isPrepareQuizKw(lowerQuery) ? 'preparequiz' :
-                isExplainKw(lowerQuery) ? 'explain' : 'unknown';
-
-            const assistantMsg: Message = {
-                id: Date.now().toString() + '-a',
+            const eloraMsg: Message = {
+                id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                steps: steps,
-                content: content,
-                actions: actions.length > 0 ? actions : undefined,
-                intent: resolvedIntent,
+                content: response,
                 showFeedback: shouldShowFeedback()
             };
-
-            setMessages(prev => [...prev, assistantMsg]);
-        }, 1500);
+            setMessages(prev => [...prev, eloraMsg]);
+        } catch (error) {
+            console.error('Copilot Error:', error);
+            const errorMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: "I'm sorry, I'm having trouble connecting right now. Can we try again in a moment?"
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     const handleActionClick = (action: ActionChip) => {

@@ -146,7 +146,7 @@ export const EloraAssistantCard = ({
         setAskError(null);
         setCustomAnswer(null);
         try {
-            const answer = onAsk ? await onAsk(prompt) : await askElora(prompt);
+            const answer = onAsk ? await onAsk(prompt) : await askElora({ message: prompt, role });
             setCustomAnswer(answer);
         } catch (err: unknown) {
             setAskError(err instanceof Error ? err.message : 'Failed to get an answer from Elora.');

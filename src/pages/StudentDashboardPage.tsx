@@ -129,7 +129,7 @@ function NextStepsStrip({ recs, onNavigate }: { recs: Rec[]; onNavigate: (href: 
         <section aria-label="Next Steps">
             <div className="flex items-center gap-2 mb-3">
                 <Zap className="w-4 h-4 text-[#68507B]" />
-                <h2 className="text-[15px] font-semibold text-slate-800">Next Steps</h2>
+                <h2 className="text-sm font-semibold tracking-tight text-slate-800">Today in your learning</h2>
                 <span className="text-[12px] text-slate-400 font-normal ml-1">— personalised for you</span>
             </div>
             {recs.length === 0 ? (

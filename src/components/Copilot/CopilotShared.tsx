@@ -125,6 +125,7 @@ export const CopilotLayout: React.FC<{
 }) => {
         const roleKey = role.toLowerCase() as EloraRole;
         const sidebarTheme = getRoleSidebarTheme(roleKey);
+        const parentDashboardPath = isDemo ? '/parent/demo' : '/dashboard/parent';
         // NavItem component inside CopilotLayout (mostly for sidebar)
         const NavItem = ({ icon, label, active = false, onClick, collapsed }: { icon: any, label: string, active?: boolean, onClick?: () => void, collapsed: boolean }) => {
             const activeClasses = `${sidebarTheme.navActiveBg} ${sidebarTheme.navActiveText}`;
@@ -199,17 +200,30 @@ export const CopilotLayout: React.FC<{
                                 collapsed={!isSidebarOpen}
                             />
 
-                            {role !== 'Parent' && (
+                            {role === 'Teacher' && (
                                 <NavItem
                                     icon={<BookOpen size={20} />}
-                                    label={role === 'Teacher' ? "Classes" : "My Classes"}
+                                    label="My Classes"
                                     onClick={() => {
                                         if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo#classes');
-                                            else navigate('/student/demo#classes');
+                                            navigate('/teacher/demo/classes');
                                         } else {
-                                            if (role === 'Teacher') navigate('/dashboard/teacher#classes');
-                                            else navigate('/dashboard/student#classes');
+                                            navigate('/teacher/classes');
+                                        }
+                                    }}
+                                    collapsed={!isSidebarOpen}
+                                />
+                            )}
+
+                            {role === 'Student' && (
+                                <NavItem
+                                    icon={<BookOpen size={20} />}
+                                    label="My Classes"
+                                    onClick={() => {
+                                        if (isDemo) {
+                                            navigate('/student/demo/classes');
+                                        } else {
+                                            navigate('/student/classes');
                                         }
                                     }}
                                     collapsed={!isSidebarOpen}
@@ -224,23 +238,23 @@ export const CopilotLayout: React.FC<{
                                 collapsed={!isSidebarOpen}
                             />
 
-                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="My Children" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => {}} />}
-                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => {}} />}
+                            {role === 'Teacher' && (
+                                <NavItem
+                                    icon={<Gamepad2 size={20} />}
+                                    label="Practice & quizzes"
+                                    onClick={() => {
+                                        navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
+                                    }}
+                                    collapsed={!isSidebarOpen}
+                                />
+                            )}
 
-                            {role !== 'Parent' && (
+                            {role === 'Student' && (
                                 <NavItem
                                     icon={<Gamepad2 size={20} />}
                                     label="Practice & Quizzes"
                                     onClick={() => {
-                                        if (isDemo) {
-                                            if (role === 'Teacher') navigate('/teacher/demo#practice');
-                                            else navigate('/student/demo#practice');
-                                        } else {
-                                            if (role === 'Teacher') navigate('/dashboard/teacher#practice');
-                                            else navigate('/dashboard/student#practice');
-                                        }
+                                        navigate(`${isDemo ? '/student/demo' : '/dashboard/student'}#practice`);
                                     }}
                                     collapsed={!isSidebarOpen}
                                 />
@@ -265,12 +279,17 @@ export const CopilotLayout: React.FC<{
 
                             {role === 'Teacher' && (
                                 <NavItem 
-                                    icon={<Users size={20} />} 
-                                    label="Students" 
+                                    icon={<TrendingUp size={20} />} 
+                                    label="Reports" 
                                     collapsed={!isSidebarOpen} 
-                                    onClick={() => navigate(isDemo ? '/teacher/demo#students' : '/dashboard/teacher#students')}
+                                    onClick={() => navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#reports`)}
                                 />
                             )}
+
+                            {role === 'Parent' && <NavItem icon={<Users size={20} />} label="Children" collapsed={!isSidebarOpen} onClick={() => navigate(`${parentDashboardPath}#children`)} />}
+                            {role === 'Parent' && <NavItem icon={<BarChart2 size={20} />} label="Progress & Reports" collapsed={!isSidebarOpen} onClick={() => navigate(`${parentDashboardPath}#progress`)} />}
+                            {role === 'Parent' && <NavItem icon={<FileText size={20} />} label="Assignments & Quizzes" collapsed={!isSidebarOpen} onClick={() => navigate(`${parentDashboardPath}#assignments`)} />}
+                            {role === 'Parent' && <NavItem icon={<MessageSquare size={20} />} label="Messages" collapsed={!isSidebarOpen} onClick={() => navigate(`${parentDashboardPath}#messages`)} />}
                         </nav>
 
                         <div className={`p-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
@@ -613,7 +632,7 @@ export const CopilotAuthGate: React.FC<{
                         to={`/${role.toLowerCase()}/demo`}
                         className="mt-4 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors inline-block"
                     >
-                        Explore dashboard
+                        Explore Dashboard
                     </Link>
                 </div>
             </div>

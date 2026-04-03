@@ -105,7 +105,6 @@ const TeacherCopilotPage: React.FC = () => {
     const { isVerified, logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const isUnauthenticated = isDemo && !localStorage.getItem('elora_current_user');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
@@ -427,7 +426,7 @@ const TeacherCopilotPage: React.FC = () => {
         >
             <CopilotMobileHeader themeColor="#14b8a6" />
 
-            {isUnauthenticated ? (
+            {isDemo ? (
                 <CopilotAuthGate role="Teacher" themeColor="#14b8a6" />
             ) : (
                 <>

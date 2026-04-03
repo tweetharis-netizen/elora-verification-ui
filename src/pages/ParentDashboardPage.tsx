@@ -31,7 +31,7 @@ import {
     Sparkles,
     Menu,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     BarChart,
     Bar,
@@ -486,7 +486,7 @@ function UpcomingList({
                                 className="text-[13px] font-medium transition-colors hover:opacity-80"
                                 style={{ color: BRAND }}
                             >
-                                View all tasks
+                                View All Tasks
                             </button>
                         </div>
                     </>
@@ -589,7 +589,7 @@ function MessageFeed({
                                 </div>
                                 <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
                                     <button className="text-[13px] font-medium transition-colors hover:opacity-80" style={{ color: BRAND }}>
-                                        View all messages
+                                        View All Messages
                                     </button>
                                 </div>
                             </>
@@ -628,6 +628,7 @@ function MessageFeed({
 
 export default function ParentDashboardPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
@@ -664,6 +665,24 @@ export default function ParentDashboardPage() {
 
     const { currentUser, login, logout } = useAuth();
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
+
+    React.useEffect(() => {
+        const hash = location.hash.replace('#', '').toLowerCase();
+        if (!hash) return;
+
+        const hashToPage: Record<string, string> = {
+            overview: 'overview',
+            children: 'children',
+            progress: 'progress',
+            assignments: 'assignments',
+            messages: 'messages',
+        };
+
+        const nextPage = hashToPage[hash];
+        if (nextPage) {
+            setActivePage(nextPage);
+        }
+    }, [location.hash]);
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
@@ -1060,7 +1079,7 @@ export default function ParentDashboardPage() {
                     />
                     <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
-                        <div className="max-w-7xl mx-auto space-y-8">
+                        <div className="max-w-7xl mx-auto space-y-6">
 
                             {activePage === 'overview' && (
                                 <div className="bg-[#DB844A] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg border border-[#DB844A] flex flex-col justify-center min-h-[220px]">
@@ -1173,8 +1192,8 @@ export default function ParentDashboardPage() {
                                                 />
                                                 {/* TODAY AT A GLANCE – SUMMARY TILES */}
                                                 <div>
-                                                    <h2 className="text-[13px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                                                        Today at a glance – {activeChild?.name}
+                                                    <h2 className="text-sm font-semibold tracking-tight text-slate-800 mb-3">
+                                                        This week for {activeChild?.name || 'your child'}
                                                     </h2>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                         {isLoading ? (
@@ -1209,7 +1228,7 @@ export default function ParentDashboardPage() {
                                                 </div>
 
                                                 {/* TWO-COLUMN LAYOUT */}
-                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                                                     <div className="lg:col-span-2 space-y-6">
                                                         <ProgressSection
                                                             subjectScores={subjectScores}
@@ -1233,7 +1252,7 @@ export default function ParentDashboardPage() {
                                                             childName={activeChild?.name}
                                                         />
                                                     </div>
-                                                    <div className="space-y-6 lg:mt-8">
+                                                    <div className="space-y-6 lg:mt-6">
                                                         <UpcomingList
                                                             items={upcoming}
                                                             onViewAll={() => setActivePage('assignments')}

@@ -240,10 +240,7 @@ const ParentCopilotPage: React.FC = () => {
 
     const currentPrompts = buildPrompts();
 
-    // ── Auth Gate Logic for Demo Mode ──────────────────────────────────────────
-    // In demo mode (/parent/copilot/demo), if we have no persisted user, 
-    // we show a sign-up/login gate instead of the live chat.
-    const showAuthGate = isDemo && !currentUser;
+    const showAuthGate = isDemo;
 
     return (
         <CopilotLayout
@@ -379,11 +376,8 @@ const ParentCopilotPage: React.FC = () => {
             {showAuthGate ? (
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
                     <CopilotAuthGate
-                        role="parent"
+                        role="Parent"
                         themeColor="#DB844A"
-                        title="Welcome to the Parent Copilot"
-                        description="Sign up for Elora to get personalized AI-powered insights, real-time alerts on your child's progress, and direct parent-teacher communication tools."
-                        className="h-full shadow-none border-none bg-transparent"
                     />
                 </div>
             ) : (

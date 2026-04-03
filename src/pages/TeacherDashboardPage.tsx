@@ -744,12 +744,12 @@ const NeedsAttentionCard = ({
     const hasMore = insights.length > INITIAL_COUNT;
 
     return (
-        <section className="mb-4 lg:mb-5">
+        <section className="mb-6">
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
                 <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)] shrink-0" />
                 <h2 className="text-sm font-semibold tracking-tight text-slate-800">
-                    Needs Attention {hasInsights && <span className="text-slate-400 font-normal ml-0.5">· {insights.length}</span>}
+                    This week in your classes {hasInsights && <span className="text-slate-400 font-normal ml-0.5">· {insights.length}</span>}
                 </h2>
             </div>
 
@@ -1978,7 +1978,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                         to="/our-story"
                                         className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
                                     >
-                                        View details
+                                        View Details
                                     </Link>
                                 </div>
 

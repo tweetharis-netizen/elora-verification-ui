@@ -8,6 +8,12 @@
 
 import type { CurrentUser } from '../auth/AuthContext';
 import * as mockData from './mockData';
+import {
+    demoClassroomAssignments,
+    demoClassroomPractices,
+    demoClassroomStreamItems,
+    demoClassroomPeople,
+} from '../demo/demoTeacherScenarioA';
 
 // ── Module-level current-user slot ────────────────────────────────────────────
 
@@ -220,6 +226,87 @@ export interface StudentStreak {
     scoreThisWeek: number | null;
     scorePriorWeek: number | null;
     trend: 'up' | 'down' | 'flat';
+}
+
+export type ClassroomWorkStatus = 'upcoming' | 'due_soon' | 'overdue' | 'completed';
+
+export interface ClassroomAssignmentMock {
+    id: string;
+    classId: string;
+    className: string;
+    title: string;
+    topic: string;
+    dueDate: string;
+    status: ClassroomWorkStatus;
+    statusLabel: string;
+    submittedCount: number;
+    totalCount: number;
+    averageScore: number | null;
+    needsAttention: boolean;
+    studentStatus: ClassroomWorkStatus;
+    studentScore?: number;
+}
+
+export interface ClassroomPracticeMock {
+    id: string;
+    classId: string;
+    className: string;
+    title: string;
+    topic: string;
+    sourceType: 'generated' | 'curated';
+    questionCount: number;
+    status: ClassroomWorkStatus;
+    statusLabel: string;
+    submittedCount: number;
+    totalCount: number;
+    averageScore: number | null;
+    needsAttention: boolean;
+    studentStatus: ClassroomWorkStatus;
+    studentScore?: number;
+}
+
+export interface ClassroomStreamItemMock {
+    id: string;
+    classId: string;
+    type: 'announcement' | 'assignment_due' | 'graded_return' | 'practice_recommendation';
+    title: string;
+    message: string;
+    timestamp: string;
+    severity: 'normal' | 'needs_attention' | 'urgent';
+    linkedEntityId?: string;
+}
+
+export interface ClassroomPersonMock {
+    id: string;
+    classId: string;
+    name: string;
+    role: 'teacher' | 'student';
+    participationLevel: 'low' | 'medium' | 'high';
+    riskFlag: boolean;
+    lastActiveAt: string;
+}
+
+export interface ClassroomMockBundle {
+    streamItems: ClassroomStreamItemMock[];
+    assignments: ClassroomAssignmentMock[];
+    practices: ClassroomPracticeMock[];
+    people: ClassroomPersonMock[];
+}
+
+export interface TeacherReviewWorkItem {
+    id: string;
+    type: 'assignment' | 'practice';
+    title: string;
+    classId: string;
+    className: string;
+    topic: string;
+    dueDate: string;
+    status: ClassroomWorkStatus;
+    statusLabel: string;
+    submittedCount: number;
+    totalCount: number;
+    averageScore: number | null;
+    needsAttention: boolean;
 }
 
 export const getStudentAssignments = async (): Promise<StudentDashboardData> => {
@@ -647,6 +734,65 @@ export const getAvailableGamePacks = async (): Promise<Partial<GamePack>[]> => {
         { id: 'demo-game-1', title: 'Fractions Quest', topic: 'Fractions' },
         { id: 'demo-game-2', title: 'Kinematics Lab', topic: 'Physics' },
     ];
+};
+
+const filterByClassId = <T extends { classId: string }>(items: T[], classId?: string): T[] => {
+    if (!classId) return items;
+    return items.filter((item) => item.classId === classId);
+};
+
+export const getStudentClassroomMockData = async (classId?: string): Promise<ClassroomMockBundle> => {
+    return {
+        streamItems: filterByClassId(demoClassroomStreamItems, classId),
+        assignments: filterByClassId(demoClassroomAssignments, classId),
+        practices: filterByClassId(demoClassroomPractices, classId),
+        people: filterByClassId(demoClassroomPeople, classId),
+    };
+};
+
+export const getTeacherClassroomMockData = async (classId?: string): Promise<ClassroomMockBundle> => {
+    return {
+        streamItems: filterByClassId(demoClassroomStreamItems, classId),
+        assignments: filterByClassId(demoClassroomAssignments, classId),
+        practices: filterByClassId(demoClassroomPractices, classId),
+        people: filterByClassId(demoClassroomPeople, classId),
+    };
+};
+
+export const getTeacherReviewWorkItemsMock = async (): Promise<TeacherReviewWorkItem[]> => {
+    const assignmentItems: TeacherReviewWorkItem[] = demoClassroomAssignments.map((item) => ({
+        id: item.id,
+        type: 'assignment',
+        title: item.title,
+        classId: item.classId,
+        className: item.className,
+        topic: item.topic,
+        dueDate: item.dueDate,
+        status: item.status,
+        statusLabel: item.statusLabel,
+        submittedCount: item.submittedCount,
+        totalCount: item.totalCount,
+        averageScore: item.averageScore,
+        needsAttention: item.needsAttention,
+    }));
+
+    const practiceItems: TeacherReviewWorkItem[] = demoClassroomPractices.map((item) => ({
+        id: item.id,
+        type: 'practice',
+        title: item.title,
+        classId: item.classId,
+        className: item.className,
+        topic: item.topic,
+        dueDate: new Date(Date.now() + 4 * 86400000).toISOString(),
+        status: item.status,
+        statusLabel: item.statusLabel,
+        submittedCount: item.submittedCount,
+        totalCount: item.totalCount,
+        averageScore: item.averageScore,
+        needsAttention: item.needsAttention,
+    }));
+
+    return [...assignmentItems, ...practiceItems].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 };
 
 // ── Legacy mock pass-throughs (keep other pages working) ─────────────────────

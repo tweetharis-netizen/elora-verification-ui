@@ -1,0 +1,215 @@
+import React, { useMemo, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, FileText, Gamepad2, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, TrendingUp, X } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { useSidebarState } from '../../hooks/useSidebarState';
+import { useDemoMode } from '../../hooks/useDemoMode';
+import { getRoleSidebarTheme, type RoleSidebarTheme } from '../../lib/roleTheme';
+import { DashboardHeader } from '../DashboardHeader';
+import { EloraLogo } from '../EloraLogo';
+import { demoStudentName } from '../../demo/demoStudentScenarioA';
+
+type NavItemConfig = {
+  id: string;
+  label: string;
+  icon: any;
+  to: string;
+  isActive: (pathname: string, hash: string) => boolean;
+};
+
+function SidebarItem({
+  icon: Icon,
+  label,
+  active,
+  collapsed,
+  onClick,
+  theme,
+}: {
+  icon: any;
+  label: string;
+  active?: boolean;
+  collapsed?: boolean;
+  onClick?: () => void;
+  theme: RoleSidebarTheme;
+}) {
+  const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+  const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
+      title={collapsed ? label : undefined}
+    >
+      <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
+      {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
+      {active && !collapsed && <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />}
+    </button>
+  );
+}
+
+export default function StudentShellLayout() {
+  const navigate = useNavigate();
+  const { pathname, hash } = useLocation();
+  const { currentUser, logout } = useAuth();
+  const isDemo = useDemoMode();
+  const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const sidebarTheme = getRoleSidebarTheme('student');
+
+  const navItems: NavItemConfig[] = useMemo(() => {
+    const base = isDemo ? '/student/demo' : '/dashboard/student';
+    const classes = isDemo ? '/student/demo/classes' : '/student/classes';
+    const assignments = isDemo ? '/student/demo/assignments' : '/student/assignments';
+    const copilot = isDemo ? '/student/copilot/demo' : '/student/copilot';
+
+    return [
+      {
+        id: 'overview',
+        label: 'Overview',
+        icon: LayoutDashboard,
+        to: base,
+        isActive: (p, h) => p === base && h !== '#practice' && h !== '#reports',
+      },
+      {
+        id: 'classes',
+        label: 'My Classes',
+        icon: BookOpen,
+        to: classes,
+        isActive: (p) => p === classes || p.startsWith(isDemo ? '/student/demo/class/' : '/student/class/'),
+      },
+      {
+        id: 'copilot',
+        label: 'Copilot',
+        icon: Sparkles,
+        to: copilot,
+        isActive: (p) => p.startsWith(isDemo ? '/student/copilot/demo' : '/student/copilot'),
+      },
+      {
+        id: 'practice',
+        label: 'Practice & Quizzes',
+        icon: Gamepad2,
+        to: `${base}#practice`,
+        isActive: (p, h) => p === base && h === '#practice',
+      },
+      {
+        id: 'assignments',
+        label: 'Assignments',
+        icon: FileText,
+        to: assignments,
+        isActive: (p) => p === assignments,
+      },
+      {
+        id: 'reports',
+        label: 'Reports',
+        icon: TrendingUp,
+        to: `${base}#reports`,
+        isActive: (p, h) => p === base && h === '#reports',
+      },
+    ];
+  }, [isDemo]);
+
+  const displayName = isDemo ? demoStudentName : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
+  const initials = displayName
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className="flex min-h-screen bg-[#FDFBF5] text-slate-900 overflow-x-hidden">
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside
+        id="student-shell-sidebar"
+        className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
+            <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
+          </Link>
+
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+            title="Close menu"
+          >
+            <X size={22} />
+          </button>
+
+          {isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="hidden md:flex p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose size={18} />
+            </button>
+          )}
+        </div>
+
+        <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
+          {navItems
+            .filter((item) => !(isDemo && (item.id === 'copilot' || item.id === 'reports')))
+            .map((item) => (
+            <React.Fragment key={item.id}>
+              <SidebarItem
+                icon={item.icon}
+                label={item.label}
+                active={item.isActive(pathname, hash)}
+                collapsed={!isSidebarOpen}
+                onClick={() => {
+                  navigate(item.to);
+                  setIsMobileMenuOpen(false);
+                }}
+                theme={sidebarTheme}
+              />
+            </React.Fragment>
+          ))}
+        </nav>
+
+        <div className={`mt-auto p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="flex items-center justify-center w-full p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all group mb-2"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen size={22} className="group-hover:scale-110 transition-transform" />
+            </button>
+          )}
+
+          <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+
+          <button
+            onClick={logout}
+            className={`flex w-full items-center gap-4 px-5 py-3.5 rounded-2xl text-[13px] font-semibold text-white/60 hover:bg-white/10 hover:text-white transition-all group ${!isSidebarOpen ? 'justify-center' : ''}`}
+            title={!isSidebarOpen ? 'Sign out' : undefined}
+          >
+            <LogOut size={22} className="shrink-0 group-hover:-translate-x-1 transition-transform" />
+            {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#FDFBF5]/50 overflow-x-hidden">
+        <DashboardHeader
+          role="student"
+          displayName={displayName}
+          roleLabel="STUDENT"
+          avatarInitials={initials || 'S'}
+          onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+        />
+        <div className="flex-1 flex flex-col">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}

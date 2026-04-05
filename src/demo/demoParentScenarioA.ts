@@ -5,7 +5,7 @@
 
 import type * as dataService from '../services/dataService';
 
-export const demoParentName = 'Mr. Lee';
+export const demoParentName = 'Shaik Haris';
 
 export const demoChildren: dataService.ParentChild[] = [
     {
@@ -36,11 +36,11 @@ export const demoChildSummary: any = {
     recentActivity: [
         {
             id: 'demo-act-1',
-            title: 'Algebra Quiz 1',
+            title: "Jordan Lee's Performance",
             subject: 'Mathematics',
-            tag: 'Needs Help',
-            type: 'quiz',
-            score: '28%',
+            tag: 'Practicing Algebra',
+            type: 'practice',
+            score: '43%',
             date: '2 days ago',
             status: 'at_risk',
         },

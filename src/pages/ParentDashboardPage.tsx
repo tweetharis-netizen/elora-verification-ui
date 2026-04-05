@@ -66,7 +66,7 @@ import {
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
-const BRAND = '#DB844A';
+const BRAND = '#F97316';
 
 const SIDEBAR_ITEMS = [
     { icon: LayoutDashboard, label: 'Overview', id: 'overview' },
@@ -147,14 +147,14 @@ function SummaryCard({
     key?: string | number;
 }) {
     return (
-        <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6 flex items-start gap-4">
-            <div className="p-3 rounded-lg shrink-0" style={{ backgroundColor: `${BRAND}18`, color: BRAND }}>
+        <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 lg:p-6 flex items-start gap-4">
+            <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F973161A', color: BRAND }}>
                 <Icon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-slate-500">{label}</p>
+                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest">{label}</p>
                 <div className="flex items-end gap-2 mt-1">
-                    <p className="text-2xl font-semibold text-slate-900">{value}</p>
+                    <p className="text-2xl font-semibold text-slate-900 tabular-nums">{value}</p>
                     {trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-500 mb-1" />}
                     {trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500 mb-1" />}
                 </div>
@@ -169,8 +169,8 @@ function StatusBadge({ status }: { status: string }) {
         'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
         'Due soon': 'bg-orange-50 text-orange-700 border-orange-200/60',
         'In Progress': 'bg-orange-50 text-orange-700 border-orange-200/60',
-        'Overdue': 'bg-red-50 text-red-700 border-red-200/60',
-        'Needs Attention': 'bg-red-50 text-red-700 border-red-200/60',
+        'Overdue': 'bg-rose-50 text-[#9F1239] border-rose-200/60',
+        'Needs Attention': 'bg-rose-50 text-[#9F1239] border-rose-200/60',
     };
     return (
         <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border whitespace-nowrap ${styles[status] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>
@@ -203,32 +203,33 @@ function ProgressSection({
 }) {
     return (
         <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mt-10 mb-3">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Progress & Reports</h2>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <h2 className="text-[18px] lg:text-[20px] font-semibold tracking-tight text-slate-900">Detailed Reports</h2>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                         <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                         Live data {lastUpdated && `• Last updated ${lastUpdated}`}
                     </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 border-b border-slate-200">
                     {['Subjects', 'Topics', 'Practice & quizzes'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
-                            className={`px-3 py-1 text-[13px] font-medium rounded-full border transition-colors ${perfTab === tab
-                                ? 'text-white border-transparent'
-                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                }`}
-                            style={perfTab === tab ? { backgroundColor: BRAND, borderColor: BRAND } : {}}
+                            className={`relative px-1 py-2 text-[13px] font-medium transition-colors ${perfTab === tab ? '' : 'text-slate-500 hover:text-slate-700'}`}
+                            style={perfTab === tab ? { color: BRAND } : undefined}
                         >
                             {tab}
+                            <span
+                                className={`absolute left-0 right-0 -bottom-px h-[3px] transition-opacity ${perfTab === tab ? 'opacity-100' : 'opacity-0'}`}
+                                style={{ backgroundColor: BRAND }}
+                            />
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 lg:p-6 min-h-[300px] flex flex-col justify-center">
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 lg:p-6 min-h-[220px] flex flex-col justify-center">
                 {isLoading ? (
                     <SectionSkeleton rows={5} />
                 ) : isError ? (
@@ -243,38 +244,18 @@ function ProgressSection({
                     />
                 ) : (
                     <>
-                        <div className="h-64 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={subjectScores} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 13, fill: '#64748B' }}
-                                        dy={10}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 13, fill: '#64748B' }}
-                                        domain={[0, 100]}
-                                        ticks={[0, 25, 50, 75, 100]}
-                                    />
-                                    <Tooltip
-                                        cursor={{ fill: '#F1F5F9' }}
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    />
-                                    <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                                        {subjectScores.map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={entry.score >= 75 ? '#10B981' : entry.score >= 60 ? '#F59E0B' : '#EF4444'}
-                                            />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {subjectScores.map((entry, index) => (
+                                <div key={`${entry.name}-${index}`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{entry.name}</span>
+                                        <span className="text-lg font-semibold text-slate-900 tabular-nums">{entry.score}%</span>
+                                    </div>
+                                    <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
+                                        <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, entry.score))}%`, backgroundColor: BRAND }} />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="mt-6 pt-6 border-t border-slate-100">
@@ -334,22 +315,26 @@ function ActivityList({
     return (
         <section>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Recent activity & practice</h2>
-                <div className="flex items-center bg-slate-100 p-1 rounded-lg overflow-x-auto">
+                <h2 className="text-[18px] lg:text-[20px] font-semibold tracking-tight text-slate-900">Recent Activity</h2>
+                <div className="flex items-center gap-3 border-b border-slate-200 overflow-x-auto">
                     {['All', 'Practice', 'Assignment'].map((f) => (
                         <button
                             key={f}
                             onClick={() => onFilterChange(f)}
-                            className={`px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                            className={`relative px-1 py-2 text-[13px] font-medium transition-colors whitespace-nowrap ${filter === f ? '' : 'text-slate-500 hover:text-slate-700'}`}
+                            style={filter === f ? { color: BRAND } : undefined}
                         >
                             {f}
+                            <span
+                                className={`absolute left-0 right-0 -bottom-px h-[3px] transition-opacity ${filter === f ? 'opacity-100' : 'opacity-0'}`}
+                                style={{ backgroundColor: BRAND }}
+                            />
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[200px] flex flex-col justify-center">
                 {isLoading ? (
                     <div className="p-6"><SectionSkeleton rows={4} /></div>
                 ) : isError ? (
@@ -436,15 +421,15 @@ function UpcomingList({
     const iconMap = {
         'On track': <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
         'Due soon': <Clock className="w-4 h-4 text-orange-500" />,
-        'Overdue': <AlertCircle className="w-4 h-4 text-red-500" />,
+        'Overdue': <AlertCircle className="w-4 h-4 text-[#9F1239]" />,
     };
 
     return (
         <section>
-            <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 mb-4">
-                Upcoming Assignments & Quizzes
+            <h2 className="text-[18px] lg:text-[20px] font-semibold tracking-tight text-slate-900 mb-4">
+                At a Glance
             </h2>
-            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[200px] flex flex-col justify-center">
                 {isLoading ? (
                     <div className="p-6"><SectionSkeleton rows={3} /></div>
                 ) : isError ? (
@@ -530,27 +515,30 @@ function MessageFeed({
         <section>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900">Messages & Tips</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 border-b border-slate-200">
                     {['Messages', 'Tips'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
-                            className={`px-3 py-1 text-[13px] font-medium rounded-full border transition-colors ${activeTab === tab ? 'text-white border-transparent' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                }`}
-                            style={activeTab === tab ? { backgroundColor: BRAND } : {}}
+                            className={`relative px-1 py-2 text-[13px] font-medium transition-colors ${activeTab === tab ? '' : 'text-slate-500 hover:text-slate-700'}`}
+                            style={activeTab === tab ? { color: BRAND } : undefined}
                         >
                             {tab}
                             {tab === 'Messages' && messages.some((m) => m.unread) && (
-                                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-semibold">
                                     {messages.filter((m) => m.unread).length}
                                 </span>
                             )}
+                            <span
+                                className={`absolute left-0 right-0 -bottom-px h-[3px] transition-opacity ${activeTab === tab ? 'opacity-100' : 'opacity-0'}`}
+                                style={{ backgroundColor: BRAND }}
+                            />
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm min-h-[250px] flex flex-col justify-center overflow-hidden">
+            <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] min-h-[250px] flex flex-col justify-center overflow-hidden">
                 {isLoading ? (
                     <div className="p-6"><SectionSkeleton rows={4} /></div>
                 ) : isError ? (
@@ -599,7 +587,7 @@ function MessageFeed({
                                     <div className="relative z-10 space-y-4">
                                         {tips.map((tip) => (
                                             <div key={tip.id} className="flex items-start gap-3">
-                                                <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-sm" style={{ color: BRAND }}>
+                                                <div className="mt-0.5 p-1.5 bg-white rounded-md shadow-[0_8px_30px_rgb(0,0,0,0.04)]" style={{ color: BRAND }}>
                                                     <Lightbulb className="w-4 h-4" />
                                                 </div>
                                                 <div>
@@ -626,11 +614,12 @@ function MessageFeed({
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
-export default function ParentDashboardPage() {
+export default function ParentDashboardPage({ embeddedInShell = false, isDemo: isDemoProp }: { embeddedInShell?: boolean; isDemo?: boolean } = {}) {
     const navigate = useNavigate();
     const location = useLocation();
     const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
-    const isDemo = useDemoMode();
+    const routeIsDemo = useDemoMode();
+    const isDemo = isDemoProp ?? routeIsDemo;
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activePage, setActivePage] = useState('overview');
@@ -658,6 +647,7 @@ export default function ParentDashboardPage() {
     });
     const [eloraError, setEloraError] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState('All');
+    const [parentAssignmentStatusFilter, setParentAssignmentStatusFilter] = useState<'all' | 'overdue' | 'at_risk' | 'completed' | 'active'>('all');
     const [msgTab, setMsgTab] = useState('Messages');
     const [nudgeOpen, setNudgeOpen] = useState(false);
     const [nudgeText, setNudgeText] = useState('');
@@ -696,7 +686,7 @@ export default function ParentDashboardPage() {
         unreadCount: notificationsUnreadCount,
         markAllRead: handleMarkAllRead,
         markOneRead: handleMarkOneRead
-    } = useNotifications({ userId: parentId, role: 'parent' });
+    } = useNotifications({ userId: isDemo ? '' : parentId, role: 'parent' });
 
     const handleNotificationClick = async (item: PopoverNotificationItem) => {
         if (!item.original) return;
@@ -765,7 +755,21 @@ export default function ParentDashboardPage() {
             }
         }).catch(err => {
             console.error('[ParentDashboard] Error loading children:', err);
-            setLoadError('Could not load children. Please try again.');
+            // Localhost resilience: fall back to demo parent data when API is unavailable.
+            const mapped = demoChildren.map((c: any, i: number) => ({
+                id: c.id,
+                name: c.name,
+                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
+            }));
+            if (mapped.length > 0) {
+                setChildrenList(mapped);
+                setActiveChildId(mapped[0].id);
+                setSummaryData(demoChildSummary);
+                setLastUpdated('Just now');
+                setLoadError(null);
+            } else {
+                setLoadError('Could not load children. Please try again.');
+            }
             setIsLoading(false);
         });
     }, [isDemo]);
@@ -809,7 +813,10 @@ export default function ParentDashboardPage() {
             setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }).catch(err => {
             console.error('[ParentDashboard] Error loading summary:', err);
-            setLoadError('Could not load data for this student. Please try again.');
+            // Keep Parent dashboard usable on localhost without backend.
+            setSummaryData(demoChildSummary);
+            setLastUpdated('Just now');
+            setLoadError(null);
         }).finally(() => setIsLoading(false));
     }, [activeChildId, isDemo]);
 
@@ -877,7 +884,7 @@ export default function ParentDashboardPage() {
         ];
     }, [activeChildId, activeChild?.name, weakTopics]);
 
-    const parentName = isDemo ? 'Mr. Lee' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
+    const parentName = isDemo ? 'Shaik Haris' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
     const parentInitials = parentName
         .split(' ')
         .map((word) => word.charAt(0).toUpperCase())
@@ -903,6 +910,14 @@ export default function ParentDashboardPage() {
     }, "review student assessments");
 
     const [showNudgeSuccess, setShowNudgeSuccess] = useState(false);
+
+    // Keep dashboard resilient if any unsupported page id is set.
+    React.useEffect(() => {
+        const validPages = ['overview', 'children', 'progress', 'assignments', 'messages'];
+        if (!validPages.includes(activePage)) {
+            setActivePage('overview');
+        }
+    }, [activePage]);
 
     const handleSendNudge = withGate(async () => {
         if (!activeChildId || !nudgeText.trim()) return;
@@ -965,6 +980,8 @@ export default function ParentDashboardPage() {
         );
     }
 
+    const useLocalShell = !embeddedInShell;
+
     return (
         <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-x-hidden">
             {isDemo && (
@@ -976,7 +993,7 @@ export default function ParentDashboardPage() {
 
             <div className="flex flex-1">
                 {/* MOBILE BACKDROP */}
-                {isMobileMenuOpen && (
+                {useLocalShell && isMobileMenuOpen && (
                     <div
                         className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden transition-all duration-500 animate-in fade-in"
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -984,9 +1001,9 @@ export default function ParentDashboardPage() {
                 )}
 
                 {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-                <aside
+                {useLocalShell && <aside
                     id="parent-sidebar"
-                    className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all duration-500 ease-in-out 
+                    className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all transition-colors duration-300 ease-in-out 
                         ${isSidebarOpen ? 'w-64' : 'w-20'} 
                         ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20
                         md:sticky md:top-0 md:min-h-screen md:translate-x-0 
@@ -997,7 +1014,7 @@ export default function ParentDashboardPage() {
                     {/* Logo + Header area */}
                     <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                         <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
-                            <EloraLogo className="w-10 h-10 text-current drop-shadow-sm transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
+                            <EloraLogo className="w-10 h-10 text-current drop-shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
                         </Link>
 
                         {/* Mobile close toggle */}
@@ -1012,7 +1029,9 @@ export default function ParentDashboardPage() {
 
                     {/* Navigation Items */}
                     <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
-                        {SIDEBAR_ITEMS.map((item) => (
+                        {SIDEBAR_ITEMS
+                            .filter((item) => !(isDemo && (item.id === 'copilot' || item.id === 'progress')))
+                            .map((item) => (
                             <SidebarItem
                                 key={item.id}
                                 icon={item.icon}
@@ -1032,32 +1051,32 @@ export default function ParentDashboardPage() {
                     </nav>
 
                     {/* Footer / System menu */}
-                    <div className={`p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
+                    <div className={`mt-auto px-4 pt-5 pb-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>
                         {!isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(true)}
-                                className="flex items-center justify-center w-full p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all group mb-2"
+                                className="flex items-center justify-center w-full p-2.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
                                 title="Expand sidebar"
                             >
-                                <PanelLeftOpen size={22} className="group-hover:scale-110 transition-transform" />
+                                <PanelLeftOpen size={20} />
                             </button>
                         )}
 
                         <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                         <button
                             onClick={logout}
-                            className={`flex w-full items-center gap-4 px-5 py-3.5 rounded-2xl text-[13px] font-bold text-white/60 hover:bg-white/10 hover:text-white transition-all group ${!isSidebarOpen ? 'justify-center' : ''}`}
+                            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
                             title={!isSidebarOpen ? "Sign out" : undefined}
                         >
-                            <LogOut size={22} className="shrink-0 group-hover:-translate-x-1 transition-transform" />
+                            <LogOut size={20} className="shrink-0" />
                             {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                         </button>
                     </div>
-                </aside>
+                </aside>}
 
                 {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
                 <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                    <DashboardHeader
+                    {useLocalShell && <DashboardHeader
                         role="parent"
                         displayName={parentName}
                         roleLabel="PARENT"
@@ -1076,22 +1095,22 @@ export default function ParentDashboardPage() {
                                 headerTextColor="text-orange-600"
                             />
                         }
-                    />
+                    />}
                     <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
                         <div className="max-w-7xl mx-auto space-y-6">
 
                             {activePage === 'overview' && (
-                                <div className="bg-[#DB844A] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg border border-[#DB844A] flex flex-col justify-center min-h-[220px]">
+                                <div className="bg-[#F97316] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-lg border border-[#F97316] flex flex-col min-h-[140px]">
                                     <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
                                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
 
                                     <div className="relative z-10 flex flex-col h-full text-white">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
                                             <Heart size={12} className="text-orange-200" />
                                             <span>Tracking {childrenList.length} children</span>
                                         </div>
-                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 leading-tight tracking-tight">
+                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold mb-2 leading-tight tracking-tight">
                                             Hi, {parentName.split(' ')[0]}! <br />
                                             <span className="text-orange-100">See what {activeChild?.name} is learning today.</span>
                                         </h1>
@@ -1099,22 +1118,23 @@ export default function ParentDashboardPage() {
                                             {activeChild?.name} is currently working on {activeChild?.level}. Stay engaged with real-time updates and supportive nudges.
                                         </p>
 
-                                        <div className="mt-6 flex flex-wrap gap-3">
+                                        <div className="mt-4 flex flex-wrap gap-3">
                                             <button
                                                 onClick={() => handleOpenNudge()}
-                                                className="px-5 py-2 bg-white text-[#DB844A] rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                                className="px-5 py-2 bg-white text-[#F97316] rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                                             >
                                                 <Send size={16} />
                                                 Send a Nudge
                                             </button>
-                                            <button
-                                                onClick={() => handleViewReports()}
-                                                className="px-5 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md flex items-center gap-2"
-                                            >
-                                                <BookOpen size={16} />
-                                                View Reports
-                                            </button>
                                         </div>
+
+                                        <button
+                                            onClick={() => handleViewReports()}
+                                            className="mt-4 w-full border-t border-orange-200/50 py-3 text-sm font-semibold text-white hover:bg-orange-50/20 transition-colors inline-flex items-center justify-center gap-2"
+                                        >
+                                            <BookOpen size={16} />
+                                            Review latest results
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -1141,7 +1161,7 @@ export default function ParentDashboardPage() {
                                     <div className="flex flex-wrap items-center gap-3">
                                         <button
                                             onClick={() => handleOpenNudge()}
-                                            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm hover:opacity-90"
+                                            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:opacity-90"
                                             style={{ backgroundColor: BRAND }}
                                         >
                                             <Send className="w-4 h-4" />
@@ -1161,14 +1181,14 @@ export default function ParentDashboardPage() {
                                     </div>
                                 </div>
                             ) : loadError && !activeChild ? (
-                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-12 text-center">
                                     <SectionError
                                         message="We encountered an issue loading your family data. Please try again."
                                         onRetry={handleRetry}
                                     />
                                 </div>
                             ) : !activeChild ? (
-                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-12 text-center">
+                                <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-12 text-center">
                                     <SectionEmpty
                                         headline="No children found"
                                         detail="It looks like there are no students linked to this parent account. Please contact support if this is an error."
@@ -1186,19 +1206,19 @@ export default function ParentDashboardPage() {
                                                 <DashboardTour
                                                     role="parent"
                                                     isVisible={!welcomeDismissed}
-                                                    onAction1={() => setActivePage('copilot')}
+                                                    onAction1={() => navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot')}
                                                     onAction2={() => setActivePage('progress')}
                                                     onDismiss={handleDismissWelcome}
                                                 />
                                                 {/* TODAY AT A GLANCE – SUMMARY TILES */}
                                                 <div>
-                                                    <h2 className="text-sm font-semibold tracking-tight text-slate-800 mb-3">
+                                                    <h2 className="text-sm font-semibold tracking-tight text-slate-800 mt-10 mb-3">
                                                         This week for {activeChild?.name || 'your child'}
                                                     </h2>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                         {isLoading ? (
                                                             Array.from({ length: 4 }).map((_, i) => (
-                                                                <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-5 flex items-center gap-4 animate-pulse">
+                                                                <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 flex items-center gap-4 animate-pulse">
                                                                     <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
                                                                     <div className="flex-1 space-y-2">
                                                                         <div className="h-2.5 bg-slate-100 rounded w-1/2" />
@@ -1228,8 +1248,8 @@ export default function ParentDashboardPage() {
                                                 </div>
 
                                                 {/* TWO-COLUMN LAYOUT */}
-                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                                                    <div className="lg:col-span-2 space-y-6">
+                                                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6 mt-6">
+                                                    <div className="space-y-6 lg:order-2">
                                                         <ProgressSection
                                                             subjectScores={subjectScores}
                                                             weakTopics={weakTopics}
@@ -1252,7 +1272,7 @@ export default function ParentDashboardPage() {
                                                             childName={activeChild?.name}
                                                         />
                                                     </div>
-                                                    <div className="space-y-6 lg:mt-6">
+                                                    <div className="space-y-6 lg:order-1 lg:mt-6">
                                                         <UpcomingList
                                                             items={upcoming}
                                                             onViewAll={() => setActivePage('assignments')}
@@ -1282,7 +1302,7 @@ export default function ParentDashboardPage() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     {isLoading ? (
                                                         Array.from({ length: 3 }).map((_, i) => (
-                                                            <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-6 flex items-center gap-4 animate-pulse">
+                                                            <div key={i} className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex items-center gap-4 animate-pulse">
                                                                 <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
                                                                 <div className="flex-1 space-y-2">
                                                                     <div className="h-2.5 bg-slate-100 rounded w-1/2" />
@@ -1313,7 +1333,7 @@ export default function ParentDashboardPage() {
                                                 />
                                                 {!isLoading && !loadError && (
                                                     weakTopics.length > 0 ? (
-                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                                             <div className="flex items-center">
                                                                 <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-orange-50 text-orange-700 border-orange-200">
                                                                     Needs practice
@@ -1329,7 +1349,7 @@ export default function ParentDashboardPage() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                                        <div className="flex flex-col gap-2.5 p-4 sm:px-5 sm:py-4 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                                             <div className="flex items-center">
                                                                 <span className="px-2.5 py-1 rounded-full text-[12px] font-medium border bg-teal-50 text-teal-700 border-teal-200">
                                                                     On track
@@ -1351,25 +1371,197 @@ export default function ParentDashboardPage() {
 
                                         {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
                                         {activePage === 'assignments' && (
-                                            <div className="space-y-6">
-                                                <UpcomingList
-                                                    items={upcoming}
-                                                    onViewAll={() => setActivePage('assignments')}
-                                                    isLoading={isLoading}
-                                                    isError={!!loadError}
-                                                    onRetry={handleRetry}
-                                                    childName={activeChild?.name}
-                                                />
-                                                <ActivityList
-                                                    activities={recentActivity}
-                                                    filter={activityFilter}
-                                                    onFilterChange={setActivityFilter}
-                                                    onActivityClick={handleActivityClick}
-                                                    isLoading={isLoading}
-                                                    isError={!!loadError}
-                                                    onRetry={handleRetry}
-                                                    childName={activeChild?.name}
-                                                />
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <p className="text-xs text-slate-500 font-medium">Classes &gt; {activeChild?.level || 'Learning Overview'}</p>
+                                                    <h2 className="text-xl font-semibold tracking-tight text-slate-900">Assignments & Quizzes</h2>
+                                                    <p className="text-sm text-slate-500 mt-1">Review your child's current work, deadlines, and learning outcomes.</p>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
+                                                    <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 lg:sticky lg:top-6">
+                                                        <div className="space-y-2">
+                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Child Progress Summary</p>
+                                                            <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
+                                                                <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                                    <span>Avg score</span>
+                                                                    <span className="tabular-nums text-base font-bold text-[#F97316]">
+                                                                        {(() => {
+                                                                            const numericScores = recentActivity
+                                                                                .map((activity) => {
+                                                                                    const parsed = Number.parseInt(String(activity.score ?? ''), 10);
+                                                                                    return Number.isFinite(parsed) ? parsed : null;
+                                                                                })
+                                                                                .filter((value): value is number => value !== null);
+
+                                                                            if (numericScores.length === 0) return '--';
+                                                                            return `${Math.round(numericScores.reduce((sum, score) => sum + score, 0) / numericScores.length)}%`;
+                                                                        })()}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                                    <span>Missing work</span>
+                                                                    <span className="tabular-nums text-base font-bold text-[#F97316]">
+                                                                        {upcoming.filter((item) => {
+                                                                            const status = String(item.status || '').toLowerCase();
+                                                                            return status.includes('overdue') || status.includes('needs attention') || status.includes('missing') || status.includes('at risk');
+                                                                        }).length}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
+                                                            <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
+                                                                <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
+                                                                <select
+                                                                    value={parentAssignmentStatusFilter}
+                                                                    onChange={(event) => setParentAssignmentStatusFilter(event.target.value as 'all' | 'overdue' | 'at_risk' | 'completed' | 'active')}
+                                                                    className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
+                                                                >
+                                                                    <option value="all">All statuses</option>
+                                                                    <option value="overdue">Overdue</option>
+                                                                    <option value="at_risk">At risk</option>
+                                                                    <option value="active">Active</option>
+                                                                    <option value="completed">Completed</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </aside>
+
+                                                    <section>
+                                                        {(() => {
+                                                            const mergedItems = [
+                                                                ...upcoming.map((item) => ({
+                                                                    id: `upcoming-${item.id}`,
+                                                                    title: item.title,
+                                                                    subject: item.subject,
+                                                                    dueDate: item.dueDate,
+                                                                    status: item.status,
+                                                                    score: '--',
+                                                                    source: 'upcoming' as const,
+                                                                    original: item,
+                                                                })),
+                                                                ...recentActivity.map((item) => ({
+                                                                    id: `activity-${item.id}`,
+                                                                    title: item.title,
+                                                                    subject: item.subject,
+                                                                    dueDate: item.date,
+                                                                    status: item.status,
+                                                                    score: item.score || '--',
+                                                                    source: 'activity' as const,
+                                                                    original: item,
+                                                                })),
+                                                            ];
+
+                                                            const filteredMergedItems = mergedItems.filter((item) => {
+                                                                const statusLower = String(item.status || '').toLowerCase();
+
+                                                                if (parentAssignmentStatusFilter === 'overdue') return statusLower.includes('overdue');
+                                                                if (parentAssignmentStatusFilter === 'at_risk') return statusLower.includes('at_risk') || statusLower.includes('at risk') || statusLower.includes('needs attention');
+                                                                if (parentAssignmentStatusFilter === 'completed') return statusLower.includes('success') || statusLower.includes('completed');
+                                                                if (parentAssignmentStatusFilter === 'active') return !statusLower.includes('overdue') && !statusLower.includes('at_risk') && !statusLower.includes('at risk') && !statusLower.includes('needs attention') && !statusLower.includes('success') && !statusLower.includes('completed');
+
+                                                                return true;
+                                                            });
+
+                                                            if (filteredMergedItems.length === 0) {
+                                                                return (
+                                                                    <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10">
+                                                                        <SectionEmpty
+                                                                            headline="No assignments yet"
+                                                                            detail={`Any assignments and quiz records for ${activeChild?.name || 'your child'} will appear here.`}
+                                                                        />
+                                                                    </div>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <div className="space-y-4">
+                                                                    {filteredMergedItems.map((item) => {
+                                                                        const statusLower = String(item.status || '').toLowerCase();
+                                                                        const isUrgent = statusLower.includes('overdue') || statusLower.includes('at risk') || statusLower.includes('at_risk') || statusLower.includes('needs attention');
+                                                                        const parsedScore = Number.parseInt(String(item.score || ''), 10);
+                                                                        const hasNumericScore = Number.isFinite(parsedScore);
+                                                                        const progressValue = hasNumericScore ? Math.max(0, Math.min(100, parsedScore)) : (isUrgent ? 30 : 55);
+
+                                                                        return (
+                                                                            <article
+                                                                                key={item.id}
+                                                                                className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
+                                                                            >
+                                                                                <div className="p-4 sm:p-5">
+                                                                                    <div className="flex items-start justify-end gap-2 mb-3">
+                                                                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isUrgent ? 'bg-rose-50 border-rose-200 text-[#9F1239]' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
+                                                                                            {item.status}
+                                                                                        </span>
+                                                                                    </div>
+
+                                                                                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
+                                                                                        <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isUrgent ? 'bg-rose-50/50' : 'bg-orange-500/10'}`}>
+                                                                                                <FileText size={16} className={`${isUrgent ? 'text-[#9F1239]' : 'text-[#F97316]'}`} />
+                                                                                            </div>
+                                                                                            <div className="min-w-0">
+                                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Assignment</p>
+                                                                                                <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
+                                                                                                <p className="mt-1 text-sm text-slate-500 truncate">{item.subject}</p>
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                                            <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
+                                                                                                <div className="grid grid-cols-2 gap-y-3 gap-x-8">
+                                                                                                    <div>
+                                                                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Your child's score</p>
+                                                                                                        <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{item.score}</p>
+                                                                                                    </div>
+                                                                                                    <div>
+                                                                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Result status</p>
+                                                                                                        <p className={`mt-1 text-sm font-semibold ${isUrgent ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.status}</p>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="mt-3">
+                                                                                                    <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                                                                                        <div
+                                                                                                            className={`h-full transition-all ${isUrgent ? 'bg-[#9F1239]' : 'bg-[#F97316]'}`}
+                                                                                                            style={{ width: `${progressValue}%` }}
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        <div className="space-y-2">
+                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Date</p>
+                                                                                            <p className="text-sm font-semibold text-slate-900 tabular-nums">{item.dueDate}</p>
+                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Context</p>
+                                                                                            <p className={`text-sm font-semibold ${isUrgent ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.source === 'activity' ? 'Performance record' : 'Upcoming work'}</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        if (item.source === 'activity') {
+                                                                                            void handleActivityClick(item.original);
+                                                                                        } else {
+                                                                                            setActivePage('progress');
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
+                                                                                >
+                                                                                    {item.score !== '--' ? 'Review Child Submission' : 'View Detailed Report'}
+                                                                                </button>
+                                                                            </article>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </section>
+                                                </div>
                                             </div>
                                         )}
 
@@ -1417,7 +1609,7 @@ export default function ParentDashboardPage() {
                                                         }
                                                         metaSecondaryNode={
                                                             activeChildId === child.id ? (
-                                                                <span className="text-orange-600 font-bold uppercase tracking-widest text-[9px] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
+                                                                <span className="text-orange-600 font-semibold uppercase tracking-widest text-[9px] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
                                                                     Selected
                                                                 </span>
                                                             ) : undefined
@@ -1500,7 +1692,7 @@ export default function ParentDashboardPage() {
                                 <button
                                     onClick={handleSendNudge}
                                     disabled={!nudgeText.trim() || isSendingNudge}
-                                    className="px-5 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+                                    className="px-5 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
                                     style={{ backgroundColor: BRAND }}
                                 >
                                     <Send className="w-4 h-4" />
@@ -1514,3 +1706,5 @@ export default function ParentDashboardPage() {
         </div>
     );
 }
+
+

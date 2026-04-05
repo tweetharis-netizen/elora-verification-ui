@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { SectionSkeleton } from '../components/ui/SectionStates';
@@ -12,7 +11,7 @@ import {
     ClassroomHeader,
     ClassroomTabs,
     StreamLayout,
-    ClassworkTab,
+    AssignmentsPracticeTab,
     PeopleTab,
     GradesTab
 } from '../components/classroom/ClassroomComponents';
@@ -30,8 +29,10 @@ export default function StudentClassroomPage() {
 
     const [loading, setLoading] = useState(true);
     const [currentClass, setCurrentClass] = useState<any>(null);
-    const [streamItems, setStreamItems] = useState<any[]>([]);
-    const [topicGroups, setTopicGroups] = useState<any[]>([]);
+    const [streamItems, setStreamItems] = useState<dataService.ClassroomStreamItemMock[]>([]);
+    const [assignments, setAssignments] = useState<dataService.ClassroomAssignmentMock[]>([]);
+    const [practices, setPractices] = useState<dataService.ClassroomPracticeMock[]>([]);
+    const [people, setPeople] = useState<dataService.ClassroomPersonMock[]>([]);
 
     // Using simple mock state for UI responsiveness
     const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -102,25 +103,11 @@ export default function StudentClassroomPage() {
 
                 setCurrentClass(foundClass);
 
-                // Mocking stream data for the student
-                setStreamItems([
-                    { id: '1', type: 'assignment', badgeLabel: 'Needs attention', message: 'Posted a new assignment: Algebra Quiz 1', meta: 'Due Tomorrow' },
-                    { id: '2', type: 'announcement', badgeLabel: 'New', message: 'Reminder: Bring calculators tomorrow', meta: 'Yesterday' }
-                ]);
-
-                // Mocking classwork topic groups
-                setTopicGroups([
-                    {
-                        topicId: 't1', topicName: 'Algebra', items: [
-                            { id: 'a1', title: 'Algebra Quiz 1', type: 'Quiz', status: 'Needs attention', dueLabel: 'Tomorrow' }
-                        ]
-                    },
-                    {
-                        topicId: 't2', topicName: 'Geometry', items: [
-                            { id: 'a2', title: 'Intro to Shapes', type: 'Assignment', status: 'Submitted', dueLabel: 'Next Week' }
-                        ]
-                    }
-                ]);
+                const classroomMockData = await dataService.getStudentClassroomMockData(foundClass.id);
+                setStreamItems(classroomMockData.streamItems);
+                setAssignments(classroomMockData.assignments);
+                setPractices(classroomMockData.practices);
+                setPeople(classroomMockData.people);
 
             } catch (err) {
                 console.error('Failed to load classroom data:', err);
@@ -137,107 +124,131 @@ export default function StudentClassroomPage() {
     }, [classId, isDemo, navigate]);
 
     const currentTheme = currentClass ? inferClassTheme(currentClass) : undefined;
+    const classroomUpcoming = [...assignments, ...practices]
+        .filter(item => ['overdue', 'due_soon', 'upcoming'].includes(item.studentStatus || item.status))
+        .slice(0, 4);
+
+    const classroomPeople = people.filter((person) => person.role === 'student');
+    const currentClassWithPeople = { ...currentClass, students: classroomPeople };
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] flex-col overflow-hidden font-sans">
-            <header className="h-14 bg-white border-b border-[#EAE7DD] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/dashboard/student')} className="inline-flex items-center gap-1.5 text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors">
-                        <ChevronLeft size={16} /> Back to Dashboard
-                    </button>
-                </div>
-                <div className="font-bold text-slate-800 text-lg">Elora Student</div>
-            </header>
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
+            {loading ? (
+                <SectionSkeleton rows={3} />
+            ) : (
+                <div className="flex flex-col">
+                    <ClassroomBreadcrumb
+                        items={[
+                            { label: 'Classes', href: isDemo ? '/student/demo/classes' : '/student/classes' },
+                            { label: currentClass?.name || 'Classroom' },
+                        ]}
+                    />
 
-            <main className="flex-1 overflow-y-auto w-full relative">
-                <div className="max-w-[1000px] mx-auto px-4 lg:px-8 py-6 pb-24">
-                    {loading ? (
-                        <SectionSkeleton rows={3} />
-                    ) : (
-                        <div className="flex flex-col">
-                            <ClassroomBreadcrumb
-                                items={[
-                                    { label: 'Classes', href: isDemo ? '/student/demo/classes' : '/student/classes' },
-                                    { label: currentClass?.name || 'Classroom' }
-                                ]}
-                            />
-                            <div className="flex flex-col">
-                                <ClassroomHeader
-                                    currentClass={currentClass}
-                                    classroomTitle={currentClass?.name || 'Classroom'}
+                    <div className="flex flex-col">
+                        <ClassroomHeader
+                            currentClass={currentClass}
+                            classroomTitle={currentClass?.name || 'Classroom'}
+                            role="student"
+                            leftUtilityBadge={currentClass?.subject || 'Mathematics'}
+                            rightUtilityBadge="Progress"
+                            themeColor="teal"
+                            bannerStyle={currentTheme?.bannerStyle}
+                            playfulBackground={currentTheme?.playfulBackground}
+                        />
+
+                        <ClassroomTabs
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                            themeColor="teal"
+                            bannerStyle={currentTheme?.bannerStyle}
+                            subject={currentClass?.subject}
+                            currentClass={currentClass}
+                            role="student"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6 items-start mt-6">
+                        <aside className="space-y-6 xl:sticky xl:top-6">
+                            <section className="bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="px-4 py-3 border-b border-[#EAEAEA] bg-slate-50/40">
+                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Due Soon</p>
+                                    <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900">Upcoming</h3>
+                                </div>
+
+                                <div className="divide-y divide-slate-100">
+                                    {classroomUpcoming.length > 0 ? classroomUpcoming.map((item) => {
+                                        const dueText = item.dueDate ? new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Soon';
+                                        const isUrgent = String(item.studentStatus || item.status || '').toLowerCase().includes('overdue');
+                                        const itemLabel = 'questionCount' in item ? 'Practice' : 'Assignment';
+
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => handleTabChange('classwork')}
+                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{itemLabel}</p>
+                                                <p className="text-sm font-semibold text-slate-900 mt-1 truncate">{item.title}</p>
+                                                <p className={`text-sm mt-1 ${isUrgent ? 'font-semibold text-[#9F1239]' : 'text-slate-500'}`}>
+                                                    Due {dueText}
+                                                </p>
+                                            </button>
+                                        );
+                                    }) : (
+                                        <div className="px-4 py-6 text-center">
+                                            <p className="text-sm font-medium text-slate-700">No upcoming tasks</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                        </aside>
+
+                        <section className="w-full max-w-[800px] xl:justify-self-end bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 lg:p-6">
+                            {activeTab === 'stream' ? (
+                                <StreamLayout
                                     role="student"
-                                    themeColor={currentTheme?.themeColor}
+                                    isComposerOpen={isComposerOpen}
+                                    setIsComposerOpen={setIsComposerOpen}
+                                    isComposerAIMode={isComposerAIMode}
+                                    setIsComposerAIMode={setIsComposerAIMode}
+                                    composerText={composerText}
+                                    setComposerText={setComposerText}
+                                    teacherAnnouncements={teacherAnnouncements}
+                                    setTeacherAnnouncements={setTeacherAnnouncements}
+                                    displayName={currentUser?.name || 'Student'}
+                                    classroomStreamItems={streamItems}
+                                    onNavigateToWork={() => handleTabChange('classwork')}
+                                    themeColor="teal"
                                     bannerStyle={currentTheme?.bannerStyle}
                                     playfulBackground={currentTheme?.playfulBackground}
-                                />
-
-                                <ClassroomTabs
-                                    activeTab={activeTab}
-                                    onTabChange={handleTabChange}
-                                    themeColor={currentTheme?.themeColor}
-                                    bannerStyle={currentTheme?.bannerStyle}
                                     subject={currentClass?.subject}
                                     currentClass={currentClass}
-                                    role="student"
                                 />
-                            </div>
+                            ) : (
+                                <>
+                                    {activeTab === 'classwork' && (
+                                        <AssignmentsPracticeTab role="student" assignments={assignments} practices={practices} />
+                                    )}
 
-                            <section className="bg-white border border-[#EAE7DD] shadow-sm p-4 lg:p-6 rounded-2xl">
-                                {activeTab === 'stream' && (
-                                    <StreamLayout 
-                                        role="student"
-                                        isComposerOpen={isComposerOpen}
-                                        setIsComposerOpen={setIsComposerOpen}
-                                        isComposerAIMode={isComposerAIMode}
-                                        setIsComposerAIMode={setIsComposerAIMode}
-                                        composerText={composerText}
-                                        setComposerText={setComposerText}
-                                        teacherAnnouncements={teacherAnnouncements}
-                                        setTeacherAnnouncements={setTeacherAnnouncements}
-                                        displayName={currentUser?.name || "Student"}
-                                        classroomStreamItems={streamItems}
-                                        onNavigateToWork={() => handleTabChange('classwork')}
-                                        themeColor={currentTheme?.themeColor}
-                                        bannerStyle={currentTheme?.bannerStyle}
-                                        playfulBackground={currentTheme?.playfulBackground}
-                                        subject={currentClass?.subject}
-                                        currentClass={currentClass}
-                                    />
-                                )}
+                                    {activeTab === 'people' && (
+                                        <PeopleTab role="student" currentClass={currentClassWithPeople} />
+                                    )}
 
-                                {activeTab === 'classwork' && (
-                                    <ClassworkTab 
-                                        role="student"
-                                        classroomTopicGroups={topicGroups}
-                                        onNavigateToWork={() => handleTabChange('classwork')}
-                                        themeColor={currentTheme?.themeColor}
-                                        bannerStyle={currentTheme?.bannerStyle}
-                                        subject={currentClass?.subject}
-                                        currentClass={currentClass}
-                                    />
-                                )}
-
-                                {activeTab === 'people' && (
-                                    <PeopleTab 
-                                        role="student"
-                                        currentClass={currentClass} 
-                                    />
-                                )}
-
-                                {activeTab === 'grades' && (
-                                    <GradesTab 
-                                        role="student"
-                                        currentClass={currentClass}
-                                        themeColor={currentTheme?.themeColor}
-                                        bannerStyle={currentTheme?.bannerStyle}
-                                        subject={currentClass?.subject}
-                                    />
-                                )}
-                            </section>
-                        </div>
-                    )}
+                                    {activeTab === 'grades' && (
+                                        <GradesTab
+                                            role="student"
+                                            currentClass={currentClass}
+                                            themeColor="teal"
+                                            bannerStyle={currentTheme?.bannerStyle}
+                                            subject={currentClass?.subject}
+                                        />
+                                    )}
+                                </>
+                            )}
+                        </section>
+                    </div>
                 </div>
-            </main>
+            )}
         </div>
     );
 }

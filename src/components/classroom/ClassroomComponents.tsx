@@ -48,15 +48,30 @@ function resolveClassroomTheme({
                 ? playfulBackground
                 : currentClass?.playfulBackground,
     });
-    
-    if (role === 'student' || role === 'student_demo') {
-        inferred.themeColor = 'purple';
-    }
+    inferred.themeColor = 'teal';
     
     return inferred;
 }
 
-export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher', sublines, onOpenSettings, theme, themeColor, themeAccent, bannerStyle, playfulBackground, subject }: any) {
+export function ClassroomHeader({
+    currentClass,
+    classroomTitle,
+    role = 'teacher',
+    sublines,
+    onOpenSettings,
+    onPrimaryAction,
+    primaryActionLabel,
+    primaryActionIcon,
+    classCodeLabel,
+    theme,
+    themeColor,
+    themeAccent,
+    bannerStyle,
+    playfulBackground,
+    subject,
+    leftUtilityBadge,
+    rightUtilityBadge,
+}: any) {
     const resolvedTheme = resolveClassroomTheme({
         currentClass,
         theme,
@@ -70,13 +85,13 @@ export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher'
     const isPlayful = resolvedTheme.playfulBackground;
     const finalBannerStyle = resolvedTheme.bannerStyle;
 
-    const displaySublines = sublines || [
+    const displaySublines = (sublines || [
         currentClass?.studentsCount && `${currentClass.studentsCount} Students`,
-    ].filter(Boolean);
+    ].filter(Boolean)).filter(Boolean);
     const subjectChipLabel = [currentClass?.subject, currentClass?.section].filter(Boolean).join(' · ');
 
     return (
-        <div className={`relative px-6 py-5 sm:py-6 lg:px-8 lg:py-8 min-h-[140px] sm:min-h-[180px] lg:min-h-[200px] flex flex-col justify-end overflow-hidden rounded-t-2xl bg-gradient-to-br ${themeStyles.banner}`}>
+        <div className={`relative overflow-hidden rounded-t-2xl bg-gradient-to-br ${themeStyles.banner} px-6 py-5 sm:px-8 sm:py-6 min-h-[140px] sm:min-h-[150px] lg:min-h-[160px] flex flex-col justify-end`}>
             {/* Playful background shapes */}
             {isPlayful && (
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20">
@@ -97,53 +112,87 @@ export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher'
 
             {/* Dark gradient overlay for contrast */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-0 pointer-events-none" />
-            
-            <div className="flex h-full w-full flex-col sm:flex-row justify-between gap-4 sm:items-end relative z-10">
-                <div className="min-w-0 max-w-3xl">
-                    <h2 className="text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight truncate drop-shadow-md">
-                        {classroomTitle}
-                    </h2>
-                    {displaySublines.length > 0 && (
-                        <div className="mt-3 text-[16px] font-medium text-white/90 flex flex-wrap items-center gap-3 drop-shadow">
-                            {displaySublines.map((text: string, idx: number, arr: string[]) => (
-                                <React.Fragment key={idx}>
-                                    <span>{text}</span>
-                                    {idx < arr.length - 1 && (
-                                        <span className="text-white/50 font-normal">·</span>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    )}
-                    {subjectChipLabel && (
-                        <div className="mt-3">
-                            <span
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${themeStyles.headerSubjectBg} ${themeStyles.headerSubjectBorder} ${themeStyles.headerSubjectText}`}
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 via-black/10 to-transparent z-[1] pointer-events-none" />
+
+            <div className="relative z-10 flex h-full w-full flex-col justify-between gap-4 text-white">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 max-w-3xl">
+                        <div className="text-[11px] font-medium uppercase tracking-widest text-white/75">Command Center</div>
+                        {subjectChipLabel && (
+                            <div className="mt-2">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${themeStyles.headerSubjectBg} ${themeStyles.headerSubjectBorder} ${themeStyles.headerSubjectText}`}>
+                                    {subjectChipLabel}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {(onPrimaryAction || onOpenSettings) && (
+                        <div className="shrink-0">
+                            <button
+                                onClick={onPrimaryAction || onOpenSettings}
+                                className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20"
                             >
-                                {subjectChipLabel}
-                            </span>
+                                {primaryActionIcon}
+                                {primaryActionLabel || 'Class Settings'}
+                            </button>
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center gap-3">
-                    {/* Class Code Pill */}
-                    {currentClass?.joinCode && role === 'teacher' && (
-                        <div className={`flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border ${themeStyles.headerCodeBorder} shadow-lg text-white mb-2 sm:mb-0`}>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Class Code</span>
-                            <span className="text-lg font-bold tracking-widest leading-none mb-0.5">{currentClass.joinCode}</span>
+                <div className="flex flex-col gap-3">
+                    <div className="min-w-0 max-w-3xl">
+                        <h2 className="truncate text-3xl lg:text-4xl font-semibold tracking-tight leading-tight drop-shadow-md">
+                            {classroomTitle}
+                        </h2>
+                        {displaySublines.length > 0 && (
+                            <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] font-medium text-white/90 drop-shadow">
+                                {displaySublines.map((text: string, idx: number, arr: string[]) => (
+                                    <React.Fragment key={idx}>
+                                        <span>{text}</span>
+                                        {idx < arr.length - 1 && <span className="font-normal text-white/50">·</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {leftUtilityBadge && (
+                                <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-white/90 backdrop-blur-md">
+                                    {leftUtilityBadge}
+                                </span>
+                            )}
+                            {rightUtilityBadge && (
+                                <span className={`inline-flex items-center rounded-full border ${themeStyles.headerCodeBorder} bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-white/90 backdrop-blur-md`}>
+                                    {rightUtilityBadge}
+                                </span>
+                            )}
                         </div>
-                    )}
-                    {/* Settings Button */}
-                    {role === 'teacher' && onOpenSettings && (
-                        <button
-                            onClick={onOpenSettings}
-                            className="bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-lg text-white mb-2 sm:mb-0"
-                            aria-label="Class settings"
-                        >
-                            <Settings size={20} />
-                        </button>
-                    )}
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {currentClass?.joinCode && (
+                                <span className={`inline-flex items-center rounded-full border ${themeStyles.headerCodeBorder} bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-white/90 backdrop-blur-md`}>
+                                    Class Code: {currentClass.joinCode}
+                                </span>
+                            )}
+                            {currentClass?.studentsCount && (
+                                <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-white/90 backdrop-blur-md">
+                                    {currentClass.studentsCount} Students
+                                </span>
+                            )}
+                            {role === 'teacher' && onOpenSettings && (
+                                <button
+                                    onClick={onOpenSettings}
+                                    className="bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-lg text-white"
+                                    aria-label="Class settings"
+                                >
+                                    <Settings size={20} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
             {!isPlayful && (
@@ -153,7 +202,7 @@ export function ClassroomHeader({ currentClass, classroomTitle, role = 'teacher'
     );
 }
 
-export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeAccent, theme, subject, currentClass, role = 'teacher' }: any) {
+export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeAccent, theme, subject, currentClass, role = 'teacher', className = '' }: any) {
     const resolvedTheme = resolveClassroomTheme({
         currentClass,
         theme,
@@ -161,7 +210,7 @@ export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeA
         subject,
         role,
     });
-    const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
+    const activeColor = '#0D9488';
     const displayTabs = tabs || [
         { id: 'stream', label: 'Stream' },
         { id: 'classwork', label: 'Classwork' },
@@ -170,21 +219,20 @@ export function ClassroomTabs({ activeTab, onTabChange, tabs, themeColor, themeA
     ];
 
     return (
-        <div className="relative bg-white border-x border-b border-[#EAE7DD] rounded-b-2xl shadow-sm px-4 flex items-center space-x-2 overflow-x-auto no-scrollbar">
+        <div className={`relative flex items-end gap-1 overflow-x-auto no-scrollbar border-b border-[#EAE7DD] bg-transparent ${className}`.trim()}>
             {displayTabs.map((tab: any) => {
                 const isActive = activeTab === tab.id;
                 return (
                     <button
                         key={tab.id}
                         onClick={() => onTabChange(tab.id)}
-                        className={`group relative px-4 py-3 my-2 rounded-full text-[15px] font-semibold transition-colors duration-200 outline-none
-                            ${isActive
-                                ? `${themeStyles.tabActiveBg} ${themeStyles.tabActiveText}`
-                                : `text-slate-600 ${role === 'student' ? 'hover:bg-purple-50/70 hover:text-purple-700' : `hover:bg-slate-50/70 ${themeStyles.tabHoverText}`}`}`}
+                        className={`group relative px-4 py-3 pb-3 text-[15px] font-semibold transition-colors duration-200 outline-none ${isActive ? '' : 'text-slate-500 hover:text-slate-700'}`}
+                        style={isActive ? { color: activeColor } : undefined}
                     >
                         {tab.label}
                         <div
-                            className={`absolute left-3 right-3 bottom-1 h-[2px] rounded-full ${themeStyles.tabUnderline} transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}
+                            className={`absolute left-0 right-0 bottom-0 h-[3px] rounded-full transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                            style={{ backgroundColor: activeColor }}
                         />
                     </button>
                 );
@@ -202,6 +250,7 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
         role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
+    const iconShellClass = 'bg-teal-500/10 text-teal-600';
 
     return (
         <div className="flex flex-col gap-6">
@@ -212,8 +261,8 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
                             onClick={() => setIsComposerOpen(true)}
                             className="w-full text-left px-5 py-4 text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-3"
                         >
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                                <User size={16} className="text-slate-500" />
+                            <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0 text-teal-600">
+                                <User size={16} />
                             </div>
                             <span className="text-sm font-medium">Share an update with your class...</span>
                         </button>
@@ -271,7 +320,7 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
                                                 setIsComposerAIMode(false);
                                             }
                                         }}
-                                        className={`px-5 py-2 ${themeStyles.solidBg} ${themeStyles.solidHoverBg} disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg shadow-sm transition-colors`}
+                                        className={`px-5 py-2 ${themeStyles.solidBg} ${themeStyles.solidHoverBg} disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-colors`}
                                     >
                                         Post
                                     </button>
@@ -283,8 +332,8 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
             )}
 
             {role === 'student' && (
-                <div className={`${themeStyles.chipBg} border ${themeStyles.chipBorder} rounded-xl p-5 shadow-sm`}>
-                    <h3 className={`font-bold text-lg mb-2 ${themeStyles.chipText}`}>What's new in this class</h3>
+                <div className={`${themeStyles.chipBg} border ${themeStyles.chipBorder} rounded-xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]`}>
+                    <h3 className={`font-semibold text-lg mb-2 ${themeStyles.chipText}`}>What's new in this class</h3>
                     <p className={`text-sm ${themeStyles.chipText}`}>
                         You have {classroomStreamItems.filter((i: any) => hasUrgentStatus(i.badgeLabel)).length} urgent items pending in this class.
                     </p>
@@ -312,14 +361,14 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
                 ) : (
                     <div className="flex flex-col gap-4">
                         {teacherAnnouncements.map((announcement: any) => (
-                                <div key={announcement.id} className="bg-white border border-[#EAE7DD] rounded-xl p-5 shadow-sm hover:border-slate-300 transition-colors">
+                                <div key={announcement.id} className="bg-white border border-[#EAEAEA] rounded-xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-slate-300 transition-colors">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${themeStyles.streamIconBg} ${themeStyles.chipBorder}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconShellClass}`}>
                                             <User size={20} className={themeStyles.streamIconText} />
                                         </div>
                                         <div>
-                                            <div className="font-bold text-[15px] text-slate-900">{announcement.author}</div>
+                                            <div className="font-semibold text-[15px] text-slate-900">{announcement.author}</div>
                                             <div className="text-xs font-medium text-slate-500">{announcement.timestamp}</div>
                                             <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${themeStyles.streamLabelBg} ${themeStyles.streamLabelText}`}>
                                                 Teacher announcement
@@ -334,18 +383,23 @@ export function StreamLayout({ isComposerOpen, setIsComposerOpen, isComposerAIMo
                         ))}
                         
                         {classroomStreamItems.map((item: any) => {
-                            const isUrgent = hasUrgentStatus(item.badgeLabel);
+                            const statusToken = item.badgeLabel || item.severity || item.type;
+                            const isUrgent = hasUrgentStatus(statusToken);
                             const EventIcon = isUrgent ? AlertCircle : ClipboardList;
-                            const borderLeft = isUrgent ? 'border-l-orange-500' : themeStyles.topicBorder;
+                            const borderLeft = isUrgent ? 'border-l-[#9F1239]' : themeStyles.topicBorder;
+                            const itemTitle = item.title || item.message;
+                            const itemBody = item.message || item.detail || '';
+                            const itemMeta = item.meta || item.timestamp || item.statusLabel || statusToken;
 
                             return (
-                                <div key={item.id} className={`bg-slate-50 border border-[#EAE7DD] border-l-4 rounded-xl px-4 py-3 flex items-center gap-3 ${borderLeft}`}>
-                                    <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                                        <EventIcon size={16} className="text-slate-500" />
+                                <div key={item.id} className={`bg-white border border-[#EAEAEA] border-l-4 rounded-xl px-4 py-3 flex items-center gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ${borderLeft}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconShellClass}`}>
+                                        <EventIcon size={16} />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h4 className="text-sm font-semibold text-slate-900 leading-snug">{item.message}</h4>
-                                        <div className="text-xs text-slate-500 mt-0.5">{item.meta}</div>
+                                        <h4 className="text-sm font-semibold text-slate-900 leading-snug">{itemTitle}</h4>
+                                        {itemBody && <div className="text-sm text-slate-600 mt-1">{itemBody}</div>}
+                                        <div className="text-xs text-slate-500 mt-0.5">{itemMeta}</div>
                                     </div>
                                     <div className="flex shrink-0 flex-col items-end gap-2">
                                         <button onClick={onNavigateToWork} className="px-3 py-1.5 bg-white border border-[#EAE7DD] rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
@@ -371,6 +425,7 @@ export function ClassworkTab({ classroomTopicGroups, onNavigateToWork, role = 't
         role,
     });
     const themeStyles = resolveClassTheme(resolvedTheme.themeColor);
+    const iconShellClass = 'bg-teal-500/10 text-teal-600';
 
     return (
         <div>
@@ -398,18 +453,24 @@ export function ClassworkTab({ classroomTopicGroups, onNavigateToWork, role = 't
                                 <h4 className="text-base font-semibold text-slate-900 tracking-tight">{group.topicName}</h4>
                                 <span className="text-xs font-medium text-slate-500">· {group.items.length} items</span>
                             </div>
-                            <div className="mt-3 rounded-xl border border-[#EAE7DD] bg-white overflow-hidden divide-y divide-[#EAE7DD]">
+                            <div className="mt-3 grid grid-cols-1 gap-3">
                                 {group.items.map((item: any) => {
                                     const isUrgent = hasUrgentStatus(item.status);
                                     return (
-                                        <div key={item.id} className={`flex flex-wrap items-start justify-between gap-3 px-4 py-3 ${isUrgent ? 'border-l-4 border-l-orange-500' : ''}`}>
-                                            <div className="min-w-0">
-                                                <h5 className="text-sm sm:text-[15px] font-semibold text-slate-900 truncate">{item.title}</h5>
+                                        <div key={item.id} className={`bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 flex flex-wrap items-start justify-between gap-3 ${isUrgent ? 'border-l-4 border-l-[#9F1239]' : ''}`}>
+                                            <div className="min-w-0 flex items-start gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconShellClass}`}>
+                                                    <ClipboardList size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{item.type}</p>
+                                                    <h5 className="mt-1 text-sm sm:text-[15px] font-semibold text-slate-900 truncate">{item.title}</h5>
+                                                </div>
                                             </div>
                                             <div className="flex flex-col items-end gap-1.5">
-                                                <div className="text-xs text-slate-500">{item.dueDateRaw ? `Due ${item.dueLabel}` : 'No due date'}</div>
+                                                <div className={`text-xs ${isUrgent ? 'font-semibold text-[#9F1239]' : 'text-slate-500'}`}>{item.dueDateRaw ? `Due ${item.dueLabel}` : 'No due date'}</div>
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${themeStyles.chipBg} ${themeStyles.chipText} ${themeStyles.chipBorder}`}>
+                                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${themeStyles.chipBg} ${themeStyles.chipText} ${themeStyles.chipBorder}`}>
                                                         {item.type}
                                                     </span>
                                                 </div>
@@ -420,6 +481,126 @@ export function ClassworkTab({ classroomTopicGroups, onNavigateToWork, role = 't
                             </div>
                         </section>
                     ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function getStatusGroup(status: string | undefined) {
+    const value = String(status || '').toLowerCase();
+    if (value.includes('overdue')) return 'Overdue';
+    if (value.includes('due_soon') || value.includes('due soon')) return 'Due Soon';
+    if (value.includes('completed')) return 'Completed';
+    return 'Upcoming';
+}
+
+function StatusPill({ status }: { status: string }) {
+    const value = String(status).toLowerCase();
+    const className = value.includes('overdue')
+        ? 'bg-rose-50 text-rose-700 border-rose-200'
+        : value.includes('due_soon') || value.includes('due soon')
+            ? 'bg-amber-50 text-amber-700 border-amber-200'
+            : value.includes('completed')
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-sky-50 text-sky-700 border-sky-200';
+
+    return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${className}`}>{status}</span>;
+}
+
+export function AssignmentsPracticeTab({
+    assignments = [],
+    practices = [],
+    role = 'student',
+}: {
+    assignments: any[];
+    practices: any[];
+    role?: 'student' | 'teacher';
+}) {
+    const workItems = [
+        ...assignments.map((item) => ({ ...item, itemType: 'Assignment' })),
+        ...practices.map((item) => ({ ...item, itemType: 'Practice' })),
+    ];
+
+    const grouped = workItems.reduce((acc: Record<string, any[]>, item) => {
+        const status = role === 'student' ? (item.studentStatus || item.status) : item.status;
+        const group = getStatusGroup(status);
+        if (!acc[group]) acc[group] = [];
+        acc[group].push(item);
+        return acc;
+    }, {});
+
+    const sectionOrder = ['Overdue', 'Due Soon', 'Upcoming', 'Completed'];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Assignments & Practice</h3>
+                    <p className="text-sm text-slate-500 mt-1">Unified view of classwork and practice sets.</p>
+                </div>
+            </div>
+
+            {sectionOrder.map((section) => {
+                const items = grouped[section] || [];
+                if (items.length === 0) return null;
+
+                return (
+                    <section key={section} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-600">{section}</h4>
+                            <span className="text-xs text-slate-500">{items.length}</span>
+                        </div>
+
+                        <div className="space-y-3">
+                            {items.map((item) => {
+                                const status = role === 'student' ? (item.studentStatus || item.status) : item.status;
+                                const dueLabel = item.dueDate
+                                    ? new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                    : 'No due date';
+
+                                return (
+                                    <article key={item.id} className="rounded-xl border border-[#EAEAEA] bg-white px-4 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{item.itemType}</p>
+                                                <h5 className="mt-1 text-sm font-semibold text-slate-900 truncate">{item.title}</h5>
+                                                <p className="mt-1 text-xs text-slate-500">{item.topic}</p>
+                                            </div>
+                                            <StatusPill status={status} />
+                                        </div>
+
+                                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
+                                            <div className="flex items-center gap-1.5"><Clock size={13} /> Due {dueLabel}</div>
+                                            {role === 'teacher' ? (
+                                                <>
+                                                    <div className="font-medium">Submitted {item.submittedCount}/{item.totalCount}</div>
+                                                    <div className="font-medium">Avg score {item.averageScore ?? '--'}%</div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="font-medium">Your score {item.studentScore ?? '--'}%</div>
+                                                    <div className="font-medium">{item.questionCount ? `${item.questionCount} questions` : item.statusLabel}</div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {item.needsAttention && (
+                                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+                                                <AlertCircle size={12} /> Needs attention
+                                            </div>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </section>
+                );
+            })}
+
+            {workItems.length === 0 && (
+                <div className="rounded-xl border border-dashed border-[#EAE7DD] bg-[#FDFBF5] p-6 text-center">
+                    <p className="text-sm font-medium text-slate-700">No assignments or practice items yet.</p>
                 </div>
             )}
         </div>
@@ -452,7 +633,7 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
                         {role !== 'student' ? (
                             <>
                                 <div className={`w-10 h-10 rounded-full ${themeStyles.chipBg} border ${themeStyles.chipBorder} flex items-center justify-center shrink-0`}>
-                                    <span className={`font-bold ${themeStyles.chipText}`}>ME</span>
+                                    <span className={`font-semibold ${themeStyles.chipText}`}>ME</span>
                                 </div>
                                 <span className="font-semibold text-slate-900">Mr. T. Explorer</span>
                             </>
@@ -479,6 +660,24 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
                                 <div className="w-9 h-9 rounded-full bg-slate-200 shrink-0"></div>
                                 <span className="font-medium text-slate-800">{student.name} {role === 'student' && student.id === 'demo-student-jordan' && "(You)"}</span>
                             </div>
+                            <div className="flex items-center gap-2 text-[11px]">
+                                {student.participationLevel && (
+                                    <span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${
+                                        student.participationLevel === 'high'
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : student.participationLevel === 'medium'
+                                                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                : 'border-slate-200 bg-slate-100 text-slate-700'
+                                    }`}>
+                                        {student.participationLevel} participation
+                                    </span>
+                                )}
+                                {student.riskFlag && (
+                                    <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 font-semibold text-rose-700">
+                                        at risk
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -490,7 +689,7 @@ export function PeopleTab({ currentClass, role = 'teacher', themeColor, themeAcc
 export function GradesTab({ currentClass, role = 'teacher', themeColor, subject }: any) {
     const themeStyles = getClassThemeVariants({
         subject: subject ?? currentClass?.subject,
-        themeColor: role === 'student' ? 'purple' : themeColor ?? currentClass?.themeColor,
+        themeColor: themeColor ?? currentClass?.themeColor ?? 'teal',
     });
     const students = currentClass?.students || mockStudents;
     const assignments = [
@@ -507,14 +706,14 @@ export function GradesTab({ currentClass, role = 'teacher', themeColor, subject 
                     <span className="text-sm font-medium text-slate-500">Overall: 85%</span>
                 </div>
                 
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                     <div className="divide-y divide-slate-100">
                         {assignments.map(a => (
                             <div key={a.id} className="flex flex-wrap items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                                 <div className="flex flex-col gap-1">
                                     <span className="font-semibold text-slate-800">{a.title}</span>
-                                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full w-fit ${
-                                        a.status === 'Missing' ? 'bg-red-50 text-red-700' :
+                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit ${
+                                        a.status === 'Missing' ? 'bg-rose-50 text-[#9F1239]' :
                                         a.status === 'Submitted' ? 'bg-blue-50 text-blue-700' :
                                         'bg-slate-100 text-slate-700'
                                     }`}>
@@ -522,7 +721,7 @@ export function GradesTab({ currentClass, role = 'teacher', themeColor, subject 
                                     </span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-lg font-bold text-slate-900">{a.score}</span>
+                                    <span className="text-lg font-semibold text-slate-900 tabular-nums">{a.score}</span>
                                 </div>
                             </div>
                         ))}
@@ -539,9 +738,9 @@ export function GradesTab({ currentClass, role = 'teacher', themeColor, subject 
                 <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
                         <tr className={`border-b ${themeStyles.gradesBorder} bg-slate-50/50`}>
-                            <th className="py-4 px-5 text-sm font-bold text-slate-700">Student</th>
+                            <th className="py-4 px-5 text-sm font-semibold text-slate-700">Student</th>
                             {assignments.map(a => (
-                                <th key={a.id} className="py-4 px-5 text-sm font-bold text-slate-700">{a.title}</th>
+                                <th key={a.id} className="py-4 px-5 text-sm font-semibold text-slate-700">{a.title}</th>
                             ))}
                         </tr>
                     </thead>

@@ -12,12 +12,15 @@ import Login from './Login';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import TeacherClassroomPage from './pages/TeacherClassroomPage';
 import TeacherCopilotPage from './pages/TeacherCopilotPage';
+import TeacherPracticePage from './pages/TeacherPracticePage';
 import StudentCopilotPage from './pages/StudentCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import StudentClassroomPage from './pages/StudentClassroomPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
 import ParentClassroomPage from './pages/ParentClassroomPage';
 import ParentCopilotPage from './pages/ParentCopilotPage';
+import StudentShellLayout from './components/layout/StudentShellLayout';
+import ParentShellLayout from './components/layout/ParentShellLayout';
 import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -766,17 +769,23 @@ export default function App() {
       <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
 
       {/* Demo routes – no auth required */}
-      <Route path="/teacher/demo" element={<TeacherDashboardPage />} />
-      <Route path="/teacher/demo/classes" element={<TeacherDashboardPage activeTab="classes" />} />
+      <Route path="/teacher/demo" element={<TeacherDashboardPage isDemo />} />
+      <Route path="/teacher/demo/classes" element={<TeacherDashboardPage isDemo activeTab="classes" />} />
+      <Route path="/teacher/demo/assignments" element={<TeacherDashboardPage isDemo activeTab="assignments" />} />
+        <Route path="/teacher/demo/practice" element={<TeacherPracticePage />} />
       <Route path="/teacher/demo/class/:classId" element={<TeacherClassroomPage />} />
       <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
-      <Route path="/student/demo" element={<StudentDashboardPage />} />
-      <Route path="/student/demo/classes" element={<StudentDashboardPage activeTab="classes" />} />
-      <Route path="/student/demo/assignments" element={<StudentDashboardPage activeTab="assignments" />} />
-      <Route path="/student/demo/class/:classId" element={<StudentClassroomPage />} />
+      <Route path="/student/demo" element={<StudentShellLayout />}>
+        <Route index element={<StudentDashboardPage embeddedInShell isDemo />} />
+        <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell isDemo />} />
+        <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell isDemo />} />
+        <Route path="class/:classId" element={<StudentClassroomPage />} />
+      </Route>
       <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
-      <Route path="/parent/demo" element={<ParentDashboardPage />} />
-      <Route path="/parent/demo/child/:childId/class/:classId" element={<ParentClassroomPage />} />
+      <Route path="/parent/demo" element={<ParentShellLayout />}>
+        <Route index element={<ParentDashboardPage embeddedInShell isDemo />} />
+        <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
+      </Route>
       <Route path="/parent/copilot/demo" element={<ParentCopilotPage />} />
       <Route path="/dashboard/teacher" element={
         <ProtectedRoute>
@@ -793,6 +802,16 @@ export default function App() {
           <TeacherDashboardPage activeTab="classes" />
         </ProtectedRoute>
       } />
+      <Route path="/teacher/assignments" element={
+        <ProtectedRoute>
+          <TeacherDashboardPage activeTab="assignments" />
+        </ProtectedRoute>
+      } />
+        <Route path="/teacher/practice" element={
+          <ProtectedRoute>
+            <TeacherPracticePage />
+          </ProtectedRoute>
+        } />
       <Route path="/teacher/classes/:classId" element={
         <ProtectedRoute>
           <TeacherClassroomPage />
@@ -808,38 +827,16 @@ export default function App() {
           <TeacherCopilotPage />
         </ProtectedRoute>
       } />
-      <Route
-        path="/dashboard/student"
-        element={
-          <ProtectedRoute>
-            <StudentDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/classes"
-        element={
-          <ProtectedRoute>
-            <StudentDashboardPage activeTab="classes" />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/class/:classId"
-        element={
-          <ProtectedRoute>
-            <StudentClassroomPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/assignments"
-        element={
-          <ProtectedRoute>
-            <StudentDashboardPage activeTab="assignments" />
-          </ProtectedRoute>
-        }
-      />
+      <Route element={
+        <ProtectedRoute>
+          <StudentShellLayout />
+        </ProtectedRoute>
+      }>
+        <Route path="/dashboard/student" element={<StudentDashboardPage embeddedInShell />} />
+        <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
+        <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
+        <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+      </Route>
       <Route
         path="/student/copilot"
         element={
@@ -848,22 +845,14 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/dashboard/parent"
-        element={
-          <ProtectedRoute>
-            <ParentDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/parent/child/:childId/class/:classId"
-        element={
-          <ProtectedRoute>
-            <ParentClassroomPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route element={
+        <ProtectedRoute>
+          <ParentShellLayout />
+        </ProtectedRoute>
+      }>
+        <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
+        <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
+      </Route>
       <Route
         path="/parent/copilot"
         element={

@@ -133,7 +133,7 @@ function NextStepsStrip({ recs, onNavigate }: { recs: Rec[]; onNavigate: (href: 
                 <span className="text-[12px] text-slate-400 font-normal ml-1">— personalised for you</span>
             </div>
             {recs.length === 0 ? (
-                <div className="bg-[#F7F5F0] border border-slate-200 rounded-xl px-5 py-4 text-[14px] text-slate-500 flex items-center gap-3 shadow-sm">
+                <div className="bg-[#F7F5F0] border border-slate-200 rounded-xl px-5 py-4 text-[14px] text-slate-500 flex items-center gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     Complete your first game to see smart recommendations here.
                 </div>
@@ -189,12 +189,21 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className 
 }
 
 
-export default function StudentDashboardPage({ activeTab: initialTab = 'dashboard' }: { activeTab?: 'dashboard' | 'assignments' | 'classes' } = {}) {
+export default function StudentDashboardPage({
+    activeTab: initialTab = 'dashboard',
+    embeddedInShell = false,
+    isDemo: isDemoProp,
+}: {
+    activeTab?: 'dashboard' | 'assignments' | 'classes';
+    embeddedInShell?: boolean;
+    isDemo?: boolean;
+} = {}) {
     const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
     const { hash } = useLocation();
     const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
-    const isDemo = useDemoMode();
+    const routeIsDemo = useDemoMode();
+    const isDemo = isDemoProp ?? routeIsDemo;
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
@@ -211,6 +220,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
     const sidebarTheme = getRoleSidebarTheme('student');
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
+    const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed'>('all');
 
     // Synchronize activeTab state and handle hash deep-linking (e.g. from Copilot navigation)
     useEffect(() => {
@@ -377,7 +387,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         markOneRead: handleMarkBackendNotificationRead,
         markAllRead: handleMarkAllBackendNotificationsRead
     } = useNotifications({
-        userId: currentUser?.id || '',
+        userId: isDemo ? '' : (currentUser?.id || ''),
         role: 'student'
     });
 
@@ -636,7 +646,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         : null;
 
     const summaryStats = [
-        { id: 1, label: 'Overdue assignments', value: overdueAssignments.length.toString(), icon: AlertCircle, color: 'text-red-500' },
+        { id: 1, label: 'Overdue assignments', value: overdueAssignments.length.toString(), icon: AlertCircle, color: 'text-[#9F1239]' },
         { id: 2, label: 'Due soon', value: dueSoonAssignments.length.toString(), icon: Clock, color: 'text-orange-500' },
         { id: 3, label: 'Completed', value: completedAssignments.length.toString(), icon: CheckCircle2, color: 'text-emerald-500' },
         { id: 4, label: 'Average recent score', value: avgRecentScore !== null ? `${avgRecentScore}%` : 'N/A', icon: TrendingUp, color: 'text-[#68507B]' },
@@ -857,13 +867,15 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         rank: performanceSummary.weeklyRank
     };
 
+    const useLocalShell = !embeddedInShell;
+
     return (
         <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-x-hidden">
             {isDemo && <DemoRoleSwitcher />}
 
             <div className="flex flex-1">
                 {/* MOBILE BACKDROP (Surface 0) */}
-                {isMobileMenuOpen && (
+                {useLocalShell && isMobileMenuOpen && (
                     <div
                         className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden transition-all duration-500 animate-in fade-in"
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -871,9 +883,9 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                 )}
 
                 {/* SIDEBAR SURFACE (Surface 1) */}
-                <aside
+                {useLocalShell && <aside
                     id="student-sidebar"
-                    className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all duration-500 ease-in-out md:translate-x-0
+                    className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0
                         ${isSidebarOpen ? 'w-64' : 'w-20'} 
                         ${sidebarTheme.asideBg} shadow-xl
                         md:sticky md:top-0 md:min-h-screen
@@ -883,7 +895,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                     {/* Logo & Close toggle */}
                     <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                         <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
-                            <EloraLogo className="w-10 h-10 text-current drop-shadow-sm transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
+                            <EloraLogo className="w-10 h-10 text-current drop-shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
                         </Link>
 
                         {/* Mobile close toggle */}
@@ -932,13 +944,15 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                             }}
                             theme={sidebarTheme} 
                         />
-                        <SidebarItem
-                            icon={Sparkles}
-                            label="Copilot"
-                            collapsed={!isSidebarOpen}
-                            onClick={() => navigate(isDemo ? '/student/copilot/demo' : '/student/copilot')}
-                            theme={sidebarTheme}
-                        />
+                        {!isDemo && (
+                            <SidebarItem
+                                icon={Sparkles}
+                                label="Copilot"
+                                collapsed={!isSidebarOpen}
+                                onClick={() => navigate('/student/copilot')}
+                                theme={sidebarTheme}
+                            />
+                        )}
                         <SidebarItem 
                             icon={Gamepad2} 
                             label="Practice & Quizzes" 
@@ -965,24 +979,26 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                             }} 
                             theme={sidebarTheme} 
                         />
-                        <SidebarItem 
-                            icon={TrendingUp} 
-                            label="Reports" 
-                            active={activeTab === 'dashboard' && hash === '#reports'} 
-                            collapsed={!isSidebarOpen} 
-                            onClick={() => {
-                                navigate(`${isDemo ? '/student/demo' : '/dashboard/student'}#reports`);
-                                setActiveTab('dashboard');
-                                setTimeout(() => {
-                                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
-                            }}
-                            theme={sidebarTheme} 
-                        />
+                        {!isDemo && (
+                            <SidebarItem 
+                                icon={TrendingUp} 
+                                label="Reports" 
+                                active={activeTab === 'dashboard' && hash === '#reports'} 
+                                collapsed={!isSidebarOpen} 
+                                onClick={() => {
+                                    navigate('/dashboard/student#reports');
+                                    setActiveTab('dashboard');
+                                    setTimeout(() => {
+                                        document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                                    }, 100);
+                                }}
+                                theme={sidebarTheme} 
+                            />
+                        )}
                     </nav>
 
                     {/* Footer / System menu */}
-                    <div className={`p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
+                    <div className={`mt-auto p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
                         {!isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(true)}
@@ -997,21 +1013,21 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
 
                         <button
                             onClick={logout}
-                            className={`flex w-full items-center gap-4 px-5 py-3.5 rounded-2xl text-[13px] font-bold text-white/60 hover:bg-white/10 hover:text-white transition-all group ${!isSidebarOpen ? 'justify-center' : ''}`}
+                            className={`flex w-full items-center gap-4 px-5 py-3.5 rounded-2xl text-[13px] font-semibold text-white/60 hover:bg-white/10 hover:text-white transition-all group ${!isSidebarOpen ? 'justify-center' : ''}`}
                             title={!isSidebarOpen ? "Sign out" : undefined}
                         >
                             <LogOut size={22} className="shrink-0 group-hover:-translate-x-1 transition-transform" />
                             {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                         </button>
                     </div>
-                </aside>
+                </aside>}
 
                 {/* MAIN CONTENT AREA - Surface 2 (Calm Content) */}
                 <main id="main-content" className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#FDFBF5]/50 overflow-x-hidden">
                     <div className="flex-1 flex flex-col">
 
                         {/* FIXED TOP HEADER - Standard Elora Shell Pattern */}
-                        <DashboardHeader
+                        {useLocalShell && <DashboardHeader
                             role="student"
                             displayName={displayName}
                             roleLabel="STUDENT"
@@ -1029,7 +1045,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     headerTextColor="text-[#68507B]"
                                 />
                             }
-                        />
+                        />}
 
                         {/* CONTENT SHELL AREA */}
                         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -1048,31 +1064,30 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     {/* ── [Row 1] Hero & Performance ── */}
                                     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1.1fr] gap-6">
                                         {/* Left: Hero (Welcome) */}
-                                        <div className="bg-[#68507B] rounded-3xl p-6 md:p-10 relative overflow-hidden shadow-xl border border-[#68507B] flex flex-col justify-center min-h-[280px]">
+                                        <div className="bg-[#68507B] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-xl border border-[#68507B] flex flex-col min-h-[140px]">
                                             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-50" />
                                             <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-50" />
 
                                             <div className="relative z-10 flex flex-col h-full">
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
                                                     <Flame size={12} className="text-orange-400" />
                                                     <span>{studentProfile.streak} Day Streak</span>
                                                 </div>
-                                                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight tracking-tight">
+                                                <h1 className="text-2xl md:text-3xl font-semibold text-white mb-2 leading-tight tracking-tight">
                                                     Hi, {studentProfile.firstName}! <br />
                                                     <span className="text-purple-200">Ready to shine today?</span>
                                                 </h1>
                                                 <p className="text-white/80 text-sm md:text-base max-w-xl leading-relaxed font-medium">
                                                     You've mastered <span className="text-white font-extrabold">{performanceSummary.topicsMastered} topics</span> this week. Let's keep growing!
                                                 </p>
-
-                                                <div className="mt-6 flex flex-wrap gap-4">
+                                                <div className="mt-auto pt-4 border-t border-purple-300/30">
                                                     <button
                                                         onClick={() => {
                                                             navigate(isDemo ? '/student/demo/classes' : '/student/classes');
                                                             setActiveTab('classes');
                                                             window.scrollTo({ top: 0, behavior: 'smooth' });
                                                         }}
-                                                        className="px-6 py-2.5 bg-white text-[#68507B] rounded-xl font-bold text-sm shadow-lg shadow-purple-900/10 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                                        className="w-full py-3 text-sm font-semibold text-white hover:bg-purple-50/20 transition-colors inline-flex items-center justify-center gap-2"
                                                     >
                                                         <BookOpen size={16} />
                                                         Enter Classes
@@ -1082,42 +1097,42 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                         </div>
 
                                         {/* Right: Performance Snapshot (Teacher Style Stats) */}
-                                        <div className="bg-white border border-[#EAE7DD] rounded-2xl shadow-sm p-7 flex flex-col justify-between hover:shadow-md transition-shadow">
+                                        <div className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
                                             <div>
                                                 <div className="flex items-center justify-between mb-8">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                                                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                                                             <Activity size={18} className="text-[#68507B]" />
                                                         </div>
                                                         <h3 className="text-sm font-semibold tracking-tight text-slate-800">Performance Snapshot</h3>
                                                     </div>
-                                                    <div className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tight">On Track</div>
+                                                    <div className="bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-tight">On Track</div>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Topics Mastered</label>
+                                                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Topics Mastered</label>
                                                         <div className="flex items-baseline gap-2">
-                                                            <span className="text-2xl font-bold text-slate-900 tracking-tighter">{performanceSummary.topicsMastered}</span>
-                                                            <span className="text-[11px] font-bold text-emerald-500">+2</span>
+                                                            <span className="text-2xl font-semibold text-slate-900 tracking-tighter tabular-nums">{performanceSummary.topicsMastered}</span>
+                                                            <span className="text-[11px] font-semibold text-emerald-500">+2</span>
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">XP Reward</label>
+                                                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">XP Reward</label>
                                                         <div className="flex items-baseline gap-2">
-                                                            <span className="text-2xl font-bold text-slate-900 tracking-tighter">{studentProfile.xp.toLocaleString()}</span>
+                                                            <span className="text-2xl font-semibold text-slate-900 tracking-tighter tabular-nums">{studentProfile.xp.toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Weekly Rank</label>
+                                                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Weekly Rank</label>
                                                         <div className="flex items-baseline gap-2">
-                                                            <span className="text-2xl font-bold text-slate-900 tracking-tighter">{studentProfile.rank}</span>
+                                                            <span className="text-2xl font-semibold text-slate-900 tracking-tighter tabular-nums">{studentProfile.rank}</span>
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Active Streak</label>
+                                                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-widest block mb-1.5 opacity-80">Active Streak</label>
                                                         <div className="flex items-baseline gap-2">
-                                                            <span className="text-2xl font-bold text-slate-900 tracking-tighter">{studentProfile.streak}d</span>
+                                                            <span className="text-2xl font-semibold text-slate-900 tracking-tighter tabular-nums">{studentProfile.streak}d</span>
                                                             <Flame size={16} className="text-orange-500 animate-pulse" />
                                                         </div>
                                                     </div>
@@ -1128,7 +1143,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                 <div className="flex -space-x-2.5">
                                                     <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-100" />
                                                     <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200" />
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-[#68507B]/10 flex items-center justify-center text-[11px] font-bold text-[#68507B]">
+                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-[#68507B]/10 flex items-center justify-center text-[11px] font-semibold text-[#68507B]">
                                                         +12
                                                     </div>
                                                 </div>
@@ -1137,56 +1152,45 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                         </div>
                                     </div>
 
-                                    {/* ── [Row 2] Focus Strip (Next Steps) ── */}
-                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
-                                        <NextStepsStrip
-                                            recs={nextSteps}
-                                            onNavigate={(href) => {
-                                                const gatedNav = () => navigate(href);
-                                                gatedNav();
-                                            }}
-                                        />
-                                    </div>
-
                                     {/* ROW 3: MAIN DASHBOARD CONTENT GRID */}
-                                    <div className="grid grid-cols-1 xl:grid-cols-[1fr_minmax(0,1.1fr)] gap-6">
-                                        <div className="space-y-6">
+                                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6">
+                                        <div className="space-y-6 xl:order-2">
                                             {/* TODAY'S TASKS - Moved Higher as First Priority Card */}
-                                            <section id="tasks-section" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all">
-                                                <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/30">
+                                            <section id="tasks-section" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-md transition-all mt-10">
+                                                <div className="px-4 py-4 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/30">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                                                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-[#68507B] flex items-center justify-center">
                                                             <ListTodo size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-bold tracking-tight text-slate-800">Priority Tasks</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Next Steps</h3>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-orange-600 px-2 py-0.5 bg-orange-100/50 rounded-md border border-orange-200/50 uppercase tracking-tighter">
-                                                        Due Today
+                                                    <span className="text-[11px] font-medium text-[#68507B] px-2 py-0.5 bg-purple-100/50 rounded-md border border-purple-200/50 uppercase tracking-widest">
+                                                        Merged Focus
                                                     </span>
                                                 </div>
 
-                                                <div className="p-5">
-                                                    {pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString()).length > 0 ? (
+                                                <div className="p-4">
+                                                    {nextSteps.length > 0 ? (
                                                         <div className="space-y-3">
                                                             {(() => {
-                                                                const todayTasks = pendingAssignments.filter(a => a.dueDate && new Date(a.dueDate).toDateString() === new Date().toDateString());
-                                                                const displayedTasks = isTasksExpanded ? todayTasks : todayTasks.slice(0, INITIAL_VISIBLE_COUNT);
-                                                                const hasMoreTasks = todayTasks.length > INITIAL_VISIBLE_COUNT;
+                                                                const displayedTasks = isTasksExpanded ? nextSteps : nextSteps.slice(0, INITIAL_VISIBLE_COUNT);
+                                                                const hasMoreTasks = nextSteps.length > INITIAL_VISIBLE_COUNT;
 
                                                                 return (
                                                                     <>
                                                                         {displayedTasks.map(item => (
                                                                             <div
                                                                                 key={item.id}
-                                                                                onClick={() => handleLaunchGame((item as any).gamePackId || 'practice-general', (item as any).attemptId)}
-                                                                                className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all group cursor-pointer shadow-sm hover:border-[#68507B]/20"
+                                                                                onClick={() => navigate(item.href)}
+                                                                                className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all group cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-[#68507B]/20"
                                                                             >
                                                                                 <div className="w-10 h-10 rounded-lg bg-[#68507B] flex items-center justify-center text-white shadow-lg shadow-purple-900/10 transition-transform group-hover:scale-110">
-                                                                                    <Play size={16} fill="currentColor" />
+                                                                                    {item.icon === 'retry' ? <RotateCcw size={16} /> : item.icon === 'improve' ? <Zap size={16} /> : <Play size={16} fill="currentColor" />}
                                                                                 </div>
                                                                                 <div className="flex-1 min-w-0">
-                                                                                    <p className="text-[10px] font-bold text-[#68507B] uppercase tracking-widest mb-0.5">{item.className}</p>
-                                                                                    <h4 className="text-[14px] font-bold text-slate-900 leading-tight truncate">{item.title}</h4>
+                                                                                    <p className="text-[10px] font-semibold text-[#68507B] uppercase tracking-widest mb-0.5">Smart recommendation</p>
+                                                                                    <h4 className="text-[14px] font-semibold text-slate-900 leading-tight truncate">{item.label}</h4>
+                                                                                    <p className="text-[12px] text-slate-500 mt-1 truncate">{item.detail}</p>
                                                                                 </div>
                                                                                 <ChevronRight size={16} className="text-slate-300 group-hover:text-[#68507B] group-hover:translate-x-0.5 transition-transform" />
                                                                             </div>
@@ -1195,12 +1199,12 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                         {hasMoreTasks && (
                                                                             <button
                                                                                 onClick={() => setIsTasksExpanded(!isTasksExpanded)}
-                                                                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-slate-50/50 border border-slate-100 rounded-xl transition-all"
+                                                                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-slate-50/50 border border-slate-100 rounded-xl transition-all"
                                                                             >
                                                                                 {isTasksExpanded ? (
                                                                                     <> <ChevronUp size={14} /> Show less </>
                                                                                 ) : (
-                                                                                    <> <ChevronDown size={14} /> Show {todayTasks.length - INITIAL_VISIBLE_COUNT} more </>
+                                                                                    <> <ChevronDown size={14} /> Show {nextSteps.length - INITIAL_VISIBLE_COUNT} more </>
                                                                                 )}
                                                                             </button>
                                                                         )}
@@ -1213,7 +1217,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                             <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                                                 <CheckCircle2 size={28} />
                                                             </div>
-                                                            <p className="text-[15px] font-bold text-slate-900">All caught up!</p>
+                                                            <p className="text-[15px] font-semibold text-slate-900">All caught up!</p>
                                                             <p className="text-[12px] text-slate-500 mt-1.5 px-4 font-medium">No urgent tasks for today. You're ahead of schedule!</p>
                                                         </div>
                                                     )}
@@ -1222,13 +1226,13 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
 
                                             {/* MY CLASSES - Now Higher and More Central */}
                                             {studentClasses.length > 0 && (
-                                                <section id="student-my-classes" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all">
+                                                <section id="student-my-classes" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10">
                                                     <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/30">
                                                         <div className="flex items-center gap-2.5">
                                                             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                                                                 <BookOpen size={18} />
                                                             </div>
-                                                            <h3 className="text-sm font-bold tracking-tight text-slate-800">My Classes</h3>
+                                                            <h3 className="text-sm font-semibold tracking-tight text-slate-800">My Classes</h3>
                                                         </div>
                                                         <button 
                                                             onClick={() => {
@@ -1236,7 +1240,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                 setActiveTab('classes');
                                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                                             }}
-                                                            className="text-[10px] font-bold text-[#68507B] hover:text-[#5a456a] uppercase tracking-[0.1em] transition-colors"
+                                                            className="text-[10px] font-semibold text-[#68507B] hover:text-[#5a456a] uppercase tracking-[0.1em] transition-colors"
                                                         >
                                                             VIEW ALL →
                                                         </button>
@@ -1259,22 +1263,22 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                         metaPrimaryNode={
                                                                             <div className="grid grid-cols-2 gap-3">
                                                                                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 leading-none">
+                                                                                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1 leading-none">
                                                                                         To Do
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1.5">
-                                                                                        <span className={`text-[15px] font-bold ${pendingCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>
+                                                                                        <span className={`text-[15px] font-semibold ${pendingCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>
                                                                                             {pendingCount}
                                                                                         </span>
                                                                                         <span className="text-[12px] text-slate-400 font-medium">{pendingCount === 1 ? 'Task' : 'Tasks'}</span>
                                                                                     </div>
                                                                                 </div>
                                                                                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 leading-none">
+                                                                                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1 leading-none">
                                                                                         Avg Score
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1.5">
-                                                                                        <span className="text-[15px] font-bold text-[#68507B]">
+                                                                                        <span className="text-[15px] font-semibold text-[#68507B]">
                                                                                             {/* Demo score fallback if none exists */}
                                                                                             {isDemo ? (cls.id === 'demo-class-1' ? '42%' : '85%') : '--'}
                                                                                         </span>
@@ -1297,20 +1301,20 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                             )}
 
                                             {/* MASTERY TREND */}
-                                            <section id="mastery-section" className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm p-7 hover:shadow-md transition-all">
+                                            <section id="mastery-section" className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-7 hover:shadow-md transition-all mt-10">
                                                 <div className="flex items-center justify-between mb-8">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                                             <TrendingUp size={18} />
                                                         </div>
                                                         <div>
-                                                            <h3 className="text-sm font-bold tracking-tight text-slate-800">Mastery Trend</h3>
-                                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Recent Performance</p>
+                                                            <h3 className="text-sm font-semibold tracking-tight text-slate-800">Mastery Trend</h3>
+                                                            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Recent Performance</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border border-slate-100 rounded-lg">
                                                         <div className="w-2 h-2 rounded-full bg-[#68507B]" />
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Avg Accuracy</span>
+                                                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter">Avg Accuracy</span>
                                                     </div>
                                                 </div>
 
@@ -1364,19 +1368,19 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                         </div>
 
                                         {/* RIGHT SIDEBAR COLUMN */}
-                                        <div className="space-y-6">
+                                        <div className="space-y-6 xl:order-1">
                                             {/* FULL SCHEDULE (Upcoming Assignments) - Moved to Sidebar for balance */}
-                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all">
+                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10">
                                                 <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/10">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-purple-50 text-[#68507B] flex items-center justify-center">
                                                             <CalendarDays size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-bold tracking-tight text-slate-800">Coming Up</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Upcoming</h3>
                                                     </div>
                                                     <button
                                                         onClick={() => setActiveTab('assignments')}
-                                                        className="text-[10px] font-bold text-[#68507B] hover:opacity-70 transition-all uppercase tracking-widest flex items-center gap-1.5"
+                                                        className="text-[10px] font-semibold text-[#68507B] hover:opacity-70 transition-all uppercase tracking-widest flex items-center gap-1.5"
                                                     >
                                                         VIEW ALL <ChevronRight size={12} strokeWidth={3} />
                                                     </button>
@@ -1396,8 +1400,8 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                     const isSoon = !isOverdue && hours >= 24 && hours < 48;
 
                                                                     let statusClasses = 'bg-indigo-50 text-indigo-800 border-indigo-200';
-                                                                    if (isOverdue) statusClasses = 'bg-rose-50 text-rose-800 border-rose-200';
-                                                                    else if (isUrgent) statusClasses = 'bg-red-50 text-red-800 border-red-200';
+                                                                    if (isOverdue) statusClasses = 'bg-rose-50 text-[#9F1239] border-rose-200';
+                                                                    else if (isUrgent) statusClasses = 'bg-rose-50 text-[#9F1239] border-rose-200';
                                                                     else if (isSoon) statusClasses = 'bg-amber-50 text-amber-800 border-amber-200';
 
                                                                     return (
@@ -1408,16 +1412,16 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                         >
                                                                             <div className="flex justify-between items-start gap-4">
                                                                                 <div className="flex-1 min-w-0">
-                                                                                    <h4 className="text-[14px] font-bold text-slate-900 group-hover:text-[#68507B] transition-colors leading-snug">{item.title}</h4>
+                                                                                    <h4 className="text-[14px] font-semibold text-slate-900 group-hover:text-[#68507B] transition-colors leading-snug">{item.title}</h4>
                                                                                     <div className="flex items-center gap-2 mt-1.5">
-                                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.subjectClass}</span>
+                                                                                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{item.subjectClass}</span>
                                                                                         <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                                                        <span className={`text-[11px] font-bold ${isOverdue || isUrgent ? 'text-red-500' : 'text-slate-500'}`}>
+                                                                                        <span className={`text-[11px] font-semibold ${isOverdue || isUrgent ? 'text-[#9F1239]' : 'text-slate-500'}`}>
                                                                                             {item.dueDate}
                                                                                         </span>
                                                                                     </div>
                                                                                 </div>
-                                                                                <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold border uppercase tracking-wider shadow-sm ${statusClasses}`}>
+                                                                                <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold border uppercase tracking-wider shadow-[0_8px_30px_rgb(0,0,0,0.04)] ${statusClasses}`}>
                                                                                     {item.status}
                                                                                 </span>
                                                                             </div>
@@ -1429,7 +1433,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                     <div className="p-3 bg-slate-50/20">
                                                                         <button
                                                                             onClick={() => setIsComingUpExpanded(!isComingUpExpanded)}
-                                                                            className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-white border border-slate-100 rounded-xl transition-all hover:shadow-sm"
+                                                                            className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-white border border-slate-100 rounded-xl transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
                                                                         >
                                                                             {isComingUpExpanded ? (
                                                                                 <> <ChevronUp size={14} /> Show less </>
@@ -1454,13 +1458,13 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                             </section>
 
                                             {/* MESSAGES FROM HOME */}
-                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all">
+                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all">
                                                 <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-pink-50/10">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
                                                             <Heart size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-bold tracking-tight text-slate-800">Messages from Home</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Messages from Home</h3>
                                                     </div>
                                                     {nudges.filter(n => !n.read).length > 0 && (
                                                         <span className="flex h-2 w-2">
@@ -1483,8 +1487,8 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                                         <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${!nudge.read ? 'bg-pink-500' : 'bg-slate-200'}`} />
                                                                         <div className="flex-1 min-w-0">
                                                                             <div className="flex justify-between items-start mb-2">
-                                                                                <span className="text-[12px] font-bold text-slate-900">{nudge.senderName || 'Parent'}</span>
-                                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{relativeTime(nudge.createdAt)}</span>
+                                                                                <span className="text-[12px] font-semibold text-slate-900">{nudge.senderName || 'Parent'}</span>
+                                                                                <span className="text-[10px] font-semibold text-slate-400 uppercase">{relativeTime(nudge.createdAt)}</span>
                                                                             </div>
                                                                             <div className="relative">
                                                                                 <p className="text-[13px] text-slate-700 font-medium italic leading-relaxed pl-3 border-l-2 border-pink-100">
@@ -1500,7 +1504,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-300">
                                                                 <Inbox size={24} />
                                                             </div>
-                                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No recent messages</p>
+                                                            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">No recent messages</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1509,16 +1513,16 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     </div>
                                 </div>
                             ) : activeTab === 'assignments' ? (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700" id="assignments-section">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700" id="assignments-section">
+                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                         <div>
-                                            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
-                                            <p className="text-[13px] text-slate-500 mt-0.5">Manage your active and completed coursework.</p>
+                                            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
+                                            <p className="text-[13px] text-slate-500 mt-0.5">A focused command center for your active and completed work.</p>
                                         </div>
                                         {activeClassFilter && (
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[12px] text-slate-400 font-semibold uppercase tracking-wider">Filtered By:</span>
-                                                <span className="px-3 py-1.5 bg-[#68507B] text-white rounded-xl text-[12px] font-bold border border-[#68507B] flex items-center gap-2 shadow-sm">
+                                                <span className="text-[12px] text-slate-400 font-semibold uppercase tracking-wider">Filtered by:</span>
+                                                <span className="px-3 py-1.5 bg-[#7C3AED] text-white rounded-xl text-[12px] font-semibold border border-[#7C3AED] flex items-center gap-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                                     <BookOpen className="w-3.5 h-3.5" />
                                                     {activeClassFilter}
                                                     <button
@@ -1533,128 +1537,177 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                                        {/* TO-DO LIST */}
-                                        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px]">
-                                            <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-[#68507B]/10 text-[#68507B] flex items-center justify-center">
-                                                        <ListTodo size={18} />
+                                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
+                                        <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 lg:sticky lg:top-6">
+                                            <div className="space-y-2">
+                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Active Tasks Summary</p>
+                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>To-do</span>
+                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
+                                                            {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length}
+                                                        </span>
                                                     </div>
-                                                    <h3 className="font-bold text-slate-900">To-Do List</h3>
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>Due this week</span>
+                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
+                                                            {normalisedAssignments.filter(a => {
+                                                                if (a.status === 'completed' || a.status === 'success') return false;
+                                                                if (activeClassFilter && a.className !== activeClassFilter) return false;
+                                                                const dueDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+                                                                const now = Date.now();
+                                                                return dueDate >= now && dueDate <= now + (7 * 24 * 60 * 60 * 1000);
+                                                            }).length}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>Overdue</span>
+                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
+                                                            {normalisedAssignments.filter(a => a.status === 'danger' && (!activeClassFilter || a.className === activeClassFilter)).length}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <span className="px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-[11px] font-bold text-[#68507B]">
-                                                    {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length} Tasks
-                                                </span>
                                             </div>
 
-                                            <div className="overflow-y-auto flex-1 p-3 space-y-3 custom-scrollbar">
-                                                {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).map(item => {
-                                                    const isOverdue = item.status === 'danger';
-                                                    const isSoon = item.status === 'warning';
+                                            <div className="space-y-2">
+                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
+                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
+                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Subject</label>
+                                                    <select
+                                                        value={activeClassFilter ?? 'all'}
+                                                        onChange={(event) => setActiveClassFilter(event.target.value === 'all' ? null : event.target.value)}
+                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
+                                                    >
+                                                        <option value="all">All subjects</option>
+                                                        {Array.from(new Set(normalisedAssignments.map((assignment) => assignment.className))).map((className) => (
+                                                            <option key={className} value={className}>{className}</option>
+                                                        ))}
+                                                    </select>
 
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${item.attemptId}`)}
-                                                            className="p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all cursor-pointer group shadow-sm hover:shadow-md"
-                                                        >
-                                                            <div className="flex justify-between items-start gap-4">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="text-[10px] font-bold text-[#68507B] uppercase tracking-widest">{item.className}</span>
-                                                                    </div>
-                                                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight group-hover:text-[#68507B] transition-colors">{item.title}</h4>
+                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
+                                                    <select
+                                                        value={assignmentStatusFilter}
+                                                        onChange={(event) => setAssignmentStatusFilter(event.target.value as 'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed')}
+                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
+                                                    >
+                                                        <option value="all">All statuses</option>
+                                                        <option value="overdue">Overdue</option>
+                                                        <option value="in_progress">In progress</option>
+                                                        <option value="not_started">Not started</option>
+                                                        <option value="completed">Completed</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </aside>
 
-                                                                    <div className="flex items-center gap-3 mt-3">
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`} />
-                                                                            <span className={`text-[12px] font-semibold ${isOverdue ? 'text-red-600' : 'text-slate-500'}`}>
-                                                                                {item.statusLabel || `Due ${new Date(item.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                                        <section>
+                                            {normalisedAssignments.filter((a) => {
+                                                if (activeClassFilter && a.className !== activeClassFilter) return false;
+
+                                                if (assignmentStatusFilter === 'overdue') return a.status === 'danger';
+                                                if (assignmentStatusFilter === 'in_progress') return a.status === 'warning';
+                                                if (assignmentStatusFilter === 'not_started') return a.status === 'info';
+                                                if (assignmentStatusFilter === 'completed') return a.status === 'completed' || a.status === 'success';
+
+                                                return true;
+                                            }).length === 0 ? (
+                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10">
+                                                    <SectionEmpty
+                                                        headline="No assignments found"
+                                                        detail="Try another class filter, or head back to your classes to pick up new work."
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {normalisedAssignments
+                                                        .filter((a) => {
+                                                            if (activeClassFilter && a.className !== activeClassFilter) return false;
+
+                                                            if (assignmentStatusFilter === 'overdue') return a.status === 'danger';
+                                                            if (assignmentStatusFilter === 'in_progress') return a.status === 'warning';
+                                                            if (assignmentStatusFilter === 'not_started') return a.status === 'info';
+                                                            if (assignmentStatusFilter === 'completed') return a.status === 'completed' || a.status === 'success';
+
+                                                            return true;
+                                                        })
+                                                        .map((item) => {
+                                                            const isOverdue = item.status === 'danger';
+                                                            const isCompleted = item.status === 'completed' || item.status === 'success';
+                                                            const isInProgress = item.status === 'warning';
+                                                            const isAtRisk = isOverdue;
+                                                            const statusText = isCompleted ? 'Completed' : isOverdue ? 'Overdue' : isInProgress ? 'In Progress' : 'Not Started';
+                                                            const completionValue = isCompleted ? '100%' : isOverdue ? '20%' : isInProgress ? '55%' : '0%';
+                                                            const progressValue = isCompleted ? 100 : isOverdue ? 30 : isInProgress ? 60 : 15;
+                                                            const dueText = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'No due date';
+
+                                                            return (
+                                                                <article
+                                                                    key={item.id}
+                                                                    className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
+                                                                >
+                                                                    <div className="p-4 sm:p-5">
+                                                                        <div className="flex items-start justify-end gap-2 mb-3">
+                                                                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isOverdue ? 'bg-rose-50 border-rose-200 text-[#9F1239]' : isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : isInProgress ? 'bg-purple-50 border-purple-200 text-[#7C3AED]' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                                                {statusText}
                                                                             </span>
                                                                         </div>
-                                                                        {isOverdue && (
-                                                                            <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded border border-red-100 uppercase tracking-tighter">
-                                                                                Action Required
-                                                                            </span>
-                                                                        )}
+
+                                                                        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
+                                                                            <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isAtRisk ? 'bg-rose-50/50' : 'bg-purple-500/10'}`}>
+                                                                                    <FileText size={16} className={`${isAtRisk ? 'text-[#9F1239]' : 'text-[#7C3AED]'}`} />
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Assignment</p>
+                                                                                    <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
+                                                                                    <p className="mt-1 text-sm text-slate-500 truncate">{item.className}</p>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                                <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
+                                                                                    <div className="grid grid-cols-2 gap-y-3 gap-x-8">
+                                                                                        <div>
+                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Completion</p>
+                                                                                            <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{completionValue}</p>
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Score Goal</p>
+                                                                                            <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">70%</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="mt-3">
+                                                                                        <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                                                                            <div
+                                                                                                className={`h-full transition-all ${isAtRisk ? 'bg-[#9F1239]' : 'bg-[#7C3AED]'}`}
+                                                                                                style={{ width: `${progressValue}%` }}
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Due Date</p>
+                                                                                <p className="text-sm font-semibold text-slate-900 tabular-nums">{dueText}</p>
+                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class</p>
+                                                                                <p className={`text-sm font-semibold ${isAtRisk ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.className}</p>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                </div>
 
-                                                                <div className="flex flex-col items-end gap-3 shrink-0">
-                                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wide ${isOverdue ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                        isSoon ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                            'bg-slate-50 text-slate-500 border-slate-100'
-                                                                        }`}>
-                                                                        {isOverdue ? 'Overdue' : isSoon ? 'Due soon' : 'Active'}
-                                                                    </span>
-                                                                    <div className="w-8 h-8 rounded-full bg-[#68507B] text-white flex items-center justify-center shadow-lg shadow-[#68507B]/20 group-hover:scale-110 transition-transform">
-                                                                        <Play size={14} fill="currentColor" />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-
-                                                {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                    <div className="p-8">
-                                                        <SectionEmpty
-                                                            headline="All caught up!"
-                                                            detail="You've completed all your assignments. Great job!"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* HISTORY */}
-                                        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px]">
-                                            <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                                        <CheckCircle2 size={18} />
-                                                    </div>
-                                                    <h3 className="font-bold text-slate-900">Completed</h3>
+                                                                    <button
+                                                                        onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${item.attemptId}`)}
+                                                                        className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
+                                                                    >
+                                                                        {isCompleted ? 'View Assignment' : 'Submit Assignment'}
+                                                                    </button>
+                                                                </article>
+                                                            );
+                                                        })}
                                                 </div>
-                                                <span className="text-[12px] font-bold text-slate-400">
-                                                    Archive
-                                                </span>
-                                            </div>
-
-                                            <div className="overflow-y-auto flex-1 p-3 space-y-3 custom-scrollbar">
-                                                {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).map(item => (
-                                                    <div key={item.id} className="p-4 bg-white hover:bg-slate-50 border border-slate-50 rounded-xl transition-all group">
-                                                        <div className="flex justify-between items-start gap-4">
-                                                            <div className="flex-1 min-w-0">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{item.className}</span>
-                                                                <h4 className="text-[14px] font-semibold text-slate-600 leading-tight mt-1">{item.title}</h4>
-                                                                <p className="text-[11px] text-slate-400 mt-2 font-medium">Completed on {new Date(item.dueDate).toLocaleDateString()}</p>
-                                                            </div>
-                                                            <div className="flex flex-col items-end gap-2 shrink-0">
-                                                                <div className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-[12px] font-bold">
-                                                                    {item.bestScore !== null && item.bestScore !== undefined ? `${item.bestScore}%` : 'PASS'}
-                                                                </div>
-                                                                <div className="flex gap-1">
-                                                                    {[1, 2, 3].map(star => (
-                                                                        <div key={star} className={`w-2 h-2 rounded-full ${star <= (item.bestScore || 0) / 33 ? 'bg-yellow-400' : 'bg-slate-200'}`} />
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                                {normalisedAssignments.filter(a => (a.status === 'completed' || a.status === 'success') && (!activeClassFilter || a.className === activeClassFilter)).length === 0 && (
-                                                    <div className="p-12">
-                                                        <SectionEmpty
-                                                            headline="No history yet"
-                                                            detail="Completed assignments will appear here for your review."
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                            )}
+                                        </section>
                                     </div>
                                 </div>
                             ) : activeTab === 'classes' ? (
@@ -1662,12 +1715,12 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     <div className="flex flex-col gap-6">
                                         <div className="flex items-center justify-between mb-2">
                                             <div>
-                                                <h2 className="text-[22px] lg:text-[24px] font-bold text-slate-900 tracking-tight">Manage Classes</h2>
+                                                <h2 className="text-[22px] lg:text-[24px] font-semibold text-slate-900 tracking-tight">Manage Classes</h2>
                                                 <p className="text-[14px] text-slate-500 mt-1">Join and manage your learning environments</p>
                                             </div>
                                             <button
                                                 onClick={() => setShowJoinClass(true)}
-                                                className="flex items-center gap-2 px-5 py-2.5 bg-[#68507B] hover:bg-[#523F62] text-white rounded-xl font-bold text-[14px] transition-all shadow-sm active:scale-95 flex-shrink-0"
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-[#68507B] hover:bg-[#523F62] text-white rounded-xl font-semibold text-[14px] transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-95 flex-shrink-0"
                                             >
                                                 <Plus size={18} /> Join New Class
                                             </button>
@@ -1698,27 +1751,27 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                                         metaPrimaryNode={
                                                             <div className="flex flex-col gap-2.5">
                                                                 <div className="flex items-center gap-2.5">
-                                                                    <div className="w-8 h-8 rounded-full bg-[#FDFBF5] flex items-center justify-center text-[12px] font-bold text-[#68507B] border border-[#EAE7DD] shrink-0">
+                                                                    <div className="w-8 h-8 rounded-full bg-[#FDFBF5] flex items-center justify-center text-[12px] font-semibold text-[#68507B] border border-[#EAE7DD] shrink-0">
                                                                         {cls.teacherName.charAt(0)}
                                                                     </div>
                                                                     <div className="min-w-0">
-                                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Teacher</p>
-                                                                        <p className="text-[13px] font-bold text-slate-700 truncate leading-none">{cls.teacherName}</p>
+                                                                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none mb-1">Teacher</p>
+                                                                        <p className="text-[13px] font-semibold text-slate-700 truncate leading-none">{cls.teacherName}</p>
                                                                     </div>
                                                                 </div>
                                                                 <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
                                                                     <div className="flex items-center gap-2 text-slate-500">
                                                                         <Calendar size={14} />
-                                                                        <span className="text-[11px] font-bold uppercase tracking-wider">Joined</span>
+                                                                        <span className="text-[11px] font-semibold uppercase tracking-wider">Joined</span>
                                                                     </div>
-                                                                    <span className="text-[12px] font-bold text-[#68507B]">
+                                                                    <span className="text-[12px] font-semibold text-[#68507B]">
                                                                         {new Date(cls.enrolledAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                         }
                                                         metaSecondaryNode={
-                                                            <div className="flex items-center gap-2 text-[#68507B] font-bold text-[12px]">
+                                                            <div className="flex items-center gap-2 text-[#68507B] font-semibold text-[12px]">
                                                                 <Trophy size={14} className="text-yellow-500" />
                                                                 <span>On track</span>
                                                             </div>
@@ -1802,7 +1855,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                             navigate(`/play/${selectedGamePack.packId}`);
                                         }
                                     }}
-                                    className="px-5 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white rounded-lg text-[14px] font-medium transition-colors shadow-sm flex items-center gap-2"
+                                    className="px-5 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white rounded-lg text-[14px] font-medium transition-colors shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-2"
                                 >
                                     <Play className="w-4 h-4" />
                                     {selectedGamePack.progress === 100 ? 'Review' : selectedGamePack.progress > 0 ? 'Resume' : 'Start'}
@@ -1820,7 +1873,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                                 <div>
-                                    <h2 className="text-xl font-bold text-slate-900">Join a Class</h2>
+                                    <h2 className="text-xl font-semibold text-slate-900">Join a Class</h2>
                                     <p className="text-[13px] text-slate-500 mt-1">Ask your teacher for the class join code.</p>
                                 </div>
                                 <button
@@ -1867,7 +1920,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex items-center gap-2 px-6 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-75 shadow-sm"
+                                        className="flex items-center gap-2 px-6 py-2 bg-[#68507B] hover:bg-[#5a456a] text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-75 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
                                         disabled={joiningClass || !joinCode.trim()}
                                     >
                                         {joiningClass ? 'Joining...' : 'Join Class'}
@@ -1883,7 +1936,7 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
             {nudges.some(n => !n.read) && (() => {
                 const unreadNudge = nudges.find(n => !n.read)!;
                 return (
-                    <div className="fixed bottom-6 right-6 bg-white border border-[#68507B]/20 shadow-xl rounded-xl p-4 w-80 z-50 animate-in slide-in-from-bottom-4 duration-300">
+                    <div className="fixed bottom-6 right-6 bg-white border border-[#68507B]/20 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-xl p-4 w-80 z-50 animate-in slide-in-from-bottom-4 duration-300">
                         <div className="flex items-start gap-3">
                             <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
                                 <Heart className="w-4 h-4" />
@@ -1903,3 +1956,5 @@ export default function StudentDashboardPage({ activeTab: initialTab = 'dashboar
         </div>
     );
 }
+
+

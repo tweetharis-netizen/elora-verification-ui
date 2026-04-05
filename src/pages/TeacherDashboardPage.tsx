@@ -13,6 +13,8 @@ import {
     MonitorPlay,
     TrendingUp,
     TrendingDown,
+    ArrowUpRight,
+    ArrowDownRight,
     Clock,
     ChevronRight,
     ChevronLeft,
@@ -50,13 +52,15 @@ import { RoleQuizGame } from '../components/RoleQuizGame';
 import { EloraLogo } from '../components/EloraLogo';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
-import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { AuthGate } from '../components/auth/AuthGate';
+import { DashboardShell } from '../components/ui/DashboardShell';
+import { DashboardCard } from '../components/ui/DashboardCard';
+import { DashboardSectionHeader } from '../components/ui/DashboardSectionHeader';
 import {
     demoStats,
     demoClasses,
@@ -64,14 +68,20 @@ import {
     demoInsights,
     demoTeacherName,
     DEMO_CLASS_LEVEL,
+    demoClassroomPractices,
 } from '../demo/demoTeacherScenarioA';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import {
     ClassroomHeader,
     ClassroomTabs,
+    StreamLayout,
+    AssignmentsPracticeTab,
+    PeopleTab,
+    GradesTab,
 } from '../components/classroom/ClassroomComponents';
 import { ClassroomBreadcrumb } from '../components/layout/ClassroomBreadcrumb';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
+import { PracticeGeneratorDrawer } from '../components/PracticeGeneratorDrawer';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -136,25 +146,25 @@ const NavItem = ({
     className?: string;
     theme: RoleSidebarTheme;
 }) => {
-    const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
-    const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
-    return (
-        <a
-            href="#"
-            onClick={(e) => { e.preventDefault(); onClick?.(); }}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
-            title={collapsed ? label : undefined}
-        >
-            <div className="shrink-0">{icon}</div>
-            {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+        const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+        const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
+        return (
+            <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); onClick?.(); }}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
+                title={collapsed ? label : undefined}
+            >
+                <div className="shrink-0">{icon}</div>
+                {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
-            {/* Active Indicator Circle */}
-            {active && !collapsed && (
-                <motion.div
-                    layoutId="activeIndicator"
-                    className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current"
-                />
-            )}
+                {/* Active Indicator Circle */}
+                {active && !collapsed && (
+                    <motion.div
+                        layoutId="activeIndicator"
+                        className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current"
+                    />
+                )}
         </a>
     );
 };
@@ -176,6 +186,12 @@ const StatCard = ({
 }) => {
     const isUp = trend === 'up';
     const isDown = trend === 'down';
+    const trendToken = (trendValue ?? '').toLowerCase();
+    const inferredDown = trendToken.includes('down') || trendToken.includes('drop') || status === 'warning';
+    const inferredUp = trendToken.includes('up') || trendToken.includes('stable') || status === 'neutral';
+    const trendIcon = isDown || inferredDown
+        ? <ArrowDownRight size={11} className="opacity-70" />
+        : (isUp || inferredUp ? <ArrowUpRight size={11} className="opacity-70" /> : null);
 
     let statusClass = 'text-teal-600 bg-teal-50 border-teal-100';
     if (status === 'warning' || isDown) statusClass = 'text-orange-600 bg-orange-50 border-orange-200';
@@ -183,30 +199,31 @@ const StatCard = ({
     if (status === 'neutral') statusClass = 'text-slate-600 bg-slate-50 border-slate-200';
 
     return (
-        <div className="bg-white p-5 rounded-2xl border border-[#EAE7DD] shadow-sm flex flex-col gap-3">
-            <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] flex items-center justify-center shrink-0">
-                    {icon}
-                </div>
-                {(trend || trendValue) && (
-                    <div
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusClass}`}
-                    >
-                        {isUp && <TrendingUp size={12} />}
-                        {isDown && <TrendingDown size={12} />}
-                        {trendValue || (isUp ? 'Trending up' : 'Trending down')}
+        <DashboardCard variant="canonical" bodyClassName="p-4">
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0">
+                        {icon}
                     </div>
-                )}
-            </div>
-            <div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                    {label}
+                    {(trend || trendValue) && (
+                        <div
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${statusClass}`}
+                        >
+                            {trendIcon}
+                            {trendValue || (isUp ? 'Trending up' : 'Trending down')}
+                        </div>
+                    )}
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                    {value}
+                <div>
+                    <div className="text-[11px] font-medium text-slate-500 uppercase tracking-widest mb-1.5">
+                        {label}
+                    </div>
+                    <div className="text-[30px] leading-none font-semibold text-slate-900 tracking-tight tabular-nums">
+                        {value}
+                    </div>
                 </div>
             </div>
-        </div>
+        </DashboardCard>
     );
 };
 
@@ -231,17 +248,17 @@ const StatusBadge = ({ status }: { status: string }) => {
         lower.includes('at risk') ||
         lower.includes('dropping')
     ) {
-        colorClass = 'bg-orange-50 text-orange-700 border-orange-200';
+        colorClass = 'bg-red-50 text-red-700 border-red-200';
         if (lower.includes('dropping')) {
             icon = <TrendingDown size={12} className="shrink-0" />;
         }
     } else if (lower.includes('draft') || lower.includes('stable')) {
-        colorClass = 'bg-slate-50 text-slate-600 border-slate-200';
+        colorClass = 'bg-teal-50 text-teal-700 border-teal-200';
     }
 
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${colorClass}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${colorClass}`}
         >
             {icon}
             {status}
@@ -293,7 +310,7 @@ const QuestionPreviewItem = ({
         <div className="bg-[#FDFBF5] border border-[#EAE7DD] rounded-xl p-4 transition-all hover:shadow-sm group">
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2 flex-1">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs font-bold shrink-0">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold shrink-0">
                         {idx + 1}
                     </span>
                     {isEditing ? (
@@ -306,7 +323,7 @@ const QuestionPreviewItem = ({
                             />
                             <button
                                 onClick={handleSave}
-                                className="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700"
+                                className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
                             >
                                 Save
                             </button>
@@ -346,14 +363,14 @@ const QuestionPreviewItem = ({
                                         <Check size={12} strokeWidth={3} />
                                     </div>
                                 ) : (
-                                    <span className="text-xs font-bold text-slate-400">
+                                    <span className="text-xs font-semibold text-slate-400">
                                         {['A', 'B', 'C', 'D'][optIdx]}
                                     </span>
                                 )}
                             </div>
-                            <span className={isCorrect ? 'font-bold' : ''}>{opt}</span>
+                            <span className={isCorrect ? 'font-semibold' : ''}>{opt}</span>
                             {isCorrect && (
-                                <span className="ml-auto text-[10px] font-bold text-teal-600 uppercase tracking-wider">Correct</span>
+                                <span className="ml-auto text-[10px] font-semibold text-teal-600 uppercase tracking-wider">Correct</span>
                             )}
                         </div>
                     );
@@ -364,7 +381,7 @@ const QuestionPreviewItem = ({
                 <div className="mt-2 border-t border-[#EAE7DD] pt-2">
                     <button
                         onClick={() => setShowExplanation(!showExplanation)}
-                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-teal-600 transition-colors uppercase tracking-wider focus:outline-none"
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-teal-600 transition-colors uppercase tracking-wider focus:outline-none"
                     >
                         {showExplanation ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
@@ -494,7 +511,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         <Sparkles size={20} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900">Practice Pack Generator</h2>
+                        <h2 className="text-xl font-semibold tracking-tight text-slate-900">Practice Pack Generator</h2>
                         <p className="text-sm text-slate-500 font-medium italic">Create targeted AI-driven exercises in seconds.</p>
                     </div>
                 </div>
@@ -509,7 +526,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
             <form onSubmit={handleGenerate} className="flex flex-col gap-6 relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                             Subject &amp; Topic
                         </label>
                         <input
@@ -523,7 +540,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         <p className="mt-1.5 text-[11px] text-slate-400 font-medium pl-1">Explanations will reference this topic directly.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                             Academic Level
                         </label>
                         <input
@@ -539,7 +556,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                             Difficulty
                         </label>
                         <select
@@ -559,7 +576,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                             Question Count
                         </label>
                         <div className="relative">
@@ -574,11 +591,11 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                                 }
                                 className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
                             />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Items</span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 uppercase">Items</span>
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                             Question Format
                         </label>
                         <div className="w-full px-4 py-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/20 text-xs font-semibold text-slate-400 flex items-center h-[46px]">
@@ -597,7 +614,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                 <button
                     type="submit"
                     disabled={generating}
-                    className="flex items-center justify-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]"
+                    className="flex items-center justify-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]"
                 >
                     {generating ? (
                         <>
@@ -618,10 +635,10 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                     <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-xl font-bold text-slate-900">
+                                <h3 className="text-xl font-semibold text-slate-900">
                                     {generatedGame.title}
                                 </h3>
-                                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 text-[10px] font-bold rounded-full border border-teal-100 uppercase tracking-wider">Ready to review</span>
+                                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 text-[10px] font-semibold rounded-full border border-teal-100 uppercase tracking-wider">Ready to review</span>
                             </div>
                             <p className="text-xs text-slate-400 font-medium">
                                 Topic: <span className="text-slate-600">{generatedGame.topic}</span> &nbsp;·&nbsp;
@@ -632,13 +649,13 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => onReview(generatedGame)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-bold text-sm transition-all border border-slate-200 shadow-sm"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-semibold text-sm transition-all border border-slate-200 shadow-sm"
                             >
                                 <MonitorPlay size={18} className="text-teal-600" /> Preview as student
                             </button>
                             <button
                                 onClick={() => onAssign(generatedGame)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-teal-600/20"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-semibold text-sm transition-all shadow-lg shadow-teal-600/20"
                             >
                                 <Plus size={18} /> Assign to Class
                             </button>
@@ -649,7 +666,7 @@ const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanel
                         <div className="flex items-center justify-between mb-2 px-1">
                             <div className="flex items-center gap-2">
                                 <div className="h-4 w-1 bg-teal-500 rounded-full" />
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Question Preview</span>
+                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Question Preview</span>
                             </div>
                             <p className="text-[10px] text-slate-400 font-medium">Click on a question to edit its prompt</p>
                         </div>
@@ -744,17 +761,21 @@ const NeedsAttentionCard = ({
     const hasMore = insights.length > INITIAL_COUNT;
 
     return (
-        <section className="mb-6">
+        <section>
             {/* Header */}
-            <div className="flex items-center gap-2 mb-3 relative z-10">
-                <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)] shrink-0" />
-                <h2 className="text-sm font-semibold tracking-tight text-slate-800">
-                    This week in your classes {hasInsights && <span className="text-slate-400 font-normal ml-0.5">· {insights.length}</span>}
-                </h2>
-            </div>
+            <DashboardSectionHeader
+                variant="canonical"
+                className="mt-10 mb-3"
+                title="This week in your classes"
+                badge={hasInsights ? (
+                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                        {insights.length}
+                    </span>
+                ) : undefined}
+            />
 
             {/* Body */}
-            <div className="space-y-2 relative z-10">
+            <div className="space-y-3 relative z-10">
                 {loading ? (
                     // Skeleton rows
                     [1, 2].map((n) => (
@@ -815,7 +836,7 @@ const NeedsAttentionCard = ({
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                                             {insight.studentName && (
-                                                <span className="text-xs font-bold text-slate-900">
+                                                <span className="text-xs font-semibold text-slate-900">
                                                     {insight.studentName}
                                                 </span>
                                             )}
@@ -828,12 +849,12 @@ const NeedsAttentionCard = ({
                                                 </>
                                             )}
                                             {insight.assignmentTitle && !insight.topicTag && (
-                                                <span className="text-xs font-bold text-slate-900 truncate">
+                                                <span className="text-xs font-semibold text-slate-900 truncate">
                                                     {insight.assignmentTitle}
                                                 </span>
                                             )}
                                             <span
-                                                className={`ml-auto text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 ${meta.iconBg} ${meta.iconColor}`}
+                                                className={`ml-auto text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 ${meta.iconBg} ${meta.iconColor}`}
                                             >
                                                 {meta.label}
                                             </span>
@@ -855,27 +876,27 @@ const NeedsAttentionCard = ({
                                             {(insight.type === 'weak_topic' || insight.type === 'low_scores') && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onAssignPractice(insight); }}
-                                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-100 transition-colors"
+                                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-white border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-50 transition-colors"
                                                 >
                                                     <Sparkles size={11} />
                                                     {generatePracticeLabel}
                                                 </button>
                                             )}
-                                            {insight.studentId && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onNudgeStudent(insight); }}
-                                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100 transition-colors"
-                                                >
-                                                    <Send size={11} />
-                                                    Nudge
-                                                </button>
-                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center self-center ml-2">
+                                    <div className="flex flex-col gap-2 justify-center self-stretch ml-2 pl-3 border-l border-slate-200/80">
+                                        {insight.studentId && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onNudgeStudent(insight); }}
+                                                className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold text-teal-700 bg-white border border-teal-200 px-2.5 py-1 rounded-md hover:bg-teal-50 transition-colors"
+                                            >
+                                                <Send size={11} />
+                                                Nudge
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onInsightClick(insight); }}
-                                            className="inline-flex items-center px-3 py-1 text-[11px] font-semibold rounded-full bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-all focus:ring-2 focus:ring-teal-500/20 active:scale-95"
+                                            className="inline-flex items-center justify-center px-3 py-1 text-[11px] font-semibold rounded-full border border-teal-200 bg-white text-teal-700 hover:bg-teal-50 transition-all focus:ring-2 focus:ring-teal-500/20 active:scale-95"
                                         >
                                             {insight.type === 'overdue_assignment' ? 'Grade now' : 'View'}
                                         </button>
@@ -887,7 +908,7 @@ const NeedsAttentionCard = ({
                         {hasMore && (
                             <button
                                 onClick={() => setIsExpanded(!isExpanded)}
-                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 bg-white border border-[#EAE7DD] rounded-xl transition-all hover:shadow-sm"
+                                className="w-full py-2 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors"
                             >
                                 {isExpanded ? (
                                     <>
@@ -944,15 +965,17 @@ interface TeacherDashboardProps {
     initialClassId?: string;
     initialClassroomTab?: 'stream' | 'classwork' | 'people' | 'grades';
     forcedClassroomMode?: boolean;
-    activeTab?: 'dashboard' | 'classes' | 'work';
+    activeTab?: 'dashboard' | 'classes' | 'work' | 'assignments';
+    isDemo?: boolean;
 }
 
 export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) {
     const navigate = useNavigate();
     const { hash } = useLocation();
     const { isVerified, logout, currentUser, login } = useAuth();
-    const isDemo = useDemoMode();
-    const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode } = props;
+    const routeIsDemo = useDemoMode();
+    const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode, isDemo: isDemoProp } = props;
+    const isDemo = isDemoProp ?? routeIsDemo;
     const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
@@ -988,7 +1011,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         if (!hasData) return "I don't see any recent data for your classes right now, so I can't give an attention list yet.";
 
         let str = `Here are 3 students to focus on in ${myClasses[0]?.name || 'your class'}:\n`;
-        str += `\nJordan Lee — 28% on Algebra Quiz 1, missed factorisation in 3 of 5 sessions.`;
+        str += `\nJordan Lee — 43% on Algebra Quiz 1, needs focused support on factorisation.`;
         str += `\nPriya Nair — Algebra Quiz 1 not submitted, 3 days overdue.`;
         str += `\nAlex Chen — Low engagement on Factorisation practice runs.`;
         return str;
@@ -1096,9 +1119,11 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
     const [showAiPanel, setShowAiPanel] = useState(false);
     const [aiPanelPrefill, setAiPanelPrefill] = useState<Partial<AiForm> | undefined>(undefined);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom'>(() => {
+    const [showPracticeGeneratorDrawer, setShowPracticeGeneratorDrawer] = useState(false);
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom' | 'assignments'>(() => {
         if (forcedClassroomMode) return 'classroom';
         if (props.activeTab === 'classes') return 'classes';
+        if (props.activeTab === 'assignments') return 'assignments';
         if (props.activeTab === 'work') return 'dashboard'; // 'work' maps to dashboard for now
         return 'dashboard';
     });
@@ -1107,6 +1132,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     useEffect(() => {
         if (props.activeTab === 'classes') {
             setActiveTab('classes');
+        } else if (props.activeTab === 'assignments') {
+            setActiveTab('assignments');
         } else if (props.activeTab === 'dashboard' || props.activeTab === 'work') {
             setActiveTab('dashboard');
         }
@@ -1129,6 +1156,16 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }, [props.activeTab, hash]);
     const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(initialClassId);
     const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'classwork' | 'people' | 'grades'>(initialClassroomTab);
+    const [classroomDraft, setClassroomDraft] = useState('');
+    const [classroomComposerOpen, setClassroomComposerOpen] = useState(false);
+    const [classroomComposerAIMode, setClassroomComposerAIMode] = useState(false);
+    const [teacherAnnouncements, setTeacherAnnouncements] = useState<Array<{
+        id: string;
+        title: string;
+        body: string;
+        timestamp: string;
+        kind: 'announcement';
+    }>>([]);
     const [showCreateClass, setShowCreateClass] = useState(false);
     const [newClassName, setNewClassName] = useState('');
     const [newClassSubject, setNewClassSubject] = useState('');
@@ -1471,6 +1508,50 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         return matchesStatus && matchesClass;
     });
 
+    const [reviewItems, setReviewItems] = useState<dataService.TeacherReviewWorkItem[]>([]);
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [reviewStatusFilter, setReviewStatusFilter] = useState('all');
+    const [reviewClassFilter, setReviewClassFilter] = useState('all');
+
+    useEffect(() => {
+        if (activeTab !== 'assignments') return;
+
+        let cancelled = false;
+        const loadReviewItems = async () => {
+            setReviewLoading(true);
+            try {
+                const items = await dataService.getTeacherReviewWorkItemsMock();
+                if (!cancelled) {
+                    setReviewItems(items);
+                }
+            } catch (err) {
+                console.error('Failed to load teacher review items', err);
+                if (!cancelled) {
+                    setReviewItems([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setReviewLoading(false);
+                }
+            }
+        };
+
+        void loadReviewItems();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab]);
+
+    const reviewClasses = React.useMemo(() => Array.from(new Set(reviewItems.map((item) => item.className))), [reviewItems]);
+    const filteredReviewItems = React.useMemo(() => {
+        return reviewItems.filter((item) => {
+            const statusMatch = reviewStatusFilter === 'all' || item.status === reviewStatusFilter;
+            const classMatch = reviewClassFilter === 'all' || item.className === reviewClassFilter;
+            return statusMatch && classMatch;
+        });
+    }, [reviewItems, reviewClassFilter, reviewStatusFilter]);
+
     // ── Derive stat card values from real stats array ──
     const findStat = (label: string) =>
         stats.find((s) => s.label.toLowerCase().includes(label.toLowerCase()));
@@ -1491,9 +1572,24 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         const classInsights = insights.filter(i => i.className === mainClass.name);
 
         // Students needing support
-        const studentsNeedingSupport = new Set(
-            classInsights.filter(i => i.studentName).map(i => i.studentName)
-        ).size;
+        const supportNames: string[] = Array.from(
+            new Set<string>(
+                classInsights
+                    .map((i) => i.studentName)
+                    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+            )
+        );
+        const studentsNeedingSupport = supportNames.length;
+        const supportInitials = supportNames
+            .slice(0, 2)
+            .map((name) =>
+                name
+                    .split(' ')
+                    .map((part) => part[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
+            );
 
         // Top struggle topic
         const topics = classInsights.filter(i => i.topicTag).map(i => i.topicTag as string);
@@ -1522,9 +1618,114 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             className: mainClass.name,
             status,
             studentsNeedingSupport,
-            topStruggleTopic
+            topStruggleTopic,
+            supportInitials,
         };
     }, [myClasses, insights]);
+
+    const selectedClassroom = React.useMemo(
+        () => myClasses.find((cls) => cls.id === selectedClassroomId) ?? myClasses[0] ?? null,
+        [myClasses, selectedClassroomId]
+    );
+
+    const selectedClassroomInsights = React.useMemo(() => {
+        if (!selectedClassroom) return [] as dataService.TeacherInsight[];
+        return insights.filter((insight) => insight.className === selectedClassroom.name);
+    }, [insights, selectedClassroom]);
+
+    const selectedClassroomUpcoming = React.useMemo(() => {
+        if (!selectedClassroom) return [] as typeof upcomingAssignments;
+        return upcomingAssignments
+            .filter((assignment) => assignment.class === selectedClassroom.name)
+            .slice(0, 4);
+    }, [selectedClassroom, upcomingAssignments]);
+
+    const [classroomMockBundle, setClassroomMockBundle] = useState<dataService.ClassroomMockBundle>({
+        streamItems: [],
+        assignments: [],
+        practices: [],
+        people: [],
+    });
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadClassroomMock = async () => {
+            const bundle = await dataService.getTeacherClassroomMockData(selectedClassroom?.id);
+            if (!cancelled) {
+                setClassroomMockBundle(bundle);
+            }
+        };
+
+        void loadClassroomMock();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedClassroom?.id]);
+
+    const selectedClassroomWithPeople = React.useMemo(() => {
+        if (!selectedClassroom) return selectedClassroom;
+        return {
+            ...selectedClassroom,
+            students: classroomMockBundle.people.filter((person) => person.role === 'student'),
+        };
+    }, [selectedClassroom, classroomMockBundle.people]);
+
+    const handlePostClassroomAnnouncement = () => {
+        const trimmedDraft = classroomDraft.trim();
+        if (!trimmedDraft) return;
+
+        setTeacherAnnouncements((previous) => [
+            {
+                id: `announcement-${Date.now()}`,
+                title: 'Announcement',
+                body: trimmedDraft,
+                timestamp: 'Just now',
+                kind: 'announcement',
+            },
+            ...previous,
+        ]);
+        setClassroomDraft('');
+        setClassroomComposerOpen(false);
+    };
+
+    const classroomFeedCards = React.useMemo(() => {
+        const announcementCards = teacherAnnouncements.map((item) => ({
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            meta: item.timestamp,
+            tone: 'announcement' as const,
+        }));
+
+        const insightCards = selectedClassroomInsights.slice(0, 3).map((insight, index) => ({
+            id: `${insight.id}-${index}`,
+            title: insight.studentName ? `${insight.studentName} needs support` : 'Class insight',
+            body: insight.detail || insight.topicTag || 'Teacher insight',
+            meta: insight.topicTag || insight.type,
+            tone: insight.type === 'needs_attention' ? ('alert' as const) : ('info' as const),
+        }));
+
+        const upcomingCards = selectedClassroomUpcoming.slice(0, 2).map((assignment) => ({
+            id: assignment.id,
+            title: assignment.title,
+            body: assignment.due && assignment.due.toLowerCase().includes('overdue') ? assignment.due : `Due ${assignment.due || assignment.status}`,
+            meta: assignment.status,
+            tone: assignment.status === 'needs attention' || assignment.status === 'warning' ? ('alert' as const) : ('info' as const),
+        }));
+
+        return [...announcementCards, ...insightCards, ...upcomingCards].slice(0, 6);
+    }, [selectedClassroomInsights, selectedClassroomUpcoming, teacherAnnouncements]);
+
+    useEffect(() => {
+        if (activeTab !== 'classroom' || myClasses.length === 0) return;
+
+        const classroomExists = selectedClassroomId ? myClasses.some((cls) => cls.id === selectedClassroomId) : false;
+        if (!classroomExists) {
+            setSelectedClassroomId(myClasses[0].id);
+        }
+    }, [activeTab, myClasses, selectedClassroomId]);
 
     // ── Guard: show dev shortcut if auth was bypassed (skip in demo mode) ──
     if (!isVerified && !isDemo) {
@@ -1602,7 +1803,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 {/* ── Minimal Sidebar for child view ── */}
                 <aside className="bg-teal-900 text-teal-50 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 w-20">
                     <div className="h-20 flex items-center justify-center border-b border-teal-800/50 px-6">
-                        <Link to="/" className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center font-serif italic font-bold text-white shadow-sm shrink-0">
+                        <Link to="/" className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center font-serif italic font-semibold text-white shadow-sm shrink-0">
                             E
                         </Link>
                     </div>
@@ -1623,7 +1824,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 Back to dashboard
                             </button>
                             <div className="w-px h-5 bg-slate-200" />
-                            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
                                 Assignment Results
                             </h1>
                         </div>
@@ -1639,7 +1840,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             <div className="max-w-5xl mx-auto space-y-8">
                                 {/* Assignment Info */}
                                 <div className="bg-white rounded-2xl border border-[#EAE7DD] p-6 shadow-sm">
-                                    <h2 className="text-xl font-bold text-slate-900 mb-2">
+                                    <h2 className="text-xl font-semibold tracking-tight text-slate-900 mb-2">
                                         {assignmentResults.assignment.title}
                                     </h2>
                                     <div className="flex items-center gap-6 text-sm text-slate-600">
@@ -1657,7 +1858,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 {/* Weak Topics */}
                                 {assignmentResults.weakTopics.length > 0 && (
                                     <div className="bg-orange-50 rounded-2xl border border-orange-200 p-6 shadow-sm">
-                                        <h3 className="text-lg font-bold text-orange-900 mb-3 flex items-center gap-2">
+                                        <h3 className="text-lg font-semibold text-orange-900 mb-3 flex items-center gap-2">
                                             <AlertCircle size={20} />
                                             Topics Needing Attention
                                         </h3>
@@ -1674,7 +1875,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 {/* Student Results Table */}
                                 <div className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
                                     <div className="p-6 border-b border-[#EAE7DD] flex items-center justify-between">
-                                        <h3 className="text-lg font-bold text-slate-900">Student Progress</h3>
+                                        <h3 className="text-lg font-semibold text-slate-900">Student Progress</h3>
                                         <div className="text-sm font-medium text-slate-500">
                                             {assignmentResults.students.filter(s => s.status === 'submitted').length} / {assignmentResults.students.length} Submitted
                                         </div>
@@ -1749,7 +1950,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                 {/* ── Sidebar ── */}
                 <aside
-                    className={`${sidebarTheme.asideBg} ${sidebarTheme.text} flex flex-col md:min-h-screen fixed inset-y-0 left-0 z-[70] md:sticky md:translate-x-0 transition-all duration-500 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 shadow-xl`}
+                    className={`${sidebarTheme.asideBg} ${sidebarTheme.text} flex flex-col md:min-h-screen fixed inset-y-0 left-0 z-[70] md:sticky md:translate-x-0 transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 shadow-xl`}
                 >
                     {/* Logo & Close toggle */}
                     <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
@@ -1807,53 +2008,65 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             theme={sidebarTheme} 
                         />
                         <NavItem
-                            icon={<Sparkles size={20} />}
-                            label="Copilot"
+                            icon={<FileText size={20} />}
+                            label="Assignments"
+                            active={activeTab === 'assignments'}
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
-                                navigate(isDemo ? '/teacher/copilot/demo' : '/teacher/copilot');
+                                navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments');
+                                setActiveTab('assignments');
                                 setShowAiPanel(false);
                             }}
-                            theme={sidebarTheme}
                             collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
                         />
                         <NavItem
-                            icon={<Gamepad2 size={20} />}
-                            label="Practice & quizzes"
-                            active={activeTab === 'dashboard' && hash === '#practice'} 
+                                icon={<Target size={20} />}
+                                label="Practice & quizzes"
+                                active={activeTab === 'dashboard' && hash === '#practice'}
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
-                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
-                                setActiveTab('dashboard');
-                                setShowAiPanel(true);
-                                setTimeout(() => {
-                                    document.getElementById('ai-game-panel-anchor')?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
+                                    navigate(isDemo ? '/teacher/demo/practice' : '/teacher/practice');
                             }}
-                            theme={sidebarTheme}
                             collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
                         />
-                        <NavItem 
-                            icon={<TrendingUp size={20} />} 
-                            label="Reports" 
-                            active={activeTab === 'dashboard' && hash === '#reports'} 
-                            onClick={() => {
-                                setIsMobileMenuOpen(false);
-                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#reports`);
-                                setActiveTab('dashboard');
-                                setShowAiPanel(false);
-                                setTimeout(() => {
-                                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
-                            }}
-                            collapsed={!isSidebarOpen} 
-                            theme={sidebarTheme} 
-                        />
+                        {!isDemo && (
+                            <NavItem
+                                icon={<Sparkles size={20} />}
+                                label="Copilot"
+                                onClick={() => {
+                                    setIsMobileMenuOpen(false);
+                                    navigate('/teacher/copilot');
+                                    setShowAiPanel(false);
+                                }}
+                                theme={sidebarTheme}
+                                collapsed={!isSidebarOpen}
+                            />
+                        )}
+                        {!isDemo && (
+                            <NavItem 
+                                icon={<TrendingUp size={20} />} 
+                                label="Reports" 
+                                active={activeTab === 'dashboard' && hash === '#reports'} 
+                                onClick={() => {
+                                    setIsMobileMenuOpen(false);
+                                    navigate('/dashboard/teacher#reports');
+                                    setActiveTab('dashboard');
+                                    setShowAiPanel(false);
+                                    setTimeout(() => {
+                                        document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                                    }, 100);
+                                }}
+                                collapsed={!isSidebarOpen} 
+                                theme={sidebarTheme} 
+                            />
+                        )}
                         {/* <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} /> */}
                     </nav>
 
-                    {/* Footer */}
-                    <div className="p-4 border-t border-teal-800/50 space-y-1.5">
+                    {/* Footer cluster */}
+                    <div className="mt-auto px-4 pt-5 pb-4 border-t border-teal-800/50 space-y-1.5">
                         {!isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(true)}
@@ -1863,7 +2076,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 <PanelLeftOpen size={20} />
                             </button>
                         )}
-                        {/* <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} /> */}
+                        <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
                         <button
                             onClick={logout}
                             className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -1917,40 +2130,42 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             />
                         }
                     />
-                    <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                    <DashboardShell>
 
                         {/* ── Active View Content ── */}
                         {activeTab === 'dashboard' ? (
-                            <div className="max-w-7xl mx-auto space-y-6">
+                            <div className="space-y-6">
                                 {/* ── [Row 0] Hero & Quick Pulse ── */}
-                                <div className="bg-[#2D6A6A] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-lg border border-[#2D6A6A] flex flex-col justify-center min-h-[220px]">
+                                <div className="bg-[#2D6A6A] rounded-3xl px-6 md:px-8 py-6 md:py-8 relative overflow-hidden shadow-lg border border-[#2D6A6A] min-h-[220px]">
                                     <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
                                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
 
-                                    <div className="relative z-10 flex flex-col h-full">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
-                                            <Users size={12} className="text-teal-200" />
-                                            <span>{myClasses.length} Active Classes</span>
+                                    <div className="relative z-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between h-full">
+                                        <div className="min-w-0">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-white/90 mb-2 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                                <Users size={12} className="text-teal-200" />
+                                                <span>{myClasses.length} Active Classes</span>
+                                            </div>
+                                            <h1 className="text-[28px] md:text-[30px] leading-tight font-semibold text-white mb-1 tracking-tight">
+                                                Welcome back, {teacherName.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?)\s+/i, '').split(' ')[0]}! <br />
+                                                <span className="text-teal-100">Your classroom is ready for learning.</span>
+                                            </h1>
+                                            <p className="text-white/90 text-sm max-w-2xl leading-relaxed font-semibold">
+                                                Jordan Lee just finished Algebra Quiz 1. He might need a nudge.
+                                            </p>
                                         </div>
-                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white mb-2 leading-tight tracking-tight">
-                                            Welcome back, {teacherName.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?)\s+/i, '').split(' ')[0]}! <br />
-                                            <span className="text-teal-100">Your classroom is ready for learning.</span>
-                                        </h1>
-                                        <p className="text-white/80 text-sm max-w-xl leading-relaxed font-medium">
-                                            You have {myClasses.reduce((acc, cls) => acc + cls.studentsCount, 0)} students across your active modules. Let's make an impact today!
-                                        </p>
 
-                                        <div className="mt-6 flex flex-wrap gap-3">
+                                        <div className="shrink-0 flex items-center gap-3 flex-nowrap md:self-end">
                                             <button
                                                 onClick={() => setShowAiPanel(true)}
-                                                className="px-5 py-2 bg-white text-[#2D6A6A] rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                                className="px-4 py-2.5 bg-teal-500 text-white border border-teal-400 rounded-xl font-semibold text-sm shadow-md hover:bg-teal-600 hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all inline-flex items-center gap-2"
                                             >
                                                 <Sparkles size={16} />
                                                 Generate Practice
                                             </button>
                                             <button
                                                 onClick={() => document.getElementById('classes-section')?.scrollIntoView({ behavior: 'smooth' })}
-                                                className="px-5 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md flex items-center gap-2"
+                                                className="px-4 py-2.5 bg-white/10 text-white border border-white/20 rounded-xl font-semibold text-sm hover:bg-white/20 active:scale-95 transition-all backdrop-blur-md inline-flex items-center gap-2"
                                             >
                                                 <Users size={16} />
                                                 Manage Classes
@@ -1959,70 +2174,129 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     </div>
                                 </div>
 
-                                {/* ── Welcome to Elora strip (new-user onboarding) ── */}
-                                <DashboardTour
-                                    role="teacher"
-                                    isVisible={!welcomeDismissed}
-                                    onAction1={() => setShowAiPanel(true)}
-                                    onAction2={() => navigate('/invite')}
-                                    onDismiss={handleDismissWelcome}
-                                />
+                                {/* Relocated welcome banner (secondary weight) */}
+                                {!welcomeDismissed && !isDemo && isVerified && currentUser && (
+                                    <DashboardCard variant="canonical" bodyClassName="px-4 py-3">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <h3 className="text-sm font-semibold text-slate-800">Welcome to Elora</h3>
+                                                <p className="mt-1 text-xs text-slate-600">
+                                                    To get the most out of your dashboard, start with one of these quick steps.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={handleDismissWelcome}
+                                                aria-label="Dismiss welcome strip"
+                                                className="shrink-0 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                                                title="Dismiss welcome"
+                                            >
+                                                Dismiss
+                                            </button>
+                                        </div>
+                                    </DashboardCard>
+                                )}
 
-                                {/* "What's New" Strip */}
-                                <div className="mb-6 px-4 py-2.5 bg-white/5 border border-[#EAE7DD] rounded-xl flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">What's new</span>
-                                    <span className="text-sm text-slate-600 font-medium">
-                                        New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
-                                    </span>
-                                    <Link
-                                        to="/our-story"
-                                        className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all ml-auto sm:ml-0"
-                                    >
-                                        View Details
-                                    </Link>
-                                </div>
-
-                                {/* Class Health Strip */}
+                                {/* Tier 2: Compact snapshot */}
                                 {classHealth && !loading && !insightsLoading && (
-                                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:px-5 sm:py-4 bg-white border border-[#EAE7DD] rounded-2xl shadow-sm">
-                                        <div className="flex flex-col flex-1 gap-1 sm:flex-row sm:items-center">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="text-[14px] font-medium text-slate-900">
-                                                    {classHealth.className} <span className="text-slate-500 font-normal px-0.5">– Overall:</span>
-                                                </span>
-                                                <div className={`px-2.5 py-1 rounded-full text-[12px] font-medium border ${classHealth.status === 'At risk'
-                                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
-                                                    : classHealth.status === 'Improving'
-                                                        ? 'bg-teal-50 text-teal-700 border-teal-200'
-                                                        : 'bg-slate-50 text-slate-700 border-slate-200'
-                                                    }`}>
-                                                    {classHealth.status}
+                                    <section className="space-y-2">
+                                        <DashboardSectionHeader
+                                            variant="canonical"
+                                            className="mt-10 mb-3"
+                                            title="Class health & reports"
+                                            subtitle="Needs support and live classroom metrics"
+                                        />
+                                        <DashboardCard variant="canonical" bodyClassName="p-4">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <DashboardCard variant="canonical" className="border-l-4 border-l-teal-500" bodyClassName="p-0">
+                                                        <div className="p-4 bg-teal-50/20">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Students needing support</p>
+                                                                    <div className="mt-2 flex items-center gap-2">
+                                                                        <span className="text-[40px] leading-none font-semibold text-teal-700 tabular-nums">
+                                                                            {classHealth.studentsNeedingSupport}
+                                                                        </span>
+                                                                        <div className="flex -space-x-2">
+                                                                            {(classHealth.supportInitials ?? []).map((initials) => (
+                                                                                <span
+                                                                                    key={initials}
+                                                                                    className="w-6 h-6 rounded-full border border-white bg-teal-500/10 text-teal-700 text-[10px] font-medium inline-flex items-center justify-center"
+                                                                                >
+                                                                                    {initials}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                        <span className="px-2 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-xs font-semibold">
+                                                                            Priority
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {classHealth.studentsNeedingSupport === 0 && (
+                                                                <p className="mt-3 text-sm text-slate-600">All tracked students are currently on track.</p>
+                                                            )}
+                                                        </div>
+                                                        {classHealth.studentsNeedingSupport > 0 && (
+                                                            <button
+                                                                onClick={() => handleDrillDown({ statusFilter: 'needs_attention', classFilter: classHealth.className })}
+                                                                className="w-full border-t border-teal-100 py-3 text-sm font-semibold text-teal-700 hover:bg-teal-50/50 transition-colors"
+                                                            >
+                                                                View students needing support
+                                                            </button>
+                                                        )}
+                                                    </DashboardCard>
+
+                                                    <DashboardCard variant="canonical" bodyClassName="p-4">
+                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class status</p>
+                                                        <div className="mt-2">
+                                                            <StatusBadge status={classHealth.status} />
+                                                        </div>
+                                                        <p className="mt-2 text-sm text-slate-600">{classHealth.className}</p>
+                                                    </DashboardCard>
+
+                                                    <DashboardCard variant="canonical" className="sm:col-span-2" bodyClassName="p-4">
+                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Top struggle topic</p>
+                                                        <p className="mt-2 text-base font-semibold text-slate-900">
+                                                            {classHealth.topStruggleTopic ?? 'No major topic risk'}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-slate-500">14 of 32 students scoring below 50%</p>
+                                                    </DashboardCard>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <StatCard
+                                                        icon={<BookOpen className="text-teal-600" size={20} />}
+                                                        label={classesTodayStat?.label ?? 'Classes Today'}
+                                                        value={loading ? '…' : classesTodayStat?.value ?? '—'}
+                                                        trendValue={classesTodayStat?.trendValue}
+                                                        status={classesTodayStat?.status}
+                                                    />
+                                                    <StatCard
+                                                        icon={<Users className="text-teal-600" size={20} />}
+                                                        label={studentsStat?.label ?? 'Active Students'}
+                                                        value={loading ? '…' : studentsStat?.value ?? '—'}
+                                                        trendValue={studentsStat?.trendValue}
+                                                        status={studentsStat?.status}
+                                                    />
+                                                    <StatCard
+                                                        icon={<Clock className="text-orange-500" size={20} />}
+                                                        label={gradingStat?.label ?? 'Pending Grading'}
+                                                        value={loading ? '…' : gradingStat?.value ?? '—'}
+                                                        trendValue={gradingStat?.trendValue}
+                                                        status={gradingStat?.status}
+                                                    />
+                                                    <StatCard
+                                                        icon={<TrendingUp className="text-teal-600" size={20} />}
+                                                        label={avgScoreStat?.label ?? 'Average Score'}
+                                                        value={loading ? '…' : avgScoreStat?.value ?? '—'}
+                                                        trendValue={avgScoreStat?.trendValue}
+                                                        status={avgScoreStat?.status}
+                                                    />
                                                 </div>
                                             </div>
-
-                                            <div className="text-[13px] text-slate-500 leading-relaxed sm:ml-2">
-                                                <span className="hidden sm:inline mr-2">·</span>
-                                                {classHealth.studentsNeedingSupport > 0 ? (
-                                                    <>
-                                                        <button
-                                                            onClick={() => handleDrillDown({ statusFilter: 'needs_attention', classFilter: classHealth.className })}
-                                                            className="font-medium text-orange-600 hover:text-orange-700 hover:underline transition-all"
-                                                        >
-                                                            {classHealth.studentsNeedingSupport} student{classHealth.studentsNeedingSupport !== 1 ? 's' : ''} need support
-                                                        </button>
-                                                        {classHealth.topStruggleTopic && (
-                                                            <span> in <span className="font-medium text-slate-700">{classHealth.topStruggleTopic}</span>.</span>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <span>Great job! Everyone is on track.</span>
-                                                )}
-                                                {classHealth.status === 'Improving' && (
-                                                    <span className="inline ml-2 text-teal-600 font-medium">· Trending up this week</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        </DashboardCard>
+                                    </section>
                                 )}
 
                                 {/* Error banner */}
@@ -2035,48 +2309,19 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     </div>
                                 )}
 
-                                {/* Stats Strip (prioritized above-the-fold) */}
-                                <div id="reports-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-                                    <StatCard
-                                        icon={<BookOpen className="text-teal-600" size={20} />}
-                                        label={classesTodayStat?.label ?? 'Classes Today'}
-                                        value={loading ? '…' : classesTodayStat?.value ?? '—'}
-                                        trendValue={classesTodayStat?.trendValue}
-                                        status={classesTodayStat?.status}
-                                    />
-                                    <StatCard
-                                        icon={<Users className="text-teal-600" size={20} />}
-                                        label={studentsStat?.label ?? 'Active Students'}
-                                        value={loading ? '…' : studentsStat?.value ?? '—'}
-                                        trendValue={studentsStat?.trendValue}
-                                        status={studentsStat?.status}
-                                    />
-                                    <StatCard
-                                        icon={<Clock className="text-orange-500" size={20} />}
-                                        label={gradingStat?.label ?? 'Pending Grading'}
-                                        value={loading ? '…' : gradingStat?.value ?? '—'}
-                                        trendValue={gradingStat?.trendValue}
-                                        status={gradingStat?.status}
-                                    />
-                                    <StatCard
-                                        icon={<TrendingUp className="text-teal-600" size={20} />}
-                                        label={avgScoreStat?.label ?? 'Average Score'}
-                                        value={loading ? '…' : avgScoreStat?.value ?? '—'}
-                                        trendValue={avgScoreStat?.trendValue}
-                                        status={avgScoreStat?.status}
-                                    />
-                                </div>
-
                                 {/* Two-column layout (reorganized: time-sensitive left, reference right) */}
-                                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
+                                <div id="reports-section" className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
                                     {/* ── Left column (wider): Time-sensitive items ── */}
                                     <div className="xl:col-span-2 flex flex-col gap-6">
 
                                         {/* Upcoming Assignments */}
-                                        <section
-                                            ref={assignmentsSectionRef}
-                                            className={`scroll-mt-6 bg-white rounded-2xl border ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : 'border-[#EAE7DD] shadow-sm'} p-5 lg:p-6 transition-all duration-700`}
+                                        <section ref={assignmentsSectionRef}>
+                                        <DashboardCard
+                                            variant="canonical"
+                                            as="section"
+                                            className={`scroll-mt-6 ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : ''} transition-all duration-700`}
+                                            bodyClassName="p-4"
                                         >
                                             <div className="flex items-center justify-between mb-4">
                                                 <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
@@ -2136,7 +2381,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     detail="Try clearing your filters to see more."
                                                 />
                                             ) : (
-                                                <div className="space-y-4">
+                                                <div className="space-y-3">
                                                     {filteredAssignments.map((item) => {
                                                         const statusLower = item.status.toLowerCase();
                                                         const borderColor =
@@ -2147,7 +2392,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                         return (
                                                             <div
                                                                 key={item.id}
-                                                                className={`p-4 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
+                                                                className={`p-3 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
                                                                 onClick={() => handleViewAssignment(item.id)}
                                                             >
                                                                 <div className="flex justify-between items-start mb-2">
@@ -2176,13 +2421,70 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                 </div>
                                             )}
 
-                                            <button className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
+                                            <button
+                                                onClick={() => {
+                                                    navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments');
+                                                    setActiveTab('assignments');
+                                                }}
+                                                className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors"
+                                            >
                                                 View all assignments
                                             </button>
+                                        </DashboardCard>
                                         </section>
 
+                                            {/* Active Practice Widget */}
+                                            <DashboardCard variant="canonical" bodyClassName="p-5">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-sm font-semibold text-slate-900">
+                                                        Active practice
+                                                    </h3>
+                                                    <Link
+                                                        to={isDemo ? '/teacher/demo/practice' : '/teacher/practice'}
+                                                        className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                                                    >
+                                                        View all →
+                                                    </Link>
+                                                </div>
+
+                                                {demoClassroomPractices && demoClassroomPractices.length > 0 ? (
+                                                    <div className="space-y-3">
+                                                        {demoClassroomPractices.slice(0, 2).map((practice) => (
+                                                            <div
+                                                                key={practice.id}
+                                                                className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 hover:border-teal-200 transition-colors cursor-pointer"
+                                                                onClick={() => navigate(`${isDemo ? '/teacher/demo/class' : '/teacher/classes'}/${practice.classId}?tab=classwork`)}
+                                                            >
+                                                                <div className="flex justify-between items-start gap-3 mb-2">
+                                                                    <h4 className="text-xs font-semibold text-slate-900 line-clamp-1">
+                                                                        {practice.title}
+                                                                    </h4>
+                                                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                                                                        {practice.submittedCount}/{practice.totalCount}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-600 mb-2">
+                                                                    {practice.topic}
+                                                                </p>
+                                                                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-teal-500 transition-all"
+                                                                        style={{
+                                                                            width: `${(practice.submittedCount / practice.totalCount) * 100}%`,
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-slate-500">No active practice sets. Head to Practice & quizzes to create one.</p>
+                                                )}
+                                            </DashboardCard>
+
                                         {/* ── Needs Attention (live data) ── */}
-                                        <NeedsAttentionCard
+                                        <DashboardCard variant="canonical" bodyClassName="p-4">
+                                            <NeedsAttentionCard
                                             insights={insights.slice(0, 5)}
                                             loading={insightsLoading}
                                             error={insightsError}
@@ -2204,7 +2506,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     setInsightsLoading(false);
                                                 }, 500);
                                             }}
-                                        />
+                                            />
+                                        </DashboardCard>
 
                                     </div>
 
@@ -2212,25 +2515,29 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     <div className="xl:col-span-2 flex flex-col gap-6">
 
                                         {/* My Classes table */}
-                                        <section className="bg-white rounded-2xl border border-[#EAE7DD] shadow-sm overflow-hidden">
-                                            <div className="p-5 lg:p-6 border-b border-[#EAE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                    My Classes
-                                                </h2>
-                                                <div className="flex items-center gap-2 bg-[#FDFBF5] p-1 rounded-lg border border-[#EAE7DD]">
-                                                    {['This week', 'This month', 'All time'].map((f) => (
-                                                        <button
-                                                            key={f}
-                                                            onClick={() => setFilter(f)}
-                                                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${filter === f
-                                                                ? 'bg-white text-slate-900 shadow-sm border border-[#EAE7DD]'
-                                                                : 'text-slate-500 hover:text-slate-700'
-                                                                }`}
-                                                        >
-                                                            {f}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                        <DashboardCard variant="canonical" as="section" className="overflow-hidden" bodyClassName="p-0">
+                                            <div className="p-6 border-b border-[#EAEAEA]">
+                                                <DashboardSectionHeader
+                                                    variant="canonical"
+                                                    className="mt-10 mb-3"
+                                                    title="My Classes"
+                                                    action={
+                                                        <div className="flex items-center gap-2 bg-[#FDFBF5] p-1 rounded-lg border border-[#EAE7DD]">
+                                                            {['This week', 'This month', 'All time'].map((f) => (
+                                                                <button
+                                                                    key={f}
+                                                                    onClick={() => setFilter(f)}
+                                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${filter === f
+                                                                        ? 'bg-white text-slate-900 shadow-sm border border-[#EAE7DD]'
+                                                                        : 'text-slate-500 hover:text-slate-700'
+                                                                        }`}
+                                                                >
+                                                                    {f}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    }
+                                                />
                                             </div>
                                             <div className="overflow-x-auto">
                                                 {loading ? (
@@ -2245,7 +2552,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                 ) : (
                                                     <table className="w-full text-left border-collapse">
                                                         <thead>
-                                                            <tr className="bg-[#FDFBF5] border-b border-[#EAE7DD]">
+                                                            <tr className="bg-[#FDFBF5] border-b border-[#EAEAEA]">
                                                                 <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                                                     Class Name
                                                                 </th>
@@ -2260,7 +2567,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                                 </th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-[#EAE7DD]">
+                                                        <tbody className="divide-y divide-[#EAEAEA]">
                                                             {myClasses.map((cls) => (
                                                                 <tr
                                                                     key={cls.id}
@@ -2297,7 +2604,39 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     </table>
                                                 )}
                                             </div>
-                                        </section>
+                                        </DashboardCard>
+
+                                        <DashboardCard
+                                            variant="canonical"
+                                            header={
+                                                <div className="px-4 py-3">
+                                                    <DashboardSectionHeader
+                                                        title="What's new"
+                                                        subtitle="Recent updates and product improvements"
+                                                        variant="canonical"
+                                                        className="mb-2"
+                                                        badge={
+                                                            <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                                                Update
+                                                            </span>
+                                                        }
+                                                        action={
+                                                            <Link
+                                                                to="/our-story"
+                                                                className="text-sm font-semibold text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 transition-all"
+                                                            >
+                                                                View Details
+                                                            </Link>
+                                                        }
+                                                    />
+                                                </div>
+                                            }
+                                            bodyClassName="px-4 py-3"
+                                        >
+                                            <p className="text-xs text-slate-600 font-medium">
+                                                New: A calmer <span className="italic">Our Story</span> page and a smarter parent AI assistant experience.
+                                            </p>
+                                        </DashboardCard>
 
 
 
@@ -2309,20 +2648,6 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 {/* Quick Actions (below fold) - Removed per request */}
 
                                 {/* AI Generation Panel (toggled) */}
-                                <div id="ai-game-panel-anchor" />
-                                {showAiPanel && (
-                                    <React.Fragment key={JSON.stringify(aiPanelPrefill)}>
-                                        <AiGamePanel
-                                            initialValues={aiPanelPrefill}
-                                            onClose={() => { setShowAiPanel(false); setAiPanelPrefill(undefined); }}
-                                            onReview={(pack) => {
-                                                setReviewGamePack(pack);
-                                                setReviewQuestionIndex(0);
-                                            }}
-                                            onAssign={handleAssignClick}
-                                        />
-                                    </React.Fragment>
-                                )}
                             </div>) : activeTab === 'classes' ? (
                                 <div id="classes-section" className="flex flex-col gap-6">
                                     <div className="flex items-center justify-between mb-2">
@@ -2372,7 +2697,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     metaSecondaryNode={
                                                         <div className="flex items-center gap-1.5">
                                                             <span>Code:</span>
-                                                            <span className="font-mono bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded tracking-wider">
+                                                            <span className="font-mono bg-slate-100 text-slate-700 font-semibold px-1.5 py-0.5 rounded tracking-wider">
                                                                 {cls.joinCode || '...'}
                                                             </span>
                                                         </div>
@@ -2382,49 +2707,350 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                         )}
                                     </div>
                                 </div>
-                            ) : activeTab === 'classroom' ? (
-                                <div className="flex flex-col gap-6">
-                                    {myClasses.length > 0 && selectedClassroomId ? (
+                            ) : activeTab === 'assignments' ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-start justify-between gap-3 flex-wrap">
                                         <div>
-                                            {loading ? (
-                                                <SectionSkeleton rows={3} />
-                                            ) : (
-                                                <div className="flex flex-col gap-6">
-                                                    <ClassroomBreadcrumb
-                                                        items={[
-                                                            { label: 'Classes', href: isDemo ? '/teacher/demo/classes' : '/teacher/classes' },
-                                                            { label: myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom' }
-                                                        ]}
-                                                    />
-                                                    <ClassroomHeader
-                                                        currentClass={myClasses.find(c => c.id === selectedClassroomId)}
-                                                        classroomTitle={myClasses.find(c => c.id === selectedClassroomId)?.name || 'Classroom'}
-                                                        role="teacher"
-                                                        subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
-                                                    />
-                                                    <ClassroomTabs
-                                                        activeTab={classroomActiveTab}
-                                                        onTabChange={setClassroomActiveTab}
-                                                        subject={myClasses.find(c => c.id === selectedClassroomId)?.subject}
-                                                        currentClass={myClasses.find(c => c.id === selectedClassroomId)}
-                                                    />
-                                                    <div className="bg-white rounded-2xl border border-[#EAE7DD] p-6">
-                                                        {classroomActiveTab === 'stream' && (
-                                                            <div className="text-center py-12"><p className="text-slate-600">Stream content will appear here</p></div>
-                                                        )}
-                                                        {classroomActiveTab === 'classwork' && (
-                                                            <div className="text-center py-12"><p className="text-slate-600">Classwork content will appear here</p></div>
-                                                        )}
-                                                        {classroomActiveTab === 'people' && (
-                                                            <div className="text-center py-12"><p className="text-slate-600">People list will appear here</p></div>
-                                                        )}
-                                                        {classroomActiveTab === 'grades' && (
-                                                            <div className="text-center py-12"><p className="text-slate-600">Grades will appear here</p></div>
-                                                        )}
+                                            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Review All Assignments</h2>
+                                            <p className="text-sm text-slate-500 mt-1">Across all classes with submission and score signals.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
+                                                setActiveTab('dashboard');
+                                                setShowAiPanel(true);
+                                            }}
+                                            className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+                                        >
+                                            <Plus size={15} />
+                                            Create Assignment
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
+                                        <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 space-y-6">
+                                            <div className="space-y-2">
+                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Grading Summary</p>
+                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>Needs grading</span>
+                                                        <span className="tabular-nums text-base font-bold text-teal-700">3</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>Active</span>
+                                                        <span className="tabular-nums text-base font-bold text-teal-700">5</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
+                                                        <span>Overdue</span>
+                                                        <span className="tabular-nums text-base font-bold text-teal-700">1</span>
                                                     </div>
                                                 </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
+                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
+                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class</label>
+                                                    <select
+                                                        value={reviewClassFilter}
+                                                        onChange={(event) => setReviewClassFilter(event.target.value)}
+                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
+                                                    >
+                                                        <option value="all">All classes</option>
+                                                        {reviewClasses.map((className) => (
+                                                            <option key={className} value={className}>{className}</option>
+                                                        ))}
+                                                    </select>
+
+                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
+                                                    <select
+                                                        value={reviewStatusFilter}
+                                                        onChange={(event) => setReviewStatusFilter(event.target.value)}
+                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
+                                                    >
+                                                        <option value="all">All statuses</option>
+                                                        <option value="overdue">Overdue</option>
+                                                        <option value="due_soon">Due soon</option>
+                                                        <option value="upcoming">Upcoming</option>
+                                                        <option value="completed">Completed</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </aside>
+
+                                        <section>
+                                            {reviewLoading ? (
+                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+                                                    <SectionSkeleton rows={4} />
+                                                </div>
+                                            ) : filteredReviewItems.length === 0 ? (
+                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10 text-center">
+                                                    <h3 className="text-lg font-semibold tracking-tight text-slate-900">No assignments match these filters</h3>
+                                                    <p className="mt-2 text-sm text-slate-500">Try another filter, or create a new assignment to populate this review queue.</p>
+                                                    <button
+                                                        onClick={() => {
+                                                            navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
+                                                            setActiveTab('dashboard');
+                                                            setShowAiPanel(true);
+                                                        }}
+                                                        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+                                                    >
+                                                        <Plus size={15} />
+                                                        Create Assignment
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {filteredReviewItems.map((item) => {
+                                                        const dueDate = new Date(item.dueDate).toLocaleDateString();
+                                                        const totalCount = Math.max(item.totalCount || 0, 0);
+                                                        const submittedCount = Math.min(Math.max(item.submittedCount || 0, 0), totalCount || 0);
+                                                        const submissionPercent = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0;
+                                                        const normalizedStatus = String(item.status || '').toLowerCase();
+                                                        const showOverdue = normalizedStatus === 'overdue';
+                                                        const showDueSoon = normalizedStatus === 'due_soon';
+                                                        const showCompleted = normalizedStatus === 'completed';
+                                                        const hasAttentionSignal = showOverdue || item.needsAttention;
+
+                                                        return (
+                                                            <article
+                                                                key={`${item.type}-${item.id}`}
+                                                                className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
+                                                            >
+                                                                <div className="p-4 sm:p-5">
+                                                                    <div className="flex items-start justify-end gap-2 mb-3">
+                                                                        {showCompleted && (
+                                                                            <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+                                                                                Completed
+                                                                            </span>
+                                                                        )}
+                                                                        {showDueSoon && (
+                                                                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                                                                                Due Soon
+                                                                            </span>
+                                                                        )}
+                                                                        {showOverdue && (
+                                                                            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#FDF2F8] border-[#F5D0E2] text-[#9F1239]">
+                                                                                Overdue
+                                                                            </span>
+                                                                        )}
+                                                                        {item.needsAttention && (
+                                                                            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#FDF2F8] border-[#F5D0E2] text-[#9F1239]">
+                                                                                Needs Attention
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
+                                                                        <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${showOverdue ? 'bg-rose-50/50' : 'bg-teal-500/10'}`}>
+                                                                                <FileText size={18} className="text-teal-700" />
+                                                                            </div>
+                                                                            <div className="min-w-0">
+                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{item.type}</p>
+                                                                                <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
+                                                                                <p className="mt-1 text-sm text-slate-500 truncate">{item.className} · {item.topic}</p>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
+                                                                            <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
+                                                                            <div className="grid grid-cols-2 gap-y-3 gap-x-8">
+                                                                                <div>
+                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Submissions</p>
+                                                                                    <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums font-mono">{submittedCount}/{totalCount}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Avg Score</p>
+                                                                                    <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{item.averageScore ?? '--'}%</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="mt-3">
+                                                                                <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                                                                    <div
+                                                                                        className={`h-full transition-all ${hasAttentionSignal ? 'bg-[#9F1239]' : 'bg-teal-600'}`}
+                                                                                        style={{ width: `${submissionPercent}%` }}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        </div>
+
+                                                                        <div className="space-y-2">
+                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Due Date</p>
+                                                                            <p className="text-sm font-semibold text-slate-900 tabular-nums">{dueDate}</p>
+                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</p>
+                                                                            <p className={`text-sm font-semibold tabular-nums ${hasAttentionSignal ? 'text-[#9F1239]' : 'text-slate-900'}`}>
+                                                                                {item.statusLabel}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (item.type === 'assignment') {
+                                                                            handleViewAssignment(item.id);
+                                                                        } else {
+                                                                            setSelectedItem({
+                                                                                name: item.title,
+                                                                                class: item.className,
+                                                                                tag: item.topic,
+                                                                                status: item.statusLabel,
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                    className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
+                                                                >
+                                                                    View details
+                                                                </button>
+                                                            </article>
+                                                        );
+                                                    })}
+                                                </div>
                                             )}
-                                        </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            ) : activeTab === 'classroom' ? (
+                                <div className="space-y-8">
+                                    {loading ? (
+                                        <SectionSkeleton rows={3} />
+                                    ) : selectedClassroom ? (
+                                        <>
+                                            <ClassroomBreadcrumb
+                                                items={[
+                                                    { label: 'Classes', href: isDemo ? '/teacher/demo/classes' : '/teacher/classes' },
+                                                    { label: selectedClassroom.name }
+                                                ]}
+                                            />
+
+                                            <div className="flex flex-col gap-0">
+                                                <ClassroomHeader
+                                                    currentClass={selectedClassroom}
+                                                    classroomTitle={selectedClassroom.name}
+                                                    role="teacher"
+                                                    subject={selectedClassroom.subject}
+                                                    onPrimaryAction={() => handleViewRosterClick(selectedClassroom.id)}
+                                                    primaryActionLabel="Class Settings"
+                                                    primaryActionIcon={<Settings size={16} />}
+                                                />
+                                                <ClassroomTabs
+                                                    activeTab={classroomActiveTab}
+                                                    onTabChange={setClassroomActiveTab}
+                                                    subject={selectedClassroom.subject}
+                                                    currentClass={selectedClassroom}
+                                                    className="-mt-px"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6 items-start">
+                                                <aside className="space-y-6 xl:sticky xl:top-6">
+                                                    <DashboardCard variant="canonical" className="overflow-hidden" bodyClassName="p-0">
+                                                        <div className="border-b border-slate-100 px-4 py-3 flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Workspace</p>
+                                                                <h3 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Upcoming</h3>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setClassroomActiveTab('classwork')}
+                                                                className="text-sm font-medium text-teal-600 transition-colors hover:text-teal-700"
+                                                            >
+                                                                View all
+                                                            </button>
+                                                        </div>
+                                                        <div className="p-4 space-y-3">
+                                                            {selectedClassroomUpcoming.length > 0 ? (
+                                                                selectedClassroomUpcoming.map((assignment) => {
+                                                                    const dueText = assignment.due || 'soon';
+                                                                    const isOverdue = dueText.toLowerCase().includes('overdue');
+
+                                                                    return (
+                                                                        <div
+                                                                            key={assignment.id}
+                                                                            className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 shadow-sm"
+                                                                        >
+                                                                            <div className="flex items-start justify-between gap-3">
+                                                                                <div className="min-w-0">
+                                                                                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                                                                                        {assignment.status}
+                                                                                    </p>
+                                                                                    <h4 className="mt-1 truncate text-sm font-semibold tracking-tight text-slate-900">
+                                                                                        {assignment.title}
+                                                                                    </h4>
+                                                                                    <p className={`mt-1 text-sm ${isOverdue ? 'font-semibold text-[#9F1239]' : 'text-slate-600'}`}>
+                                                                                        {isOverdue ? dueText : `Due ${dueText}`}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <ChevronRight size={16} className="mt-1 shrink-0 text-slate-400" />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            ) : (
+                                                                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4">
+                                                                    <p className="text-sm font-medium text-slate-700">Nothing due yet.</p>
+                                                                    <p className="mt-1 text-sm text-slate-500">Create a classwork item to populate this queue.</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </DashboardCard>
+                                                </aside>
+
+                                                <section className="w-full max-w-[800px] xl:justify-self-end rounded-2xl border border-[#EAE7DD] bg-white p-4 lg:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                                    {classroomActiveTab === 'stream' && (
+                                                        <StreamLayout
+                                                            role="teacher"
+                                                            isComposerOpen={classroomComposerOpen}
+                                                            setIsComposerOpen={setClassroomComposerOpen}
+                                                            isComposerAIMode={classroomComposerAIMode}
+                                                            setIsComposerAIMode={setClassroomComposerAIMode}
+                                                            composerText={classroomDraft}
+                                                            setComposerText={setClassroomDraft}
+                                                            teacherAnnouncements={teacherAnnouncements.map((item) => ({
+                                                                id: item.id,
+                                                                text: item.body,
+                                                                timestamp: item.timestamp,
+                                                                author: displayName,
+                                                            }))}
+                                                            setTeacherAnnouncements={(next: any[]) => {
+                                                                setTeacherAnnouncements(
+                                                                    next.map((item) => ({
+                                                                        id: item.id,
+                                                                        title: 'Announcement',
+                                                                        body: item.text || item.body || '',
+                                                                        timestamp: item.timestamp || 'Just now',
+                                                                        kind: 'announcement' as const,
+                                                                    }))
+                                                                );
+                                                            }}
+                                                            displayName={displayName}
+                                                            classroomStreamItems={classroomMockBundle.streamItems}
+                                                            onNavigateToWork={() => setClassroomActiveTab('classwork')}
+                                                            themeColor="teal"
+                                                            subject={selectedClassroom?.subject}
+                                                            currentClass={selectedClassroom}
+                                                        />
+                                                    )}
+
+                                                    {classroomActiveTab === 'classwork' && (
+                                                        <AssignmentsPracticeTab
+                                                            role="teacher"
+                                                            assignments={classroomMockBundle.assignments}
+                                                            practices={classroomMockBundle.practices}
+                                                        />
+                                                    )}
+
+                                                    {classroomActiveTab === 'people' && (
+                                                        <PeopleTab role="teacher" currentClass={selectedClassroomWithPeople} />
+                                                    )}
+
+                                                    {classroomActiveTab === 'grades' && (
+                                                        <GradesTab role="teacher" currentClass={selectedClassroomWithPeople} themeColor="teal" subject={selectedClassroom?.subject} />
+                                                    )}
+                                                </section>
+                                            </div>
+                                        </>
                                     ) : (
                                         <SectionEmpty
                                             headline="No classroom selected"
@@ -2433,7 +3059,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     )}
                                 </div>
                             ) : null}
-                    </div>
+                    </DashboardShell>
                 </main>
 
                 {/* ── Detail Modal ── */}
@@ -2481,7 +3107,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                                             Average Score
                                         </div>
-                                        <div className="text-2xl font-bold text-teal-600">
+                                        <div className="text-2xl font-semibold text-teal-600">
                                             {String(selectedItem.score)}%
                                         </div>
                                     </div>
@@ -2511,7 +3137,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900">Assign Work</h3>
+                                <h3 className="text-xl font-semibold text-slate-900">Assign Work</h3>
                                 <button onClick={() => setShowAssignModal(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                                     <X size={20} />
                                 </button>
@@ -2602,7 +3228,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setInsightAssignModalOpen(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
                                     <Sparkles className="text-teal-600 w-5 h-5" />
                                     Targeted Practice
                                 </h3>
@@ -2635,7 +3261,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                         <label className="block text-sm font-semibold text-slate-700 mb-1.5">Generated Pack</label>
                                         <div className="text-slate-900 font-medium px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl flex justify-between items-center">
                                             <span>{insightGeneratedPack.title}</span>
-                                            <span className="text-xs font-bold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">5 Qs</span>
+                                            <span className="text-xs font-semibold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">5 Qs</span>
                                         </div>
                                         <p className="text-xs text-slate-500 mt-2 px-1">
                                             {insightGeneratedPack.description}
@@ -2689,7 +3315,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setNudgeModalOpen(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
                                     <Send className="text-orange-500 w-5 h-5" />
                                     Send a Nudge
                                 </h3>
@@ -2764,7 +3390,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowCreateClass(false); setCreateClassError(null); }} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
                                     <Plus className="text-teal-600 w-5 h-5" />
                                     Create New Class
                                 </h3>
@@ -2854,7 +3480,23 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                     </div>
                 )}
 
+                {/* Practice Generator Drawer */}
+                <PracticeGeneratorDrawer
+                    isOpen={showPracticeGeneratorDrawer}
+                    onClose={() => setShowPracticeGeneratorDrawer(false)}
+                    onReview={(game) => {
+                        setReviewGamePack(game);
+                        setReviewQuestionIndex(0);
+                        setShowPracticeGeneratorDrawer(false);
+                    }}
+                    onAssign={(game) => {
+                        setPackToAssign(game);
+                        setShowAssignModal(true);
+                        setShowPracticeGeneratorDrawer(false);
+                    }}
+                />
             </div>
         </div>
     );
 }
+

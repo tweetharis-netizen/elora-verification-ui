@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Menu } from 'lucide-react';
+import { useDemoMode } from '../hooks/useDemoMode';
 
 interface DashboardHeaderProps {
   role: 'student' | 'teacher' | 'parent';
@@ -22,6 +23,8 @@ export function DashboardHeader({
   onMobileMenuToggle,
   notificationsNode
 }: DashboardHeaderProps) {
+  const isDemo = useDemoMode();
+
   const roleColors = {
     student: {
       text: 'text-purple-500',
@@ -63,6 +66,11 @@ export function DashboardHeader({
             >
               <Menu size={24} />
             </button>
+          )}
+          {isDemo && (
+            <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-widest text-slate-400 whitespace-nowrap">
+              DEMO EXPERIENCE
+            </span>
           )}
           <div className="relative group flex-1 hidden md:block">
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 ${colors.iconFocus} transition-colors`} size={18} />

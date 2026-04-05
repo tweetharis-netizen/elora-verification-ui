@@ -215,6 +215,21 @@ export const CopilotLayout: React.FC<{
                                 />
                             )}
 
+                            {role === 'Teacher' && (
+                                <NavItem
+                                    icon={<FileText size={20} />}
+                                    label="Assignments"
+                                    onClick={() => {
+                                        if (isDemo) {
+                                            navigate('/teacher/demo/assignments');
+                                        } else {
+                                            navigate('/teacher/assignments');
+                                        }
+                                    }}
+                                    collapsed={!isSidebarOpen}
+                                />
+                            )}
+
                             {role === 'Student' && (
                                 <NavItem
                                     icon={<BookOpen size={20} />}

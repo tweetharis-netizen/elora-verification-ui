@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     BookOpen,
-    Gamepad2,
+    FileText,
+    Target,
     Users,
     Settings,
     LogOut,
@@ -329,6 +330,47 @@ const TeacherCopilotPage: React.FC = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
+                        {/* Primary Teacher Navigation */}
+                        <div className="space-y-1.5 pb-4 border-b border-slate-100">
+                            <button
+                                onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            >
+                                <LayoutDashboard size={18} />
+                                <span>Dashboard</span>
+                            </button>
+                            <button
+                                onClick={() => navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes')}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            >
+                                <BookOpen size={18} />
+                                <span>My Classes</span>
+                            </button>
+                            <button
+                                onClick={() => navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments')}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            >
+                                <FileText size={18} />
+                                <span>Assignments</span>
+                            </button>
+                            <button
+                                onClick={() => navigate(isDemo ? '/teacher/demo/practice' : '/teacher/practice')}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            >
+                                <Target size={18} />
+                                <span>Practice & quizzes</span>
+                            </button>
+                            {!isDemo && (
+                                <button
+                                    onClick={() => navigate('/teacher/copilot')}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-teal-50 text-teal-700 border border-teal-200"
+                                >
+                                    <Sparkles size={18} />
+                                    <span>Copilot</span>
+                                </button>
+                            )}
+                        </div>
+
                         {/* Context Selection Pill */}
                         <div className="relative">
                             <button

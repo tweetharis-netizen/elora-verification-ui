@@ -69,6 +69,24 @@ body {
   margin: 0;
 }
 
+@keyframes demo-role-cross-fade {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.88;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.demo-role-switching #root {
+  animation: demo-role-cross-fade 300ms ease;
+}
+
 /* Typography Utility Classes */
 .text-h1 {
   font-family: var(--font-heading);

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Sparkles, BookOpen, Clock, AlertCircle } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
-import * as dataService from '../services/dataService';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { Sparkles, Clock, AlertCircle } from 'lucide-react';
 import { SectionSkeleton } from '../components/ui/SectionStates';
 import EloraAssistantCard from '../components/EloraAssistantCard';
 import { inferClassTheme } from '../lib/classTheme';
+import { useDemoMode } from '../hooks/useDemoMode';
 
 import {
     ClassroomHeader,
@@ -19,8 +18,7 @@ const VALID_TABS: ParentClassroomTab[] = ['overview', 'work', 'people'];
 export default function ParentClassroomPage() {
     const { childId, classId } = useParams<{ childId: string, classId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const { currentUser } = useAuth();
+    const isDemo = useDemoMode();
     
     const [loading, setLoading] = useState(true);
     const [childName, setChildName] = useState('Child');
@@ -90,145 +88,160 @@ export default function ParentClassroomPage() {
     };
 
     return (
-        <div className="flex h-screen bg-[#FDFBF5] flex-col overflow-hidden font-sans">
-            <header className="h-14 bg-white border-b border-[#EAE7DD] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/parent/demo')} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
-                        <ChevronLeft size={16} /> Back to Dashboard
-                    </button>
-                </div>
-                <div className="font-bold text-slate-800 text-lg">Elora Family</div>
-            </header>
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
+            {loading ? (
+                <SectionSkeleton rows={3} />
+            ) : (
+                <div className="flex flex-col">
+                    <div className="flex flex-col">
+                        <ClassroomHeader
+                            currentClass={currentClass}
+                            classroomTitle={`${childName.split(' ')[0]}'s ${currentClass?.name}`}
+                            role="parent"
+                            leftUtilityBadge={currentClass?.subject || 'Class Info'}
+                            rightUtilityBadge="Grade"
+                            themeColor="teal"
+                            bannerStyle={currentTheme?.bannerStyle}
+                            playfulBackground={currentTheme?.playfulBackground}
+                            sublines={[`Child: ${childName}`, `Teacher: ${currentClass?.teacher}`]}
+                        />
+                        <ClassroomTabs
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                            role="parent"
+                            themeColor="teal"
+                            bannerStyle={currentTheme?.bannerStyle}
+                            subject={currentClass?.subject}
+                            currentClass={currentClass}
+                            tabs={[
+                                { id: 'overview', label: 'Overview' },
+                                { id: 'work', label: 'Work' },
+                                { id: 'people', label: 'People' },
+                            ]}
+                        />
+                    </div>
 
-            <main className="flex-1 overflow-y-auto w-full relative">
-                <div className="max-w-4xl mx-auto px-4 lg:px-8 py-6 pb-24">
-                    {loading ? (
-                        <SectionSkeleton rows={3} />
-                    ) : (
-                        <div className="flex flex-col">
-                            <div className="flex flex-col">
-                                <ClassroomHeader 
-                                    currentClass={currentClass} 
-                                    classroomTitle={`${childName.split(' ')[0]}'s ${currentClass?.name}`}
-                                    role="parent"
-                                    themeColor={currentTheme?.themeColor}
-                                    bannerStyle={currentTheme?.bannerStyle}
-                                    playfulBackground={currentTheme?.playfulBackground}
-                                    sublines={[
-                                        `Child: ${childName}`,
-                                        `Teacher: ${currentClass?.teacher}`
-                                    ]}
-                                />
-                                <ClassroomTabs 
-                                    activeTab={activeTab} 
-                                    onTabChange={handleTabChange}
-                                    themeColor={currentTheme?.themeColor}
-                                    bannerStyle={currentTheme?.bannerStyle}
-                                    subject={currentClass?.subject}
-                                    currentClass={currentClass}
-                                    tabs={[
-                                        { id: 'overview', label: 'Overview' },
-                                        { id: 'work', label: 'Work' },
-                                        { id: 'people', label: 'People' },
-                                    ]}
-                                />
-                            </div>
-
-                            <section className="bg-white border border-[#EAE7DD] shadow-sm p-4 lg:p-6 rounded-2xl">
-                                {activeTab === 'overview' && (
-                                    <div className="space-y-6">
-                                        <div className="bg-orange-50 border border-orange-100 rounded-xl p-5 shadow-sm">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <AlertCircle className="w-5 h-5 text-orange-600" />
-                                                <h3 className="text-orange-800 font-bold text-lg">Needs Attention</h3>
-                                            </div>
-                                            <p className="text-orange-700 text-sm ml-8">
-                                                {childName.split(' ')[0]} has 1 overdue assignment and is struggling with Algebra – Factorisation.
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6 items-start mt-6">
+                        <aside className="space-y-6 xl:sticky xl:top-6">
+                            <section className="bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="px-4 py-3 border-b border-[#EAEAEA] bg-slate-50/40">
+                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Child Snapshot</p>
+                                    <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900">Overview</h3>
+                                </div>
+                                <div className="divide-y divide-slate-100">
+                                    {upcomingWork.slice(0, 3).map((work) => (
+                                        <div key={work.id} className="px-4 py-3">
+                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{work.type}</p>
+                                            <p className="text-sm font-semibold text-slate-900 mt-1 truncate">{work.title}</p>
+                                            <p className={`text-sm mt-1 ${work.status === 'Overdue' ? 'font-semibold text-[#9F1239]' : 'text-slate-500'}`}>
+                                                {work.status === 'Overdue' ? 'Overdue' : formatDateTime(work.dueDate)}
                                             </p>
                                         </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </aside>
 
-                                        <div>
-                                            <h4 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                                <Sparkles className="w-4 h-4 text-teal-600" /> Elora Insights
-                                            </h4>
-                                            <EloraAssistantCard
-                                                role="parent"
-                                                assistantName="Elora"
-                                                title={`Insights for ${childName}`}
-                                                description="Get AI-powered insights about your child's progress."
-                                                accentClasses={{
-                                                    chipBg: 'bg-teal-50 hover:bg-teal-100',
-                                                    buttonBg: 'bg-teal-600 hover:bg-teal-700',
-                                                    iconBg: 'bg-teal-100',
-                                                    text: 'text-teal-900',
-                                                }}
-                                            />
+                        <section className="w-full max-w-[800px] xl:justify-self-end bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 lg:p-6">
+                            {activeTab === 'people' ? (
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Teacher Connection</h3>
+                                    </div>
+
+                                    <div className="bg-white border border-[#EAE7DD] rounded-xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                        <div className="border-b border-[#EAE7DD] bg-slate-50 px-5 py-3">
+                                            <h4 className="text-sm font-semibold text-slate-700">Class Teacher</h4>
+                                        </div>
+                                        <div className="px-5 py-4">
+                                            <div className="flex items-center gap-3 w-full">
+                                                <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
+                                                    <span className="font-semibold">MT</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-semibold text-slate-900">{currentClass?.teacher || 'Teacher'}</span>
+                                                    <button className="text-teal-600 text-sm font-medium hover:underline text-left">Message Teacher</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
+                            ) : (
+                                <>
+                                    {activeTab === 'overview' && (
+                                        <div className="space-y-6">
+                                            <div className="bg-rose-50 border border-rose-100 rounded-xl p-5 shadow-sm">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <AlertCircle className="w-5 h-5 text-[#9F1239]" />
+                                                    <h3 className="text-[#9F1239] font-semibold text-lg tracking-tight">Needs Attention</h3>
+                                                </div>
+                                                <p className="text-slate-700 text-sm ml-8">
+                                                    {childName.split(' ')[0]} has 1 overdue assignment and is struggling with Algebra - Factorisation.
+                                                </p>
+                                            </div>
 
-                                {activeTab === 'work' && (
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Work & Assignments</h3>
-                                            <p className="text-sm text-slate-500 mt-1">Status of {childName.split(' ')[0]}'s recent and upcoming work.</p>
+                                            <div>
+                                                <h4 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
+                                                    <Sparkles className="w-4 h-4 text-teal-600" /> Elora Insights
+                                                </h4>
+                                                <EloraAssistantCard
+                                                    role="parent"
+                                                    assistantName="Elora"
+                                                    title={`Insights for ${childName}`}
+                                                    description="Get AI-powered insights about your child's progress."
+                                                    accentClasses={{
+                                                        chipBg: 'bg-teal-50 hover:bg-teal-100',
+                                                        buttonBg: 'bg-teal-600 hover:bg-teal-700',
+                                                        iconBg: 'bg-teal-100',
+                                                        text: 'text-teal-900',
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        
-                                        <div className="divide-y divide-[#EAE7DD] border border-[#EAE7DD] rounded-xl overflow-hidden">
-                                            {upcomingWork.map(work => (
-                                                <div key={work.id} className="p-4 flex flex-wrap gap-4 items-center justify-between hover:bg-slate-50 transition-colors">
-                                                    <div>
-                                                        <h4 className="font-semibold text-slate-800">{work.title}</h4>
-                                                        <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
-                                                            <Clock className="w-3.5 h-3.5" />
-                                                            {formatDateTime(work.dueDate)}
+                                    )}
+
+                                    {activeTab === 'work' && (
+                                        <div className="space-y-6">
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Detailed Reports</h3>
+                                                <p className="text-sm text-slate-500 mt-1">Status of {childName.split(' ')[0]}'s recent and upcoming work.</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {upcomingWork.map((work) => (
+                                                    <div key={work.id} className="bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 flex flex-wrap gap-4 items-center justify-between hover:bg-slate-50 transition-colors">
+                                                        <div className="min-w-0 flex items-start gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
+                                                                <Clock className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{work.type}</p>
+                                                                <h4 className="font-semibold text-slate-800">{work.title}</h4>
+                                                                <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
+                                                                    {formatDateTime(work.dueDate)}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-semibold px-2 py-1 rounded bg-slate-100 text-slate-600 uppercase tracking-widest">
+                                                                {work.type}
+                                                            </span>
+                                                            <span className={`text-xs font-semibold px-2 py-1 rounded ${work.status === 'Overdue' ? 'bg-rose-50 text-[#9F1239]' : 'bg-teal-100 text-teal-800'}`}>
+                                                                {work.status}
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-semibold px-2 py-1 rounded bg-slate-100 text-slate-600">
-                                                            {work.type}
-                                                        </span>
-                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${
-                                                            work.status === 'Overdue' ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-800'
-                                                        }`}>
-                                                            {work.status}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {activeTab === 'people' && (
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Teacher Connection</h3>
-                                        </div>
-                                        
-                                        <div className="bg-white border border-[#EAE7DD] rounded-2xl overflow-hidden shadow-sm">
-                                            <div className="border-b border-[#EAE7DD] bg-slate-50 px-5 py-3">
-                                                <h4 className="text-sm font-semibold text-slate-700">Class Teacher</h4>
-                                            </div>
-                                            <div className="px-5 py-4">
-                                                <div className="flex items-center gap-3 w-full">
-                                                    <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
-                                                        <span className="text-teal-700 font-bold">MT</span>
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-semibold text-slate-900">{currentClass?.teacher || 'Teacher'}</span>
-                                                        <button className="text-teal-600 text-sm font-medium hover:underline text-left">Message Teacher</button>
-                                                    </div>
-                                                </div>
+                                                ))}
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-                            </section>
-                        </div>
-                    )}
+                                    )}
+                                </>
+                            )}
+                        </section>
+                    </div>
                 </div>
-            </main>
+            )}
         </div>
     );
 }

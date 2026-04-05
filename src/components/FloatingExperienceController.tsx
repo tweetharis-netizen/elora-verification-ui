@@ -89,7 +89,7 @@ export const FloatingExperienceController = () => {
   };
 
   return (
-    <div className="fixed bottom-6 z-[100] -translate-x-1/2 pointer-events-auto" style={{ left: controllerLeft }}>
+    <div className="fixed bottom-6 z-50 -translate-x-1/2 pointer-events-auto" style={{ left: controllerLeft }}>
       <div className="rounded-xl border border-white/40 bg-white/70 px-2 py-2 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-1.5">
           {roles.map((role) => {

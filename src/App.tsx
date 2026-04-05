@@ -21,6 +21,7 @@ import ParentClassroomPage from './pages/ParentClassroomPage';
 import ParentCopilotPage from './pages/ParentCopilotPage';
 import StudentShellLayout from './components/layout/StudentShellLayout';
 import ParentShellLayout from './components/layout/ParentShellLayout';
+import TeacherShellLayout from './components/layout/TeacherShellLayout';
 import OurStoryPage from './pages/OurStoryPage';
 import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -769,106 +770,55 @@ export default function App() {
       <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
 
       {/* Demo routes – no auth required */}
-      <Route path="/teacher/demo" element={<TeacherDashboardPage isDemo />} />
-      <Route path="/teacher/demo/classes" element={<TeacherDashboardPage isDemo activeTab="classes" />} />
-      <Route path="/teacher/demo/assignments" element={<TeacherDashboardPage isDemo activeTab="assignments" />} />
-        <Route path="/teacher/demo/practice" element={<TeacherPracticePage />} />
-      <Route path="/teacher/demo/class/:classId" element={<TeacherClassroomPage />} />
-      <Route path="/teacher/copilot/demo" element={<TeacherCopilotPage />} />
+      <Route path="/teacher/demo" element={<TeacherShellLayout />}>
+        <Route index element={<TeacherDashboardPage embeddedInShell />} />
+        <Route path="classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
+        <Route path="assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+        <Route path="practice" element={<TeacherPracticePage />} />
+        <Route path="class/:classId" element={<TeacherClassroomPage embeddedInShell />} />
+        <Route path="copilot" element={<TeacherCopilotPage embeddedInShell />} />
+      </Route>
+      <Route path="/teacher/copilot/demo" element={<Navigate to="/teacher/demo/copilot" replace />} />
       <Route path="/student/demo" element={<StudentShellLayout />}>
-        <Route index element={<StudentDashboardPage embeddedInShell isDemo />} />
-        <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell isDemo />} />
-        <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell isDemo />} />
+        <Route index element={<StudentDashboardPage embeddedInShell />} />
+        <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
+        <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
         <Route path="class/:classId" element={<StudentClassroomPage />} />
       </Route>
       <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
       <Route path="/parent/demo" element={<ParentShellLayout />}>
-        <Route index element={<ParentDashboardPage embeddedInShell isDemo />} />
+        <Route index element={<ParentDashboardPage embeddedInShell />} />
         <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
       </Route>
       <Route path="/parent/copilot/demo" element={<ParentCopilotPage />} />
-      <Route path="/dashboard/teacher" element={
-        <ProtectedRoute>
-          <TeacherDashboardPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher" element={
-        <ProtectedRoute>
-          <TeacherDashboardPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/classes" element={
-        <ProtectedRoute>
-          <TeacherDashboardPage activeTab="classes" />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/assignments" element={
-        <ProtectedRoute>
-          <TeacherDashboardPage activeTab="assignments" />
-        </ProtectedRoute>
-      } />
-        <Route path="/teacher/practice" element={
-          <ProtectedRoute>
-            <TeacherPracticePage />
-          </ProtectedRoute>
-        } />
-      <Route path="/teacher/classes/:classId" element={
-        <ProtectedRoute>
-          <TeacherClassroomPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/work" element={
-        <ProtectedRoute>
-          <TeacherDashboardPage activeTab="work" />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/copilot" element={
-        <ProtectedRoute>
-          <TeacherCopilotPage />
-        </ProtectedRoute>
-      } />
-      <Route element={
-        <ProtectedRoute>
-          <StudentShellLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="/dashboard/student" element={<StudentDashboardPage embeddedInShell />} />
-        <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
-        <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
-        <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<TeacherShellLayout />}>
+          <Route path="/dashboard/teacher" element={<TeacherDashboardPage embeddedInShell />} />
+          <Route path="/teacher" element={<Navigate to="/dashboard/teacher" replace />} />
+          <Route path="/teacher/classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
+          <Route path="/teacher/assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+          <Route path="/teacher/practice" element={<TeacherPracticePage />} />
+          <Route path="/teacher/classes/:classId" element={<TeacherClassroomPage embeddedInShell />} />
+          <Route path="/teacher/work" element={<Navigate to="/dashboard/teacher" replace />} />
+          <Route path="/teacher/copilot" element={<TeacherCopilotPage embeddedInShell />} />
+        </Route>
+
+        <Route element={<StudentShellLayout />}>
+          <Route path="/dashboard/student" element={<StudentDashboardPage embeddedInShell />} />
+          <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
+          <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
+          <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+        </Route>
+
+        <Route element={<ParentShellLayout />}>
+          <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
+          <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
+        </Route>
+
+        <Route path="/student/copilot" element={<StudentCopilotPage />} />
+        <Route path="/parent/copilot" element={<ParentCopilotPage />} />
+        <Route path="/play/:packId" element={<StudentGamePage />} />
       </Route>
-      <Route
-        path="/student/copilot"
-        element={
-          <ProtectedRoute>
-            <StudentCopilotPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route element={
-        <ProtectedRoute>
-          <ParentShellLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
-        <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
-      </Route>
-      <Route
-        path="/parent/copilot"
-        element={
-          <ProtectedRoute>
-            <ParentCopilotPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/play/:packId"
-        element={
-          <ProtectedRoute>
-            <StudentGamePage />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Legacy /dashboard → teacher dashboard (backward compat) */}
       <Route path="/dashboard" element={<Navigate to="/dashboard/teacher" replace />} />

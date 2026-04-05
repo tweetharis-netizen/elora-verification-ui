@@ -42,7 +42,7 @@ function SidebarItem({
     >
       <Icon size={20} className="shrink-0" />
       {!collapsed && <span className="whitespace-nowrap">{label}</span>}
-      {active && !collapsed && <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />}
+      {active && !collapsed && <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current" />}
     </button>
   );
 }
@@ -116,14 +116,14 @@ export default function ParentShellLayout() {
     <div className="flex min-h-screen bg-[#FDFBF5] text-slate-900 overflow-x-hidden">
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       <aside
         id="parent-shell-sidebar"
-        className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
       >
         <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
@@ -157,7 +157,19 @@ export default function ParentShellLayout() {
               <SidebarItem
                 icon={item.icon}
                 label={item.label}
-                active={item.isActive(pathname, hash)}
+                active={item.id === 'overview'
+                  ? pathname === dashboardPath && (!hash || hash === '#overview')
+                  : item.id === 'copilot'
+                    ? pathname.startsWith(isDemo ? '/parent/copilot/demo' : '/parent/copilot')
+                    : item.id === 'children'
+                      ? pathname === dashboardPath && hash === '#children'
+                      : item.id === 'progress'
+                        ? pathname === dashboardPath && hash === '#progress'
+                        : item.id === 'assignments'
+                          ? pathname === dashboardPath && hash === '#assignments'
+                          : item.id === 'messages'
+                            ? pathname === dashboardPath && hash === '#messages'
+                            : false}
                 collapsed={!isSidebarOpen}
                 onClick={() => {
                   navigate(item.to);
@@ -180,10 +192,10 @@ export default function ParentShellLayout() {
             </button>
           )}
 
-          <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+          <SidebarItem icon={Settings} label="Settings" active={false} collapsed={!isSidebarOpen} theme={sidebarTheme} />
           <button
             onClick={logout}
-            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
+            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
             title={!isSidebarOpen ? 'Sign out' : undefined}
           >
             <LogOut size={20} className="shrink-0" />

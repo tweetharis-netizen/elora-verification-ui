@@ -5,7 +5,7 @@ import TeacherDashboardPage from './TeacherDashboardPage';
 type ClassroomTab = 'stream' | 'classwork' | 'people' | 'grades';
 const VALID_TABS: ClassroomTab[] = ['stream', 'classwork', 'people', 'grades'];
 
-export default function TeacherClassroomPage() {
+export default function TeacherClassroomPage({ embeddedInShell = false }: { embeddedInShell?: boolean }) {
     const { classId } = useParams<{ classId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -25,6 +25,7 @@ export default function TeacherClassroomPage() {
             initialClassId={classId}
             initialClassroomTab={activeTab}
             forcedClassroomMode
+            embeddedInShell={embeddedInShell}
         />
     );
 }

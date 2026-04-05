@@ -5,11 +5,11 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -20,5 +20,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         return <Navigate to="/login" replace />;
     }
 
-    return <>{children}</>;
+    if (children) {
+        return <>{children}</>;
+    }
+
+    return <Outlet />;
 }

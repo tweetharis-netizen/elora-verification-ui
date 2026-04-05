@@ -1,35 +1,19 @@
 // src/pages/TeacherPracticePage.tsx
 import React, { useState } from 'react';
 import {
-    ArrowUpRight,
     Plus,
-    TrendingUp,
     Target,
     ChevronRight,
     AlertCircle,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { DashboardShell } from '../components/ui/DashboardShell';
 import { DashboardCard } from '../components/ui/DashboardCard';
 import { DashboardSectionHeader } from '../components/ui/DashboardSectionHeader';
 import { PracticeGeneratorDrawer } from '../components/PracticeGeneratorDrawer';
-import * as dataService from '../services/dataService';
+import type { ClassroomPracticeMock } from '../services/dataService';
 import { useDemoMode } from '../hooks/useDemoMode';
-import { demoClassroomPractices, DEMO_CLASS_NAME } from '../demo/demoTeacherScenarioA';
-
-interface PracticeItem {
-    id: string;
-    title: string;
-    topic: string;
-    className: string;
-    submittedCount: number;
-    totalCount: number;
-    questionCount?: number;
-    averageScore: number;
-    status: string;
-    statusLabel: string;
-    needsAttention?: boolean;
-}
+import { DEMO_CLASS_NAME } from '../demo/demoTeacherScenarioA';
 
 export default function TeacherPracticePage() {
     const navigate = useNavigate();
@@ -37,12 +21,15 @@ export default function TeacherPracticePage() {
     const [showGeneratorDrawer, setShowGeneratorDrawer] = useState(false);
 
     // Demo data
-    const practiceSets: PracticeItem[] = isDemo
+    const practiceSets: ClassroomPracticeMock[] = isDemo
         ? [
             {
                 id: 'cls-practice-1',
+                classId: 'demo-class-1',
                 title: 'Algebra: Factorisation Mastery',
                 topic: 'Algebra – Factorisation',
+                sourceType: 'generated',
+                questionCount: 10,
                 className: DEMO_CLASS_NAME,
                 submittedCount: 8,
                 totalCount: 32,
@@ -50,11 +37,15 @@ export default function TeacherPracticePage() {
                 status: 'upcoming',
                 statusLabel: 'Recommended this week',
                 needsAttention: true,
+                studentStatus: 'upcoming',
             },
             {
                 id: 'cls-practice-2',
+                classId: 'demo-class-1',
                 title: 'Quick Equations Drill',
                 topic: 'Algebra – Linear Equations',
+                sourceType: 'curated',
+                questionCount: 10,
                 className: DEMO_CLASS_NAME,
                 submittedCount: 27,
                 totalCount: 32,
@@ -62,6 +53,7 @@ export default function TeacherPracticePage() {
                 status: 'completed',
                 statusLabel: 'Completed by most students',
                 needsAttention: false,
+                studentStatus: 'completed',
             },
         ]
         : [];
@@ -70,12 +62,12 @@ export default function TeacherPracticePage() {
     const targetingWeakTopics = practiceSets.filter((p) => p.needsAttention).length;
 
     return (
-        <div className="min-h-screen bg-[#FDFBF5] font-sans">
+        <div className="min-h-full bg-[#FDFBF5] font-sans">
             <DashboardShell>
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
                     <div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+                        <h1 className="text-3xl font-semibold tracking-[-0.02em] text-slate-900">
                             Practice & quizzes
                         </h1>
                         <p className="mt-2 text-sm text-slate-600">
@@ -104,11 +96,12 @@ export default function TeacherPracticePage() {
                             }
                         />
 
-                        {practiceSets.length > 0 ? (
+                        {(practiceSets?.length ?? 0) > 0 ? (
                             <div className="space-y-4">
-                                {practiceSets.map((practice) => {
-                                    const submissionPercent = (practice.submittedCount / practice.totalCount) * 100;
-                                    const hasAttentionSignal = practice.needsAttention || practice.averageScore < 70;
+                                {(practiceSets ?? []).map((practice) => {
+                                    const submissionPercent = practice.totalCount > 0 ? (practice.submittedCount / practice.totalCount) * 100 : 0;
+                                    const averageScore = practice.averageScore ?? 0;
+                                    const hasAttentionSignal = practice.needsAttention || averageScore < 70;
 
                                     return (
                                         <React.Fragment key={practice.id}>
@@ -131,7 +124,7 @@ export default function TeacherPracticePage() {
                                                     <span
                                                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 ${
                                                             hasAttentionSignal
-                                                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                                                ? 'bg-[#9F1239]/10 text-[#9F1239] border border-[#9F1239]/30'
                                                                 : 'bg-teal-50 text-teal-700 border border-teal-200'
                                                         }`}
                                                     >
@@ -157,11 +150,11 @@ export default function TeacherPracticePage() {
                                                         <p
                                                             className={`mt-1 text-base font-semibold tabular-nums ${
                                                                 hasAttentionSignal
-                                                                    ? 'text-red-700'
+                                                                    ? 'text-[#9F1239]'
                                                                     : 'text-teal-700'
                                                             }`}
                                                         >
-                                                            {practice.averageScore}%
+                                                            {averageScore}%
                                                         </p>
                                                     </div>
                                                     <div className="px-3 py-2 bg-slate-50/50 rounded-lg">
@@ -188,7 +181,7 @@ export default function TeacherPracticePage() {
                                                         <div
                                                             className={`h-full transition-all ${
                                                                 hasAttentionSignal
-                                                                    ? 'bg-red-500'
+                                                                    ? 'bg-[#9F1239]'
                                                                     : 'bg-teal-500'
                                                             }`}
                                                             style={{ width: `${submissionPercent}%` }}
@@ -246,10 +239,10 @@ export default function TeacherPracticePage() {
                             </div>
                             <div className="border-t border-slate-200 pt-4">
                                 <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest mb-2">
-                                    Targeting Weak Topics
+                                    Mastery
                                 </p>
-                                <p className="text-3xl font-semibold text-orange-600 tabular-nums">
-                                    {targetingWeakTopics}
+                                <p className="text-3xl font-semibold text-[#9F1239] tabular-nums">
+                                    {totalActiveSets > 0 ? `${Math.max(0, 100 - (targetingWeakTopics * 22))}%` : '—'}
                                 </p>
                             </div>
                         </DashboardCard>

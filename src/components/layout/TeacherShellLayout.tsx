@@ -1,43 +1,50 @@
 import React, { useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, Gamepad2, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, TrendingUp, X } from 'lucide-react';
+import { BookOpen, FileText, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Target, TrendingUp, X } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { useSidebarState } from '../../hooks/useSidebarState';
 import { useDemoMode } from '../../hooks/useDemoMode';
+import { useSidebarState } from '../../hooks/useSidebarState';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../../lib/roleTheme';
 import { DashboardHeader } from '../DashboardHeader';
 import { EloraLogo } from '../EloraLogo';
-import { demoStudentName } from '../../demo/demoStudentScenarioA';
+import { demoTeacherName } from '../../demo/demoTeacherScenarioA';
 
 type NavItemConfig = {
   id: string;
   label: string;
   icon: any;
   to: string;
-  isActive: (pathname: string, hash: string) => boolean;
+  end?: boolean;
 };
 
-function SidebarItem({
+function SidebarLink({
   icon: Icon,
   label,
-  active,
+  to,
+  active = false,
   collapsed,
-  onClick,
+  onNavigate,
   theme,
 }: {
   icon: any;
   label: string;
+  to: string;
   active?: boolean;
   collapsed?: boolean;
-  onClick?: () => void;
+  onNavigate?: () => void;
   theme: RoleSidebarTheme;
 }) {
+  const navigate = useNavigate();
   const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
   const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
 
   return (
     <button
-      onClick={onClick}
+      type="button"
+      onClick={() => {
+        navigate(to);
+        onNavigate?.();
+      }}
       className={`group relative flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
       title={collapsed ? label : undefined}
     >
@@ -48,68 +55,67 @@ function SidebarItem({
   );
 }
 
-export default function StudentShellLayout() {
+export default function TeacherShellLayout() {
+  const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { pathname, hash } = useLocation();
   const { currentUser, logout } = useAuth();
   const isDemo = useDemoMode();
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const sidebarTheme = getRoleSidebarTheme('student');
+  const sidebarTheme = getRoleSidebarTheme('teacher');
 
   const navItems: NavItemConfig[] = useMemo(() => {
-    const base = isDemo ? '/student/demo' : '/dashboard/student';
-    const classes = isDemo ? '/student/demo/classes' : '/student/classes';
-    const assignments = isDemo ? '/student/demo/assignments' : '/student/assignments';
-    const copilot = isDemo ? '/student/copilot/demo' : '/student/copilot';
+    const dashboard = isDemo ? '/teacher/demo' : '/dashboard/teacher';
+    const classes = isDemo ? '/teacher/demo/classes' : '/teacher/classes';
+    const assignments = isDemo ? '/teacher/demo/assignments' : '/teacher/assignments';
+    const practice = isDemo ? '/teacher/demo/practice' : '/teacher/practice';
+    const copilot = isDemo ? '/teacher/demo/copilot' : '/teacher/copilot';
 
     return [
       {
-        id: 'overview',
-        label: 'Overview',
+        id: 'dashboard',
+        label: 'Dashboard',
         icon: LayoutDashboard,
-        to: base,
-        isActive: (p, h) => p === base && h !== '#practice' && h !== '#reports',
+        to: dashboard,
+        end: true,
       },
       {
         id: 'classes',
         label: 'My Classes',
         icon: BookOpen,
         to: classes,
-        isActive: (p) => p === classes || p.startsWith(isDemo ? '/student/demo/class/' : '/student/class/'),
-      },
-      {
-        id: 'copilot',
-        label: 'Copilot',
-        icon: Sparkles,
-        to: copilot,
-        isActive: (p) => p.startsWith(isDemo ? '/student/copilot/demo' : '/student/copilot'),
-      },
-      {
-        id: 'practice',
-        label: 'Practice & Quizzes',
-        icon: Gamepad2,
-        to: `${base}#practice`,
-        isActive: (p, h) => p === base && h === '#practice',
       },
       {
         id: 'assignments',
         label: 'Assignments',
         icon: FileText,
         to: assignments,
-        isActive: (p) => p === assignments,
+        end: true,
+      },
+      {
+        id: 'practice',
+        label: 'Practice & quizzes',
+        icon: Target,
+        to: practice,
+        end: true,
+      },
+      {
+        id: 'copilot',
+        label: 'Copilot',
+        icon: Sparkles,
+        to: copilot,
+        end: true,
       },
       {
         id: 'reports',
         label: 'Reports',
         icon: TrendingUp,
-        to: `${base}#reports`,
-        isActive: (p, h) => p === base && h === '#reports',
+        to: `${dashboard}#reports`,
       },
     ];
   }, [isDemo]);
 
-  const displayName = isDemo ? demoStudentName : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
+  const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
   const initials = displayName
     .split(' ')
     .map((part) => part[0])
@@ -127,7 +133,7 @@ export default function StudentShellLayout() {
       )}
 
       <aside
-        id="student-shell-sidebar"
+        id="teacher-shell-sidebar"
         className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
@@ -158,32 +164,30 @@ export default function StudentShellLayout() {
           {navItems
             .filter((item) => !(isDemo && (item.id === 'copilot' || item.id === 'reports')))
             .map((item) => (
-            <React.Fragment key={item.id}>
-              <SidebarItem
-                icon={item.icon}
-                label={item.label}
-                active={item.id === 'overview'
-                  ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash !== '#practice' && hash !== '#reports'
-                  : item.id === 'classes'
-                    ? pathname === (isDemo ? '/student/demo/classes' : '/student/classes') || pathname.startsWith(isDemo ? '/student/demo/class/' : '/student/class/')
-                    : item.id === 'copilot'
-                      ? pathname.startsWith(isDemo ? '/student/copilot/demo' : '/student/copilot')
-                      : item.id === 'practice'
-                        ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash === '#practice'
+              <React.Fragment key={item.id}>
+                <SidebarLink
+                  icon={item.icon}
+                  label={item.label}
+                  to={item.to}
+                  active={
+                    item.id === 'dashboard'
+                      ? pathname === (isDemo ? '/teacher/demo' : '/dashboard/teacher')
+                      : item.id === 'classes'
+                        ? pathname === (isDemo ? '/teacher/demo/classes' : '/teacher/classes') || pathname.startsWith(isDemo ? '/teacher/demo/class/' : '/teacher/classes/')
                         : item.id === 'assignments'
-                          ? pathname === (isDemo ? '/student/demo/assignments' : '/student/assignments')
-                          : item.id === 'reports'
-                            ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash === '#reports'
-                            : false}
-                collapsed={!isSidebarOpen}
-                onClick={() => {
-                  navigate(item.to);
-                  setIsMobileMenuOpen(false);
-                }}
-                theme={sidebarTheme}
-              />
-            </React.Fragment>
-          ))}
+                          ? pathname === (isDemo ? '/teacher/demo/assignments' : '/teacher/assignments')
+                          : item.id === 'practice'
+                            ? pathname === (isDemo ? '/teacher/demo/practice' : '/teacher/practice')
+                            : item.id === 'copilot'
+                              ? pathname.startsWith(isDemo ? '/teacher/demo/copilot' : '/teacher/copilot')
+                              : false
+                  }
+                  collapsed={!isSidebarOpen}
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                  theme={sidebarTheme}
+                />
+              </React.Fragment>
+            ))}
         </nav>
 
         <div className={`mt-auto p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>
@@ -197,7 +201,14 @@ export default function StudentShellLayout() {
             </button>
           )}
 
-          <SidebarItem icon={Settings} label="Settings" active={false} collapsed={!isSidebarOpen} theme={sidebarTheme} />
+          <SidebarLink
+            icon={Settings}
+            label="Settings"
+            to={pathname}
+            active={false}
+            collapsed={!isSidebarOpen}
+            theme={sidebarTheme}
+          />
 
           <button
             onClick={logout}
@@ -212,13 +223,13 @@ export default function StudentShellLayout() {
 
       <main className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#FDFBF5]/50 overflow-x-hidden">
         <DashboardHeader
-          role="student"
+          role="teacher"
           displayName={displayName}
-          roleLabel="STUDENT"
-          avatarInitials={initials || 'S'}
+          roleLabel="TEACHER"
+          avatarInitials={initials || 'T'}
           onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
         />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 transition-opacity duration-300 ease-out motion-safe:animate-in motion-safe:fade-in">
           <Outlet />
         </div>
       </main>

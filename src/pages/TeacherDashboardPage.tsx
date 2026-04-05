@@ -3,24 +3,18 @@ import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
     BookOpen,
-    Gamepad2,
     Users,
     Settings,
-    Bell,
-    Search,
     Plus,
     FileText,
-    MonitorPlay,
     TrendingUp,
     TrendingDown,
     ArrowUpRight,
     ArrowDownRight,
     Clock,
     ChevronRight,
-    ChevronLeft,
     ChevronDown,
     ChevronUp,
-    Pencil,
     X,
     AlertCircle,
     MoreHorizontal,
@@ -31,14 +25,9 @@ import {
     PanelLeftOpen,
     CheckCircle2,
     Send,
-    Inbox,
     RefreshCw,
-    Heart,
-    GraduationCap,
-    UserPlus,
     UserMinus,
     Target,
-    Menu,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -53,7 +42,6 @@ import { EloraLogo } from '../components/EloraLogo';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { useDemoMode } from '../hooks/useDemoMode';
-import { useAuthGate } from '../hooks/useAuthGate';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
@@ -81,7 +69,7 @@ import {
 } from '../components/classroom/ClassroomComponents';
 import { ClassroomBreadcrumb } from '../components/layout/ClassroomBreadcrumb';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
-import { PracticeGeneratorDrawer } from '../components/PracticeGeneratorDrawer';
+import { PracticeGeneratorDrawer, type PracticeGeneratorForm } from '../components/PracticeGeneratorDrawer';
 
 // ── DEV HELPER ────────────────────────────────────────────────────────────────
 // Shown when the user somehow reaches this page without being verified.
@@ -263,435 +251,6 @@ const StatusBadge = ({ status }: { status: string }) => {
             {icon}
             {status}
         </span>
-    );
-};
-
-// ── AI Game Generator Panel ────────────────────────────────────────────────────
-
-interface AiForm {
-    topic: string;
-    level: string;
-    questionCount: number;
-    difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
-    questionType: 'mcq' | 'open_ended'; // user specifically mentioned MCQ
-}
-
-interface AiGamePanelProps {
-    onClose: () => void;
-    onReview: (game: dataService.GamePack) => void;
-    onAssign: (game: dataService.GamePack) => void;
-    initialValues?: Partial<AiForm>;
-}
-
-interface QuestionPreviewItemProps {
-    key?: React.Key;
-    q: dataService.GameQuestion;
-    idx: number;
-    onUpdate?: (updated: dataService.GameQuestion) => void;
-}
-
-const QuestionPreviewItem = ({
-    q,
-    idx,
-    onUpdate
-}: QuestionPreviewItemProps) => {
-    const [showExplanation, setShowExplanation] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editPrompt, setEditPrompt] = useState(q.prompt);
-
-    const handleSave = () => {
-        if (onUpdate) {
-            onUpdate({ ...q, prompt: editPrompt });
-        }
-        setIsEditing(false);
-    };
-
-    return (
-        <div className="bg-[#FDFBF5] border border-[#EAE7DD] rounded-xl p-4 transition-all hover:shadow-sm group">
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2 flex-1">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold shrink-0">
-                        {idx + 1}
-                    </span>
-                    {isEditing ? (
-                        <div className="flex-1 flex gap-2">
-                            <input
-                                autoFocus
-                                value={editPrompt}
-                                onChange={(e) => setEditPrompt(e.target.value)}
-                                className="flex-1 px-3 py-1.5 text-sm bg-white border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                            />
-                            <button
-                                onClick={handleSave}
-                                className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
-                            >
-                                Save
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <h4 className="font-semibold text-slate-900 text-sm leading-snug">
-                                {q.prompt}
-                            </h4>
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-600 transition-all"
-                                title="Edit question"
-                            >
-                                <Pencil size={14} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-                {!isEditing && <StatusBadge status={q.difficulty} />}
-            </div>
-
-            <div className="flex flex-col gap-2 mb-3">
-                {q.options.map((opt, optIdx) => {
-                    const isCorrect = optIdx === q.correctIndex;
-                    return (
-                        <div
-                            key={optIdx}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors ${isCorrect
-                                ? 'border-teal-300 bg-teal-50 text-teal-900'
-                                : 'border-[#EAE7DD] bg-white text-slate-600'
-                                }`}
-                        >
-                            <div className="w-6 flex justify-center shrink-0">
-                                {isCorrect ? (
-                                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 text-white">
-                                        <Check size={12} strokeWidth={3} />
-                                    </div>
-                                ) : (
-                                    <span className="text-xs font-semibold text-slate-400">
-                                        {['A', 'B', 'C', 'D'][optIdx]}
-                                    </span>
-                                )}
-                            </div>
-                            <span className={isCorrect ? 'font-semibold' : ''}>{opt}</span>
-                            {isCorrect && (
-                                <span className="ml-auto text-[10px] font-semibold text-teal-600 uppercase tracking-wider">Correct</span>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {q.explanation && (
-                <div className="mt-2 border-t border-[#EAE7DD] pt-2">
-                    <button
-                        onClick={() => setShowExplanation(!showExplanation)}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-teal-600 transition-colors uppercase tracking-wider focus:outline-none"
-                    >
-                        {showExplanation ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                        {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
-                    </button>
-                    {showExplanation && (
-                        <div className="mt-2 p-3 bg-teal-50/50 rounded-lg border border-teal-100/50">
-                            <p className="text-xs font-semibold text-teal-800 mb-1 flex items-center gap-1">
-                                <Sparkles size={10} /> Why this is correct:
-                            </p>
-                            <p className="text-xs text-slate-600 leading-relaxed italic">
-                                {q.explanation}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
-
-const AiGamePanel = ({ onClose, onReview, onAssign, initialValues }: AiGamePanelProps) => {
-    const [aiForm, setAiForm] = useState<AiForm>({
-        topic: initialValues?.topic ?? '',
-        level: initialValues?.level ?? '',
-        questionCount: initialValues?.questionCount ?? 5,
-        difficulty: initialValues?.difficulty ?? 'mixed',
-        questionType: initialValues?.questionType ?? 'mcq',
-    });
-    const [generating, setGenerating] = useState(false);
-    const [generatedGame, setGeneratedGame] = useState<dataService.GamePack | null>(null);
-    const { withGate } = useAuthGate();
-
-    const isDemo = true; // Hardcoded or from hook for this component's scope if needed.
-
-    const handleUpdateQuestion = (idx: number, updated: dataService.GameQuestion) => {
-        if (!generatedGame) return;
-        const newQuestions = [...generatedGame.questions];
-        newQuestions[idx] = updated;
-        setGeneratedGame({ ...generatedGame, questions: newQuestions });
-    };
-    const [generateError, setGenerateError] = useState<string | null>(null);
-
-    // Auto-generate if pre-filled from an insight
-    useEffect(() => {
-        if (initialValues?.topic) {
-            handleGenerateInternal();
-        }
-    }, [initialValues]);
-
-    const handleGenerateInternal = async () => {
-        setGenerating(true);
-        setGenerateError(null);
-        setGeneratedGame(null);
-        try {
-            if (isDemo && aiForm.topic.toLowerCase().includes('factorisation')) {
-                // Mocked "Struggling Class" Demo Pack with Tutor-Style Explanations
-                await new Promise(r => setTimeout(r, 1500)); // Fake realistic delay
-                const pack: dataService.GamePack = {
-                    id: `demo-${Date.now()}`,
-                    title: `Algebra: Factorisation Mastery`,
-                    topic: aiForm.topic,
-                    level: aiForm.level,
-                    questions: [
-                        {
-                            id: 'demo-q1',
-                            prompt: 'Factorise x² + 7x + 12',
-                            options: ['(x+3)(x+4)', '(x+1)(x+12)', '(x+2)(x+6)', 'x(x+7) + 12'],
-                            correctIndex: 0,
-                            difficulty: 'medium',
-                            topic: 'Algebra – Factorisation',
-                            explanation: "This is a basic quadratic. Look for two numbers that multiply to 12 and add up to 7 (3 and 4).\n\nExample: (x + 3)(x + 4) = x² + 4x + 3x + 12 = x² + 7x + 12.\n\nWatch out: Don't flip the signs! Since all terms are positive, both binomial factors must be (x + constant)."
-                        },
-                        {
-                            id: 'demo-q2',
-                            prompt: 'Factorise completely: 4x² - 16',
-                            options: ['4(x-2)(x+2)', '(2x-4)(2x+4)', '4(x-4)(x+4)', '2(x²-8)'],
-                            correctIndex: 0,
-                            difficulty: 'hard',
-                            topic: 'Algebra – Factorisation',
-                            explanation: "First, look for a common factor (HCF). Both terms can be divided by 4, leaving (x² - 4).\n\nExample: 4(x² - 4) = 4(x - 2)(x + 2) using the difference of two squares.\n\nWatch out: Many students forget to factor out the 4 first and get stuck!"
-                        },
-                        {
-                            id: 'demo-q3',
-                            prompt: 'Factorise: x² - 9',
-                            options: ['(x-3)(x+3)', '(x-3)²', '(x+9)(x-1)', 'x(x-9)'],
-                            correctIndex: 0,
-                            difficulty: 'easy',
-                            topic: 'Algebra – Factorisation',
-                            explanation: "This is a classic 'Difference of Two Squares' (a² - b²). Notice that 9 is a perfect square (3²).\n\nExample: x² - 3² = (x - 3)(x + 3).\n\nWatch out: This only works with a minus sign in between! x² + 9 does not factorise this way."
-                        }
-                    ]
-                };
-                setGeneratedGame(pack);
-            } else {
-                const pack = await dataService.generateGamePack({
-                    topic: aiForm.topic,
-                    level: aiForm.level,
-                    questionCount: aiForm.questionCount,
-                    difficulty: aiForm.difficulty,
-                });
-                setGeneratedGame(pack);
-            }
-        } catch (err: unknown) {
-            setGenerateError(
-                err instanceof Error ? err.message : 'Failed to generate game'
-            );
-        } finally {
-            setGenerating(false);
-        }
-    };
-
-    const handleGenerate = (e: React.FormEvent) => {
-        e.preventDefault();
-        handleGenerateInternal();
-    };
-
-    return (
-        <section
-            className="bg-white rounded-3xl border border-[#EAE7DD] shadow-xl p-6 lg:p-8 mb-8 relative overflow-hidden"
-        >
-            {/* Background Accent */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-bl-full -mr-16 -mt-16 opacity-50 pointer-events-none" />
-
-            <div className="flex items-center justify-between mb-6 relative z-10">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
-                        <Sparkles size={20} />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-semibold tracking-tight text-slate-900">Practice Pack Generator</h2>
-                        <p className="text-sm text-slate-500 font-medium italic">Create targeted AI-driven exercises in seconds.</p>
-                    </div>
-                </div>
-                <button
-                    onClick={onClose}
-                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-100"
-                >
-                    <X size={20} />
-                </button>
-            </div>
-
-            <form onSubmit={handleGenerate} className="flex flex-col gap-6 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                            Subject &amp; Topic
-                        </label>
-                        <input
-                            required
-                            type="text"
-                            value={aiForm.topic}
-                            onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })}
-                            placeholder="e.g. Mathematics - Fractions"
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
-                        />
-                        <p className="mt-1.5 text-[11px] text-slate-400 font-medium pl-1">Explanations will reference this topic directly.</p>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                            Academic Level
-                        </label>
-                        <input
-                            required
-                            type="text"
-                            value={aiForm.level}
-                            onChange={(e) => setAiForm({ ...aiForm, level: e.target.value })}
-                            placeholder="e.g. Grade 5"
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
-                        />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                            Difficulty
-                        </label>
-                        <select
-                            value={aiForm.difficulty}
-                            onChange={(e) =>
-                                setAiForm({
-                                    ...aiForm,
-                                    difficulty: e.target.value as AiForm['difficulty'],
-                                })
-                            }
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium appearance-none cursor-pointer"
-                        >
-                            <option value="mixed">Mixed Balance</option>
-                            <option value="easy">Introductory</option>
-                            <option value="medium">Standard</option>
-                            <option value="hard">Advanced</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                            Question Count
-                        </label>
-                        <div className="relative">
-                            <input
-                                required
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={aiForm.questionCount}
-                                onChange={(e) =>
-                                    setAiForm({ ...aiForm, questionCount: parseInt(e.target.value) || 1 })
-                                }
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 text-sm focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 uppercase">Items</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                            Question Format
-                        </label>
-                        <div className="w-full px-4 py-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/20 text-xs font-semibold text-slate-400 flex items-center h-[46px]">
-                            Multiple choice · More formats coming soon
-                        </div>
-                    </div>
-                </div>
-
-                {generateError && (
-                    <div className="flex items-center gap-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-2xl px-5 py-4">
-                        <AlertCircle size={18} />
-                        {generateError}
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={generating}
-                    className="flex items-center justify-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]"
-                >
-                    {generating ? (
-                        <>
-                            <RefreshCw className="animate-spin" size={20} />
-                            Thinking...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles size={18} /> Generate Learning Content
-                        </>
-                    )}
-                </button>
-            </form>
-
-            {/* Results Preview */}
-            {generatedGame && (
-                <div className="mt-10 pt-8 border-t border-slate-100 relative z-10">
-                    <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-xl font-semibold text-slate-900">
-                                    {generatedGame.title}
-                                </h3>
-                                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 text-[10px] font-semibold rounded-full border border-teal-100 uppercase tracking-wider">Ready to review</span>
-                            </div>
-                            <p className="text-xs text-slate-400 font-medium">
-                                Topic: <span className="text-slate-600">{generatedGame.topic}</span> &nbsp;·&nbsp;
-                                Level: <span className="text-slate-600">{generatedGame.level}</span> &nbsp;·&nbsp;
-                                Questions: <span className="text-slate-600">{generatedGame.questions.length}</span>
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => onReview(generatedGame)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-semibold text-sm transition-all border border-slate-200 shadow-sm"
-                            >
-                                <MonitorPlay size={18} className="text-teal-600" /> Preview as student
-                            </button>
-                            <button
-                                onClick={() => onAssign(generatedGame)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-semibold text-sm transition-all shadow-lg shadow-teal-600/20"
-                            >
-                                <Plus size={18} /> Assign to Class
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between mb-2 px-1">
-                            <div className="flex items-center gap-2">
-                                <div className="h-4 w-1 bg-teal-500 rounded-full" />
-                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Question Preview</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium">Click on a question to edit its prompt</p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-5">
-                            {generatedGame.questions.map((q, idx) => (
-                                <QuestionPreviewItem
-                                    key={q.id}
-                                    q={q}
-                                    idx={idx}
-                                    onUpdate={(updated) => handleUpdateQuestion(idx, updated)}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Disclaimer */}
-                        <div className="mt-6 flex items-start gap-2 p-4 bg-orange-50/30 border border-orange-100 rounded-2xl">
-                            <AlertCircle size={14} className="text-orange-600 mt-0.5" />
-                            <p className="text-[11px] text-orange-800 leading-relaxed font-medium">
-                                Review these questions before assigning — AI-generated content may need editing for your class.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </section>
     );
 };
 
@@ -967,6 +526,7 @@ interface TeacherDashboardProps {
     forcedClassroomMode?: boolean;
     activeTab?: 'dashboard' | 'classes' | 'work' | 'assignments';
     isDemo?: boolean;
+    embeddedInShell?: boolean;
 }
 
 export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) {
@@ -974,8 +534,9 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const { hash } = useLocation();
     const { isVerified, logout, currentUser, login } = useAuth();
     const routeIsDemo = useDemoMode();
-    const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode, isDemo: isDemoProp } = props;
+    const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode, isDemo: isDemoProp, embeddedInShell = false } = props;
     const isDemo = isDemoProp ?? routeIsDemo;
+    const canUseDashboardHashSections = !forcedClassroomMode && (props.activeTab === undefined || props.activeTab === 'dashboard' || props.activeTab === 'work');
     const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
@@ -1117,8 +678,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [filter, setFilter] = useState('This week');
     const [perfTab, setPerfTab] = useState('Classes');
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
-    const [showAiPanel, setShowAiPanel] = useState(false);
-    const [aiPanelPrefill, setAiPanelPrefill] = useState<Partial<AiForm> | undefined>(undefined);
+    const [generatorPrefill, setGeneratorPrefill] = useState<Partial<PracticeGeneratorForm> | undefined>(undefined);
     const [showPracticeGeneratorDrawer, setShowPracticeGeneratorDrawer] = useState(false);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom' | 'assignments'>(() => {
         if (forcedClassroomMode) return 'classroom';
@@ -1138,22 +698,24 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setActiveTab('dashboard');
         }
         
-        // Deep linking hash synchronization for internal sections
-        if (hash === '#practice') {
-            setActiveTab('dashboard');
-            setShowAiPanel(true);
-        } else if (hash === '#reports') {
-            setActiveTab('dashboard');
-            setTimeout(() => {
-                document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
-            }, 500);
-        } else if (hash === '#resources') {
-            setActiveTab('dashboard');
-            setTimeout(() => {
-                document.getElementById('resources-section')?.scrollIntoView({ behavior: 'smooth' });
-            }, 500);
+        // Deep linking hash synchronization is only valid on dashboard-like routes.
+        if (canUseDashboardHashSections) {
+            if (hash === '#practice') {
+                setActiveTab('dashboard');
+                setShowPracticeGeneratorDrawer(true);
+            } else if (hash === '#reports') {
+                setActiveTab('dashboard');
+                setTimeout(() => {
+                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+            } else if (hash === '#resources') {
+                setActiveTab('dashboard');
+                setTimeout(() => {
+                    document.getElementById('resources-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+            }
         }
-    }, [props.activeTab, hash]);
+    }, [props.activeTab, hash, canUseDashboardHashSections]);
     const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(initialClassId);
     const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'classwork' | 'people' | 'grades'>(initialClassroomTab);
     const [classroomDraft, setClassroomDraft] = useState('');
@@ -1257,14 +819,11 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
     // ── Generate practice prefill hook ──
     const handleGeneratePractice = (insight: dataService.TeacherInsight) => {
-        setAiPanelPrefill({ 
+        setGeneratorPrefill({ 
             topic: insight.topicTag || insight.assignmentTitle || 'Targeted Practice', 
             level: insight.className || 'General' 
         });
-        setShowAiPanel(true);
-        setTimeout(() => {
-            document.getElementById('ai-game-panel-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 80);
+        setShowPracticeGeneratorDrawer(true);
     };
 
     const handleTargetedPracticeClick = async (insight: dataService.TeacherInsight) => {
@@ -1799,19 +1358,21 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
     if (selectedAssignmentId) {
         return (
-            <div className="flex min-h-screen bg-[#FDFBF5] font-sans text-slate-900">
+            <div className={`flex bg-[#FDFBF5] font-sans text-slate-900 ${embeddedInShell ? 'min-h-0 flex-1' : 'min-h-screen'}`}>
                 {/* ── Minimal Sidebar for child view ── */}
-                <aside className="bg-teal-900 text-teal-50 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 w-20">
-                    <div className="h-20 flex items-center justify-center border-b border-teal-800/50 px-6">
-                        <Link to="/" className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center font-serif italic font-semibold text-white shadow-sm shrink-0">
-                            E
-                        </Link>
-                    </div>
-                </aside>
+                {!embeddedInShell && (
+                    <aside className="bg-teal-900 text-teal-50 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-20 w-20">
+                        <div className="h-20 flex items-center justify-center border-b border-teal-800/50 px-6">
+                            <Link to="/" className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center font-serif italic font-semibold text-white shadow-sm shrink-0">
+                                E
+                            </Link>
+                        </div>
+                    </aside>
+                )}
 
-                <main className="flex-1 flex flex-col h-screen overflow-hidden">
+                <main className={`flex-1 flex flex-col overflow-hidden ${embeddedInShell ? 'min-h-0' : 'h-screen'}`}>
                     {/* Header */}
-                    <header className="h-20 bg-white border-b border-[#EAE7DD] px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
+                    <header className={`h-20 bg-white border-b border-[#EAE7DD] px-8 flex items-center justify-between shrink-0 z-10 ${embeddedInShell ? '' : 'sticky top-0'}`}>
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => {
@@ -1931,26 +1492,26 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900">
+        <div className={`flex flex-col bg-[#FDFBF5] font-sans text-slate-900 ${embeddedInShell ? 'min-h-0 h-full' : 'min-h-screen'}`}>
             {/* Demo banner & Role Switcher – only shown in demo mode */}
-            {isDemo && (
+            {!embeddedInShell && isDemo && (
                 <>
                     <DemoBanner />
                     <DemoRoleSwitcher />
                 </>
             )}
-            <div className="flex flex-1">
+            <div className={`flex ${embeddedInShell ? 'flex-1 min-h-0' : 'flex-1'}`}>
                 {/* MOBILE BACKDROP (Surface 0) */}
-                {isMobileMenuOpen && (
+                {!embeddedInShell && isMobileMenuOpen && (
                     <div
-                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] md:hidden transition-all duration-500 animate-in fade-in"
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-30 md:hidden transition-all duration-500 animate-in fade-in"
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
                 )}
 
                 {/* ── Sidebar ── */}
-                <aside
-                    className={`${sidebarTheme.asideBg} ${sidebarTheme.text} flex flex-col md:min-h-screen fixed inset-y-0 left-0 z-[70] md:sticky md:translate-x-0 transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 shadow-xl`}
+                {!embeddedInShell && <aside
+                    className={`${sidebarTheme.asideBg} ${sidebarTheme.text} flex flex-col md:min-h-screen fixed inset-y-0 left-0 z-40 md:sticky md:translate-x-0 transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 shadow-xl`}
                 >
                     {/* Logo & Close toggle */}
                     <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
@@ -1989,7 +1550,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher');
                                 setActiveTab('dashboard');
-                                setShowAiPanel(false);
+                                setShowPracticeGeneratorDrawer(false);
                             }} 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
@@ -2002,7 +1563,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes');
                                 setActiveTab('classes');
-                                setShowAiPanel(false);
+                                setShowPracticeGeneratorDrawer(false);
                             }} 
                             collapsed={!isSidebarOpen} 
                             theme={sidebarTheme} 
@@ -2015,7 +1576,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments');
                                 setActiveTab('assignments');
-                                setShowAiPanel(false);
+                                setShowPracticeGeneratorDrawer(false);
                             }}
                             collapsed={!isSidebarOpen}
                             theme={sidebarTheme}
@@ -2038,7 +1599,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 onClick={() => {
                                     setIsMobileMenuOpen(false);
                                     navigate('/teacher/copilot');
-                                    setShowAiPanel(false);
+                                    setShowPracticeGeneratorDrawer(false);
                                 }}
                                 theme={sidebarTheme}
                                 collapsed={!isSidebarOpen}
@@ -2053,7 +1614,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     setIsMobileMenuOpen(false);
                                     navigate('/dashboard/teacher#reports');
                                     setActiveTab('dashboard');
-                                    setShowAiPanel(false);
+                                    setShowPracticeGeneratorDrawer(false);
                                     setTimeout(() => {
                                         document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
                                     }, 100);
@@ -2086,50 +1647,52 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                         </button>
                     </div>
-                </aside>
+                </aside>}
 
                 {/* ── Main Content ── */}
                 <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                    <DashboardHeader
-                        role="teacher"
-                        displayName={displayName}
-                        roleLabel="TEACHER"
-                        avatarInitials={initials}
-                        onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
-                        searchPlaceholder="Search classes..."
-                        notificationsNode={
-                            <NotificationsPopover
-                                items={
-                                    notifications
-                                        .slice(0, 10)
-                                        .map(n => ({
-                                            id: n.id,
-                                            title: n.title,
-                                            message: n.message,
-                                            time: (() => {
-                                                const diffMs = Date.now() - new Date(n.createdAt).getTime();
-                                                const mins = Math.floor(diffMs / 60_000);
-                                                if (mins < 60) return `${mins}m ago`;
-                                                const hrs = Math.floor(mins / 60);
-                                                if (hrs < 24) return `${hrs}h ago`;
-                                                return `${Math.floor(hrs / 24)}d ago`;
-                                            })(),
-                                            isRead: n.isRead,
-                                            type: n.type,
-                                            original: n
-                                        }))
-                                }
-                                unreadCount={unreadCount}
-                                onMarkAllRead={handleMarkAllRead}
-                                onNotificationClick={handleNotificationClick}
-                                badgeColor="bg-orange-500"
-                                unreadDotColor="bg-orange-500"
-                                unreadBgColor="bg-orange-50/20"
-                                headerTextColor="text-teal-600"
-                                emptyMessage="No new notifications"
-                            />
-                        }
-                    />
+                    {!embeddedInShell && (
+                        <DashboardHeader
+                            role="teacher"
+                            displayName={displayName}
+                            roleLabel="TEACHER"
+                            avatarInitials={initials}
+                            onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+                            searchPlaceholder="Search classes..."
+                            notificationsNode={
+                                <NotificationsPopover
+                                    items={
+                                        notifications
+                                            .slice(0, 10)
+                                            .map(n => ({
+                                                id: n.id,
+                                                title: n.title,
+                                                message: n.message,
+                                                time: (() => {
+                                                    const diffMs = Date.now() - new Date(n.createdAt).getTime();
+                                                    const mins = Math.floor(diffMs / 60_000);
+                                                    if (mins < 60) return `${mins}m ago`;
+                                                    const hrs = Math.floor(mins / 60);
+                                                    if (hrs < 24) return `${hrs}h ago`;
+                                                    return `${Math.floor(hrs / 24)}d ago`;
+                                                })(),
+                                                isRead: n.isRead,
+                                                type: n.type,
+                                                original: n
+                                            }))
+                                    }
+                                    unreadCount={unreadCount}
+                                    onMarkAllRead={handleMarkAllRead}
+                                    onNotificationClick={handleNotificationClick}
+                                    badgeColor="bg-orange-500"
+                                    unreadDotColor="bg-orange-500"
+                                    unreadBgColor="bg-orange-50/20"
+                                    headerTextColor="text-teal-600"
+                                    emptyMessage="No new notifications"
+                                />
+                            }
+                        />
+                    )}
                     <DashboardShell>
 
                         {/* ── Active View Content ── */}
@@ -2157,7 +1720,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                                         <div className="shrink-0 flex items-center gap-3 flex-nowrap md:self-end">
                                             <button
-                                                onClick={() => setShowAiPanel(true)}
+                                                onClick={() => setShowPracticeGeneratorDrawer(true)}
                                                 className="px-4 py-2.5 bg-teal-500 text-white border border-teal-400 rounded-xl font-semibold text-sm shadow-md hover:bg-teal-600 hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all inline-flex items-center gap-2"
                                             >
                                                 <Sparkles size={16} />
@@ -2718,7 +2281,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                             onClick={() => {
                                                 navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
                                                 setActiveTab('dashboard');
-                                                setShowAiPanel(true);
+                                                setShowPracticeGeneratorDrawer(true);
                                             }}
                                             className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
                                         >
@@ -2791,7 +2354,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                         onClick={() => {
                                                             navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
                                                             setActiveTab('dashboard');
-                                                            setShowAiPanel(true);
+                                                            setShowPracticeGeneratorDrawer(true);
                                                         }}
                                                         className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
                                                     >
@@ -3064,7 +2627,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                 {/* ── Detail Modal ── */}
                 {selectedItem && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
                             <div className="flex items-center justify-between p-5 border-b border-[#EAE7DD] bg-[#FDFBF5]">
                                 <h3 className="text-lg font-semibold text-slate-900">Details</h3>
@@ -3133,7 +2696,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                 {/* Assign Modal */}
                 {showAssignModal && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
@@ -3224,7 +2787,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                 {/* Targeted Practice Modal (Milestone 2) */}
                 {insightAssignModalOpen && insightToAssign && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setInsightAssignModalOpen(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
@@ -3311,7 +2874,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                 {/* Nudge Modal */}
                 {nudgeModalOpen && nudgeInsight && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setNudgeModalOpen(false)} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
@@ -3386,7 +2949,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 )}
                 {/* ── Create Class Modal ── */}
                 {showCreateClass && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowCreateClass(false); setCreateClassError(null); }} />
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
@@ -3483,16 +3046,22 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 {/* Practice Generator Drawer */}
                 <PracticeGeneratorDrawer
                     isOpen={showPracticeGeneratorDrawer}
-                    onClose={() => setShowPracticeGeneratorDrawer(false)}
+                    initialValues={generatorPrefill}
+                    onClose={() => {
+                        setShowPracticeGeneratorDrawer(false);
+                        setGeneratorPrefill(undefined);
+                    }}
                     onReview={(game) => {
                         setReviewGamePack(game);
                         setReviewQuestionIndex(0);
                         setShowPracticeGeneratorDrawer(false);
+                        setGeneratorPrefill(undefined);
                     }}
                     onAssign={(game) => {
                         setPackToAssign(game);
                         setShowAssignModal(true);
                         setShowPracticeGeneratorDrawer(false);
+                        setGeneratorPrefill(undefined);
                     }}
                 />
             </div>

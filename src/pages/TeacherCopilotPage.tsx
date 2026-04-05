@@ -1,29 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard,
     BookOpen,
-    FileText,
-    Target,
-    Users,
-    Settings,
-    LogOut,
-    PanelLeftClose,
-    PanelLeftOpen,
     Sparkles,
+    ArrowRight,
     Send,
     Plus,
-    CheckCircle2,
     ChevronDown,
-    ChevronRight,
-    ChevronUp,
-    ArrowRight,
-    AlertCircle,
     Layers,
     Check,
     GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { useSidebarState } from '../hooks/useSidebarState';
 import { EloraLogo } from '../components/EloraLogo';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
@@ -102,11 +91,11 @@ const HorizontalChips: React.FC<{
 };
 
 
-const TeacherCopilotPage: React.FC = () => {
+const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
     const { isVerified, logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
 
@@ -220,6 +209,11 @@ const TeacherCopilotPage: React.FC = () => {
     };
 
     const currentPrompts = buildPrompts();
+    const recentHistory = messages
+        .filter((m) => m.role === 'user')
+        .map((m) => m.content)
+        .slice(-5)
+        .reverse();
     const currentClass = classList.find(c => c.id === selectedClassId);
     const currentClassName = currentClass?.name || 'All classes';
     const contextPillLabel = currentClassName;
@@ -317,12 +311,13 @@ const TeacherCopilotPage: React.FC = () => {
             themeColor="#14b8a6"
             logout={logout}
             navigate={navigate}
-            demoBanner={isDemo && <DemoBanner />}
-            demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
+            demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
+            demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
+            hidePrimarySidebar={embeddedInShell}
             sidebar={
                 <>
                     <div className="p-6 border-b border-[#EAE7DD]">
-                        <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
+                        <h2 className="text-xl font-semibold tracking-[-0.02em] text-slate-900 mb-1">Copilot</h2>
                         <p className="text-sm font-medium text-teal-600 flex items-center gap-1.5">
                             <Sparkles size={14} />
                             Connected to class data
@@ -330,55 +325,13 @@ const TeacherCopilotPage: React.FC = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
-                        {/* Primary Teacher Navigation */}
-                        <div className="space-y-1.5 pb-4 border-b border-slate-100">
-                            <button
-                                onClick={() => navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher')}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                            >
-                                <LayoutDashboard size={18} />
-                                <span>Dashboard</span>
-                            </button>
-                            <button
-                                onClick={() => navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes')}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                            >
-                                <BookOpen size={18} />
-                                <span>My Classes</span>
-                            </button>
-                            <button
-                                onClick={() => navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments')}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                            >
-                                <FileText size={18} />
-                                <span>Assignments</span>
-                            </button>
-                            <button
-                                onClick={() => navigate(isDemo ? '/teacher/demo/practice' : '/teacher/practice')}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                            >
-                                <Target size={18} />
-                                <span>Practice & quizzes</span>
-                            </button>
-                            {!isDemo && (
-                                <button
-                                    onClick={() => navigate('/teacher/copilot')}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-teal-50 text-teal-700 border border-teal-200"
-                                >
-                                    <Sparkles size={18} />
-                                    <span>Copilot</span>
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Context Selection Pill */}
                         <div className="relative">
                             <button
                                 onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
                             >
                                 {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#9F1239] shrink-0" />
                                 )}
                                 <span className="text-xs font-bold whitespace-nowrap">
                                     {contextPillLabel}
@@ -386,13 +339,12 @@ const TeacherCopilotPage: React.FC = () => {
                                 <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Desktop Popover */}
                             {isContextPopupOpen && (
                                 <>
                                     <div className="fixed inset-0 z-30 hidden md:block" onClick={() => setIsContextPopupOpen(false)} />
                                     <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 mb-1">
-                                            <p className="text-[11px] font-medium text-slate-400">Copilot will answer using data from this class only.</p>
+                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-400">Context</p>
                                         </div>
                                         <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                             <button
@@ -424,7 +376,7 @@ const TeacherCopilotPage: React.FC = () => {
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center justify-between">
                                                                 <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
-                                                                    {classHasInsight && <span className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-0.5" />}
+                                                                    {classHasInsight && <span className="inline-block w-2 h-2 rounded-full bg-[#9F1239] shrink-0 mt-0.5" />}
                                                                     {cls.name}
                                                                 </span>
                                                                 {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
@@ -440,9 +392,8 @@ const TeacherCopilotPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Prompt Chips */}
                         <div>
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
+                            <h3 className="text-[11px] font-medium uppercase tracking-widest text-slate-500 mb-3">Suggested Questions</h3>
                             <div className="flex flex-col gap-2">
                                 {currentPrompts.map((prompt, idx) => (
                                     <button
@@ -456,12 +407,23 @@ const TeacherCopilotPage: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-6 border-t border-[#EAE7DD]">
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                            I'm best at questions about class data, assessment feedback, communication drafts, and topic explanations based on your Elora records.
-                        </p>
+                        <div>
+                            <h3 className="text-[11px] font-medium uppercase tracking-widest text-slate-500 mb-3">History</h3>
+                            <div className="space-y-2">
+                                {recentHistory.length > 0 ? recentHistory.map((entry, idx) => (
+                                    <button
+                                        key={`${entry}-${idx}`}
+                                        onClick={() => handleSend(entry)}
+                                        className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs text-slate-700 transition-colors"
+                                    >
+                                        {entry}
+                                    </button>
+                                )) : (
+                                    <p className="text-xs text-slate-400">No recent prompts yet.</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </>
             }
@@ -477,6 +439,7 @@ const TeacherCopilotPage: React.FC = () => {
                     <CopilotEmptyState
                         themeColor="#14b8a6"
                         userName={displayName}
+                        customGreeting="Hi, Mr. Michael Lee"
                         description="I can uncover trends in your classes, draft feedback or messages, explain topics, and prioritize students who need your support."
                         prompts={currentPrompts}
                         handleSend={handleSend}
@@ -489,7 +452,7 @@ const TeacherCopilotPage: React.FC = () => {
                                     <Sparkles className="w-6 h-6 text-teal-600" />
                                 </div>
                                 <div>
-                                    <h1 className="text-xl font-bold text-slate-900 leading-tight">Copilot</h1>
+                                    <h1 className="text-xl font-semibold tracking-[-0.02em] text-slate-900 leading-tight">Copilot</h1>
                                     <p className="text-sm text-slate-500 font-medium">
                                         Your classroom AI assistant
                                     </p>

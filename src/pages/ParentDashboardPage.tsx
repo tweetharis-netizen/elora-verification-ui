@@ -523,12 +523,14 @@ function MessageFeed({
                             className={`relative px-1 py-2 text-[13px] font-medium transition-colors ${activeTab === tab ? '' : 'text-slate-500 hover:text-slate-700'}`}
                             style={activeTab === tab ? { color: BRAND } : undefined}
                         >
-                            {tab}
-                            {tab === 'Messages' && messages.some((m) => m.unread) && (
-                                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-semibold">
-                                    {messages.filter((m) => m.unread).length}
-                                </span>
-                            )}
+                            <span className="inline-flex items-center gap-1.5">
+                                <span>{tab}</span>
+                                {tab === 'Messages' && messages.some((m) => m.unread) && (
+                                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                                        {messages.filter((m) => m.unread).length}
+                                    </span>
+                                )}
+                            </span>
                             <span
                                 className={`absolute left-0 right-0 -bottom-px h-[3px] transition-opacity ${activeTab === tab ? 'opacity-100' : 'opacity-0'}`}
                                 style={{ backgroundColor: BRAND }}

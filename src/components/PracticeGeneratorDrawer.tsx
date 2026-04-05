@@ -12,13 +12,15 @@ interface PracticeGeneratorDrawerProps {
   initialValues?: Partial<AiForm>;
 }
 
-interface AiForm {
+export interface PracticeGeneratorForm {
   topic: string;
   level: string;
   questionCount: number;
   difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
   questionType: 'mcq' | 'open_ended';
 }
+
+type AiForm = PracticeGeneratorForm;
 
 const EditorialLabel = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest">{children}</p>
@@ -217,7 +219,7 @@ export const PracticeGeneratorDrawer = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="fixed right-0 top-0 z-[65] h-full w-[450px] max-w-[calc(100vw-1rem)] border-l border-slate-200 bg-slate-50/95 backdrop-blur-md shadow-2xl"
+          className="fixed right-0 top-0 z-[100] h-full w-[450px] max-w-[calc(100vw-1rem)] border-l border-slate-200 bg-slate-50/95 backdrop-blur-md shadow-2xl"
         >
           <div className="flex h-full flex-col">
             <div className="flex h-24 items-center justify-between border-b border-slate-200 bg-white/50 px-6">

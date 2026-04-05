@@ -110,6 +110,8 @@ export const CopilotLayout: React.FC<{
     navigate: (path: string) => void;
     demoBanner?: React.ReactNode;
     demoRoleSwitcher?: React.ReactNode;
+    hideContextSidebar?: boolean;
+    hidePrimarySidebar?: boolean;
 }> = ({
     sidebar,
     children,
@@ -121,7 +123,9 @@ export const CopilotLayout: React.FC<{
     logout,
     navigate,
     demoBanner,
-    demoRoleSwitcher
+    demoRoleSwitcher,
+    hideContextSidebar = false,
+    hidePrimarySidebar = false
 }) => {
         const roleKey = role.toLowerCase() as EloraRole;
         const sidebarTheme = getRoleSidebarTheme(roleKey);
@@ -149,7 +153,7 @@ export const CopilotLayout: React.FC<{
         };
 
         return (
-            <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden">
+            <div className={`flex flex-col bg-[#FDFBF5] font-sans text-slate-900 overflow-hidden ${hidePrimarySidebar ? 'h-full min-h-0' : 'min-h-screen'}`}>
                 {isDemo && (
                     <>
                         {demoBanner}
@@ -157,10 +161,10 @@ export const CopilotLayout: React.FC<{
                     </>
                 )}
 
-                <div className="flex flex-1 overflow-hidden relative">
+                <div className="flex flex-1 overflow-hidden relative min-h-0">
                     {/* --- Sidebar --- */}
-                    <aside
-                        className={`fixed inset-y-0 left-0 z-[70] flex flex-col transition-all duration-500 ease-in-out 
+                    {!hidePrimarySidebar && <aside
+                        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-500 ease-in-out 
                         ${isSidebarOpen ? 'w-64' : 'w-20'} 
                         ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20
                         md:sticky md:top-0 md:h-screen md:translate-x-0 
@@ -319,24 +323,26 @@ export const CopilotLayout: React.FC<{
                             <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} />
                             <button
                                 onClick={logout}
-                                className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
+                                className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
                                 title={!isSidebarOpen ? "Sign out" : undefined}
                             >
                                 <LogOut size={20} className="shrink-0" />
                                 {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
                             </button>
                         </div>
-                    </aside>
+                    </aside>}
 
                     {/* --- Main Content Area --- */}
-                    <div className="flex-1 flex flex-col md:flex-row h-screen overflow-hidden">
+                    <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
                         {/* Left Column (Context Sidebar) */}
-                        <div className="hidden md:flex w-72 bg-white border-r border-[#EAE7DD] flex-col shrink-0 overflow-hidden">
-                            {sidebar}
-                        </div>
+                        {!hideContextSidebar && (
+                            <div className="hidden md:flex w-72 bg-white border-r border-[#EAE7DD] flex-col shrink-0 overflow-hidden">
+                                {sidebar}
+                            </div>
+                        )}
 
                         {/* Right Column (Chat Area) */}
-                        <div className="flex-1 flex flex-col bg-[#FDFBF5] relative min-w-0">
+                        <div className="flex-1 flex flex-col bg-[#FDFBF5] relative min-w-0 transition-opacity duration-200 ease-in-out opacity-100">
                             {children}
                         </div>
                     </div>

@@ -34,24 +34,20 @@ function SidebarLink({
   onNavigate?: () => void;
   theme: RoleSidebarTheme;
 }) {
-  const navigate = useNavigate();
   const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
   const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        navigate(to);
-        onNavigate?.();
-      }}
+    <Link
+      to={to}
+      onClick={() => onNavigate?.()}
       className={`group relative flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
       title={collapsed ? label : undefined}
     >
       <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
       {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
       {active && !collapsed && <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current" />}
-    </button>
+    </Link>
   );
 }
 

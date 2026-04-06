@@ -14,7 +14,7 @@ type NavItemConfig = {
   label: string;
   icon: any;
   to: string;
-  end?: boolean;
+  isActive: (pathname: string, hash: string) => boolean;
 };
 
 function SidebarLink({
@@ -56,7 +56,7 @@ function SidebarLink({
 }
 
 export default function TeacherShellLayout() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const isDemo = useDemoMode();
@@ -77,40 +77,42 @@ export default function TeacherShellLayout() {
         label: 'Dashboard',
         icon: LayoutDashboard,
         to: dashboard,
-        end: true,
+        isActive: (p) => p === dashboard,
       },
       {
         id: 'classes',
         label: 'My Classes',
         icon: BookOpen,
         to: classes,
+        isActive: (p) => p === classes || p.startsWith(isDemo ? '/teacher/demo/class/' : '/teacher/classes/'),
       },
       {
         id: 'assignments',
         label: 'Assignments',
         icon: FileText,
         to: assignments,
-        end: true,
+        isActive: (p) => p === assignments,
       },
       {
         id: 'practice',
         label: 'Practice & quizzes',
         icon: Target,
         to: practice,
-        end: true,
+        isActive: (p) => p === practice,
       },
       {
         id: 'copilot',
         label: 'Copilot',
         icon: Sparkles,
         to: copilot,
-        end: true,
+        isActive: (p) => p.startsWith(copilot),
       },
       {
         id: 'reports',
         label: 'Reports',
         icon: TrendingUp,
         to: `${dashboard}#reports`,
+        isActive: (p, h) => p === dashboard && h === '#reports',
       },
     ];
   }, [isDemo]);
@@ -134,10 +136,10 @@ export default function TeacherShellLayout() {
 
       <aside
         id="teacher-shell-sidebar"
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
+          <Link to={isDemo ? '/teacher/demo' : '/dashboard/teacher'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
 
@@ -169,19 +171,7 @@ export default function TeacherShellLayout() {
                   icon={item.icon}
                   label={item.label}
                   to={item.to}
-                  active={
-                    item.id === 'dashboard'
-                      ? pathname === (isDemo ? '/teacher/demo' : '/dashboard/teacher')
-                      : item.id === 'classes'
-                        ? pathname === (isDemo ? '/teacher/demo/classes' : '/teacher/classes') || pathname.startsWith(isDemo ? '/teacher/demo/class/' : '/teacher/classes/')
-                        : item.id === 'assignments'
-                          ? pathname === (isDemo ? '/teacher/demo/assignments' : '/teacher/assignments')
-                          : item.id === 'practice'
-                            ? pathname === (isDemo ? '/teacher/demo/practice' : '/teacher/practice')
-                            : item.id === 'copilot'
-                              ? pathname.startsWith(isDemo ? '/teacher/demo/copilot' : '/teacher/copilot')
-                              : false
-                  }
+                  active={item.isActive(pathname, hash)}
                   collapsed={!isSidebarOpen}
                   onNavigate={() => setIsMobileMenuOpen(false)}
                   theme={sidebarTheme}

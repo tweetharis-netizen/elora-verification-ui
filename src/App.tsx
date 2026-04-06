@@ -784,13 +784,15 @@ export default function App() {
         <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
         <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
         <Route path="class/:classId" element={<StudentClassroomPage />} />
+        <Route path="copilot" element={<StudentCopilotPage />} />
       </Route>
-      <Route path="/student/copilot/demo" element={<StudentCopilotPage />} />
+      <Route path="/student/copilot/demo" element={<Navigate to="/student/demo/copilot" replace />} />
       <Route path="/parent/demo" element={<ParentShellLayout />}>
         <Route index element={<ParentDashboardPage embeddedInShell />} />
         <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
+        <Route path="copilot" element={<ParentCopilotPage />} />
       </Route>
-      <Route path="/parent/copilot/demo" element={<ParentCopilotPage />} />
+      <Route path="/parent/copilot/demo" element={<Navigate to="/parent/demo/copilot" replace />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<TeacherShellLayout />}>
           <Route path="/dashboard/teacher" element={<TeacherDashboardPage embeddedInShell />} />
@@ -808,15 +810,14 @@ export default function App() {
           <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
           <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
           <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+          <Route path="/student/copilot" element={<StudentCopilotPage />} />
         </Route>
 
         <Route element={<ParentShellLayout />}>
           <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
           <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
+          <Route path="/parent/copilot" element={<ParentCopilotPage />} />
         </Route>
-
-        <Route path="/student/copilot" element={<StudentCopilotPage />} />
-        <Route path="/parent/copilot" element={<ParentCopilotPage />} />
         <Route path="/play/:packId" element={<StudentGamePage />} />
       </Route>
 

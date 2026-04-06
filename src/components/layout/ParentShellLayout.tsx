@@ -71,8 +71,8 @@ export default function ParentShellLayout() {
         id: 'copilot',
         label: 'Copilot',
         icon: Sparkles,
-        to: isDemo ? '/parent/copilot/demo' : '/parent/copilot',
-        isActive: (p) => p.startsWith(isDemo ? '/parent/copilot/demo' : '/parent/copilot'),
+        to: isDemo ? '/parent/demo/copilot' : '/parent/copilot',
+        isActive: (p) => p.startsWith(isDemo ? '/parent/demo/copilot' : '/parent/copilot'),
       },
       {
         id: 'children',
@@ -123,10 +123,10 @@ export default function ParentShellLayout() {
 
       <aside
         id="parent-shell-sidebar"
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
+        className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
       >
         <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
+          <Link to={isDemo ? '/parent/demo' : '/dashboard/parent'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
 
@@ -157,19 +157,7 @@ export default function ParentShellLayout() {
               <SidebarItem
                 icon={item.icon}
                 label={item.label}
-                active={item.id === 'overview'
-                  ? pathname === dashboardPath && (!hash || hash === '#overview')
-                  : item.id === 'copilot'
-                    ? pathname.startsWith(isDemo ? '/parent/copilot/demo' : '/parent/copilot')
-                    : item.id === 'children'
-                      ? pathname === dashboardPath && hash === '#children'
-                      : item.id === 'progress'
-                        ? pathname === dashboardPath && hash === '#progress'
-                        : item.id === 'assignments'
-                          ? pathname === dashboardPath && hash === '#assignments'
-                          : item.id === 'messages'
-                            ? pathname === dashboardPath && hash === '#messages'
-                            : false}
+                active={item.isActive(pathname, hash)}
                 collapsed={!isSidebarOpen}
                 onClick={() => {
                   navigate(item.to);

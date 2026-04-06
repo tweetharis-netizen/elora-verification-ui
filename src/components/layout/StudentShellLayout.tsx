@@ -61,7 +61,7 @@ export default function StudentShellLayout() {
     const base = isDemo ? '/student/demo' : '/dashboard/student';
     const classes = isDemo ? '/student/demo/classes' : '/student/classes';
     const assignments = isDemo ? '/student/demo/assignments' : '/student/assignments';
-    const copilot = isDemo ? '/student/copilot/demo' : '/student/copilot';
+    const copilot = isDemo ? '/student/demo/copilot' : '/student/copilot';
 
     return [
       {
@@ -83,7 +83,7 @@ export default function StudentShellLayout() {
         label: 'Copilot',
         icon: Sparkles,
         to: copilot,
-        isActive: (p) => p.startsWith(isDemo ? '/student/copilot/demo' : '/student/copilot'),
+        isActive: (p) => p.startsWith(copilot),
       },
       {
         id: 'practice',
@@ -128,10 +128,10 @@ export default function StudentShellLayout() {
 
       <aside
         id="student-shell-sidebar"
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
+          <Link to={isDemo ? '/student/demo' : '/dashboard/student'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
 
@@ -162,19 +162,7 @@ export default function StudentShellLayout() {
               <SidebarItem
                 icon={item.icon}
                 label={item.label}
-                active={item.id === 'overview'
-                  ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash !== '#practice' && hash !== '#reports'
-                  : item.id === 'classes'
-                    ? pathname === (isDemo ? '/student/demo/classes' : '/student/classes') || pathname.startsWith(isDemo ? '/student/demo/class/' : '/student/class/')
-                    : item.id === 'copilot'
-                      ? pathname.startsWith(isDemo ? '/student/copilot/demo' : '/student/copilot')
-                      : item.id === 'practice'
-                        ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash === '#practice'
-                        : item.id === 'assignments'
-                          ? pathname === (isDemo ? '/student/demo/assignments' : '/student/assignments')
-                          : item.id === 'reports'
-                            ? pathname === (isDemo ? '/student/demo' : '/dashboard/student') && hash === '#reports'
-                            : false}
+                active={item.isActive(pathname, hash)}
                 collapsed={!isSidebarOpen}
                 onClick={() => {
                   navigate(item.to);

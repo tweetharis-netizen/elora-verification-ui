@@ -397,7 +397,11 @@ export default function ParentDashboard() {
                                                                 );
                                                                 return (
                                                                     <span className="inline-block px-2.5 py-1 bg-[var(--elora-surface-alt)] text-[var(--elora-text-muted)] text-xs font-bold rounded-md border border-[var(--elora-border-subtle)]">
-                                                                        {assignment.statusLabel || 'To Do'}
+                                                                        {getAssignmentBadge(assignment) === 'completed'
+                                                                            ? 'Completed'
+                                                                            : getAssignmentBadge(assignment) === 'overdue'
+                                                                                ? 'Overdue'
+                                                                                : 'To Do'}
                                                                     </span>
                                                                 );
                                                             })()}

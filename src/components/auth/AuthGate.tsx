@@ -18,15 +18,16 @@ export const AuthGate: React.FC<AuthGateProps> = ({
   actionName
 }) => {
   const { isGateOpen, gateActionName, closeGate, withGate } = useAuthGate();
+  const gatedChild = children as React.ReactElement<{ onClick?: (event: React.MouseEvent) => unknown }>;
 
   // If children has an onClick, wrap it. Otherwise, use onAuthSuccess.
-  const originalAction = children.props.onClick || onAuthSuccess || (() => { });
+  const originalAction = gatedChild.props.onClick || onAuthSuccess || (() => { });
 
   // Create a gated action that will intercept the event.
   const gatedAction = withGate(originalAction, actionName || gateActionName);
 
   // Clone the child with the gated action.
-  const clonedChild = React.cloneElement(children, {
+  const clonedChild = React.cloneElement(gatedChild, {
     onClick: (e: React.MouseEvent) => {
       // Prevent original event if needed, but let withGate handle logic
       gatedAction(e);

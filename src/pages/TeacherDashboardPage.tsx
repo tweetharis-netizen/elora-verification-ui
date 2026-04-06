@@ -2827,7 +2827,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                             <span className="text-xs font-semibold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">5 Qs</span>
                                         </div>
                                         <p className="text-xs text-slate-500 mt-2 px-1">
-                                            {insightGeneratedPack.description}
+                                            {insightGeneratedPack.topic}
                                         </p>
                                     </div>
 

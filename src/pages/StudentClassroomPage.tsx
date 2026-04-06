@@ -177,7 +177,7 @@ export default function StudentClassroomPage() {
 
                                 <div className="divide-y divide-slate-100">
                                     {classroomUpcoming.length > 0 ? classroomUpcoming.map((item) => {
-                                        const dueText = item.dueDate ? new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Soon';
+                                        const dueText = 'dueDate' in item && item.dueDate ? new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Soon';
                                         const isUrgent = String(item.studentStatus || item.status || '').toLowerCase().includes('overdue');
                                         const itemLabel = 'questionCount' in item ? 'Practice' : 'Assignment';
 

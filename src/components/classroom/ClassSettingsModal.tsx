@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check } from 'lucide-react';
 import { ClassroomHeader } from './ClassroomComponents';
-import { resolveClassThemeSettings } from '../../lib/classTheme';
+import { resolveClassThemeSettings, type ClassBannerStyle, type ClassThemeColorKey } from '../../lib/classTheme';
 
 interface ClassSettingsModalProps {
     isOpen: boolean;
@@ -11,7 +11,7 @@ interface ClassSettingsModalProps {
     classroomTitle?: string;
 }
 
-const THEME_COLORS = [
+const THEME_COLORS: Array<{ id: ClassThemeColorKey; hex: string; label: string; ringClass: string }> = [
     { id: 'slate', hex: '#1E293B', label: 'Default', ringClass: 'focus:ring-slate-500' },
     { id: 'teal', hex: '#0F766E', label: 'Teal', ringClass: 'focus:ring-teal-500' },
     { id: 'indigo', hex: '#4338CA', label: 'Indigo', ringClass: 'focus:ring-indigo-500' },
@@ -19,7 +19,7 @@ const THEME_COLORS = [
     { id: 'emerald', hex: '#047857', label: 'Emerald', ringClass: 'focus:ring-emerald-500' },
 ];
 
-const BANNER_STYLES = [
+const BANNER_STYLES: Array<{ id: ClassBannerStyle; label: string }> = [
     { id: 'default', label: 'Default' },
     { id: 'math', label: 'Mathematics' },
     { id: 'science', label: 'Science' },
@@ -33,8 +33,8 @@ export function ClassSettingsModal({ isOpen, onClose, onSave, currentClass, clas
         themeColor: currentClass?.themeColor,
         bannerStyle: currentClass?.bannerStyle,
     });
-    const [themeColor, setThemeColor] = useState(initialSettings.themeColor);
-    const [bannerStyle, setBannerStyle] = useState(initialSettings.bannerStyle);
+    const [themeColor, setThemeColor] = useState<ClassThemeColorKey>(initialSettings.themeColor);
+    const [bannerStyle, setBannerStyle] = useState<ClassBannerStyle>(initialSettings.bannerStyle);
     const [playfulBackground, setPlayfulBackground] = useState(currentClass?.playfulBackground ?? false);
     
     const overlayRef = useRef<HTMLDivElement>(null);

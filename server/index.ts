@@ -21,6 +21,7 @@ import notificationsRoutes from './routes/notifications.routes.js';
 import eloraRoutes from './routes/elora.routes.js';
 import geminiRoutes from './routes/geminiRoutes.js';
 import authRoutes from './routes/auth.routes.js';
+import waitlistRoutes from './routes/waitlist.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -39,6 +40,7 @@ app.use('/api/elora', eloraRoutes);
 app.use('/api', geminiRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/waitlist', waitlistRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

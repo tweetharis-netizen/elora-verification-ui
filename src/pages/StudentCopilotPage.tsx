@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
+import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { askElora } from '../services/askElora';
@@ -97,12 +98,12 @@ const HorizontalChips: React.FC<{
     );
 };
 
-const StudentCopilotPage: React.FC = () => {
+const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
     const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
     const isUnauthenticated = isDemo || !currentUser;
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     
     // Context Selector State
     const [selectedSubjectId, setSelectedSubjectId] = useState('all');
@@ -350,8 +351,9 @@ const StudentCopilotPage: React.FC = () => {
             logout={logout}
             navigate={navigate}
             sidebar={sidebarContent}
-            demoBanner={isDemo && <DemoBanner />}
-            demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
+            demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
+            demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
+            hidePrimarySidebar={embeddedInShell}
         >
             <CopilotMobileHeader themeColor="#68507B" />
 

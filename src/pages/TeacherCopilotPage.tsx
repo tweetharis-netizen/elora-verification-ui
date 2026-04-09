@@ -610,3 +610,4 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
 export default TeacherCopilotPage;
 
+

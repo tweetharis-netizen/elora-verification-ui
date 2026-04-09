@@ -128,7 +128,7 @@ export default function ParentShellLayout() {
         id="parent-shell-sidebar"
         className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
       >
-        <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+        <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           <Link to={isDemo ? '/parent/demo' : '/dashboard/parent'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
@@ -211,3 +211,4 @@ export default function ParentShellLayout() {
     </div>
   );
 }
+

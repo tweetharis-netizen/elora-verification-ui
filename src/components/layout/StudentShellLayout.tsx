@@ -133,7 +133,7 @@ export default function StudentShellLayout() {
         id="student-shell-sidebar"
         className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+        <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           <Link to={isDemo ? '/student/demo' : '/dashboard/student'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
@@ -216,3 +216,4 @@ export default function StudentShellLayout() {
     </div>
   );
 }
+

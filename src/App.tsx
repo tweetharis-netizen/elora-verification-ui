@@ -245,7 +245,7 @@ const Hero = () => {
 
 // ─── 2) Tour ──────────────────────────────────────────────────────────────────
 
-const ProductTourSection = () => {
+const PerspectivesSection = () => {
   const perspectives = [
     {
       title: 'Teacher',
@@ -255,6 +255,8 @@ const ProductTourSection = () => {
       bg: 'bg-accent-orange/20',
       border: 'border-accent-orange/20',
       desc: 'Automate admin drift, generate AI practices, and track every student with calm precision.',
+      link: '/teacher/demo',
+      cta: 'Enter Teacher Demo'
     },
     {
       title: 'Student',
@@ -264,6 +266,8 @@ const ProductTourSection = () => {
       bg: 'bg-accent-green/20',
       border: 'border-accent-green/20',
       desc: 'A personalised learning assistant that meets each student exactly where they are.',
+      link: '/student/demo',
+      cta: 'Enter Student Demo'
     },
     {
       title: 'Parent',
@@ -273,12 +277,14 @@ const ProductTourSection = () => {
       bg: 'bg-accent-pink/20',
       border: 'border-accent-pink/20',
       desc: 'No more guessing. A calm, clear window into your child\'s day and learning milestones.',
+      link: '/parent/demo',
+      cta: 'Enter Parent Demo'
     },
   ];
 
   return (
-    <section id="tour" className="bg-elora-300 text-white py-32 border-b border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 bg-grid pointer-events-none opacity-30"></div>
+    <section id="perspectives" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
+      <div className="absolute inset-0 bg-grid pointer-events-none opacity-40"></div>
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-20">
           <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">One Platform</p>
@@ -286,7 +292,7 @@ const ProductTourSection = () => {
             One platform. <span className="font-serif italic text-accent-pink">Three perspectives.</span>
           </h2>
           <p className="text-white/70 text-lg leading-relaxed">
-            Learning shouldn't be a <span className="font-serif italic">black box</span>. Elora brings teachers, students, and parents into the same conversation with a unified interface designed for clarity, not complexity.
+            Choose a profile below to experience the end-to-end flow exactly as it's used in the classroom. Jump straight into the live dashboard environment—no signup required.
           </p>
         </div>
 
@@ -298,92 +304,25 @@ const ProductTourSection = () => {
               whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
               viewport={{ once: true, margin: '-80px' }}
               transition={{ duration: 0.5, delay: i * 0.12 }}
-              className="relative p-8 rounded-3xl bg-elora-400/60 border border-white/10 hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 duration-300 flex flex-col"
+              className="group relative p-8 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all shadow-xl hover:-translate-y-2 duration-300 flex flex-col min-h-[400px]"
             >
               <div className="absolute top-6 right-6 text-[10px] font-bold uppercase tracking-widest text-white/30">
                 {p.subtitle}
               </div>
-              <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-6 border ${p.border}`}>
+              <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-6 border ${p.border} group-hover:scale-110 transition-transform`}>
                 <p.icon className="w-6 h-6" />
               </div>
               <h3 className="text-2xl font-medium mb-3 text-white">{p.title}</h3>
-              <p className="text-white/60 text-sm leading-relaxed flex-grow">{p.desc}</p>
+              <p className="text-white/60 text-sm leading-relaxed mb-10 flex-grow">{p.desc}</p>
+              
+              <Link
+                to={p.link}
+                className="inline-flex items-center gap-2 text-accent-yellow font-bold text-sm hover:gap-3 transition-all mt-auto"
+              >
+                {p.cta} <ChevronRight className="w-4 h-4" />
+              </Link>
             </motion.div>
           ))}
-        </div>
-
-        <div className="text-center mt-14">
-          <a
-            href="#roles"
-            className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm font-medium transition-colors group"
-          >
-            Explore the demo
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// ─── 3) Roles ─────────────────────────────────────────────────────────────────
-
-const RoleSelectionSection = () => {
-  return (
-    <section id="roles" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
-      <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
-        <p className="text-accent-orange text-xs font-bold uppercase tracking-widest mb-4">Live Demo</p>
-        <h2 className="text-3xl md:text-5xl font-sans font-medium mb-6 tracking-tight">Explore as any role</h2>
-        <p className="text-white/70 mb-12 max-w-2xl mx-auto text-lg leading-relaxed">
-          Experience the end-to-end flow exactly as it's used in the classroom. Choose a profile below to jump straight into the live dashboard environment—no signup required.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* Teacher Card */}
-          <Link
-            to="/teacher/demo"
-            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
-          >
-            <div className="w-12 h-12 bg-accent-orange/20 text-accent-orange rounded-xl flex items-center justify-center mb-6 border border-accent-orange/20 group-hover:scale-110 transition-transform">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3 text-white">Teacher</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Create AI practice & quizzes, manage class sessions, and analyze student engagement without the dashboard fatigue.</p>
-            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Enter Teacher Demo <ChevronRight className="w-4 h-4" />
-            </div>
-          </Link>
-
-          {/* Student Card */}
-          <Link
-            to="/student/demo"
-            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
-          >
-            <div className="w-12 h-12 bg-accent-green/20 text-accent-green rounded-xl flex items-center justify-center mb-6 border border-accent-green/20 group-hover:scale-110 transition-transform">
-              <BookOpen className="w-6 h-6" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3 text-white">Student</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">View upcoming tasks, play interactive learning games, and track your streak with your personal AI guide.</p>
-            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Enter Student Demo <ChevronRight className="w-4 h-4" />
-            </div>
-          </Link>
-
-          {/* Parent Card */}
-          <Link
-            to="/parent/demo"
-            className="group relative p-8 bg-elora-400/60 border border-white/10 rounded-3xl hover:bg-elora-400/80 transition-all shadow-xl hover:-translate-y-2 flex flex-col h-full text-left"
-          >
-            <div className="w-12 h-12 bg-accent-pink/20 text-accent-pink rounded-xl flex items-center justify-center mb-6 border border-accent-pink/20 group-hover:scale-110 transition-transform">
-              <Shield className="w-6 h-6" />
-            </div>
-            <h3 className="text-2xl font-medium mb-3 text-white">Parent</h3>
-            <p className="text-white/60 text-sm leading-relaxed mb-8 flex-grow">Monitor student progress, review assignments, and confirm verified achievements. No more guessing.</p>
-            <div className="text-accent-yellow font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform mt-auto">
-              Enter Parent Demo <ChevronRight className="w-4 h-4" />
-            </div>
-          </Link>
         </div>
       </div>
     </section>
@@ -494,11 +433,33 @@ const ProductUISection = () => {
 const PilotProgramSection = () => {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      setSubmitted(true);
+    if (!email.trim() || loading) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:4000/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to connect to the server. Please try again later.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -556,8 +517,9 @@ const PilotProgramSection = () => {
                 className="p-6 rounded-2xl bg-white/10 border border-white/20 text-center"
               >
                 <CheckCircle2 className="w-8 h-8 text-accent-green mx-auto mb-3" />
-                <p className="font-semibold text-white text-lg">Thanks! I'll be in touch.</p>
-                <p className="text-white/60 text-sm mt-1">— <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder of Elora</p>
+                <p className="font-semibold text-white text-lg">Sent to tweetharis@gmail.com!</p>
+                <p className="text-white/60 text-sm mt-1">Thanks for your interest. Shaik Haris will be in touch with you shortly.</p>
+                <p className="text-white/40 text-xs mt-3 uppercase tracking-widest">— Shaik Haris, Founder</p>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
@@ -574,9 +536,10 @@ const PilotProgramSection = () => {
                 </div>
                 <button
                   type="submit"
-                  className="bg-white text-elora-400 px-6 py-3 rounded-lg font-medium hover:bg-white/90 transition-all hover:-translate-y-0.5 shadow-md whitespace-nowrap"
+                  disabled={loading}
+                  className="bg-white text-elora-400 px-6 py-3 rounded-lg font-medium hover:bg-white/90 transition-all hover:-translate-y-0.5 shadow-md whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Join the Waitlist
+                  {loading ? 'Joining...' : 'Join the Waitlist'}
                 </button>
               </form>
             )}
@@ -631,7 +594,7 @@ const FounderSection = () => {
 
 const FinalCTA = () => {
   return (
-    <section id="cta" className="bg-elora-300 text-white py-32 relative overflow-hidden">
+    <section id="cta" className="bg-elora-300 text-white py-40 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
       <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
         <motion.div
@@ -640,31 +603,25 @@ const FinalCTA = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-4xl md:text-6xl font-sans font-medium mb-6 tracking-tight">
-            Ready to see it <br className="hidden md:block" />
-            <span className="font-serif italic text-accent-pink">in action?</span>
+          <h2 className="text-4xl md:text-6xl font-sans font-medium mb-8 tracking-tight">
+            Education as it <br className="hidden md:block" />
+            <span className="font-serif italic text-accent-pink">should be.</span>
           </h2>
-          <p className="text-white/70 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-            Jump straight into the demo and see how Elora transforms the classroom experience.
+          <p className="text-white/70 text-lg mb-12 max-w-xl mx-auto leading-relaxed">
+            From fragmented data to clear, unified insights. Restore calm to your classroom and home with Elora.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link
-              to="/teacher/demo"
-              className="block text-center w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-xl"
+              to="/signup"
+              className="flex items-center justify-center w-full sm:w-auto bg-white text-elora-400 hover:bg-white/90 px-10 py-4 rounded-xl font-bold transition-all hover:-translate-y-1 shadow-2xl"
             >
-              Teacher Demo
+              Get Started for Free
             </Link>
             <Link
-              to="/student/demo"
-              className="block text-center w-full sm:w-auto bg-transparent border border-white/30 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5"
+              to="/our-story"
+              className="flex items-center justify-center w-full sm:w-auto bg-white/5 border border-white/20 hover:bg-white/10 text-white px-10 py-4 rounded-xl font-medium transition-all hover:-translate-y-1"
             >
-              Student Demo
-            </Link>
-            <Link
-              to="/parent/demo"
-              className="block text-center w-full sm:w-auto bg-transparent border border-white/30 hover:bg-white/5 text-white px-8 py-4 rounded-lg font-medium transition-all hover:-translate-y-0.5"
-            >
-              Parent Demo
+              Read Our Vision
             </Link>
           </div>
         </motion.div>
@@ -744,8 +701,7 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
-        <ProductTourSection />
-        <RoleSelectionSection />
+        <PerspectivesSection />
         <ProductUISection />
         <PilotProgramSection />
         <FounderSection />
@@ -784,7 +740,7 @@ export default function App() {
         <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
         <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
         <Route path="class/:classId" element={<StudentClassroomPage />} />
-        <Route path="copilot" element={<StudentCopilotPage />} />
+        <Route path="copilot" element={<StudentCopilotPage embeddedInShell />} />
       </Route>
       <Route path="/student/copilot/demo" element={<Navigate to="/student/demo/copilot" replace />} />
       <Route path="/parent/demo" element={<ParentShellLayout />}>
@@ -810,7 +766,7 @@ export default function App() {
           <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
           <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
           <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
-          <Route path="/student/copilot" element={<StudentCopilotPage />} />
+          <Route path="/student/copilot" element={<StudentCopilotPage embeddedInShell />} />
         </Route>
 
         <Route element={<ParentShellLayout />}>

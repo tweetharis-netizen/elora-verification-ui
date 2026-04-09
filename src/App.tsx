@@ -457,7 +457,7 @@ const PilotProgramSection = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to connect to the server. Please try again later.');
+      alert('Failed to connect to the server. Please check your internet and try again.');
     } finally {
       setLoading(false);
     }
@@ -467,13 +467,32 @@ const PilotProgramSection = () => {
     <section id="pilot" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-30"></div>
       <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="space-y-8"
-        >
+        {submitted ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white/10 backdrop-blur-xl rounded-3xl p-16 border border-white/20 shadow-[0_0_50px_rgba(251,191,36,0.15)] relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-yellow to-transparent opacity-50"></div>
+            <div className="w-24 h-24 bg-accent-green/20 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-accent-green/5">
+              <CheckCircle2 className="w-12 h-12 text-accent-green" />
+            </div>
+            <h3 className="text-4xl font-serif italic mb-6">You're on the list!</h3>
+            <p className="text-white/80 text-lg max-w-sm mx-auto leading-relaxed">
+              We've received your interest. Shaik will reach out shortly to discuss bringing Elora to your classroom.
+            </p>
+            <div className="mt-10 pt-10 border-t border-white/10">
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">Singapore Pilot Program 2024</p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
           {/* Verified Badge */}
           <div className="flex justify-center">
             <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-white/20 bg-white/5 text-[11px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">

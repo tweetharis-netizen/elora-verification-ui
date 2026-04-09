@@ -528,42 +528,31 @@ const PilotProgramSection = () => {
           </div>
 
           {/* Waitlist Form */}
-          <div className="max-w-md mx-auto">
-            {submitted ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-6 rounded-2xl bg-white/10 border border-white/20 text-center"
+          <div className="max-w-md mx-auto pt-4">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-white/60 transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@school.edu.sg"
+                  required
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 focus:outline-none focus:border-white/50 focus:bg-white/15 transition-all text-sm shadow-inner"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-white text-elora-400 px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-accent-yellow hover:text-elora-400 transition-all hover:-translate-y-1 shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                <CheckCircle2 className="w-8 h-8 text-accent-green mx-auto mb-3" />
-                <p className="font-semibold text-white text-lg">Sent to tweetharis@gmail.com!</p>
-                <p className="text-white/60 text-sm mt-1">Thanks for your interest. Shaik Haris will be in touch with you shortly.</p>
-                <p className="text-white/40 text-xs mt-3 uppercase tracking-widest">— Shaik Haris, Founder</p>
-              </motion.div>
-            ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@school.edu.sg"
-                    required
-                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/15 transition-all text-sm"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-white text-elora-400 px-6 py-3 rounded-lg font-medium hover:bg-white/90 transition-all hover:-translate-y-0.5 shadow-md whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Joining...' : 'Join the Waitlist'}
-                </button>
-              </form>
-            )}
+                {loading ? 'Joining...' : 'Join the Waitlist'}
+              </button>
+            </form>
+            <p className="text-white/30 text-[10px] uppercase tracking-widest mt-4 text-center">No commitment required. We respect your privacy.</p>
           </div>
         </motion.div>
+        )}
       </div>
     </section>
   );

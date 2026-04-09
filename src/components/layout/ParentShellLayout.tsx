@@ -43,9 +43,13 @@ function SidebarItem({
       className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all w-full ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
       title={collapsed ? label : undefined}
     >
-      <Icon size={20} className="shrink-0" />
-      {!collapsed && <span className="whitespace-nowrap">{label}</span>}
-      {active && !collapsed && <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-current" />}
+      {/* Elora Gold Vertical Accent Bar */}
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+      )}
+      
+      <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
+      {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
     </Link>
   );
 }

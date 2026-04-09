@@ -56,7 +56,7 @@ export function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-30 backdrop-blur-md bg-[#FDFBF5]/80 border-b border-[#EAE7DD] w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-18 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Left: Mobile Toggle & Search */}
         <div className="flex items-center gap-4 flex-1 max-w-xl">
           {onMobileMenuToggle && (

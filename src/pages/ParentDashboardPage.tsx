@@ -126,9 +126,9 @@ function SidebarItem({
             </div>
             {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
-            {/* Active Indicator Circle */}
-            {active && !collapsed && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
+            {/* Elora Gold Vertical Accent Bar */}
+            {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
             )}
         </a>
     );

@@ -316,3 +316,214 @@ export const sendTeacherNudge = (req: AuthRequest, res: Response) => {
     }
     res.status(201).json(nudge);
 };
+
+type CopilotRole = 'user' | 'assistant' | 'system';
+
+interface TeacherConversationRow {
+    id: string;
+    teacher_id: string;
+    class_id: string | null;
+    student_id: string | null;
+    title: string | null;
+    created_at: string;
+    updated_at: string;
+    last_message_at: string | null;
+}
+
+interface TeacherConversationMessageRow {
+    id: string;
+    conversation_id: string;
+    role: CopilotRole;
+    content: string;
+    intent: string | null;
+    source: string | null;
+    metadata_json: string | null;
+    created_at: string;
+}
+
+const createId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const toConversationDto = (row: TeacherConversationRow) => ({
+    id: row.id,
+    teacherId: row.teacher_id,
+    classId: row.class_id,
+    studentId: row.student_id,
+    title: row.title,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastMessageAt: row.last_message_at,
+});
+
+const toMessageDto = (row: TeacherConversationMessageRow) => ({
+    id: row.id,
+    conversationId: row.conversation_id,
+    role: row.role,
+    content: row.content,
+    intent: row.intent,
+    source: row.source,
+    metadata: row.metadata_json ? JSON.parse(row.metadata_json) : null,
+    createdAt: row.created_at,
+});
+
+const getOwnedConversation = (teacherId: string, conversationId: string): TeacherConversationRow | undefined => {
+    return db.get(
+        `SELECT * FROM teacher_conversations WHERE id = ? AND teacher_id = ?`,
+        conversationId,
+        teacherId
+    ) as TeacherConversationRow | undefined;
+};
+
+export const listTeacherCopilotConversations = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const classId = (req.query.classId as string | undefined) ?? undefined;
+    const studentId = (req.query.studentId as string | undefined) ?? undefined;
+
+    try {
+        let sql = `SELECT * FROM teacher_conversations WHERE teacher_id = ?`;
+        const params: any[] = [teacherId];
+
+        if (classId) {
+            sql += ` AND class_id = ?`;
+            params.push(classId);
+        }
+
+        if (studentId) {
+            sql += ` AND student_id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` ORDER BY updated_at DESC, created_at DESC`;
+
+        const rows = db.all(sql, ...params) as TeacherConversationRow[];
+        res.json(rows.map(toConversationDto));
+    } catch (error) {
+        console.error('Error listing teacher copilot conversations:', error);
+        res.status(500).json({ error: 'Failed to list conversations' });
+    }
+};
+
+export const createTeacherCopilotConversation = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const { classId, studentId, title } = req.body ?? {};
+
+    try {
+        if (classId) {
+            const classRow = db.get(`SELECT id FROM classes WHERE id = ? AND teacher_id = ?`, classId, teacherId);
+            if (!classRow) {
+                return res.status(400).json({ error: 'Invalid classId for this teacher' });
+            }
+        }
+
+        if (studentId) {
+            const student = db.get(`SELECT id FROM users WHERE id = ? AND role = 'student'`, studentId);
+            if (!student) {
+                return res.status(400).json({ error: 'Invalid studentId' });
+            }
+
+            if (classId) {
+                const enrolled = db.get(
+                    `SELECT id FROM enrollments WHERE class_id = ? AND student_id = ? AND status = 'active'`,
+                    classId,
+                    studentId
+                );
+                if (!enrolled) {
+                    return res.status(400).json({ error: 'studentId is not active in classId' });
+                }
+            }
+        }
+
+        const now = new Date().toISOString();
+        const id = createId('tcv');
+
+        db.run(
+            `INSERT INTO teacher_conversations (id, teacher_id, class_id, student_id, title, created_at, updated_at, last_message_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+            id,
+            teacherId,
+            classId ?? null,
+            studentId ?? null,
+            title ?? null,
+            now,
+            now
+        );
+
+        const created = db.get(`SELECT * FROM teacher_conversations WHERE id = ?`, id) as TeacherConversationRow;
+        res.status(201).json(toConversationDto(created));
+    } catch (error) {
+        console.error('Error creating teacher copilot conversation:', error);
+        res.status(500).json({ error: 'Failed to create conversation' });
+    }
+};
+
+export const listTeacherCopilotMessages = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const conversationId = req.params.id;
+
+    try {
+        const conversation = getOwnedConversation(teacherId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        const rows = db.all(
+            `SELECT * FROM teacher_conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
+            conversationId
+        ) as TeacherConversationMessageRow[];
+
+        res.json(rows.map(toMessageDto));
+    } catch (error) {
+        console.error('Error listing teacher copilot messages:', error);
+        res.status(500).json({ error: 'Failed to list conversation messages' });
+    }
+};
+
+export const appendTeacherCopilotMessage = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const conversationId = req.params.id;
+    const { role, content, intent, source, metadata } = req.body ?? {};
+
+    try {
+        const conversation = getOwnedConversation(teacherId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        if (!role || !['user', 'assistant', 'system'].includes(role)) {
+            return res.status(400).json({ error: 'role must be one of user, assistant, system' });
+        }
+
+        if (!content || typeof content !== 'string' || !content.trim()) {
+            return res.status(400).json({ error: 'content is required' });
+        }
+
+        const id = createId('tcm');
+        const now = new Date().toISOString();
+        const metadataJson = metadata ? JSON.stringify(metadata) : null;
+
+        db.run(
+            `INSERT INTO teacher_conversation_messages (id, conversation_id, role, content, intent, source, metadata_json, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            id,
+            conversationId,
+            role,
+            content,
+            intent ?? null,
+            source ?? null,
+            metadataJson,
+            now
+        );
+
+        db.run(
+            `UPDATE teacher_conversations SET updated_at = ?, last_message_at = ? WHERE id = ?`,
+            now,
+            now,
+            conversationId
+        );
+
+        const created = db.get(`SELECT * FROM teacher_conversation_messages WHERE id = ?`, id) as TeacherConversationMessageRow;
+        res.status(201).json(toMessageDto(created));
+    } catch (error) {
+        console.error('Error appending teacher copilot message:', error);
+        res.status(500).json({ error: 'Failed to append conversation message' });
+    }
+};

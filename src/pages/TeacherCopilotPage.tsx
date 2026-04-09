@@ -27,8 +27,7 @@ import {
     CopilotAuthGate,
     Message, 
     Step, 
-    ActionChip,
-    shouldShowFeedback
+    ActionChip
 } from '../components/Copilot/CopilotShared';
 import { askElora } from '../services/askElora';
 
@@ -108,6 +107,8 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const dataMessageCountRef = useRef(0);
     const [insights, setInsights] = useState<any[]>(isDemo ? demoInsights : []);
     const [teacherStats, setTeacherStats] = useState<any[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [activeConversationTitle, setActiveConversationTitle] = useState<string>('This week\'s thread');
 
     const shouldShowFeedback = () => {
         dataMessageCountRef.current += 1;
@@ -136,6 +137,81 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             loadContextData();
         }
     }, [isDemo]);
+
+    const mapPersistedToUiMessage = (
+        persisted: dataService.TeacherCopilotConversationMessage,
+        conversationId: string,
+        conversationTitle?: string | null,
+        contextClassId?: string | null
+    ): Message => {
+        const classId = contextClassId ?? selectedClassId ?? null;
+        const className = classId ? (classList.find((c: any) => c.id === classId)?.name ?? null) : null;
+
+        return {
+            id: persisted.id,
+            role: persisted.role,
+            content: persisted.content,
+            intent: persisted.intent ?? undefined,
+            conversationId,
+            persistedAt: persisted.createdAt,
+            source: persisted.source ?? undefined,
+            threadContext: {
+                classId,
+                className,
+                label: conversationTitle ?? 'This week\'s thread',
+            },
+            showFeedback: persisted.role === 'assistant' ? shouldShowFeedback() : false,
+        };
+    };
+
+    useEffect(() => {
+        if (isDemo) return;
+
+        let cancelled = false;
+
+        const loadConversationForContext = async () => {
+            try {
+                const conversations = await dataService.listTeacherConversations({
+                    classId: selectedClassId ?? undefined,
+                });
+
+                if (cancelled) return;
+
+                if (conversations.length === 0) {
+                    setActiveConversationId(null);
+                    setActiveConversationTitle('This week\'s thread');
+                    setMessages([]);
+                    return;
+                }
+
+                const currentConversation = conversations[0];
+                setActiveConversationId(currentConversation.id);
+                setActiveConversationTitle(currentConversation.title ?? 'This week\'s thread');
+
+                const persistedMessages = await dataService.getTeacherConversationMessages(currentConversation.id);
+                if (cancelled) return;
+
+                setMessages(
+                    persistedMessages.map((persisted) =>
+                        mapPersistedToUiMessage(
+                            persisted,
+                            currentConversation.id,
+                            currentConversation.title,
+                            currentConversation.classId ?? selectedClassId ?? null
+                        )
+                    )
+                );
+            } catch (error) {
+                console.error('Failed to load teacher copilot conversations:', error);
+            }
+        };
+
+        loadConversationForContext();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isDemo, selectedClassId, classList]);
 
     const buildPrompts = (): string[] => {
         const topTopic = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
@@ -227,15 +303,64 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         const query = text.trim();
         if (!query) return;
 
+        let ensuredConversationId = activeConversationId;
+        let ensuredConversationTitle = activeConversationTitle;
+
+        if (!isDemo && !ensuredConversationId) {
+            try {
+                const createdConversation = await dataService.createTeacherConversation({
+                    classId: selectedClassId ?? undefined,
+                    title: 'This week\'s thread',
+                });
+                ensuredConversationId = createdConversation.id;
+                ensuredConversationTitle = createdConversation.title ?? 'This week\'s thread';
+                setActiveConversationId(createdConversation.id);
+                setActiveConversationTitle(ensuredConversationTitle);
+            } catch (error) {
+                console.error('Failed to create teacher copilot conversation. Continuing in local-only mode.', error);
+            }
+        }
+
         const newUserMsg: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: query
+            content: query,
+            conversationId: ensuredConversationId ?? undefined,
+            threadContext: {
+                classId: selectedClassId,
+                className: selectedClassId ? (classList.find((c: any) => c.id === selectedClassId)?.name ?? null) : null,
+                label: ensuredConversationTitle,
+            },
         };
 
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
         setIsThinking(true);
+
+        if (!isDemo && ensuredConversationId) {
+            try {
+                const persistedUserMessage = await dataService.appendTeacherConversationMessage(ensuredConversationId, {
+                    role: 'user',
+                    content: query,
+                    source: 'teacher-copilot-ui',
+                });
+
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.id === newUserMsg.id
+                            ? {
+                                ...msg,
+                                id: persistedUserMessage.id,
+                                persistedAt: persistedUserMessage.createdAt,
+                                source: persistedUserMessage.source ?? 'teacher-copilot-ui',
+                            }
+                            : msg
+                    )
+                );
+            } catch (error) {
+                console.error('Failed to persist teacher user message:', error);
+            }
+        }
 
         try {
             const currentClassNameText = selectedClassId
@@ -274,10 +399,42 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 role: 'assistant',
                 steps: [contextStep],
                 content: response,
-                showFeedback: shouldShowFeedback()
+                showFeedback: shouldShowFeedback(),
+                conversationId: ensuredConversationId ?? undefined,
+                source: 'ask-elora',
+                threadContext: {
+                    classId: selectedClassId,
+                    className: selectedClassId ? (classList.find((c: any) => c.id === selectedClassId)?.name ?? null) : null,
+                    label: ensuredConversationTitle,
+                },
             };
 
             setMessages(prev => [...prev, assistantMsg]);
+
+            if (!isDemo && ensuredConversationId) {
+                try {
+                    const persistedAssistantMessage = await dataService.appendTeacherConversationMessage(ensuredConversationId, {
+                        role: 'assistant',
+                        content: response,
+                        source: 'ask-elora',
+                    });
+
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.id === assistantMsg.id
+                                ? {
+                                    ...msg,
+                                    id: persistedAssistantMessage.id,
+                                    persistedAt: persistedAssistantMessage.createdAt,
+                                    source: persistedAssistantMessage.source ?? 'ask-elora',
+                                }
+                                : msg
+                        )
+                    );
+                } catch (error) {
+                    console.error('Failed to persist teacher assistant message:', error);
+                }
+            }
         } catch (error) {
             console.error('Teacher Copilot Error:', error);
             const errorMsg: Message = {
@@ -456,6 +613,9 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     <p className="text-sm text-slate-500 font-medium">
                                         Your classroom AI assistant
                                     </p>
+                                    <p className="text-[11px] text-teal-600 font-semibold uppercase tracking-widest mt-1">
+                                        {activeConversationTitle}
+                                    </p>
                                 </div>
                             </div>
 
@@ -525,7 +685,11 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setMessages([])}
+                            onClick={() => {
+                                setMessages([]);
+                                setActiveConversationId(null);
+                                setActiveConversationTitle('This week\'s thread');
+                            }}
                             className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl shrink-0"
                         >
                             <Plus size={20} />

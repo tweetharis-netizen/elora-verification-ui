@@ -87,6 +87,28 @@ sqliteDb.exec(`
     created_at    TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS teacher_conversations (
+    id TEXT PRIMARY KEY,
+    teacher_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE SET NULL,
+    student_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    title TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_message_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS teacher_conversation_messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES teacher_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
+    content TEXT NOT NULL,
+    intent TEXT,
+    source TEXT,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_assignments_class 
     ON assignments(class_id);
   CREATE INDEX IF NOT EXISTS idx_attempts_student 
@@ -99,6 +121,14 @@ sqliteDb.exec(`
     ON game_sessions(assignment_id);
   CREATE INDEX IF NOT EXISTS idx_game_sessions_class 
     ON game_sessions(class_id);
+  CREATE INDEX IF NOT EXISTS idx_teacher_conversations_teacher_updated
+    ON teacher_conversations(teacher_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_teacher_conversations_teacher_class
+    ON teacher_conversations(teacher_id, class_id);
+  CREATE INDEX IF NOT EXISTS idx_teacher_conversations_teacher_student
+    ON teacher_conversations(teacher_id, student_id);
+  CREATE INDEX IF NOT EXISTS idx_teacher_messages_conversation_created
+    ON teacher_conversation_messages(conversation_id, created_at ASC);
 `);
 
 // Seed

@@ -629,6 +629,89 @@ export const sendTeacherNudge = async (
     return response.json();
 };
 
+export type CopilotConversationRole = 'user' | 'assistant' | 'system';
+
+export interface TeacherCopilotConversation {
+    id: string;
+    teacherId: string;
+    classId?: string | null;
+    studentId?: string | null;
+    title?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    lastMessageAt?: string | null;
+}
+
+export interface TeacherCopilotConversationMessage {
+    id: string;
+    conversationId: string;
+    role: CopilotConversationRole;
+    content: string;
+    intent?: string | null;
+    source?: string | null;
+    metadata?: Record<string, unknown> | null;
+    createdAt: string;
+}
+
+export const listTeacherConversations = async (params?: {
+    classId?: string;
+    studentId?: string;
+}): Promise<TeacherCopilotConversation[]> => {
+    const query = new URLSearchParams();
+    if (params?.classId) query.set('classId', params.classId);
+    if (params?.studentId) query.set('studentId', params.studentId);
+
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations${suffix}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list teacher conversations');
+    return response.json();
+};
+
+export const createTeacherConversation = async (body: {
+    classId?: string;
+    studentId?: string;
+    title?: string;
+}): Promise<TeacherCopilotConversation> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error('Failed to create teacher conversation');
+    return response.json();
+};
+
+export const getTeacherConversationMessages = async (
+    conversationId: string
+): Promise<TeacherCopilotConversationMessage[]> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations/${conversationId}/messages`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch teacher conversation messages');
+    return response.json();
+};
+
+export const appendTeacherConversationMessage = async (
+    conversationId: string,
+    body: {
+        role: CopilotConversationRole;
+        content: string;
+        intent?: string;
+        source?: string;
+        metadata?: Record<string, unknown>;
+    }
+): Promise<TeacherCopilotConversationMessage> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error('Failed to append teacher conversation message');
+    return response.json();
+};
+
 // ── AI Generator API & Game Packs ───────────────────────────────────────────────
 
 const fallbackGamePacks: Record<string, GamePack> = {

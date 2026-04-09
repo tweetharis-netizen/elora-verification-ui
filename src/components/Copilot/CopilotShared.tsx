@@ -40,6 +40,14 @@ export type ActionChip = {
     destination?: string;
 };
 
+export type ThreadContext = {
+    classId?: string | null;
+    className?: string | null;
+    studentId?: string | null;
+    studentName?: string | null;
+    label?: string | null;
+};
+
 export type Message = {
     id: string;
     role: 'user' | 'assistant' | 'system';
@@ -49,6 +57,10 @@ export type Message = {
     intent?: string;
     /** Whether to show the feedback row for this message (~5% chance) */
     showFeedback?: boolean;
+    conversationId?: string;
+    threadContext?: ThreadContext;
+    persistedAt?: string;
+    source?: string;
 };
 
 export const handleFeedback = (feedback: { messageId: string; role: string; value: 'yes' | 'no'; intent?: string }) => {

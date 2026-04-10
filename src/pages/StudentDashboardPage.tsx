@@ -894,7 +894,7 @@ export default function StudentDashboardPage({
                     `}
                 >
                     {/* Logo & Close toggle */}
-                    <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                    <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                         <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
                             <EloraLogo className="w-10 h-10 text-current drop-shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
                         </Link>
@@ -945,15 +945,13 @@ export default function StudentDashboardPage({
                             }}
                             theme={sidebarTheme} 
                         />
-                        {!isDemo && (
-                            <SidebarItem
-                                icon={Sparkles}
-                                label="Copilot"
-                                collapsed={!isSidebarOpen}
-                                onClick={() => navigate('/student/copilot')}
-                                theme={sidebarTheme}
-                            />
-                        )}
+                        <SidebarItem
+                            icon={Sparkles}
+                            label="Copilot"
+                            collapsed={!isSidebarOpen}
+                            onClick={() => navigate(isDemo ? '/student/demo/copilot' : '/student/copilot')}
+                            theme={sidebarTheme}
+                        />
                         <SidebarItem 
                             icon={Gamepad2} 
                             label="Practice & Quizzes" 
@@ -980,22 +978,20 @@ export default function StudentDashboardPage({
                             }} 
                             theme={sidebarTheme} 
                         />
-                        {!isDemo && (
-                            <SidebarItem 
-                                icon={TrendingUp} 
-                                label="Reports" 
-                                active={activeTab === 'dashboard' && hash === '#reports'} 
-                                collapsed={!isSidebarOpen} 
-                                onClick={() => {
-                                    navigate('/dashboard/student#reports');
-                                    setActiveTab('dashboard');
-                                    setTimeout(() => {
-                                        document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
-                                    }, 100);
-                                }}
-                                theme={sidebarTheme} 
-                            />
-                        )}
+                        <SidebarItem 
+                            icon={TrendingUp} 
+                            label="Reports" 
+                            active={activeTab === 'dashboard' && hash === '#reports'} 
+                            collapsed={!isSidebarOpen} 
+                            onClick={() => {
+                                navigate(isDemo ? '/student/demo#reports' : '/dashboard/student#reports');
+                                setActiveTab('dashboard');
+                                setTimeout(() => {
+                                    document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }} 
+                            theme={sidebarTheme} 
+                        />
                     </nav>
 
                     {/* Footer / System menu */}

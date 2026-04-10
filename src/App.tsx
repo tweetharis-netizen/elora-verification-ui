@@ -9,6 +9,7 @@ import {
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import Signup from './Signup';
 import Login from './Login';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import TeacherClassroomPage from './pages/TeacherClassroomPage';
 import TeacherCopilotPage from './pages/TeacherCopilotPage';
@@ -729,6 +730,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify" element={<VerifyPage />} />
       <Route path="/our-story" element={<OurStoryPage />} />
       <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
@@ -754,7 +756,7 @@ export default function App() {
       <Route path="/parent/demo" element={<ParentShellLayout />}>
         <Route index element={<ParentDashboardPage embeddedInShell />} />
         <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
-        <Route path="copilot" element={<ParentCopilotPage />} />
+        <Route path="copilot" element={<ParentCopilotPage embeddedInShell />} />
       </Route>
       <Route path="/parent/copilot/demo" element={<Navigate to="/parent/demo/copilot" replace />} />
       <Route element={<ProtectedRoute />}>
@@ -780,7 +782,7 @@ export default function App() {
         <Route element={<ParentShellLayout />}>
           <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
           <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
-          <Route path="/parent/copilot" element={<ParentCopilotPage />} />
+          <Route path="/parent/copilot" element={<ParentCopilotPage embeddedInShell />} />
         </Route>
         <Route path="/play/:packId" element={<StudentGamePage />} />
       </Route>

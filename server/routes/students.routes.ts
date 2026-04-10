@@ -6,7 +6,11 @@ import {
     createStudentGameSession,
     getStudentStreak,
     getStudentNudges,
-    markNudgeRead
+    markNudgeRead,
+    listStudentCopilotConversations,
+    createStudentCopilotConversation,
+    listStudentCopilotMessages,
+    appendStudentCopilotMessage,
 } from '../controllers/students.js';
 
 const router = Router();
@@ -18,5 +22,9 @@ router.post('/game-sessions', requireAuth, requireRole('student'), createStudent
 router.get('/me/streak', requireAuth, requireRole('student'), getStudentStreak);
 router.get('/nudges', requireAuth, requireRole('student'), getStudentNudges);
 router.post('/nudges/:id/read', requireAuth, requireRole('student'), markNudgeRead);
+router.get('/copilot/conversations', requireAuth, requireRole('student'), listStudentCopilotConversations);
+router.post('/copilot/conversations', requireAuth, requireRole('student'), createStudentCopilotConversation);
+router.get('/copilot/conversations/:id/messages', requireAuth, requireRole('student'), listStudentCopilotMessages);
+router.post('/copilot/conversations/:id/messages', requireAuth, requireRole('student'), appendStudentCopilotMessage);
 
 export default router;

@@ -17,7 +17,8 @@ import {
     TrendingUp,
     MessageSquare,
     Mail,
-    Info
+    Info,
+    Zap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
@@ -105,7 +106,7 @@ const HorizontalChips: React.FC<{
     );
 };
 
-const ParentCopilotPage: React.FC = () => {
+const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
@@ -146,6 +147,7 @@ const ParentCopilotPage: React.FC = () => {
 
     const currentChild = children.find(c => c.id === selectedChildId) || null;
     const childName = currentChild?.name || 'your child';
+    const alertConcepts = performanceData?.alerts || [];
 
     const buildPrompts = (): string[] => {
         const firstLabel = currentChild 
@@ -251,8 +253,9 @@ const ParentCopilotPage: React.FC = () => {
             themeColor="#DB844A" // Brand Orange
             logout={logout}
             navigate={navigate}
-            demoBanner={isDemo && <DemoBanner />}
-            demoRoleSwitcher={isDemo && <DemoRoleSwitcher />}
+            demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
+            demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
+            hidePrimarySidebar={embeddedInShell}
             sidebar={
                 showAuthGate ? (
                     <div className="p-6">
@@ -268,42 +271,49 @@ const ParentCopilotPage: React.FC = () => {
                     </div>
                 ) : (
                     <>
-                        <div className="p-6 border-b border-[#EAE7DD]">
-                            <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-1">Copilot</h2>
-                            <p className="text-sm font-medium text-orange-600 flex items-center gap-1.5">
-                                <Sparkles size={14} />
-                                Connected to {childName}'s data
+                        <div className="p-6 border-b border-slate-200/60 bg-orange-50/30">
+                            <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-0.5">Library</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                Suggested & History
                             </p>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
-                            {/* Context Selection Row */}
-                            <div className="flex flex-col gap-3">
-                                {/* Child Selector */}
+                            {/* Context Selection (Premium Card Style like Teacher) */}
+                            <div className="flex flex-col gap-4">
+                                {/* Active Child Card */}
                                 <div className="relative">
+                                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2 px-1">Selected Student</h3>
                                     <button
                                         onClick={() => setIsChildPopupOpen(!isChildPopupOpen)}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 hover:bg-orange-100/80 border border-orange-200 rounded-full text-orange-700 transition-colors w-full"
+                                        className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 rounded-2xl shadow-sm transition-all group"
                                     >
-                                        <User size={14} className="shrink-0" />
-                                        <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis">
-                                            {currentChild?.name || 'Select child'}
-                                        </span>
-                                        <ChevronDown size={14} className={`shrink-0 ml-auto transition-transform ${isChildPopupOpen ? 'rotate-180' : ''}`} />
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="p-2 bg-orange-50 rounded-xl text-[#DB844A] group-hover:bg-orange-100 transition-colors shrink-0">
+                                                <User size={18} />
+                                            </div>
+                                            <div className="text-left min-w-0">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Focus</p>
+                                                <p className="text-sm font-bold text-slate-900 truncate">
+                                                    {currentChild?.name || 'Select Child'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 shrink-0 ${isChildPopupOpen ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {isChildPopupOpen && (
                                         <>
                                             <div className="fixed inset-0 z-30" onClick={() => setIsChildPopupOpen(false)} />
-                                            <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-200 z-40 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200 z-40 py-2 animate-in fade-in zoom-in-95 origin-top duration-200">
                                                 {children.map((child) => (
                                                     <button
                                                         key={child.id}
                                                         onClick={() => handleChildChange(child.id)}
                                                         className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChildId === child.id ? 'bg-orange-50/50' : ''}`}
                                                     >
-                                                        <span className="text-sm font-bold text-slate-900">{child.name}</span>
-                                                        {selectedChildId === child.id && <Check size={16} className="text-orange-600" />}
+                                                        <span className={`text-[13px] font-bold ${selectedChildId === child.id ? 'text-[#DB844A]' : 'text-slate-700'}`}>{child.name}</span>
+                                                        {selectedChildId === child.id && <Check size={16} className="text-[#DB844A]" strokeWidth={3} />}
                                                     </button>
                                                 ))}
                                             </div>
@@ -311,31 +321,51 @@ const ParentCopilotPage: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Subject Selector */}
+                                {/* Focus Subject Card */}
                                 <div className="relative">
+                                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2 px-1">Active Concept</h3>
                                     <button
                                         onClick={() => setIsSubjectPopupOpen(!isSubjectPopupOpen)}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-full text-slate-700 transition-colors w-full"
+                                        className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 rounded-2xl shadow-sm transition-all group"
                                     >
-                                        <BookOpen size={14} className="shrink-0" />
-                                        <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis">
-                                            {selectedSubject}
-                                        </span>
-                                        <ChevronDown size={14} className={`shrink-0 ml-auto transition-transform ${isSubjectPopupOpen ? 'rotate-180' : ''}`} />
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="p-2 bg-orange-50 rounded-xl text-[#DB844A] group-hover:bg-orange-100 transition-colors shrink-0">
+                                                <BookOpen size={18} />
+                                            </div>
+                                            <div className="text-left min-w-0">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Subject</p>
+                                                <p className="text-sm font-bold text-slate-900 truncate">
+                                                    {selectedSubject}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 shrink-0 ${isSubjectPopupOpen ? 'rotate-180 text-[#DB844A]' : ''}`} />
                                     </button>
+
+                                    {alertConcepts.length > 0 && (
+                                        <div className="mt-4 p-3 bg-orange-50/50 border border-orange-100 rounded-xl animate-in fade-in slide-in-from-top-2 duration-500 group cursor-help">
+                                            <div className="flex items-center gap-2 text-orange-600 mb-1">
+                                                <Zap size={14} className="fill-orange-600 animate-pulse" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Insight Alert</span>
+                                            </div>
+                                            <p className="text-[11px] text-orange-800 font-medium leading-relaxed">
+                                                {childName} might need extra support with <strong>{alertConcepts[0].concept}</strong>.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {isSubjectPopupOpen && (
                                         <>
                                             <div className="fixed inset-0 z-30" onClick={() => setIsSubjectPopupOpen(false)} />
-                                            <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-200 z-40 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 max-h-60 overflow-y-auto">
+                                            <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200 z-40 py-2 animate-in fade-in zoom-in-95 origin-top duration-200 max-h-60 overflow-y-auto custom-scrollbar">
                                                 {SUBJECTS.map((sub) => (
                                                     <button
                                                         key={sub}
                                                         onClick={() => handleSubjectChange(sub)}
-                                                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedSubject === sub ? 'bg-orange-50/50 text-orange-900' : 'text-slate-600'}`}
+                                                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedSubject === sub ? 'bg-orange-50/50 text-[#DB844A]' : 'text-slate-600'}`}
                                                     >
-                                                        <span className="text-sm font-medium">{sub}</span>
-                                                        {selectedSubject === sub && <Check size={16} className="text-orange-600" />}
+                                                        <span className={`text-[13px] font-bold ${selectedSubject === sub ? 'text-[#DB844A]' : 'text-slate-700'}`}>{sub}</span>
+                                                        {selectedSubject === sub && <Check size={16} className="text-[#DB844A]" strokeWidth={3} />}
                                                     </button>
                                                 ))}
                                             </div>
@@ -345,17 +375,17 @@ const ParentCopilotPage: React.FC = () => {
                             </div>
 
                             {/* Prompt Chips */}
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Suggested Questions</h3>
+                            <div className="flex-1 mt-4">
+                                <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3 px-1">Suggested Questions</h3>
                                 <div className="flex flex-col gap-2">
                                     {currentPrompts.map((prompt, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleSend(prompt)}
-                                            className="text-left text-sm text-orange-700 font-medium bg-orange-50 border border-orange-100 hover:bg-orange-100 hover:border-orange-200 transition-colors px-4 py-3 rounded-xl flex items-start gap-2"
+                                            className="text-left text-sm text-[#DB844A] font-bold bg-[#DB844A]/5 border border-[#DB844A]/10 hover:bg-[#DB844A]/10 hover:border-[#DB844A]/20 transition-all px-4 py-3 rounded-xl flex items-start gap-2 group"
                                         >
                                             <span className="flex-1 leading-snug">{prompt}</span>
-                                            <ArrowRight size={16} className="shrink-0 text-orange-500 opacity-50 mt-0.5" />
+                                            <ArrowRight size={16} className="shrink-0 text-[#DB844A] opacity-50 group-hover:translate-x-0.5 transition-transform mt-0.5" />
                                         </button>
                                     ))}
                                 </div>
@@ -395,16 +425,38 @@ const ParentCopilotPage: React.FC = () => {
                         ) : (
                             <>
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#EAE7DD]">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-orange-50 p-2 rounded-xl border border-orange-100 hidden md:block">
-                                            <Sparkles className="w-6 h-6 text-orange-600" />
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-orange-50 p-2 rounded-xl border border-orange-100 hidden md:block group-hover:scale-105 transition-transform shadow-sm">
+                                            <Sparkles className="w-6 h-6 text-[#DB844A]" />
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold text-slate-900 leading-tight">Copilot</h1>
-                                            <p className="text-sm text-slate-500 font-medium">
-                                                Calm snapshots of {childName}'s learning
+                                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">Insight Navigator</h1>
+                                            <p className="text-sm text-slate-500 font-semibold tracking-wide">
+                                                Elora Copilot &middot; Family Support
+                                            </p>
+                                            <p className="text-[11px] text-[#DB844A] font-bold uppercase tracking-widest mt-1 opacity-80">
+                                                This week &middot; {childName}
                                             </p>
                                         </div>
+                                    </div>
+
+                                    {/* Subject Context Selector (Synced with Teacher style) */}
+                                    <div className="relative group/pill">
+                                        <button
+                                            onClick={() => setIsSubjectPopupOpen(!isSubjectPopupOpen)}
+                                            className="flex items-center gap-3 px-4 py-2 bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 rounded-2xl text-slate-700 hover:text-[#DB844A] transition-all w-fit shadow-sm active:scale-95 group"
+                                        >
+                                            <div className="w-6 h-6 rounded-lg bg-orange-50 flex items-center justify-center text-[#DB844A] group-hover:bg-orange-100 transition-colors shadow-inner">
+                                                <Layers size={14} strokeWidth={2.5} />
+                                            </div>
+                                            <div className="flex flex-col text-left mr-1">
+                                                <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-slate-400 leading-none mb-0.5">Filtering by</span>
+                                                <span className="text-[12px] font-bold whitespace-nowrap leading-none">
+                                                    {selectedSubject}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={14} className={`shrink-0 text-slate-300 transition-transform duration-300 group-hover:text-[#DB844A] ${isSubjectPopupOpen ? 'rotate-180 text-[#DB844A]' : ''}`} />
+                                        </button>
                                     </div>
                                 </div>
 

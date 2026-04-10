@@ -158,7 +158,6 @@ export default function ParentShellLayout() {
 
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
           {navItems
-            .filter((item) => !(isDemo && (item.id === 'copilot' || item.id === 'progress')))
             .map((item) => (
             <React.Fragment key={item.id}>
               <SidebarItem

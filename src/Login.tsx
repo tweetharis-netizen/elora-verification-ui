@@ -18,6 +18,7 @@ export default function Login() {
     const location = useLocation();
     const prefilledRole = (location.state as { role?: UserRole } | null)?.role ?? 'teacher';
     const [selectedRole, setSelectedRole] = useState<UserRole>(prefilledRole);
+    const [email, setEmail] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -72,6 +73,8 @@ export default function Login() {
                         <input
                             type="email"
                             id="login-email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
                             placeholder="you@example.com"
                             required
@@ -81,7 +84,13 @@ export default function Login() {
                     <div>
                         <div className="flex justify-between items-center mb-1.5">
                             <label className="block text-sm font-medium text-elora-400" htmlFor="login-password">Password</label>
-                            <a href="#" className="text-xs font-medium text-elora-200 hover:text-elora-300 transition-colors">Forgot password?</a>
+                            <Link
+                                to="/forgot-password"
+                                state={email.trim() ? { email: email.trim() } : undefined}
+                                className="text-xs font-medium text-elora-200 hover:text-elora-300 transition-colors"
+                            >
+                                Forgot password?
+                            </Link>
                         </div>
                         <div className="relative">
                             <input

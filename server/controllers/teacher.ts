@@ -405,30 +405,116 @@ export const listTeacherCopilotConversations = (req: AuthRequest, res: Response)
 export const createTeacherCopilotConversation = (req: AuthRequest, res: Response) => {
     const teacherId = req.user!.id;
     const { classId, studentId, title } = req.body ?? {};
+    const isDemoTeacher = DEMO_USER_IDS.has(teacherId);
+
+    const normalizeId = (value: unknown) => {
+        if (value === null || value === undefined) return null;
+        return String(value).trim();
+    };
+
+    const normalizedClassId = normalizeId(classId);
+    const normalizedStudentId = normalizeId(studentId);
+    let validatedDemoClass: any | null = null;
+    let validatedDemoStudent: any | null = null;
 
     try {
-        if (classId) {
-            const classRow = db.get(`SELECT id FROM classes WHERE id = ? AND teacher_id = ?`, classId, teacherId);
-            if (!classRow) {
-                return res.status(400).json({ error: 'Invalid classId for this teacher' });
+        if (normalizedClassId) {
+            if (isDemoTeacher) {
+                const demoClass = mockDb.classes.find(
+                    (row) => String(row.id) === normalizedClassId && row.teacherId === teacherId
+                );
+                if (!demoClass) {
+                    return res.status(400).json({ error: 'Invalid classId for this teacher' });
+                }
+                validatedDemoClass = demoClass;
+            } else {
+                const classRow = db.get(
+                    `SELECT id FROM classes WHERE id = ? AND teacher_id = ?`,
+                    normalizedClassId,
+                    teacherId
+                );
+                if (!classRow) {
+                    return res.status(400).json({ error: 'Invalid classId for this teacher' });
+                }
             }
         }
 
-        if (studentId) {
-            const student = db.get(`SELECT id FROM users WHERE id = ? AND role = 'student'`, studentId);
-            if (!student) {
-                return res.status(400).json({ error: 'Invalid studentId' });
+        if (normalizedStudentId) {
+            if (isDemoTeacher) {
+                const student = mockDb.users.find(
+                    (row) => String(row.id) === normalizedStudentId && row.role === 'student'
+                );
+                if (!student) {
+                    return res.status(400).json({ error: 'Invalid studentId' });
+                }
+                validatedDemoStudent = student;
+
+                if (normalizedClassId) {
+                    const demoClass = validatedDemoClass ?? mockDb.classes.find(
+                        (row) => String(row.id) === normalizedClassId && row.teacherId === teacherId
+                    );
+
+                    if (!demoClass) {
+                        return res.status(400).json({ error: 'Invalid classId for this teacher' });
+                    }
+
+                    const activeEnrollment = mockDb.enrollments.find(
+                        (row) =>
+                            String(row.classroomId) === normalizedClassId &&
+                            String(row.studentId) === normalizedStudentId &&
+                            row.status === 'active'
+                    );
+
+                    // Demo data has partial enrollment records for large classes.
+                    // Fall back to the class roster so class-level conversations stay usable in seeded dev mode.
+                    const isInRoster = demoClass.studentIds.some((id) => String(id) === normalizedStudentId);
+
+                    if (!activeEnrollment && !isInRoster) {
+                        return res.status(400).json({ error: 'studentId is not active in classId' });
+                    }
+                }
+            } else {
+                const student = db.get(`SELECT id FROM users WHERE id = ? AND role = 'student'`, normalizedStudentId);
+                if (!student) {
+                    return res.status(400).json({ error: 'Invalid studentId' });
+                }
+
+                if (normalizedClassId) {
+                    const enrolled = db.get(
+                        `SELECT id FROM enrollments WHERE class_id = ? AND student_id = ? AND status = 'active'`,
+                        normalizedClassId,
+                        normalizedStudentId
+                    );
+                    if (!enrolled) {
+                        return res.status(400).json({ error: 'studentId is not active in classId' });
+                    }
+                }
+            }
+        }
+
+        if (isDemoTeacher) {
+            if (validatedDemoClass) {
+                // Demo classes live in memory. Mirror validated rows into SQLite to satisfy FK constraints.
+                db.run(
+                    `INSERT OR IGNORE INTO classes (id, name, subject, teacher_id, join_code, schedule_time)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                    String(validatedDemoClass.id),
+                    validatedDemoClass.name,
+                    validatedDemoClass.subject ?? 'General',
+                    teacherId,
+                    validatedDemoClass.joinCode,
+                    validatedDemoClass.scheduleTime ?? null
+                );
             }
 
-            if (classId) {
-                const enrolled = db.get(
-                    `SELECT id FROM enrollments WHERE class_id = ? AND student_id = ? AND status = 'active'`,
-                    classId,
-                    studentId
+            if (validatedDemoStudent) {
+                db.run(
+                    `INSERT OR IGNORE INTO users (id, name, email, role)
+                     VALUES (?, ?, ?, 'student')`,
+                    String(validatedDemoStudent.id),
+                    validatedDemoStudent.name,
+                    validatedDemoStudent.email
                 );
-                if (!enrolled) {
-                    return res.status(400).json({ error: 'studentId is not active in classId' });
-                }
             }
         }
 
@@ -440,8 +526,8 @@ export const createTeacherCopilotConversation = (req: AuthRequest, res: Response
              VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
             id,
             teacherId,
-            classId ?? null,
-            studentId ?? null,
+            normalizedClassId ?? null,
+            normalizedStudentId ?? null,
             title ?? null,
             now,
             now

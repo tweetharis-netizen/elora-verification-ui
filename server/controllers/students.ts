@@ -1,22 +1,22 @@
 import { Response } from 'express';
-import { db } from '../db.js';
+import { db as mockDb } from '../db.js';
 import { AuthRequest } from '../middleware/auth.js';
-import { DEMO_USER_IDS, sqliteDb } from '../database.js';
+import { DEMO_USER_IDS, sqliteDb, db } from '../database.js';
 
 export const getStudentAssignments = (req: AuthRequest, res: Response) => {
     const studentId = req.user!.id;
 
     // Find all classes the student is part of
-    const myClasses = db.classes.filter(c => c.studentIds.includes(studentId));
+    const myClasses = mockDb.classes.filter(c => c.studentIds.includes(studentId));
     const classIds = myClasses.map(c => c.id);
 
     // Find assignments for those classes
-    const myAssignments = db.assignments.filter(a => classIds.includes(a.classroomId));
+    const myAssignments = mockDb.assignments.filter(a => classIds.includes(a.classroomId));
 
     // Map to add className and submission status
     const uiAssignments = myAssignments.map(a => {
-        const cls = db.classes.find(c => c.id === a.classroomId);
-        const submission = db.submissions.find(s => s.assignmentId === a.id && s.studentId === studentId);
+        const cls = mockDb.classes.find(c => c.id === a.classroomId);
+        const submission = mockDb.submissions.find(s => s.assignmentId === a.id && s.studentId === studentId);
 
         return {
             ...a,
@@ -31,7 +31,7 @@ export const getStudentAssignments = (req: AuthRequest, res: Response) => {
 
 export const getStudentGameSessions = (req: AuthRequest, res: Response) => {
     const studentId = req.user!.id;
-    const sessions = db.gameSessions
+    const sessions = mockDb.gameSessions
         .filter(s => s.studentId === studentId)
         .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime());
     res.json(sessions);
@@ -60,7 +60,7 @@ export const createStudentGameSession = (req: AuthRequest, res: Response): any =
         results: results || []
     };
 
-    db.gameSessions.push(newSession);
+    mockDb.gameSessions.push(newSession);
 
     // Persist to SQLite for real users
     if (!DEMO_USER_IDS.has(studentId)) {
@@ -128,11 +128,11 @@ export const getStudentStreak = (req: AuthRequest, res: Response) => {
     // Collect all active dates: playedAt from GameSessions + updatedAt from submitted attempts
     const activeDates: Date[] = [];
 
-    db.gameSessions
+    mockDb.gameSessions
         .filter(gs => gs.studentId === studentId && gs.status === 'completed')
         .forEach(gs => activeDates.push(new Date(gs.playedAt)));
 
-    db.assignmentAttempts
+    mockDb.assignmentAttempts
         .filter(aa => aa.studentId === studentId && aa.status === 'submitted')
         .forEach(aa => activeDates.push(new Date(aa.updatedAt)));
 
@@ -141,7 +141,7 @@ export const getStudentStreak = (req: AuthRequest, res: Response) => {
     const weekMap: Record<string, WeekStats> = {};
 
     // Index game session accuracies by week key
-    db.gameSessions
+    mockDb.gameSessions
         .filter(gs => gs.studentId === studentId && gs.status === 'completed')
         .forEach(gs => {
             const key = getMondayKey(new Date(gs.playedAt));
@@ -152,7 +152,7 @@ export const getStudentStreak = (req: AuthRequest, res: Response) => {
         });
 
     // Mark weeks from submitted attempts (they count for streak but may not have a score)
-    db.assignmentAttempts
+    mockDb.assignmentAttempts
         .filter(aa => aa.studentId === studentId && aa.status === 'submitted')
         .forEach(aa => {
             const key = getMondayKey(new Date(aa.updatedAt));
@@ -217,16 +217,16 @@ export const getStudentStreak = (req: AuthRequest, res: Response) => {
 export const getStudentNudges = (req: AuthRequest, res: Response) => {
     const studentId = req.user!.id;
     
-    const pNudges = db.parentNudges.filter(n => n.studentId === studentId).map(n => {
-        const parent = db.users.find(u => u.id === n.parentId);
+    const pNudges = mockDb.parentNudges.filter(n => n.studentId === studentId).map(n => {
+        const parent = mockDb.users.find(u => u.id === n.parentId);
         return {
             ...n,
             senderName: parent ? parent.name : 'Parent'
         };
     });
     
-    const tNudges = db.teacherNudges.filter(n => n.studentId === studentId).map(n => {
-        const teacher = db.users.find(u => u.id === n.teacherId);
+    const tNudges = mockDb.teacherNudges.filter(n => n.studentId === studentId).map(n => {
+        const teacher = mockDb.users.find(u => u.id === n.teacherId);
         return {
             ...n,
             senderName: teacher ? teacher.name : 'Teacher'
@@ -243,7 +243,7 @@ export const markNudgeRead = (req: AuthRequest, res: Response): any => {
     const studentId = req.user!.id;
     const nudgeId = req.params.id;
 
-    const nudge = (db.parentNudges as any[]).concat(db.teacherNudges as any[])
+    const nudge = (mockDb.parentNudges as any[]).concat(mockDb.teacherNudges as any[])
         .find(n => n.id === nudgeId && n.studentId === studentId);
 
     if (!nudge) {
@@ -252,4 +252,245 @@ export const markNudgeRead = (req: AuthRequest, res: Response): any => {
 
     nudge.read = true;
     res.json(nudge);
+};
+
+type StudentConversationRow = {
+    id: string;
+    student_id: string;
+    class_id: string | null;
+    subject: string | null;
+    week_key: string | null;
+    title: string | null;
+    thread_type: 'weekly_subject' | 'checkpoint' | 'free_study';
+    summary: string | null;
+    created_at: string;
+    updated_at: string;
+    last_message_at: string | null;
+};
+
+type StudentConversationMessageRow = {
+    id: string;
+    conversation_id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    intent: string | null;
+    source: string | null;
+    metadata_json: string | null;
+    created_at: string;
+};
+
+const createId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const toConversationDto = (row: StudentConversationRow) => ({
+    id: row.id,
+    studentId: row.student_id,
+    classId: row.class_id,
+    subject: row.subject,
+    weekKey: row.week_key,
+    title: row.title,
+    threadType: row.thread_type,
+    summary: row.summary,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastMessageAt: row.last_message_at,
+});
+
+const toMessageDto = (row: StudentConversationMessageRow) => ({
+    id: row.id,
+    conversationId: row.conversation_id,
+    role: row.role,
+    content: row.content,
+    intent: row.intent,
+    source: row.source,
+    metadata: row.metadata_json ? JSON.parse(row.metadata_json) : null,
+    createdAt: row.created_at,
+});
+
+const getOwnedConversation = (studentId: string, conversationId: string): StudentConversationRow | undefined => {
+    return db.get(
+        `SELECT * FROM student_conversations WHERE id = ? AND student_id = ?`,
+        conversationId,
+        studentId
+    ) as StudentConversationRow | undefined;
+};
+
+export const listStudentCopilotConversations = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const subject = (req.query.subject as string | undefined) ?? undefined;
+    const classId = (req.query.classId as string | undefined) ?? undefined;
+    const weekKey = (req.query.weekKey as string | undefined) ?? undefined;
+
+    try {
+        let sql = `SELECT * FROM student_conversations WHERE student_id = ?`;
+        const params: any[] = [studentId];
+
+        if (subject) {
+            sql += ` AND subject = ?`;
+            params.push(subject);
+        }
+
+        if (classId) {
+            sql += ` AND class_id = ?`;
+            params.push(classId);
+        }
+
+        if (weekKey) {
+            sql += ` AND week_key = ?`;
+            params.push(weekKey);
+        }
+
+        sql += ` ORDER BY updated_at DESC, created_at DESC`;
+        const rows = db.all(sql, ...params) as StudentConversationRow[];
+        res.json(rows.map(toConversationDto));
+    } catch (error) {
+        console.error('Error listing student copilot conversations:', error);
+        res.status(500).json({ error: 'Failed to list conversations' });
+    }
+};
+
+export const createStudentCopilotConversation = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const { subject, classId, weekKey, title, threadType } = req.body ?? {};
+    const normalizedThreadType = String(threadType ?? 'weekly_subject');
+
+    try {
+        if (!['weekly_subject', 'checkpoint', 'free_study'].includes(normalizedThreadType)) {
+            return res.status(400).json({ error: 'threadType must be weekly_subject, checkpoint, or free_study' });
+        }
+
+        if (classId) {
+            if (DEMO_USER_IDS.has(studentId)) {
+                const hasClass = mockDb.classes.some(
+                    (row) => String(row.id) === String(classId) && row.studentIds.includes(studentId)
+                );
+                if (!hasClass) {
+                    return res.status(400).json({ error: 'Invalid classId for this student' });
+                }
+
+                const demoClass = mockDb.classes.find((row) => String(row.id) === String(classId));
+                const demoTeacherId = demoClass?.teacherId;
+                if (demoClass && demoTeacherId) {
+                    db.run(
+                        `INSERT OR IGNORE INTO classes (id, name, subject, teacher_id, join_code, schedule_time)
+                         VALUES (?, ?, ?, ?, ?, ?)`,
+                        String(demoClass.id),
+                        demoClass.name,
+                        demoClass.subject ?? 'General',
+                        demoTeacherId,
+                        demoClass.joinCode,
+                        demoClass.scheduleTime ?? null
+                    );
+                }
+            } else {
+                const enrolled = db.get(
+                    `SELECT e.id
+                     FROM enrollments e
+                     JOIN classes c ON c.id = e.class_id
+                     WHERE e.class_id = ? AND e.student_id = ? AND e.status = 'active'`,
+                    classId,
+                    studentId
+                );
+                if (!enrolled) {
+                    return res.status(400).json({ error: 'Invalid classId for this student' });
+                }
+            }
+        }
+
+        const now = new Date().toISOString();
+        const id = createId('scv');
+
+        db.run(
+            `INSERT INTO student_conversations (
+                id, student_id, class_id, subject, week_key, title, thread_type, summary, created_at, updated_at, last_message_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)`,
+            id,
+            studentId,
+            classId ?? null,
+            subject ?? null,
+            weekKey ?? null,
+            title ?? null,
+            normalizedThreadType,
+            now,
+            now
+        );
+
+        const created = db.get(`SELECT * FROM student_conversations WHERE id = ?`, id) as StudentConversationRow;
+        res.status(201).json(toConversationDto(created));
+    } catch (error) {
+        console.error('Error creating student copilot conversation:', error);
+        res.status(500).json({ error: 'Failed to create conversation' });
+    }
+};
+
+export const listStudentCopilotMessages = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const conversationId = req.params.id;
+
+    try {
+        const conversation = getOwnedConversation(studentId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        const rows = db.all(
+            `SELECT * FROM student_conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
+            conversationId
+        ) as StudentConversationMessageRow[];
+
+        res.json(rows.map(toMessageDto));
+    } catch (error) {
+        console.error('Error listing student copilot messages:', error);
+        res.status(500).json({ error: 'Failed to list conversation messages' });
+    }
+};
+
+export const appendStudentCopilotMessage = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const conversationId = req.params.id;
+    const { role, content, intent, source, metadata } = req.body ?? {};
+
+    try {
+        const conversation = getOwnedConversation(studentId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        if (!role || !['user', 'assistant', 'system'].includes(role)) {
+            return res.status(400).json({ error: 'role must be one of user, assistant, system' });
+        }
+
+        if (!content || typeof content !== 'string' || !content.trim()) {
+            return res.status(400).json({ error: 'content is required' });
+        }
+
+        const id = createId('scm');
+        const now = new Date().toISOString();
+        const metadataJson = metadata ? JSON.stringify(metadata) : null;
+
+        db.run(
+            `INSERT INTO student_conversation_messages (id, conversation_id, role, content, intent, source, metadata_json, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            id,
+            conversationId,
+            role,
+            content,
+            intent ?? null,
+            source ?? null,
+            metadataJson,
+            now
+        );
+
+        db.run(
+            `UPDATE student_conversations SET updated_at = ?, last_message_at = ? WHERE id = ?`,
+            now,
+            now,
+            conversationId
+        );
+
+        const created = db.get(`SELECT * FROM student_conversation_messages WHERE id = ?`, id) as StudentConversationMessageRow;
+        res.status(201).json(toMessageDto(created));
+    } catch (error) {
+        console.error('Error appending student copilot message:', error);
+        res.status(500).json({ error: 'Failed to append conversation message' });
+    }
 };

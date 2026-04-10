@@ -198,6 +198,33 @@ export interface GameSession {
     results?: QuestionResult[];
 }
 
+export type CopilotConversationRole = 'user' | 'assistant' | 'system';
+
+export interface StudentCopilotConversation {
+    id: string;
+    studentId: string;
+    classId?: string | null;
+    subject?: string | null;
+    weekKey?: string | null;
+    title?: string | null;
+    threadType: 'weekly_subject' | 'checkpoint' | 'free_study';
+    summary?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    lastMessageAt?: string | null;
+}
+
+export interface StudentCopilotConversationMessage {
+    id: string;
+    conversationId: string;
+    role: CopilotConversationRole;
+    content: string;
+    intent?: string | null;
+    source?: string | null;
+    metadata?: Record<string, unknown> | null;
+    createdAt: string;
+}
+
 // ── Student API ───────────────────────────────────────────────────────────────
 
 export interface StudentClass {
@@ -397,6 +424,69 @@ export const markNudgeAsRead = async (nudgeId: string): Promise<ParentNudge> => 
         headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to mark nudge as read');
+    return response.json();
+};
+
+export const listStudentConversations = async (params?: {
+    subject?: string;
+    classId?: string;
+    weekKey?: string;
+}): Promise<StudentCopilotConversation[]> => {
+    const query = new URLSearchParams();
+    if (params?.subject) query.set('subject', params.subject);
+    if (params?.classId) query.set('classId', params.classId);
+    if (params?.weekKey) query.set('weekKey', params.weekKey);
+
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    const response = await fetch(`${API_BASE}/student/copilot/conversations${suffix}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list student conversations');
+    return response.json();
+};
+
+export const createStudentConversation = async (body: {
+    subject?: string;
+    classId?: string;
+    weekKey?: string;
+    title?: string;
+    threadType?: 'weekly_subject' | 'checkpoint' | 'free_study';
+}): Promise<StudentCopilotConversation> => {
+    const response = await fetch(`${API_BASE}/student/copilot/conversations`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error('Failed to create student conversation');
+    return response.json();
+};
+
+export const getStudentConversationMessages = async (
+    conversationId: string
+): Promise<StudentCopilotConversationMessage[]> => {
+    const response = await fetch(`${API_BASE}/student/copilot/conversations/${conversationId}/messages`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch student conversation messages');
+    return response.json();
+};
+
+export const appendStudentConversationMessage = async (
+    conversationId: string,
+    body: {
+        role: CopilotConversationRole;
+        content: string;
+        intent?: string;
+        source?: string;
+        metadata?: Record<string, unknown>;
+    }
+): Promise<StudentCopilotConversationMessage> => {
+    const response = await fetch(`${API_BASE}/student/copilot/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error('Failed to append student conversation message');
     return response.json();
 };
 
@@ -628,8 +718,6 @@ export const sendTeacherNudge = async (
     if (!response.ok) throw new Error('Failed to send nudge');
     return response.json();
 };
-
-export type CopilotConversationRole = 'user' | 'assistant' | 'system';
 
 export interface TeacherCopilotConversation {
     id: string;

@@ -163,21 +163,19 @@ export default function TeacherShellLayout() {
         </div>
 
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
-          {navItems
-            .filter((item) => !(isDemo && (item.id === 'copilot' || item.id === 'reports')))
-            .map((item) => (
-              <React.Fragment key={item.id}>
-                <SidebarLink
-                  icon={item.icon}
-                  label={item.label}
-                  to={item.to}
-                  active={item.isActive(pathname, hash)}
-                  collapsed={!isSidebarOpen}
-                  onNavigate={() => setIsMobileMenuOpen(false)}
-                  theme={sidebarTheme}
-                />
-              </React.Fragment>
-            ))}
+          {navItems.map((item) => (
+            <React.Fragment key={item.id}>
+              <SidebarLink
+                icon={item.icon}
+                label={item.label}
+                to={item.to}
+                active={item.isActive(pathname, hash)}
+                collapsed={!isSidebarOpen}
+                onNavigate={() => setIsMobileMenuOpen(false)}
+                theme={sidebarTheme}
+              />
+            </React.Fragment>
+          ))}
         </nav>
 
         <div className={`mt-auto p-6 border-t ${sidebarTheme.footerBorder} space-y-2`}>

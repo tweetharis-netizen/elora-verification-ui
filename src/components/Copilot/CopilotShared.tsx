@@ -153,13 +153,15 @@ export const CopilotLayout: React.FC<{
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group relative ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''}`}
                     title={collapsed ? label : undefined}
                 >
-                    <div className="shrink-0 flex items-center justify-center">
+                    {/* Elora Gold Vertical Accent Bar */}
+                    {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                    )}
+                    
+                    <div className="shrink-0 flex items-center justify-center transition-transform group-hover:scale-110">
                         {icon}
                     </div>
-                    {!collapsed && <span className="whitespace-nowrap">{label}</span>}
-                    {active && !collapsed && (
-                        <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
-                    )}
+                    {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
                 </a>
             );
         };
@@ -184,7 +186,7 @@ export const CopilotLayout: React.FC<{
                         ${sidebarTheme.text}
                     `}
                     >
-                        <div className={`h-24 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                        <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
                             <Link to="/" className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
                                 <EloraLogo className="w-10 h-10 text-current drop-shadow-sm transition-transform hover:scale-105" withWordmark={isSidebarOpen} />
                             </Link>
@@ -346,15 +348,15 @@ export const CopilotLayout: React.FC<{
 
                     {/* --- Main Content Area --- */}
                     <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-                        {/* Left Column (Context Sidebar) */}
+                        {/* Left Column (Context Sidebar - "Library") */}
                         {!hideContextSidebar && (
-                            <div className="hidden md:flex w-72 bg-white border-r border-[#EAE7DD] flex-col shrink-0 overflow-hidden">
+                            <div className="hidden md:flex w-64 sidebar-editorial flex-col shrink-0 overflow-hidden">
                                 {sidebar}
                             </div>
                         )}
 
                         {/* Right Column (Chat Area) */}
-                        <div className="flex-1 flex flex-col bg-[#FDFBF5] relative min-w-0 transition-opacity duration-200 ease-in-out opacity-100">
+                        <div className="flex-1 flex flex-col stage-glow relative min-w-0 transition-opacity duration-200 ease-in-out opacity-100">
                             {children}
                         </div>
                     </div>
@@ -371,7 +373,7 @@ export const CopilotMobileHeader: React.FC<{
 }> = ({
     themeColor = '#14b8a6'
 }) => (
-        <div className="md:hidden p-4 bg-white border-b border-[#EAE7DD] flex items-center justify-between shrink-0">
+        <div className="md:hidden px-4 h-16 bg-white border-b border-[#EAE7DD] flex items-center justify-between shrink-0 sticky top-0 z-30">
             <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg" style={{ backgroundColor: themeColor + '15', color: themeColor }}>
                     <Sparkles size={18} />
@@ -466,9 +468,9 @@ export const CopilotMessageBubble: React.FC<{
                     )}
 
                     <div
-                        className={`px-5 py-4 rounded-2xl text-[14px] md:text-[15px] shadow-sm ${message.role === 'user'
-                            ? 'text-white rounded-br-sm'
-                            : 'bg-white border border-[#EAE7DD] text-slate-800 rounded-tl-sm'
+                        className={`px-5 py-4 text-[14px] md:text-[15px] ${message.role === 'user'
+                            ? 'text-white rounded-2xl rounded-br-sm shadow-sm'
+                            : 'card-editorial text-slate-800'
                             }`}
                         style={message.role === 'user' ? { backgroundColor: themeColor } : {}}
                     >

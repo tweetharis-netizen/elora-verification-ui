@@ -34,6 +34,33 @@ import { askElora } from '../services/askElora';
 
 // MOCK_CLASSES removed in favor of dynamic classList state
 
+const getWeekStartLocal = (value: Date) => {
+    const start = new Date(value);
+    const day = start.getDay();
+    const offset = (day + 6) % 7;
+    start.setDate(start.getDate() - offset);
+    start.setHours(0, 0, 0, 0);
+    return start;
+};
+
+const getWeekKey = (value: string | Date) => {
+    return getWeekStartLocal(new Date(value)).toISOString().slice(0, 10);
+};
+
+const formatWeekStart = (value: string | Date) => {
+    return new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(getWeekStartLocal(new Date(value)));
+};
+
+const buildCurrentWeekTitle = (className: string) => `This week – ${className}`;
+
+const buildWeekOfTitle = (createdAt: string, className: string) => {
+    return `Week of ${formatWeekStart(createdAt)} – ${className}`;
+};
+
 const HorizontalChips: React.FC<{ 
     prompts: string[], 
     onSend: (p: string) => void, 
@@ -158,10 +185,30 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             threadContext: {
                 classId,
                 className,
-                label: conversationTitle ?? 'This week\'s thread',
+                label: conversationTitle ?? buildCurrentWeekTitle(className ?? 'All classes'),
             },
             showFeedback: persisted.role === 'assistant' ? shouldShowFeedback() : false,
         };
+    };
+
+    const getThreadTitle = (conversation: dataService.TeacherCopilotConversation, className: string) => {
+        const currentWeekKey = getWeekKey(new Date());
+        const conversationWeekKey = getWeekKey(conversation.createdAt);
+        const rawTitle = conversation.title?.trim();
+
+        if (conversationWeekKey === currentWeekKey) {
+            return buildCurrentWeekTitle(className);
+        }
+
+        if (rawTitle && (rawTitle.startsWith('Week of ') || rawTitle.startsWith('This week –'))) {
+            return rawTitle;
+        }
+
+        if (rawTitle) {
+            return `Previous thread - ${className}`;
+        }
+
+        return buildWeekOfTitle(conversation.createdAt, className);
     };
 
     useEffect(() => {
@@ -171,6 +218,19 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
         const loadConversationForContext = async () => {
             try {
+                // Ensure context data is loaded first if we don't have it
+                if (classList.length === 0) {
+                    const [classes, stats, rawInsights] = await Promise.all([
+                        dataService.getMyClasses(),
+                        dataService.getTeacherStats(),
+                        dataService.getTeacherInsights()
+                    ]);
+                    if (cancelled) return;
+                    setClassList(classes);
+                    setTeacherStats(stats);
+                    setInsights(rawInsights);
+                }
+
                 const conversations = await dataService.listTeacherConversations({
                     classId: selectedClassId ?? undefined,
                 });
@@ -179,14 +239,19 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
                 if (conversations.length === 0) {
                     setActiveConversationId(null);
-                    setActiveConversationTitle('This week\'s thread');
+                    setActiveConversationTitle(buildCurrentWeekTitle(currentClassName));
                     setMessages([]);
                     return;
                 }
 
-                const currentConversation = conversations[0];
+                const currentWeekKey = getWeekKey(new Date());
+                const currentConversation = conversations.find(
+                    (conversation) => getWeekKey(conversation.createdAt) === currentWeekKey
+                ) ?? conversations[0];
+                const resolvedTitle = getThreadTitle(currentConversation, currentClassName);
+
                 setActiveConversationId(currentConversation.id);
-                setActiveConversationTitle(currentConversation.title ?? 'This week\'s thread');
+                setActiveConversationTitle(resolvedTitle);
 
                 const persistedMessages = await dataService.getTeacherConversationMessages(currentConversation.id);
                 if (cancelled) return;
@@ -196,7 +261,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                         mapPersistedToUiMessage(
                             persisted,
                             currentConversation.id,
-                            currentConversation.title,
+                            resolvedTitle,
                             currentConversation.classId ?? selectedClassId ?? null
                         )
                     )
@@ -211,7 +276,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         return () => {
             cancelled = true;
         };
-    }, [isDemo, selectedClassId, classList]);
+    }, [isDemo, selectedClassId, classList.length]);
 
     const buildPrompts = (): string[] => {
         const topTopic = insights.find(i => i.type === 'weak_topic')?.topicTag ?? null;
@@ -304,16 +369,17 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         if (!query) return;
 
         let ensuredConversationId = activeConversationId;
-        let ensuredConversationTitle = activeConversationTitle;
+        const preferredCurrentTitle = buildCurrentWeekTitle(currentClassName);
+        let ensuredConversationTitle = activeConversationTitle || preferredCurrentTitle;
 
         if (!isDemo && !ensuredConversationId) {
             try {
                 const createdConversation = await dataService.createTeacherConversation({
                     classId: selectedClassId ?? undefined,
-                    title: 'This week\'s thread',
+                    title: preferredCurrentTitle,
                 });
                 ensuredConversationId = createdConversation.id;
-                ensuredConversationTitle = createdConversation.title ?? 'This week\'s thread';
+                ensuredConversationTitle = preferredCurrentTitle;
                 setActiveConversationId(createdConversation.id);
                 setActiveConversationTitle(ensuredConversationTitle);
             } catch (error) {
@@ -375,16 +441,32 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             };
 
             // Enrichment: Build context from demo/real data
-            const classInsights = insights.filter(i => !selectedClassId || i.className === currentClassNameText);
+            const classInsights = insights.filter(i => {
+                if (!selectedClassId) return true;
+                // If we have a specific class, match by name or ID (dataService might use names in some objects)
+                return i.className === currentClassNameText;
+            });
+
             const overdueCount = classInsights.filter(i => i.type === 'overdue_assignment').length;
             const weakTopics = Array.from(new Set(classInsights.filter(i => i.type === 'weak_topic').map(i => i.topicTag))).filter(Boolean);
+            const urgentInsights = classInsights
+                .slice(0, 5)
+                .map(i => {
+                    if (i.type === 'weak_topic') return `${i.topicTag}: ${i.detail}`;
+                    if (i.type === 'overdue_assignment') return `${i.studentName || 'A student'} has overdue work (${i.assignmentTitle})`;
+                    if (i.type === 'needs_attention') return `${i.studentName} needs attention: ${i.detail}`;
+                    return i.detail;
+                })
+                .join('. ');
+
             const avgScore = teacherStats.find(s => s.label === "Avg. Class Score")?.value || "68%";
 
             const contextStr = [
                 `You are currently looking at ${currentClassNameText}.`,
                 `Average class score: ${avgScore}.`,
-                overdueCount > 0 ? `There are ${overdueCount} overdue assignments.` : 'No assignments are currently overdue.',
-                weakTopics.length > 0 ? `Students are struggling with: ${weakTopics.join(', ')}.` : '',
+                urgentInsights ? `Urgent alerts for this context: ${urgentInsights}.` : 'No immediate alerts.',
+                overdueCount > 0 ? `Total ${overdueCount} overdue items.` : '',
+                weakTopics.length > 0 ? `Students struggling with: ${weakTopics.join(', ')}.` : '',
                 `Total classes: ${classList.length}.`
             ].filter(Boolean).join(' ');
 
@@ -394,11 +476,39 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 context: contextStr
             });
 
+            const actions: ActionChip[] = [];
+            const lowerResponse = response.toLowerCase();
+            const lowerQuery = query.toLowerCase();
+
+            // Simple intent detection for action chips
+            if (lowerResponse.includes('attention') || lowerResponse.includes('struggling') || lowerQuery.includes('who needs')) {
+                actions.push({ 
+                    label: '🔍 View Attention List', 
+                    actionType: 'navigate', 
+                    destination: 'needs-attention' 
+                });
+            }
+            if (lowerResponse.includes('practice') || lowerResponse.includes('quiz') || lowerQuery.includes('practice')) {
+                actions.push({ 
+                    label: '📝 Auto-generate Practice', 
+                    actionType: 'navigate', 
+                    destination: isDemo ? '/teacher/demo/practice' : '/teacher/practice' 
+                });
+            }
+            if (lowerResponse.includes('draft') || lowerResponse.includes('message') || lowerQuery.includes('parent')) {
+                actions.push({ 
+                    label: '✉️ Draft to Parent', 
+                    actionType: 'navigate', 
+                    destination: isDemo ? '/teacher/demo/assignments' : '/teacher/assignments' // Best destination for assignment related comms
+                });
+            }
+
             const assistantMsg: Message = {
                 id: Date.now().toString() + '-a',
                 role: 'assistant',
                 steps: [contextStep],
                 content: response,
+                actions: actions.length > 0 ? actions : undefined,
                 showFeedback: shouldShowFeedback(),
                 conversationId: ensuredConversationId ?? undefined,
                 source: 'ask-elora',
@@ -473,72 +583,84 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             hidePrimarySidebar={embeddedInShell}
             sidebar={
                 <>
-                    <div className="p-6 border-b border-[#EAE7DD]">
-                        <h2 className="text-xl font-semibold tracking-[-0.02em] text-slate-900 mb-1">Copilot</h2>
-                        <p className="text-sm font-medium text-teal-600 flex items-center gap-1.5">
-                            <Sparkles size={14} />
-                            Connected to class data
+                    <div className="p-6 border-b border-slate-200/60 bg-teal-50/30">
+                        <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-0.5">Library</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                            Suggested & History
                         </p>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 no-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 no-scrollbar">
                         <div className="relative">
+                            <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2 px-1">Active Context</h3>
                             <button
                                 onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit"
+                                className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-teal-50/50 border border-slate-200 hover:border-teal-200 rounded-2xl shadow-sm transition-all group"
                             >
-                                {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#9F1239] shrink-0" />
-                                )}
-                                <span className="text-xs font-bold whitespace-nowrap">
-                                    {contextPillLabel}
-                                </span>
-                                <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`p-2 rounded-xl shrink-0 transition-colors ${selectedClassId ? 'bg-teal-100/50 text-teal-600 group-hover:bg-teal-100' : 'bg-slate-100 text-slate-500'}`}>
+                                        {selectedClassId ? <BookOpen size={18} /> : <GraduationCap size={18} />}
+                                    </div>
+                                    <div className="text-left min-w-0">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Focus</p>
+                                        <p className="text-sm font-bold text-slate-900 truncate">
+                                            {contextPillLabel}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {selectedClassId && insights.some(i => i.className === currentClassName) && (
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.4)]" />
+                                    )}
+                                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                </div>
                             </button>
 
                             {isContextPopupOpen && (
                                 <>
                                     <div className="fixed inset-0 z-30 hidden md:block" onClick={() => setIsContextPopupOpen(false)} />
-                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="px-4 py-2 mb-1">
-                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-400">Context</p>
+                                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200 z-40 hidden md:block py-2 overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-200 origin-top">
+                                        <div className="px-4 py-2 mb-1 border-b border-slate-50">
+                                            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Switch Focus</p>
                                         </div>
                                         <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                             <button
                                                 onClick={() => handleContextChange(null)}
-                                                className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${!selectedClassId ? 'bg-teal-50/50' : ''}`}
+                                                className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${!selectedClassId ? 'bg-teal-50/70' : ''}`}
                                             >
-                                                <div className={`mt-0.5 p-1 rounded-md ${!selectedClassId ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                    <GraduationCap size={14} />
+                                                <div className={`mt-0.5 p-1.5 rounded-lg ${!selectedClassId ? 'bg-teal-100 text-teal-600 shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
+                                                    <GraduationCap size={16} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-bold text-slate-900">All classes</span>
-                                                        {!selectedClassId && <Check size={16} className="text-teal-600" />}
+                                                        <span className={`text-[13px] font-bold ${!selectedClassId ? 'text-teal-700' : 'text-slate-700'}`}>All Classes</span>
+                                                        {!selectedClassId && <Check size={16} className="text-teal-600" strokeWidth={3} />}
                                                     </div>
+                                                    <p className="text-[10px] text-slate-500 font-medium">Global cross-class analysis</p>
                                                 </div>
                                             </button>
-                                            <div className="my-1 border-t border-slate-100" />
+                                            <div className="my-1 border-t border-slate-100 mx-2" />
                                             {classList.map((cls) => {
                                                 const classHasInsight = insights.some(i => i.className === cls.name);
+                                                const isSelected = selectedClassId === cls.id;
                                                 return (
                                                     <button
                                                         key={cls.id}
                                                         onClick={() => handleContextChange(cls.id)}
-                                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedClassId === cls.id ? 'bg-teal-50/50' : ''}`}
+                                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-teal-50/70' : ''}`}
                                                     >
-                                                        <div className={`mt-0.5 p-1 rounded-md ${selectedClassId === cls.id ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                            <BookOpen size={14} />
+                                                        <div className={`mt-0.5 p-1.5 rounded-lg ${isSelected ? 'bg-teal-100 text-teal-600 shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
+                                                            <BookOpen size={16} />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
-                                                                    {classHasInsight && <span className="inline-block w-2 h-2 rounded-full bg-[#9F1239] shrink-0 mt-0.5" />}
+                                                                <span className={`text-[13px] font-bold truncate flex items-center gap-1.5 ${isSelected ? 'text-teal-700' : 'text-slate-700'}`}>
+                                                                    {classHasInsight && <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-500 shadow-sm" />}
                                                                     {cls.name}
                                                                 </span>
-                                                                {selectedClassId === cls.id && <Check size={16} className="text-teal-600" />}
+                                                                {isSelected && <Check size={16} className="text-teal-600" strokeWidth={3} />}
                                                             </div>
-                                                            <p className="text-[11px] text-slate-500">{cls.studentsCount} students</p>
+                                                            <p className="text-[10px] text-slate-500 font-medium">{cls.studentsCount} students • {cls.subject}</p>
                                                         </div>
                                                     </button>
                                                 );
@@ -609,33 +731,37 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     <Sparkles className="w-6 h-6 text-teal-600" />
                                 </div>
                                 <div>
-                                    <h1 className="text-xl font-semibold tracking-[-0.02em] text-slate-900 leading-tight">Copilot</h1>
+                                    <h1 className="text-xl font-semibold tracking-[-0.02em] text-slate-900 leading-tight">Class Intelligence</h1>
                                     <p className="text-sm text-slate-500 font-medium">
-                                        Your classroom AI assistant
+                                        Elora Copilot &middot; Collaborative Intelligence
                                     </p>
                                     <p className="text-[11px] text-teal-600 font-semibold uppercase tracking-widest mt-1">
                                         {activeConversationTitle}
                                     </p>
                                 </div>
-                            </div>
-
-                            {/* Context Selection Pill */}
-                            <div className="relative">
+                                             {/* Context Selection Pill */}
+                            <div className="relative group">
                                 <button
                                     onClick={() => setIsContextPopupOpen(!isContextPopupOpen)}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 rounded-full text-teal-700 transition-colors w-fit shadow-sm"
+                                    className="flex items-center gap-2.5 px-3.5 py-1.5 bg-white hover:bg-teal-50 border border-slate-200 hover:border-teal-200 rounded-full text-slate-700 hover:text-teal-700 transition-all w-fit shadow-sm active:scale-95"
                                 >
-                                     <Layers size={14} className="shrink-0" />
+                                     <div className="w-5 h-5 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-100 transition-colors">
+                                        <Layers size={10} strokeWidth={3} />
+                                     </div>
                                      {selectedClassId && insights.some(i => i.className === currentClassName) && (
-                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
                                      )}
-                                     <span className="text-xs font-bold whitespace-nowrap">
-                                         {contextPillLabel}
-                                     </span>
-                                     <ChevronDown size={14} className={`shrink-0 transition-transform ${isContextPopupOpen ? 'rotate-180' : ''}`} />
+                                     <div className="flex flex-col text-left">
+                                         <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none mb-0.5">Filtering by</span>
+                                         <span className="text-[11px] font-extrabold whitespace-nowrap leading-none">
+                                             {contextPillLabel}
+                                         </span>
+                                     </div>
+                                     <ChevronDown size={14} className={`shrink-0 text-slate-300 transition-transform duration-300 ${isContextPopupOpen ? 'rotate-180 text-teal-500' : ''}`} />
                                 </button>
                             </div>
                         </div>
+              </div>
 
                         {messages.map((msg) => (
                             <CopilotMessageBubble
@@ -652,13 +778,21 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 )}
 
                 {isThinking && (
-                    <div className="flex w-full justify-start">
+                    <div className="flex w-full justify-start animate-in fade-in slide-in-from-left-2 duration-300">
                         <div className="max-w-[85%] md:max-w-xl">
-                            <div className="bg-white border border-[#EAE7DD] px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="bg-white border border-[#EAE7DD] px-5 py-3.5 rounded-2xl rounded-tl-sm shadow-sm flex flex-col gap-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+                                        Synthesizing context...
+                                    </p>
+                                </div>
+                                <div className="h-1 w-32 bg-slate-50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-teal-200 w-1/2 animate-[shimmer_1.5s_infinite_linear]" style={{ background: 'linear-gradient(to right, transparent, rgba(20,184,166,0.3), transparent)' }} />
                                 </div>
                             </div>
                         </div>
@@ -688,7 +822,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                             onClick={() => {
                                 setMessages([]);
                                 setActiveConversationId(null);
-                                setActiveConversationTitle('This week\'s thread');
+                                setActiveConversationTitle(buildCurrentWeekTitle(currentClassName));
                             }}
                             className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl shrink-0"
                         >

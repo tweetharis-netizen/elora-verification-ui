@@ -109,6 +109,32 @@ sqliteDb.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS student_conversations (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE SET NULL,
+    subject TEXT,
+    week_key TEXT,
+    title TEXT,
+    thread_type TEXT NOT NULL DEFAULT 'weekly_subject'
+      CHECK(thread_type IN ('weekly_subject', 'checkpoint', 'free_study')),
+    summary TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_message_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS student_conversation_messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES student_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
+    content TEXT NOT NULL,
+    intent TEXT,
+    source TEXT,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_assignments_class 
     ON assignments(class_id);
   CREATE INDEX IF NOT EXISTS idx_attempts_student 
@@ -129,6 +155,12 @@ sqliteDb.exec(`
     ON teacher_conversations(teacher_id, student_id);
   CREATE INDEX IF NOT EXISTS idx_teacher_messages_conversation_created
     ON teacher_conversation_messages(conversation_id, created_at ASC);
+  CREATE INDEX IF NOT EXISTS idx_student_conversations_student_updated
+    ON student_conversations(student_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_student_conversations_student_subject_week
+    ON student_conversations(student_id, subject, week_key);
+  CREATE INDEX IF NOT EXISTS idx_student_messages_conversation_created
+    ON student_conversation_messages(conversation_id, created_at ASC);
 `);
 
 // Seed

@@ -113,7 +113,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
-    const isUnauthenticated = isDemo || !currentUser;
+    const isUnauthenticated = !isDemo && !currentUser;
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     
     // Context Selector State

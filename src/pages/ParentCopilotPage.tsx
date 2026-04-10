@@ -107,7 +107,7 @@ const HorizontalChips: React.FC<{
 };
 
 const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
-    const { logout, currentUser } = useAuth();
+    const { logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -127,6 +127,13 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     const [isSubjectPopupOpen, setIsSubjectPopupOpen] = useState(false);
     
     useEffect(() => {
+        // Ensure demo user is logically "logged in" (but don't persist to localStorage)
+        if (isDemo && currentUser?.id !== 'parent_1' && typeof login === 'function') {
+            login('parent', undefined, false);
+        }
+    }, [isDemo, currentUser, login]);
+
+    useEffect(() => {
         if (isDemo) return;
         getParentChildren().then(data => {
             setChildren(data);
@@ -135,7 +142,6 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             }
         }).catch(err => console.error('Failed to fetch children:', err));
     }, [isDemo]);
-
     useEffect(() => {
         if (isDemo || !selectedChildId) return;
         getParentChildSummary(selectedChildId).then(summary => {
@@ -242,7 +248,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
 
     const currentPrompts = buildPrompts();
 
-    const showAuthGate = isDemo;
+    const showAuthGate = !isDemo && !currentUser;
 
     return (
         <CopilotLayout

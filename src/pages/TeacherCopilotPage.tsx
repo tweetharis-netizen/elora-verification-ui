@@ -118,7 +118,7 @@ const HorizontalChips: React.FC<{
 
 
 const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
-    const { isVerified, logout, currentUser } = useAuth();
+    const { isVerified, logout, currentUser, login } = useAuth();
     const navigate = useNavigate();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
@@ -141,6 +141,13 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         dataMessageCountRef.current += 1;
         return dataMessageCountRef.current % 3 === 0;
     };
+
+    // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
+    useEffect(() => {
+        if (isDemo && currentUser?.id !== 'teacher_1' && typeof login === 'function') {
+            login('teacher', undefined, false);
+        }
+    }, [isDemo, currentUser, login]);
 
     useEffect(() => {
         if (isDemo) {
@@ -709,7 +716,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         >
             <CopilotMobileHeader themeColor="#14b8a6" />
 
-            {isDemo ? (
+            {(!isDemo && !currentUser) ? (
                 <CopilotAuthGate role="Teacher" themeColor="#14b8a6" />
             ) : (
                 <>

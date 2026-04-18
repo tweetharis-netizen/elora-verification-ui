@@ -25,6 +25,7 @@ import aiRoutes from '../server/routes/ai.routes.js';
 import notificationRoutes from '../server/routes/notifications.routes.js';
 import eloraRoutes from '../server/routes/elora.routes.js';
 import geminiRoutes from '../server/routes/geminiRoutes.js';
+import authRoutes from '../server/routes/auth.routes.js';
 import waitlistRoutes from '../server/routes/waitlist.routes.js';
 import { seedTeacherDemoNotifications, seedStudentDemoNotifications, seedParentDemoNotifications } from '../server/demo/seedNotifications.js';
 
@@ -57,6 +58,7 @@ app.use('/api/parent', parentsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/elora', eloraRoutes);
 app.use('/api', geminiRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 
 // Export the Express app as the default export.

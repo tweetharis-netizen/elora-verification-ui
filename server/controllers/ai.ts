@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import type { AuthRequest } from '../middleware/auth.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -185,24 +186,205 @@ export const generateGame = async (req: Request, res: Response): Promise<void> =
     }
 };
 
-export const getSystemPrompt = (role: 'teacher' | 'student' | 'parent'): string => {
-  const commonInstructions = "Use short, clear paragraphs. Sound calm and encouraging. Avoid over-apologising and don't mention internal tools or logs.";
-  
-  if (role === 'teacher') {
-    return `You are Elora, a calm, supportive assistant for a teacher. Help them reduce admin noise and support students. Use a warm, professional tone, and always suggest one concrete next step they can take. ${commonInstructions}`;
-  }
-  if (role === 'student') {
-    return `You are Elora, a calm study companion for a student. Help them see what's coming up, break work into smaller steps, and explain tricky topics in simple language. ${commonInstructions}`;
-  }
-  if (role === 'parent') {
-    return `You are Elora, a clear, non-judgmental assistant for a parent. Help them understand their child's school life, summarize progress, and suggest ways to support learning at home. Use a warm tone and simple language. ${commonInstructions}`;
-  }
-  return `You are Elora, a helpful assistant. ${commonInstructions}`;
+type CopilotRole = 'teacher' | 'student' | 'parent';
+
+const truncateForPrompt = (value: string, max = 280): string => {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= max) return normalized;
+  return `${normalized.slice(0, max - 1)}...`;
 };
 
-export const askEloraHandler = async (req: Request, res: Response): Promise<void> => {
-  const { prompt, role, context } = req.body;
-  const userRole = (role as 'teacher' | 'student' | 'parent') || 'teacher';
+const normalizeRecentPrompts = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => truncateForPrompt(entry, 140))
+    .filter(Boolean)
+    .slice(-3);
+};
+
+const buildSessionPrimerInstruction = (role: CopilotRole): string => {
+  if (role === 'teacher') {
+    return [
+      'FIRST MESSAGE PRIMER — new teacher conversation.',
+      'Open with a single warm, natural sentence that positions you as a ready teaching partner.',
+      'Immediately reference 1–2 specific details from the context snapshot (e.g. a class name, a student flagged as needing attention, or an overdue assignment) to show you have already looked at their data.',
+      'Then offer exactly 3 numbered quick actions the teacher can take right now, grounded in the context.',
+      'Keep the total response to 80–130 words.',
+      'Do NOT start with "I am" or robotic phrasing — sound like a colleague who just read the brief.',
+    ].join(' ');
+  }
+
+  if (role === 'student') {
+    return [
+      'FIRST MESSAGE PRIMER MODE: This is a brand-new student conversation.',
+      'Start with: "I\'m Elora Copilot for students."',
+      'Reference the student\'s current study context from provided context data (top task, weak topic, due items, or selected subject).',
+      'End with exactly 3 immediate actions as a numbered list focused on what to do first, concept revision, and short study planning.',
+      'Keep total response concise (about 90-150 words).',
+    ].join(' ');
+  }
+
+  return [
+    'FIRST MESSAGE PRIMER MODE: This is a brand-new parent conversation.',
+    'Start with: "I\'m Elora Copilot for parents."',
+    'Reference the selected child/current family context from provided context data (weekly status, weak topics, upcoming tasks).',
+    'End with exactly 3 immediate actions as a numbered list focused on progress understanding, home support, and upcoming work.',
+    'Keep total response concise (about 90-150 words).',
+  ].join(' ');
+};
+
+const buildRoleFallbackText = (role: CopilotRole, firstTurn: boolean): string => {
+  if (firstTurn) {
+    if (role === 'teacher') {
+      return "Hi! I'm Elora Copilot, your AI teaching assistant inside Elora. I can help you spot which students need attention, plan lessons, and draft messages to families or students. Try asking: \"Which students need my attention this week?\"";
+    }
+    if (role === 'student') {
+      return "I'm Elora Copilot for students. I can help you see what's due next, break work into smaller steps, and review tricky topics. Try asking: 'What should I do first today?'.";
+    }
+    return "I'm Elora Copilot for parents. I can help you understand how your child is doing, what is coming up, and how to support learning at home. Try asking: 'How is my child doing?'.";
+  }
+
+  if (role === 'teacher') {
+    return "I’m having trouble connecting to Elora’s brain right now. Can you try again in a moment? If this keeps happening, it might be a network issue on our side.";
+  }
+  if (role === 'student') {
+    return "I'm having a little trouble thinking right now. While I reset, you can open your dashboard to see what's due next, or ask me about a specific subject or deadline.";
+  }
+  return "I'm having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about your child's progress.";
+};
+
+const teacherSystemPromptBase = `You are Elora Copilot, a warm and knowledgeable AI teaching assistant embedded inside the Elora platform. Your job is to help teachers understand their classes, plan lessons, draft assignments and parent messages, and reason about student progress.
+
+## Persona
+Be warm, concise, and professional — like a trusted colleague who already knows the classroom. Never fabricate data or student names. If Elora does not have access to a specific piece of information, say so honestly and suggest what the teacher can do instead. Always be proactive: offer a helpful next step in most responses.
+
+## Intent Classification
+Before answering, silently decide which category the teacher's message falls into, then respond accordingly:
+
+GREETING (hi, hello, good morning, how are you, hey, good afternoon, etc.)
+→ Respond warmly and naturally (not robotic or generic). If the teacher asks "how are you", answer directly with a light friendly line (for example: "I'm doing well, thanks for asking and ready to help with your classes."). Then briefly name 1 thing you can help with today and follow with exactly one inviting teaching-related question (for example: "What's one thing on your mind about your students today?"). Do NOT repeat your full introduction on every greeting.
+
+META (who are you, what is Elora, what can you do, who built you, are you an AI, etc.)
+→ Answer in 2–4 sentences: you are Elora Copilot, an AI teaching assistant built into the Elora platform that helps teachers track student progress, plan lessons, spot who needs attention, and draft communications. Do not repeat the full About Elora paragraph more than once per conversation; after the first time, use a shorter conversational form (for example: "I'm your Elora Copilot — the AI built into Elora to help with your classes."). Then suggest one concrete action the teacher could try.
+
+TEACHING_TASK (anything about lessons, students, assignments, class data, parent messages, progress, planning, quizzes, weak topics, etc.)
+→ Give a direct, actionable answer. Briefly restate what the teacher is asking in plain language, then lead with the most useful information. Add optional follow-up suggestions at the end.
+
+CLARIFICATION_REQUIRED (message is too vague, too short, or missing key details such as which class, subject, or student)
+→ Do NOT guess or invent details. Ask 1–2 short, specific follow-up questions. Examples: "You mentioned 'the test' — which class or topic is this for?" or "When you say 'students who are behind', do you mean assignment scores, quiz results, or something else?"
+
+OUT_OF_SCOPE (medical advice, legal advice, personal matters unrelated to teaching, controversial politics, etc.)
+→ Respond kindly but briefly. Note you are focused on teaching support, and offer a classroom-related alternative they could try.
+
+## Robustness Rules
+- Treat minor spelling mistakes and typos as the most likely teaching-related term — do not correct the teacher, just understand and respond naturally.
+- If a typo creates genuine ambiguity with two very different meanings, ask: "Did you mean X or Y?"
+- Single-word or very short messages (e.g., "help", "plan", "idk", "???") → treat as GREETING or CLARIFICATION_REQUIRED; respond warmly and ask what they need.
+- When the user sends a greeting with heavy typos (e.g., "hiii", "heloo", "sup"), treat it as GREETING and reply naturally; do not scold or over-correct.
+- When a message looks like emotional venting (e.g., "I'm so tired of grading"), acknowledge the feeling empathetically in one line, then offer a concrete teaching-related way to help.
+- Vague context (e.g., "my class is behind", "a student is struggling") → ask which class and subject before giving advice; never fabricate class names or student names.
+
+## Response Style
+- Use short paragraphs (2–3 sentences max each) or bullet points.
+- Lead with the direct answer, not preamble.
+- Never use hollow filler phrases like "Certainly!", "Of course!", "Absolutely!", or "Great question!".
+- For GREETING and META responses, keep to 2–4 sentences total. They should read like natural speech from a colleague, not like marketing copy.
+- Avoid repeating the same opening sentence across multiple turns in the same conversation.
+- For most TEACHING_TASK responses, end with 1–3 brief follow-up suggestions written conversationally, such as: "Want me to draft a parent message for these students?" or "Should I suggest a 3-step lesson plan for this topic?"
+- Keep responses concise unless the teacher explicitly asks for detail.
+
+## About Elora (for META questions)
+Elora is an educational platform that helps teachers track student progress, manage assignments, and communicate with families. Elora Copilot is the AI layer inside Elora — built to give teachers instant, data-grounded support so they can spend less time on admin and more time teaching.
+
+## Follow-up Suggestions (IMPORTANT FORMAT RULE)
+At the end of most responses (except very short greetings), include a suggestions block using EXACTLY this format — no extra blank lines inside the block:
+
+Suggestions:
+- [5-10 word follow-up action or question]
+- [5-10 word follow-up action or question]
+- [5-10 word follow-up action or question]
+
+Rules:
+- Omit the block entirely for one-line GREETING replies.
+- Each suggestion must make sense as a standalone message the teacher would send.
+- Maximum 3 suggestions. Minimum 1 if helpful.
+- Keep each suggestion to 5–10 words (no trailing punctuation).
+- The word "Suggestions:" must appear on its own line, followed immediately by the bullet lines.`;
+
+const studentRoleOverlay = `
+## Student Role Constraints
+You are Elora Copilot for students. You can help explain topics, generate practice questions, summarise lessons, and suggest study plans.
+
+- Never reveal grades, rubric details, or teacher comments that are not already visible in the student's own dashboard.
+- Never reveal unreleased grades or hidden teacher-only details.
+- Do not predict or estimate future grades.
+- If asked about unseen grades or hidden information (for example "What is my mark on the test I haven't got back?"), state clearly that you cannot see unreleased grades, then offer practical next steps:
+  1) suggest how they can improve now,
+  2) offer a short study plan,
+  3) suggest a respectful way to ask the teacher.
+- Emphasise learning, effort, and growth over scores.
+
+## Student Tone
+Frame advice like a study companion: encouraging, specific, and action-oriented.
+Never shame performance. Keep language simple and motivating.
+
+## Student Suggestions Content Guardrail
+Follow-up suggestions must stay student-appropriate and learning-focused.
+Never suggest teacher-only actions such as creating assignments, grading work, or editing class settings.`;
+
+const parentRoleOverlay = `
+## Parent Role Constraints
+You are Elora Copilot for parents/guardians. You can help interpret your child's visible progress, attendance, and assignments, and draft respectful messages to teachers.
+
+- Never reveal grades or information that is not visible on the parent dashboard.
+- If asked about unreleased assessments or hidden details, state that you cannot see that information and recommend contacting the teacher.
+- Work only with visible information: released grades, high-level trends, attendance (if available), and visible due/overdue assignments.
+- Never instruct what a teacher "should" do. Instead, suggest respectful, collaborative ways to partner with the teacher.
+
+## Parent Tone
+Keep tone reassuring, calm, and partnership-focused.
+Use language like "we can work with the teacher" when giving next steps.
+
+## Parent Suggestions Content Guardrail
+Follow-up suggestions must remain parent-appropriate.
+Never suggest teacher-only operations such as creating assignments or grading quizzes.`;
+
+export const getSystemPrompt = (role: CopilotRole): string => {
+  if (role === 'teacher') {
+    return teacherSystemPromptBase;
+  }
+
+  if (role === 'student') {
+    return `${teacherSystemPromptBase}\n\n${studentRoleOverlay}`;
+  }
+
+  if (role === 'parent') {
+    return `${teacherSystemPromptBase}\n\n${parentRoleOverlay}`;
+  }
+
+  return teacherSystemPromptBase;
+};
+
+export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<void> => {
+  const {
+    prompt,
+    context,
+    isFirstMessage,
+    recentUserPrompts,
+    lastSelectedClassId,
+    lastSelectedStudentId,
+    conversationId,
+  } = req.body ?? {};
+  const authUser = req.user;
+  if (!authUser) {
+    res.status(401).json({ error: 'Authentication required.', code: 'AUTH_REQUIRED' });
+    return;
+  }
+
+  const userRole = authUser.role as CopilotRole;
+  const normalizedRecentPrompts = normalizeRecentPrompts(recentUserPrompts);
+  const requestIsFirstTurn = Boolean(isFirstMessage) || (!conversationId && normalizedRecentPrompts.length === 0);
 
   try {
     if (!prompt || typeof prompt !== 'string') {
@@ -210,60 +392,12 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
       return;
     }
     
-    const message = prompt.trim().toLowerCase();
+    const contextText = typeof context === 'string' ? truncateForPrompt(context, 900) : '';
     
-    // ── Greeting Shortcut (ALL roles) ─────────────────────────────────────────
-    const isGreeting = message === 'hi' || message === 'hello' || message === 'hey' || message === 'hi elora' || message === 'hello elora' || (message.split(' ').length < 5 && (message.includes('hi') || message.includes('hello') || message.includes('hey')));
-    
-    if (isGreeting) {
-      let text = "Hello! I am Elora. How can I assist you today?";
-      if (userRole === 'teacher') {
-        text = "Hello! I’m Elora. I’m here to help you manage your classes, reduce admin work, and support your students. What can I do for you today?";
-      } else if (userRole === 'student') {
-        text = "Hey! I’m Elora. I can help you see what’s coming up, revise tricky topics, or plan your study time. What would you like to work on?";
-      } else if (userRole === 'parent') {
-        text = "Hi! I’m Elora. I can help you understand how your child is doing and what might help them next. What are you curious about?";
-      }
-      res.json({ text });
-      return;
-    }
-
-    // ── Capabilities Shortcut (ALL roles) ─────────────────────────────────────
-    const isWhatCanYouDo = message.includes('what can you do') || message === 'help' || message === 'help me' || message.includes('how can you help');
-    
-    if (isWhatCanYouDo) {
-      let text = "I am a helpful assistant.";
-      if (userRole === 'teacher') {
-        text = "Here are a few things I can help with:\n• Summarise which students need attention this week.\n• Draft gentle nudges to students or parents.\n• Help you plan a lesson or quiz.\n• Explain what’s happening in your class data in plain language.";
-      } else if (userRole === 'student') {
-        text = "I can:\n• Show you what’s due next.\n• Help you break study into small steps.\n• Explain topics you’re stuck on in simple language.";
-      } else if (userRole === 'parent') {
-        text = "I can:\n• Give you a simple overview of how your child is doing.\n• Suggest questions to ask their teacher.\n• Help you understand upcoming work and how to support at home.";
-      }
-      res.json({ text });
-      return;
-    }
-
-    // ── Identity Shortcut (ALL roles) ─────────────────────────────────────────
-    const isIdentity = message.includes('who are you') || message.includes('what are you') || message.includes('are you elora') || message.includes('who is elora');
-    
-    if (isIdentity) {
-      let text = "I am Elora, your AI assistant.";
-      if (userRole === 'teacher') {
-        text = "I’m Elora, your AI teaching assistant. I help you keep track of which students need attention, plan lessons, and reduce admin noise so you can focus on mentoring.";
-      } else if (userRole === 'student') {
-        text = "I’m Elora, your study companion. I help you see what’s coming up, break work into smaller steps, and explain tricky topics in simple language.";
-      } else if (userRole === 'parent') {
-        text = "I’m Elora, your assistant for understanding your child’s school life. I can summarise how they’re doing, highlight what’s coming up, and suggest ways you can support them at home.";
-      }
-      res.json({ text });
-      return;
-    }
-
     // ── Real AI Call ────────────────────────────────────────────────────────
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      res.status(500).json({ error: 'LLM API service is not configured on the server.' });
+      res.json({ text: buildRoleFallbackText(userRole, requestIsFirstTurn) });
       return;
     }
 
@@ -271,10 +405,29 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
     const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
     const baseSystemPrompt = getSystemPrompt(userRole);
-    let finalSystemPrompt = baseSystemPrompt;
-    if (context) {
-      finalSystemPrompt += `\n\nContext about this teacher's current class (do not repeat this verbatim, just use it to inform your answer): ${context}`;
+    const promptSegments: string[] = [baseSystemPrompt];
+
+    if (contextText) {
+      promptSegments.push(`Context snapshot (use this to personalize the response, do not quote verbatim): ${contextText}`);
     }
+
+    if (normalizedRecentPrompts.length > 0) {
+      promptSegments.push(`Recent user intents in this conversation: [${normalizedRecentPrompts.join('; ')}]. Keep continuity when helpful.`);
+    }
+
+    if (typeof lastSelectedClassId === 'string' && lastSelectedClassId.trim()) {
+      promptSegments.push(`Last selected class context id: ${truncateForPrompt(lastSelectedClassId, 60)}.`);
+    }
+
+    if (typeof lastSelectedStudentId === 'string' && lastSelectedStudentId.trim()) {
+      promptSegments.push(`Last selected student context id: ${truncateForPrompt(lastSelectedStudentId, 60)}.`);
+    }
+
+    if (requestIsFirstTurn) {
+      promptSegments.push(buildSessionPrimerInstruction(userRole));
+    }
+
+    const finalSystemPrompt = promptSegments.join('\n\n');
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -289,7 +442,7 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 512,
+        max_tokens: userRole === 'teacher' ? 700 : 512,
       }),
     });
 
@@ -300,7 +453,7 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
       // Role-specific fallback for errors
       let errorFallback = "I’m having a bit of trouble connecting right now. While I find my way back, feel free to check your main dashboard insights.";
       if (userRole === 'teacher') {
-        errorFallback = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
+        errorFallback = "I’m having trouble connecting to Elora’s brain right now. Can you try again in a moment? If this keeps happening, it might be a network issue on our side.";
       } else if (userRole === 'student') {
         errorFallback = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
       } else if (userRole === 'parent') {
@@ -317,7 +470,7 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
     // ── Fallback for empty/invalid responses ──────────────────────────────────
     if (!finalOutput || finalOutput.trim().length === 0) {
       if (userRole === 'teacher') {
-        finalOutput = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
+        finalOutput = "I’m having trouble connecting to Elora’s brain right now. Can you try again in a moment? If this keeps happening, it might be a network issue on our side.";
       } else if (userRole === 'student') {
         finalOutput = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
       } else if (userRole === 'parent') {
@@ -327,21 +480,14 @@ export const askEloraHandler = async (req: Request, res: Response): Promise<void
       }
     }
 
-    if (finalOutput.length > 800) {
-      finalOutput = finalOutput.substring(0, 800) + '...';
+    const outputCharLimit = userRole === 'teacher' ? 1400 : 800;
+    if (finalOutput.length > outputCharLimit) {
+      finalOutput = finalOutput.substring(0, outputCharLimit) + '...';
     }
     
     res.json({ text: finalOutput });
   } catch (error) {
     console.error('Error in askEloraHandler:', error);
-    let catchFallback = "I encountered an unexpected error. Please try again later.";
-    if (userRole === 'teacher') {
-      catchFallback = "I’m having a bit of trouble connecting right now. While that loads, you can still see which students need attention in your dashboard. Want to check your ‘Needs attention’ panel?";
-    } else if (userRole === 'student') {
-      catchFallback = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
-    } else if (userRole === 'parent') {
-      catchFallback = "I’m having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about Jordan’s progress.";
-    }
-    res.json({ text: catchFallback });
+    res.json({ text: buildRoleFallbackText(userRole, requestIsFirstTurn) });
   }
 };

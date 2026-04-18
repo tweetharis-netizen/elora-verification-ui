@@ -3,8 +3,10 @@ import path from 'path';
 
 export const DEMO_USER_IDS = new Set(['teacher_1', 'student_1', 'parent_1']);
 
-// the database is relative to project root. We can use path.resolve from process.cwd()
-const dbPath = path.resolve(process.cwd(), 'elora.db');
+// Vercel serverless files are read-only, so use /tmp there.
+const dbPath = process.env.VERCEL
+    ? path.join('/tmp', 'elora.db')
+    : path.resolve(process.cwd(), 'elora.db');
 
 export const sqliteDb = new Database(dbPath, { verbose: console.log });
 

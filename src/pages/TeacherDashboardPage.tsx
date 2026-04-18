@@ -7,6 +7,8 @@ import {
     Settings,
     Plus,
     FileText,
+    Search,
+    SlidersHorizontal,
     TrendingUp,
     TrendingDown,
     ArrowUpRight,
@@ -45,6 +47,8 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
+import { useAuthGate } from '../hooks/useAuthGate';
+import { AuthGateModal } from '../components/auth/AuthGateModal';
 import { AuthGate } from '../components/auth/AuthGate';
 import { DashboardShell } from '../components/ui/DashboardShell';
 import { DashboardCard } from '../components/ui/DashboardCard';
@@ -70,13 +74,15 @@ import {
 import { ClassroomBreadcrumb } from '../components/layout/ClassroomBreadcrumb';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
 import { PracticeGeneratorDrawer, type PracticeGeneratorForm } from '../components/PracticeGeneratorDrawer';
-
-// ── DEV HELPER ────────────────────────────────────────────────────────────────
-// Shown when the user somehow reaches this page without being verified.
-// ProtectedRoute in App.tsx should normally prevent this.
-// Remove or gate behind an env flag before shipping to production.
 const DevShortcut = () => {
-    const { mockVerify } = useAuth();
+    // DO NOT RENDER IN PRODUCTION
+    if (!import.meta.env.DEV) return null;
+
+    const auth = useAuth();
+    const mockVerify = typeof auth.mockVerify === 'function' ? auth.mockVerify : null;
+
+    if (!mockVerify) return null;
+
     return (
         <div
             style={{
@@ -112,45 +118,37 @@ const DevShortcut = () => {
     );
 };
 
-// ── Shared state-display helpers ────────────────────────────────────────────────
-// Now imported from src/components/ui/SectionStates.tsx
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
 const NavItem = ({
     icon,
     label,
     active = false,
     onClick,
-    collapsed = false,
-    className = "",
+    collapsed,
     theme,
 }: {
     icon: React.ReactNode;
     label: string;
     active?: boolean;
     onClick?: () => void;
-    collapsed?: boolean;
-    className?: string;
+    collapsed: boolean;
     theme: RoleSidebarTheme;
 }) => {
-        const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
-        const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
-        return (
-            <a
-                href="#"
-                onClick={(e) => { e.preventDefault(); onClick?.(); }}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center focus:outline-none' : ''} ${className}`}
-                title={collapsed ? label : undefined}
-            >
-                <div className="shrink-0">{icon}</div>
-                {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+    const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
+    const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
 
-                {/* Elora Gold Vertical Accent Bar */}
-                {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
-                )}
-        </a>
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`group relative flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? label : undefined}
+        >
+            {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
+            )}
+            <span className="shrink-0 transition-transform group-hover:scale-110">{icon}</span>
+            {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
+        </button>
     );
 };
 
@@ -160,7 +158,7 @@ const StatCard = ({
     value,
     trend,
     trendValue,
-    status
+    status,
 }: {
     icon: React.ReactNode;
     label: string;
@@ -212,38 +210,34 @@ const StatCard = ({
     );
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-    let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+type StatusBadgeTone = 'neutral' | 'success' | 'warning' | 'danger';
+
+const StatusBadge = ({ status, tone }: { status: string; tone?: StatusBadgeTone }) => {
+    let resolvedTone: StatusBadgeTone = tone ?? 'neutral';
     let icon = null;
 
     const lower = status.toLowerCase();
 
-    if (
-        lower.includes('active') ||
-        lower.includes('completed') ||
-        lower.includes('scheduled') ||
-        lower.includes('success') ||
-        lower.includes('improving')
-    ) {
-        colorClass = 'bg-teal-50 text-teal-700 border-teal-200';
-    } else if (
-        lower.includes('attention') ||
-        lower.includes('due tomorrow') ||
-        lower.includes('warning') ||
-        lower.includes('at risk') ||
-        lower.includes('dropping')
-    ) {
-        colorClass = 'bg-red-50 text-red-700 border-red-200';
-        if (lower.includes('dropping')) {
-            icon = <TrendingDown size={12} className="shrink-0" />;
-        }
-    } else if (lower.includes('draft') || lower.includes('stable')) {
-        colorClass = 'bg-teal-50 text-teal-700 border-teal-200';
+    if (!tone && (lower.includes('completed') || lower.includes('done') || lower.includes('success'))) {
+        resolvedTone = 'success';
+        icon = <CheckCircle2 size={12} className="shrink-0" />;
+    } else if (!tone && (lower.includes('attention') || lower.includes('warning') || lower.includes('overdue') || lower.includes('due soon'))) {
+        resolvedTone = 'warning';
+        icon = <AlertCircle size={12} className="shrink-0" />;
+    } else if (!tone && (lower.includes('draft') || lower.includes('stable'))) {
+        resolvedTone = 'success';
     }
+
+    const toneClasses: Record<StatusBadgeTone, string> = {
+        neutral: 'bg-slate-100 text-slate-600 border-slate-200',
+        success: 'bg-teal-50 text-teal-700 border-teal-100',
+        warning: 'bg-orange-50 text-orange-700 border-orange-200',
+        danger: 'bg-red-50 text-red-700 border-red-200',
+    };
 
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${colorClass}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${toneClasses[resolvedTone]}`}
         >
             {icon}
             {status}
@@ -318,11 +312,10 @@ const NeedsAttentionCard = ({
 
     return (
         <section>
-            {/* Header */}
             <DashboardSectionHeader
                 variant="canonical"
                 className="mt-10 mb-3"
-                title="This week in your classes"
+                title="In your classes"
                 badge={hasInsights ? (
                     <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
                         {insights.length}
@@ -330,37 +323,24 @@ const NeedsAttentionCard = ({
                 ) : undefined}
             />
 
-            {/* Body */}
             <div className="space-y-3 relative z-10">
                 {loading ? (
-                    // Skeleton rows
-                    [1, 2].map((n) => (
-                        <div
-                            key={n}
-                            className="bg-white p-3 rounded-xl border border-[#EAE7DD] animate-pulse"
-                        >
-                            <div className="h-3 bg-slate-100 rounded w-2/3 mb-2" />
-                            <div className="h-2.5 bg-slate-50 rounded w-full" />
-                        </div>
-                    ))
+                    <div className="bg-white/70 p-4 rounded-xl border border-slate-200 flex flex-col gap-2">
+                        <SectionSkeleton rows={2} />
+                    </div>
                 ) : error ? (
                     <div className="bg-white/70 p-4 rounded-xl border border-red-100 flex flex-col gap-2">
                         <p className="text-xs text-red-600">{error}</p>
                         {onRetry && (
                             <button
                                 onClick={onRetry}
-                                className="text-xs font-semibold text-teal-700 underline self-start hover:text-teal-900 transition-colors"
+                                className="text-xs font-semibold text-teal-700 underline self-start hover:text-teal-800"
                             >
                                 Try again
                             </button>
                         )}
                     </div>
-                ) : !hasInsights ? (
-                    <SectionEmpty
-                        headline="You’re all caught up 🎉"
-                        detail="No students need attention right now."
-                    />
-                ) : (
+                ) : hasInsights ? (
                     <>
                         {displayedInsights.map((insight) => {
                             const meta = insightMeta[insight.type];
@@ -381,14 +361,12 @@ const NeedsAttentionCard = ({
                                     }}
                                     className={`flex items-start gap-2.5 p-2.5 rounded-xl border ${meta.rowBg} cursor-pointer hover:brightness-[0.98] transition-all`}
                                 >
-                                    {/* Icon badge */}
                                     <div
                                         className={`shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center ${meta.iconBg} ${meta.iconColor}`}
                                     >
                                         {meta.icon}
                                     </div>
 
-                                    {/* Content */}
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                                             {insight.studentName && (
@@ -440,6 +418,7 @@ const NeedsAttentionCard = ({
                                             )}
                                         </div>
                                     </div>
+
                                     <div className="flex flex-col gap-2 justify-center self-stretch ml-2 pl-3 border-l border-slate-200/80">
                                         {insight.studentId && (
                                             <button
@@ -480,6 +459,11 @@ const NeedsAttentionCard = ({
                             </button>
                         )}
                     </>
+                ) : (
+                    <SectionEmpty
+                        headline="No students need attention"
+                        detail="No students need attention right now."
+                    />
                 )}
             </div>
         </section>
@@ -530,7 +514,9 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const navigate = useNavigate();
     const { hash } = useLocation();
     const { isVerified, logout, currentUser, login } = useAuth();
+    const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
     const routeIsDemo = useDemoMode();
+
     const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode, isDemo: isDemoProp, embeddedInShell = false } = props;
     const isDemo = isDemoProp ?? routeIsDemo;
     const canUseDashboardHashSections = !forcedClassroomMode && (props.activeTab === undefined || props.activeTab === 'dashboard' || props.activeTab === 'work');
@@ -545,12 +531,16 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
 
     // ── Real data state ──
-    const [teacherName, setTeacherName] = useState<string>(isDemo ? demoTeacherName : (currentUser?.preferredName || 'Teacher'));
+    const [teacherName, setTeacherName] = useState<string>(() => {
+        if (isDemo) return demoTeacherName;
+        return currentUser?.preferredName || currentUser?.name || 'Teacher';
+    });
     const [stats, setStats] = useState<dataService.TeacherStat[]>([]);
     const [myClasses, setMyClasses] = useState<dataService.TeacherClass[]>([]);
     const [upcomingAssignments, setUpcomingAssignments] = useState<DisplayAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [serviceNotice, setServiceNotice] = useState<string | null>(null);
 
     // ── Insights state ──
     const [insights, setInsights] = useState<dataService.TeacherInsight[]>([]);
@@ -577,15 +567,15 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
     const getClassTopicSummary = () => {
         const hasData = insights.length > 0;
-        if (!hasData) return "I don't see any recent data for this topic this week, so I can't give a summary yet.";
+        if (!hasData) return "I don't see any recent data for this topic, so I can't give a summary yet.";
 
         return `Average accuracy on Algebra – Factorisation is about 61%. 14 of 28 students are below 50%. It's worth one more practice round before moving on. You could assign a practice pack on Algebra – Factorisation next.`;
     };
 
     const getClassWeekSummary = () => {
-        if (myClasses.length === 0) return "I don't see any recent data for your class this week, so I can't give a summary yet.";
+        if (myClasses.length === 0) return "I don't see any recent data for your class, so I can't give a summary yet.";
         const c = myClasses[0];
-        return `This week, ${c.name} has an average score of ${c.averageScore || 61}% (vs 68% last week). A total of 0 of 32 assignments were submitted. The main weak area is ${c.nextTopic || 'Algebra - Factorisation'}.`;
+        return `${c.name} has an average score of ${c.averageScore || 61}% (vs 68% last week). A total of 0 of 32 assignments were submitted. The main weak area is ${c.nextTopic || 'Algebra - Factorisation'}.`;
     };
 
     const handleTeacherAskElora = async (prompt: string): Promise<string> => {
@@ -602,7 +592,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             return getClassWeekSummary();
         }
 
-        return "I don't see any recent data for Sec 3 Mathematics this week, so I can't give a summary yet.";
+        return "I don't see any recent data for Sec 3 Mathematics, so I can't give a summary yet.";
     };
 
 
@@ -672,7 +662,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     };
 
     // ── UI state ──
-    const [filter, setFilter] = useState('This week');
+    const [filter, setFilter] = useState('Weekly');
     const [perfTab, setPerfTab] = useState('Classes');
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
     const [generatorPrefill, setGeneratorPrefill] = useState<Partial<PracticeGeneratorForm> | undefined>(undefined);
@@ -694,7 +684,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         } else if (props.activeTab === 'dashboard' || props.activeTab === 'work') {
             setActiveTab('dashboard');
         }
-        
+
         // Deep linking hash synchronization is only valid on dashboard-like routes.
         if (canUseDashboardHashSections) {
             if (hash === '#practice') {
@@ -815,13 +805,13 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     };
 
     // ── Generate practice prefill hook ──
-    const handleGeneratePractice = (insight: dataService.TeacherInsight) => {
-        setGeneratorPrefill({ 
-            topic: insight.topicTag || insight.assignmentTitle || 'Targeted Practice', 
-            level: insight.className || 'General' 
+    const handleGeneratePractice = withGate((insight: dataService.TeacherInsight) => {
+        setGeneratorPrefill({
+            topic: insight.topicTag || insight.assignmentTitle || 'Targeted Practice',
+            level: insight.className || 'General'
         });
         setShowPracticeGeneratorDrawer(true);
-    };
+    }, "generate AI practice modules");
 
     const handleTargetedPracticeClick = async (insight: dataService.TeacherInsight) => {
         setInsightToAssign(insight);
@@ -896,7 +886,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         }
     };
 
-    const handleAssignClick = (pack: dataService.GamePack) => {
+    const handleAssignClick = withGate((pack: dataService.GamePack) => {
         setPackToAssign(pack);
         setAssignPackId(pack.id);
         setShowAssignModal(true);
@@ -904,7 +894,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         setAssignDueDate('');
         setAssignDescription('');
         setAssigningError(null);
-    };
+    }, "assign learning content");
 
     const handleAssignToClassClick = (classroomId: string) => {
         setPackToAssign(null);
@@ -993,7 +983,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             );
             if (isDemo) setTeacherName(demoTeacherName);
             setInsights(demoInsights);
-            
+
             // Available packs for game creation
             try {
                 const packs = await dataService.getAvailableGamePacks();
@@ -1068,6 +1058,15 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [reviewLoading, setReviewLoading] = useState(false);
     const [reviewStatusFilter, setReviewStatusFilter] = useState('all');
     const [reviewClassFilter, setReviewClassFilter] = useState('all');
+    const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+    const [reviewLifecycleFilter, setReviewLifecycleFilter] = useState<'all' | 'active' | 'attention' | 'closed'>('all');
+    const [isReviewFilterMenuOpen, setIsReviewFilterMenuOpen] = useState(false);
+
+    useEffect(() => {
+        if (activeTab !== 'assignments' && isReviewFilterMenuOpen) {
+            setIsReviewFilterMenuOpen(false);
+        }
+    }, [activeTab, isReviewFilterMenuOpen]);
 
     useEffect(() => {
         if (activeTab !== 'assignments') return;
@@ -1100,13 +1099,50 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }, [activeTab]);
 
     const reviewClasses = React.useMemo(() => Array.from(new Set(reviewItems.map((item) => item.className))), [reviewItems]);
+    const normalizedReviewSearch = reviewSearchQuery.trim().toLowerCase();
     const filteredReviewItems = React.useMemo(() => {
         return reviewItems.filter((item) => {
             const statusMatch = reviewStatusFilter === 'all' || item.status === reviewStatusFilter;
             const classMatch = reviewClassFilter === 'all' || item.className === reviewClassFilter;
-            return statusMatch && classMatch;
+            const searchMatch = normalizedReviewSearch === '' || [
+                item.title,
+                item.className,
+                item.topic,
+                item.statusLabel,
+                item.type,
+                new Date(item.dueDate).toLocaleDateString(),
+            ].some((value) => value.toLowerCase().includes(normalizedReviewSearch));
+            let lifecycleMatch = true;
+            if (reviewLifecycleFilter === 'active') {
+                lifecycleMatch = item.status !== 'completed';
+            } else if (reviewLifecycleFilter === 'attention') {
+                lifecycleMatch = item.status === 'overdue' || item.needsAttention;
+            } else if (reviewLifecycleFilter === 'closed') {
+                lifecycleMatch = item.status === 'completed';
+            }
+
+            return statusMatch && classMatch && lifecycleMatch && searchMatch;
         });
-    }, [reviewItems, reviewClassFilter, reviewStatusFilter]);
+    }, [normalizedReviewSearch, reviewItems, reviewClassFilter, reviewLifecycleFilter, reviewStatusFilter]);
+
+    const reviewLifecycleCounts = React.useMemo(() => {
+        const active = reviewItems.filter((item) => item.status !== 'completed').length;
+        const attention = reviewItems.filter((item) => item.status === 'overdue' || item.needsAttention).length;
+        const closed = reviewItems.filter((item) => item.status === 'completed').length;
+
+        return {
+            all: reviewItems.length,
+            active,
+            attention,
+            closed,
+        };
+    }, [reviewItems]);
+
+    const prioritizedReviewItems = React.useMemo(() => {
+        const attentionItems = filteredReviewItems.filter((item) => item.status === 'overdue' || item.needsAttention);
+        const otherItems = filteredReviewItems.filter((item) => !(item.status === 'overdue' || item.needsAttention));
+        return [...attentionItems, ...otherItems];
+    }, [filteredReviewItems]);
 
     // ── Derive stat card values from real stats array ──
     const findStat = (label: string) =>
@@ -1228,7 +1264,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         };
     }, [selectedClassroom, classroomMockBundle.people]);
 
-    const handlePostClassroomAnnouncement = () => {
+    const handlePostClassroomAnnouncement = withGate(() => {
         const trimmedDraft = classroomDraft.trim();
         if (!trimmedDraft) return;
 
@@ -1244,7 +1280,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         ]);
         setClassroomDraft('');
         setClassroomComposerOpen(false);
-    };
+    }, "post classroom announcements");
 
     const classroomFeedCards = React.useMemo(() => {
         const announcementCards = teacherAnnouncements.map((item) => ({
@@ -1284,7 +1320,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }, [activeTab, myClasses, selectedClassroomId]);
 
     // ── Guard: show dev shortcut if auth was bypassed (skip in demo mode) ──
-    if (!isVerified && !isDemo) {
+    // Only shows in DEV mode; in PROD this is effectively handled by ProtectedRoute.
+    if (!isVerified && !isDemo && import.meta.env.DEV) {
         return (
             <div className="min-h-screen w-full bg-[#28193D] flex flex-col items-center justify-center p-4">
                 <DevShortcut />
@@ -1341,13 +1378,20 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     }
     const handleViewAssignment = async (id: string) => {
         setLoadingResults(true);
+        setServiceNotice(null);
         setAssignmentResults(null); // clear stale data before new fetch
         setSelectedAssignmentId(id);
         try {
             const results = await dataService.getTeacherAssignmentResults(id);
             setAssignmentResults(results);
-        } catch (e) {
-            console.error(e);
+        } catch (e: unknown) {
+            if (e instanceof dataService.RedirectError) {
+                navigate(e.to);
+                return;
+            }
+
+            const normalized = dataService.toEloraServiceError(e);
+            setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
         } finally {
             setLoadingResults(false);
         }
@@ -1438,8 +1482,13 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                             {assignmentResults.students.filter(s => s.status === 'submitted').length} / {assignmentResults.students.length} Submitted
                                         </div>
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse">
+                                    {serviceNotice && (
+                                        <div className="mx-6 mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-medium text-orange-800">
+                                            {serviceNotice}
+                                        </div>
+                                    )}
+                                    <div className="overflow-x-auto px-2 sm:px-0">
+                                        <table className="min-w-[680px] w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-[#FDFBF5] border-b border-[#EAE7DD] text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                                     <th className="px-6 py-4">Student</th>
@@ -1529,41 +1578,41 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                         {isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(false)}
-                                className="hidden md:flex text-teal-100/50 hover:text-white transition-colors"
+                                className="hidden md:flex items-center justify-center p-2.5 text-teal-100/50 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                                 title="Collapse sidebar"
                             >
-                                <PanelLeftClose size={18} />
+                                <PanelLeftClose size={20} />
                             </button>
                         )}
                     </div>
 
                     {/* Nav */}
                     <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                        <NavItem 
-                            icon={<LayoutDashboard size={20} />} 
-                            label="Dashboard" 
-                            active={activeTab === 'dashboard' && !hash} 
+                        <NavItem
+                            icon={<LayoutDashboard size={20} />}
+                            label="Dashboard"
+                            active={activeTab === 'dashboard' && !hash}
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo' : '/dashboard/teacher');
                                 setActiveTab('dashboard');
                                 setShowPracticeGeneratorDrawer(false);
-                            }} 
-                            collapsed={!isSidebarOpen} 
-                            theme={sidebarTheme} 
+                            }}
+                            collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
                         />
-                        <NavItem 
-                            icon={<BookOpen size={20} />} 
-                            label="My Classes" 
-                            active={activeTab === 'classes'} 
+                        <NavItem
+                            icon={<BookOpen size={20} />}
+                            label="My Classes"
+                            active={activeTab === 'classes'}
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
                                 navigate(isDemo ? '/teacher/demo/classes' : '/teacher/classes');
                                 setActiveTab('classes');
                                 setShowPracticeGeneratorDrawer(false);
-                            }} 
-                            collapsed={!isSidebarOpen} 
-                            theme={sidebarTheme} 
+                            }}
+                            collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
                         />
                         <NavItem
                             icon={<FileText size={20} />}
@@ -1579,12 +1628,12 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             theme={sidebarTheme}
                         />
                         <NavItem
-                                icon={<Target size={20} />}
-                                label="Practice & quizzes"
-                                active={activeTab === 'dashboard' && hash === '#practice'}
+                            icon={<Target size={20} />}
+                            label="Practice & quizzes"
+                            active={activeTab === 'dashboard' && hash === '#practice'}
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
-                                    navigate(isDemo ? '/teacher/demo/practice' : '/teacher/practice');
+                                navigate(isDemo ? '/teacher/demo/practice' : '/teacher/practice');
                             }}
                             collapsed={!isSidebarOpen}
                             theme={sidebarTheme}
@@ -1595,7 +1644,13 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 label="Copilot"
                                 onClick={() => {
                                     setIsMobileMenuOpen(false);
-                                    navigate('/teacher/copilot');
+                                        navigate('/teacher/copilot', {
+                                            state: {
+                                                source: selectedClassroomId ? 'teacher-class-context' : 'teacher-overview-context',
+                                                preferredClassId: selectedClassroomId ?? null,
+                                                contextMode: selectedClassroomId ? 'class' : 'all-classes',
+                                            }
+                                        });
                                     setShowPracticeGeneratorDrawer(false);
                                 }}
                                 theme={sidebarTheme}
@@ -1603,10 +1658,10 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                             />
                         )}
                         {!isDemo && (
-                            <NavItem 
-                                icon={<TrendingUp size={20} />} 
-                                label="Reports" 
-                                active={activeTab === 'dashboard' && hash === '#reports'} 
+                            <NavItem
+                                icon={<TrendingUp size={20} />}
+                                label="Reports"
+                                active={activeTab === 'dashboard' && hash === '#reports'}
                                 onClick={() => {
                                     setIsMobileMenuOpen(false);
                                     navigate('/dashboard/teacher#reports');
@@ -1616,8 +1671,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                         document.getElementById('reports-section')?.scrollIntoView({ behavior: 'smooth' });
                                     }, 100);
                                 }}
-                                collapsed={!isSidebarOpen} 
-                                theme={sidebarTheme} 
+                                collapsed={!isSidebarOpen}
+                                theme={sidebarTheme}
                             />
                         )}
                         {/* <NavItem icon={<Users size={20} />} label="Students" collapsed={!isSidebarOpen} theme={sidebarTheme} /> */}
@@ -1647,7 +1702,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 </aside>}
 
                 {/* ── Main Content ── */}
-                <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC]">
                     {!embeddedInShell && (
                         <DashboardHeader
                             role="teacher"
@@ -1877,195 +1932,195 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                                         {/* Upcoming Assignments */}
                                         <section ref={assignmentsSectionRef}>
-                                        <DashboardCard
-                                            variant="canonical"
-                                            as="section"
-                                            className={`scroll-mt-6 ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : ''} transition-all duration-700`}
-                                            bodyClassName="p-4"
-                                        >
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
-                                                    Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
-                                                </h2>
-                                                <button className="text-teal-600 hover:text-teal-700 p-1">
-                                                    <MoreHorizontal size={20} />
-                                                </button>
-                                            </div>
-
-                                            {/* Slim Filter Bar */}
-                                            <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
-                                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
-
-                                                <select
-                                                    value={statusFilter}
-                                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                                    className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                                >
-                                                    <option value="all">All Statuses</option>
-                                                    <option value="needs_attention">Needs Attention</option>
-                                                    <option value="on_track">On Track</option>
-                                                    <option value="completed">Completed</option>
-                                                </select>
-
-                                                <select
-                                                    value={classFilter}
-                                                    onChange={(e) => setClassFilter(e.target.value)}
-                                                    className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
-                                                >
-                                                    <option value="all">All Classes</option>
-                                                    {availableClasses.map(cls => (
-                                                        <option key={cls} value={cls}>{cls}</option>
-                                                    ))}
-                                                </select>
-
-                                                {(statusFilter !== 'all' || classFilter !== 'all') && (
-                                                    <button
-                                                        onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
-                                                        className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
-                                                    >
-                                                        Clear filters
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {loading ? (
-                                                <SectionSkeleton rows={2} />
-                                            ) : upcomingAssignments.length === 0 ? (
-                                                <SectionEmpty
-                                                    headline="No upcoming assignments"
-                                                    detail="Assignments you create will appear here for quick access."
-                                                />
-                                            ) : filteredAssignments.length === 0 ? (
-                                                <SectionEmpty
-                                                    headline="No assignments match filters"
-                                                    detail="Try clearing your filters to see more."
-                                                />
-                                            ) : (
-                                                <div className="space-y-3">
-                                                    {filteredAssignments.map((item) => {
-                                                        const statusLower = item.status.toLowerCase();
-                                                        const borderColor =
-                                                            (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
-                                                                (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
-                                                                    'border-l-teal-500';
-
-                                                        return (
-                                                            <div
-                                                                key={item.id}
-                                                                className={`p-3 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
-                                                                onClick={() => handleViewAssignment(item.id)}
-                                                            >
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <h3 className="text-sm font-semibold text-slate-900">
-                                                                        {item.title}
-                                                                    </h3>
-                                                                    <StatusBadge status={item.status} />
-                                                                </div>
-                                                                <p className="text-xs text-slate-600 mb-3">{item.class}</p>
-                                                                <div className="flex items-center justify-between text-xs">
-                                                                    <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                                                                        <Clock size={14} /> {item.due}
-                                                                    </div>
-                                                                    {item.total > 0 && (
-                                                                        <div className="font-semibold text-slate-700">
-                                                                            {item.submitted}/{item.total}{' '}
-                                                                            <span className="text-slate-400 font-normal">
-                                                                                submitted
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-
-                                            <button
-                                                onClick={() => {
-                                                    navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments');
-                                                    setActiveTab('assignments');
-                                                }}
-                                                className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors"
+                                            <DashboardCard
+                                                variant="canonical"
+                                                as="section"
+                                                className={`scroll-mt-6 ${highlightAssignments ? 'border-teal-400 shadow-md ring-4 ring-teal-50' : ''} transition-all duration-700`}
+                                                bodyClassName="p-4"
                                             >
-                                                View all assignments
-                                            </button>
-                                        </DashboardCard>
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h2 className="text-[18px] lg:text-[20px] font-semibold text-slate-900 tracking-tight">
+                                                        Upcoming {upcomingAssignments.length > 0 && <span className="text-slate-400 font-normal">· {upcomingAssignments.length}</span>}
+                                                    </h2>
+                                                    <button className="text-teal-600 hover:text-teal-700 p-1">
+                                                        <MoreHorizontal size={20} />
+                                                    </button>
+                                                </div>
+
+                                                {/* Slim Filter Bar */}
+                                                <div className="flex flex-wrap items-center gap-2 mb-6 bg-[#FDFBF5] p-2 rounded-xl border border-[#EAE7DD] text-sm">
+                                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">Filters:</div>
+
+                                                    <select
+                                                        value={statusFilter}
+                                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                                        className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                                    >
+                                                        <option value="all">All Statuses</option>
+                                                        <option value="needs_attention">Needs Attention</option>
+                                                        <option value="on_track">On Track</option>
+                                                        <option value="completed">Completed</option>
+                                                    </select>
+
+                                                    <select
+                                                        value={classFilter}
+                                                        onChange={(e) => setClassFilter(e.target.value)}
+                                                        className="bg-white border border-[#EAE7DD] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 font-medium text-slate-700"
+                                                    >
+                                                        <option value="all">All Classes</option>
+                                                        {availableClasses.map(cls => (
+                                                            <option key={cls} value={cls}>{cls}</option>
+                                                        ))}
+                                                    </select>
+
+                                                    {(statusFilter !== 'all' || classFilter !== 'all') && (
+                                                        <button
+                                                            onClick={() => { setStatusFilter('all'); setClassFilter('all'); }}
+                                                            className="text-xs font-semibold text-slate-500 hover:text-slate-800 ml-auto px-2 transition-colors"
+                                                        >
+                                                            Clear filters
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {loading ? (
+                                                    <SectionSkeleton rows={2} />
+                                                ) : upcomingAssignments.length === 0 ? (
+                                                    <SectionEmpty
+                                                        headline="No upcoming assignments"
+                                                        detail="Assignments you create will appear here for quick access."
+                                                    />
+                                                ) : filteredAssignments.length === 0 ? (
+                                                    <SectionEmpty
+                                                        headline="No assignments match filters"
+                                                        detail="Try clearing your filters to see more."
+                                                    />
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {filteredAssignments.map((item) => {
+                                                            const statusLower = item.status.toLowerCase();
+                                                            const borderColor =
+                                                                (['needs attention', 'warning', 'overdue'].includes(statusLower)) ? 'border-l-red-500' :
+                                                                    (['due tomorrow', 'due soon'].includes(statusLower)) ? 'border-l-orange-500' :
+                                                                        'border-l-teal-500';
+
+                                                            return (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className={`p-3 rounded-xl bg-[#FDFBF5] border border-[#EAE7DD] ${borderColor} border-l-4 cursor-pointer hover:border-teal-300 transition-colors shadow-sm`}
+                                                                    onClick={() => handleViewAssignment(item.id)}
+                                                                >
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <h3 className="text-sm font-semibold text-slate-900">
+                                                                            {item.title}
+                                                                        </h3>
+                                                                        <StatusBadge status={item.status} />
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-600 mb-3">{item.class}</p>
+                                                                    <div className="flex items-center justify-between text-xs">
+                                                                        <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                                                            <Clock size={14} /> {item.due}
+                                                                        </div>
+                                                                        {item.total > 0 && (
+                                                                            <div className="font-semibold text-slate-700">
+                                                                                {item.submitted}/{item.total}{' '}
+                                                                                <span className="text-slate-400 font-normal">
+                                                                                    submitted
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        navigate(isDemo ? '/teacher/demo/assignments' : '/teacher/assignments');
+                                                        setActiveTab('assignments');
+                                                    }}
+                                                    className="w-full mt-4 py-2.5 text-sm font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors"
+                                                >
+                                                    View all assignments
+                                                </button>
+                                            </DashboardCard>
                                         </section>
 
-                                            {/* Active Practice Widget */}
-                                            <DashboardCard variant="canonical" bodyClassName="p-5">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h3 className="text-sm font-semibold text-slate-900">
-                                                        Active practice
-                                                    </h3>
-                                                    <Link
-                                                        to={isDemo ? '/teacher/demo/practice' : '/teacher/practice'}
-                                                        className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
-                                                    >
-                                                        View all →
-                                                    </Link>
-                                                </div>
+                                        {/* Active Practice Widget */}
+                                        <DashboardCard variant="canonical" bodyClassName="p-5">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-sm font-semibold text-slate-900">
+                                                    Active practice
+                                                </h3>
+                                                <Link
+                                                    to={isDemo ? '/teacher/demo/practice' : '/teacher/practice'}
+                                                    className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                                                >
+                                                    View all →
+                                                </Link>
+                                            </div>
 
-                                                {demoClassroomPractices && demoClassroomPractices.length > 0 ? (
-                                                    <div className="space-y-3">
-                                                        {demoClassroomPractices.slice(0, 2).map((practice) => (
-                                                            <div
-                                                                key={practice.id}
-                                                                className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 hover:border-teal-200 transition-colors cursor-pointer"
-                                                                onClick={() => navigate(`${isDemo ? '/teacher/demo/class' : '/teacher/classes'}/${practice.classId}?tab=classwork`)}
-                                                            >
-                                                                <div className="flex justify-between items-start gap-3 mb-2">
-                                                                    <h4 className="text-xs font-semibold text-slate-900 line-clamp-1">
-                                                                        {practice.title}
-                                                                    </h4>
-                                                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 whitespace-nowrap">
-                                                                        {practice.submittedCount}/{practice.totalCount}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-600 mb-2">
-                                                                    {practice.topic}
-                                                                </p>
-                                                                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                                                    <div
-                                                                        className="h-full bg-teal-500 transition-all"
-                                                                        style={{
-                                                                            width: `${(practice.submittedCount / practice.totalCount) * 100}%`,
-                                                                        }}
-                                                                    />
-                                                                </div>
+                                            {demoClassroomPractices && demoClassroomPractices.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {demoClassroomPractices.slice(0, 2).map((practice) => (
+                                                        <div
+                                                            key={practice.id}
+                                                            className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 hover:border-teal-200 transition-colors cursor-pointer"
+                                                            onClick={() => navigate(`${isDemo ? '/teacher/demo/class' : '/teacher/classes'}/${practice.classId}?tab=classwork`)}
+                                                        >
+                                                            <div className="flex justify-between items-start gap-3 mb-2">
+                                                                <h4 className="text-xs font-semibold text-slate-900 line-clamp-1">
+                                                                    {practice.title}
+                                                                </h4>
+                                                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                                                                    {practice.submittedCount}/{practice.totalCount}
+                                                                </span>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-xs text-slate-500">No active practice sets. Head to Practice & quizzes to create one.</p>
-                                                )}
-                                            </DashboardCard>
+                                                            <p className="text-[11px] text-slate-600 mb-2">
+                                                                {practice.topic}
+                                                            </p>
+                                                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-teal-500 transition-all"
+                                                                    style={{
+                                                                        width: `${(practice.submittedCount / practice.totalCount) * 100}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-500">No active practice sets. Head to Practice & quizzes to create one.</p>
+                                            )}
+                                        </DashboardCard>
 
                                         {/* ── Needs Attention (live data) ── */}
                                         <DashboardCard variant="canonical" bodyClassName="p-4">
                                             <NeedsAttentionCard
-                                            insights={insights.slice(0, 5)}
-                                            loading={insightsLoading}
-                                            error={insightsError}
-                                            onInsightClick={(insight) => {
-                                                if (insight.assignmentId) {
-                                                    handleViewAssignment(insight.assignmentId);
-                                                }
-                                            }}
-                                            onAssignPractice={handleGeneratePractice}
-                                            onNudgeStudent={handleNudgeClick}
-                                            onDrillDown={handleDrillDown}
-                                            generatePracticeLabel="Generate practice →"
-                                            onRetry={() => {
-                                                setInsightsLoading(true);
-                                                setInsightsError(null);
-                                                // Force demo data refresh
-                                                setTimeout(() => {
-                                                    setInsights(demoInsights);
-                                                    setInsightsLoading(false);
-                                                }, 500);
-                                            }}
+                                                insights={insights.slice(0, 5)}
+                                                loading={insightsLoading}
+                                                error={insightsError}
+                                                onInsightClick={(insight) => {
+                                                    if (insight.assignmentId) {
+                                                        handleViewAssignment(insight.assignmentId);
+                                                    }
+                                                }}
+                                                onAssignPractice={handleGeneratePractice}
+                                                onNudgeStudent={handleNudgeClick}
+                                                onDrillDown={handleDrillDown}
+                                                generatePracticeLabel="Generate practice →"
+                                                onRetry={() => {
+                                                    setInsightsLoading(true);
+                                                    setInsightsError(null);
+                                                    // Force demo data refresh
+                                                    setTimeout(() => {
+                                                        setInsights(demoInsights);
+                                                        setInsightsLoading(false);
+                                                    }, 500);
+                                                }}
                                             />
                                         </DashboardCard>
 
@@ -2083,7 +2138,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     title="My Classes"
                                                     action={
                                                         <div className="flex items-center gap-2 bg-[#FDFBF5] p-1 rounded-lg border border-[#EAE7DD]">
-                                                            {['This week', 'This month', 'All time'].map((f) => (
+                                                            {['Weekly', 'Monthly', 'Overall'].map((f) => (
                                                                 <button
                                                                     key={f}
                                                                     onClick={() => setFilter(f)}
@@ -2099,7 +2154,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     }
                                                 />
                                             </div>
-                                            <div className="overflow-x-auto">
+                                            <div className="overflow-x-auto px-2 sm:px-0">
                                                 {loading ? (
                                                     <div className="px-6 py-4"><SectionSkeleton rows={3} /></div>
                                                 ) : myClasses.length === 0 ? (
@@ -2110,7 +2165,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <table className="w-full text-left border-collapse">
+                                                    <table className="min-w-[720px] w-full text-left border-collapse">
                                                         <thead>
                                                             <tr className="bg-[#FDFBF5] border-b border-[#EAEAEA]">
                                                                 <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -2268,83 +2323,212 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                     </div>
                                 </div>
                             ) : activeTab === 'assignments' ? (
-                                <div className="space-y-3">
-                                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                                        <div>
-                                            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Review All Assignments</h2>
-                                            <p className="text-sm text-slate-500 mt-1">Across all classes with submission and score signals.</p>
+                                <div className={isDemo ? 'space-y-3' : 'space-y-8'}>
+                                    <div className="mb-8 space-y-6">
+                                        <div className="flex flex-wrap items-center justify-between gap-4">
+                                            <h2 className={isDemo ? 'text-xl font-bold text-slate-900 tracking-tight' : 'text-[30px] font-bold leading-tight tracking-tight text-slate-900'}>Review All Assignments</h2>
+
+                                            <div className="relative inline-flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsReviewFilterMenuOpen((prev) => !prev)}
+                                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200/70 bg-white text-slate-600 transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:text-slate-900"
+                                                    aria-label="Toggle assignment filters"
+                                                    title="Filters"
+                                                >
+                                                    <SlidersHorizontal size={15} />
+                                                </button>
+
+                                                {isReviewFilterMenuOpen && (
+                                                    <div className="absolute right-0 top-12 z-20 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+                                                        <div className="space-y-3">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Class</label>
+                                                                <select
+                                                                    value={reviewClassFilter}
+                                                                    onChange={(event) => setReviewClassFilter(event.target.value)}
+                                                                    className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition-colors focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                                                                >
+                                                                    <option value="all">Overview</option>
+                                                                    {reviewClasses.map((className) => (
+                                                                        <option key={className} value={className}>{className}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</label>
+                                                                <select
+                                                                    value={reviewStatusFilter}
+                                                                    onChange={(event) => setReviewStatusFilter(event.target.value)}
+                                                                    className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition-colors focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                                                                >
+                                                                    <option value="all">All statuses</option>
+                                                                    <option value="overdue">Overdue</option>
+                                                                    <option value="due_soon">Due soon</option>
+                                                                    <option value="upcoming">Upcoming</option>
+                                                                    <option value="completed">Completed</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
+                                                        setActiveTab('dashboard');
+                                                        setShowPracticeGeneratorDrawer(true);
+                                                    }}
+                                                    className={isDemo
+                                                        ? 'inline-flex items-center gap-2 rounded-lg border border-teal-500/30 border-t-white/20 bg-gradient-to-b from-teal-500 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.05)] transition-all duration-200 hover:-translate-y-[1px] hover:from-teal-400 hover:to-teal-600'
+                                                        : 'inline-flex items-center gap-2 rounded-lg border border-teal-500/30 border-t-white/20 bg-gradient-to-b from-teal-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.05)] transition-all duration-200 hover:-translate-y-[1px] hover:from-teal-400 hover:to-teal-600'}
+                                                >
+                                                    <Plus size={15} />
+                                                    Create Assignment
+                                                </button>
+                                            </div>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
-                                                setActiveTab('dashboard');
-                                                setShowPracticeGeneratorDrawer(true);
-                                            }}
-                                            className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
-                                        >
-                                            <Plus size={15} />
-                                            Create Assignment
-                                        </button>
+
+                                        <p className={isDemo ? 'text-sm text-slate-500' : 'max-w-2xl text-sm leading-6 text-slate-500'}>Across all classes with submission and score signals.</p>
                                     </div>
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
-                                        <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 space-y-6">
-                                            <div className="space-y-2">
-                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Grading Summary</p>
-                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Needs grading</span>
-                                                        <span className="tabular-nums text-base font-bold text-teal-700">3</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Active</span>
-                                                        <span className="tabular-nums text-base font-bold text-teal-700">5</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Overdue</span>
-                                                        <span className="tabular-nums text-base font-bold text-teal-700">1</span>
+                                    <div className="grid grid-cols-1 gap-6 items-start">
+                                        {isDemo ? (
+                                            <aside id="assignment-filters-panel" className="hidden rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-none lg:sticky lg:top-6 space-y-6">
+                                                <div className="space-y-2">
+                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Grading Summary</p>
+                                                    <div className="grid grid-cols-1 gap-4 rounded-lg border border-[#E2E8F0] bg-white px-3 py-3">
+                                                        <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                            <div className="inline-flex min-w-[52px] justify-center rounded-md bg-amber-500/5 px-2 py-1">
+                                                                <p className="text-3xl font-bold leading-none text-slate-900 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">3</p>
+                                                            </div>
+                                                            <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Needs grading</p>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                            <div className="inline-flex min-w-[52px] justify-center rounded-md bg-teal-600/5 px-2 py-1">
+                                                                <p className="text-3xl font-bold leading-none text-slate-900 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">5</p>
+                                                            </div>
+                                                            <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Active</p>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                            <div className="inline-flex min-w-[52px] justify-center rounded-md bg-rose-500/5 px-2 py-1">
+                                                                <p className="text-3xl font-bold leading-none text-slate-900 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">1</p>
+                                                            </div>
+                                                            <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Overdue</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="space-y-2">
-                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
-                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
-                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class</label>
-                                                    <select
-                                                        value={reviewClassFilter}
-                                                        onChange={(event) => setReviewClassFilter(event.target.value)}
-                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
-                                                    >
-                                                        <option value="all">All classes</option>
-                                                        {reviewClasses.map((className) => (
-                                                            <option key={className} value={className}>{className}</option>
-                                                        ))}
-                                                    </select>
+                                                <div className="space-y-2">
+                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
+                                                    <div className="space-y-2 rounded-lg border border-[#E2E8F0] bg-slate-50 px-4 py-3.5">
+                                                        <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class</label>
+                                                        <select
+                                                            value={reviewClassFilter}
+                                                            onChange={(event) => setReviewClassFilter(event.target.value)}
+                                                            className="w-full bg-slate-50 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm"
+                                                        >
+                                                            <option value="all">Overview</option>
+                                                            {reviewClasses.map((className) => (
+                                                                <option key={className} value={className}>{className}</option>
+                                                            ))}
+                                                        </select>
 
-                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
-                                                    <select
-                                                        value={reviewStatusFilter}
-                                                        onChange={(event) => setReviewStatusFilter(event.target.value)}
-                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
-                                                    >
-                                                        <option value="all">All statuses</option>
-                                                        <option value="overdue">Overdue</option>
-                                                        <option value="due_soon">Due soon</option>
-                                                        <option value="upcoming">Upcoming</option>
-                                                        <option value="completed">Completed</option>
-                                                    </select>
+                                                        <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
+                                                        <select
+                                                            value={reviewStatusFilter}
+                                                            onChange={(event) => setReviewStatusFilter(event.target.value)}
+                                                            className="w-full bg-slate-50 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm"
+                                                        >
+                                                            <option value="all">All statuses</option>
+                                                            <option value="overdue">Overdue</option>
+                                                            <option value="due_soon">Due soon</option>
+                                                            <option value="upcoming">Upcoming</option>
+                                                            <option value="completed">Completed</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </aside>
+                                            </aside>
+                                        ) : (
+                                            <aside id="assignment-filters-panel" className="hidden sticky top-6 rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-none">
+                                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] lg:items-stretch">
+                                                    <div className="space-y-5">
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Grading overview</p>
+                                                            <p className="mt-1 text-xs leading-5 text-slate-500">Quick pulse on assignments that need immediate review.</p>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 gap-4 rounded-lg border border-[#E2E8F0] bg-white px-3 py-3">
+                                                            <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                                <div className="inline-flex min-w-[52px] justify-center rounded-md bg-amber-500/5 px-2 py-1">
+                                                                    <p className="text-3xl font-bold leading-none tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-900">3</p>
+                                                                </div>
+                                                                <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Needs grading</p>
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                                <div className="inline-flex min-w-[52px] justify-center rounded-md bg-teal-600/5 px-2 py-1">
+                                                                    <p className="text-3xl font-bold leading-none tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-900">5</p>
+                                                                </div>
+                                                                <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Active</p>
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-3 leading-relaxed">
+                                                                <div className="inline-flex min-w-[52px] justify-center rounded-md bg-rose-500/5 px-2 py-1">
+                                                                    <p className="text-3xl font-bold leading-none tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-900">1</p>
+                                                                </div>
+                                                                <p className="mt-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-slate-500">Overdue</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="hidden lg:block w-px bg-slate-200/60" />
+
+                                                    <div className="space-y-5">
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Filters</p>
+                                                            <p className="mt-1 text-xs leading-5 text-slate-500">Narrow the queue by class or lifecycle state.</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <label className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">Class</label>
+                                                            <select
+                                                                value={reviewClassFilter}
+                                                                onChange={(event) => setReviewClassFilter(event.target.value)}
+                                                                className="h-10 w-full rounded-lg border border-[#E2E8F0] bg-slate-50 px-3 text-sm text-slate-700 shadow-none outline-none transition-colors focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                                                            >
+                                                                <option value="all">Overview</option>
+                                                                {reviewClasses.map((className) => (
+                                                                    <option key={className} value={className}>{className}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <label className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">Status</label>
+                                                            <select
+                                                                value={reviewStatusFilter}
+                                                                onChange={(event) => setReviewStatusFilter(event.target.value)}
+                                                                className="h-10 w-full rounded-lg border border-[#E2E8F0] bg-slate-50 px-3 text-sm text-slate-700 shadow-none outline-none transition-colors focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                                                            >
+                                                                <option value="all">All statuses</option>
+                                                                <option value="overdue">Overdue</option>
+                                                                <option value="due_soon">Due soon</option>
+                                                                <option value="upcoming">Upcoming</option>
+                                                                <option value="completed">Completed</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </aside>
+                                        )}
 
                                         <section>
                                             {reviewLoading ? (
-                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+                                                <div className={isDemo ? 'rounded-xl border border-[#E2E8F0] bg-white shadow-none p-6' : 'rounded-xl border border-[#E2E8F0] bg-white shadow-none p-6'}>
                                                     <SectionSkeleton rows={4} />
                                                 </div>
                                             ) : filteredReviewItems.length === 0 ? (
-                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10 text-center">
+                                                <div className={isDemo ? 'rounded-xl border border-[#E2E8F0] bg-white shadow-none p-10 text-center' : 'rounded-xl border border-[#E2E8F0] bg-white shadow-none p-10 text-center'}>
                                                     <h3 className="text-lg font-semibold tracking-tight text-slate-900">No assignments match these filters</h3>
                                                     <p className="mt-2 text-sm text-slate-500">Try another filter, or create a new assignment to populate this review queue.</p>
                                                     <button
@@ -2353,15 +2537,76 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                             setActiveTab('dashboard');
                                                             setShowPracticeGeneratorDrawer(true);
                                                         }}
-                                                        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+                                                        className={isDemo
+                                                            ? 'mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700'
+                                                            : 'mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700'}
                                                     >
                                                         <Plus size={15} />
                                                         Create Assignment
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-4">
-                                                    {filteredReviewItems.map((item) => {
+                                                <div className="space-y-4 pt-3">
+                                                    {!isDemo && (
+                                                        <div className="rounded-xl border border-[#E2E8F0] bg-white p-2 shadow-none">
+                                                            <div className="relative grid grid-cols-4 rounded-lg bg-slate-100/50 p-1">
+                                                                {[
+                                                                    { key: 'all' as const, label: 'All', count: reviewLifecycleCounts.all },
+                                                                    { key: 'active' as const, label: 'Active', count: reviewLifecycleCounts.active },
+                                                                    { key: 'attention' as const, label: 'Needs attention', count: reviewLifecycleCounts.attention },
+                                                                    { key: 'closed' as const, label: 'Closed', count: reviewLifecycleCounts.closed },
+                                                                ].map((segment) => {
+                                                                    const selected = reviewLifecycleFilter === segment.key;
+                                                                    return (
+                                                                        <button
+                                                                            key={segment.key}
+                                                                            type="button"
+                                                                            onClick={() => setReviewLifecycleFilter(segment.key)}
+                                                                            className="relative z-10 rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition-colors"
+                                                                        >
+                                                                            {selected && (
+                                                                                <motion.span
+                                                                                    layoutId="review-lifecycle-pill"
+                                                                                    className="absolute inset-0 rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]"
+                                                                                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                                                                                />
+                                                                            )}
+                                                                            <span className={`relative uppercase tracking-[0.12em] ${selected ? 'text-teal-700' : 'text-slate-600'}`}>{segment.label}</span>
+                                                                            <span className={`relative ml-1 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] ${selected ? 'text-teal-700' : 'text-slate-500'}`}>{segment.count}</span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="rounded-full border border-slate-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04),_0_8px_20px_rgba(15,23,42,0.06)]">
+                                                        <label className="relative flex items-center">
+                                                            <Search size={14} strokeWidth={1.5} className="pointer-events-none absolute left-3 text-slate-400" />
+                                                            <input
+                                                                value={reviewSearchQuery}
+                                                                onChange={(event) => setReviewSearchQuery(event.target.value)}
+                                                                placeholder="Search assignments, classes, topics, status, or due date"
+                                                                className="h-10 w-full rounded-full bg-transparent pl-8 pr-16 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                                            />
+                                                            <kbd className="pointer-events-none absolute right-2 inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold font-mono text-slate-400">
+                                                                Ctrl+K
+                                                            </kbd>
+                                                        </label>
+                                                    </div>
+
+                                                    {!isDemo && (
+                                                        <div className="flex items-center justify-between px-1">
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                                                {reviewLifecycleFilter === 'all' ? 'All assignments' : reviewLifecycleFilter === 'active' ? 'Active assignments' : reviewLifecycleFilter === 'attention' ? 'Priority queue' : 'Closed assignments'}
+                                                            </p>
+                                                            <p className="text-xs font-medium text-slate-500 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">
+                                                                {filteredReviewItems.length} shown
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {(isDemo ? filteredReviewItems : prioritizedReviewItems).map((item) => {
                                                         const dueDate = new Date(item.dueDate).toLocaleDateString();
                                                         const totalCount = Math.max(item.totalCount || 0, 0);
                                                         const submittedCount = Math.min(Math.max(item.submittedCount || 0, 0), totalCount || 0);
@@ -2371,99 +2616,175 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                         const showDueSoon = normalizedStatus === 'due_soon';
                                                         const showCompleted = normalizedStatus === 'completed';
                                                         const hasAttentionSignal = showOverdue || item.needsAttention;
+                                                        const isClosedItem = showCompleted;
+                                                        const handleViewDetails = () => {
+                                                            if (item.type === 'assignment') {
+                                                                handleViewAssignment(item.id);
+                                                            } else {
+                                                                setSelectedItem({
+                                                                    name: item.title,
+                                                                    class: item.className,
+                                                                    tag: item.topic,
+                                                                    status: item.statusLabel,
+                                                                });
+                                                            }
+                                                        };
+
+                                                        if (isDemo) {
+                                                            return (
+                                                                <article
+                                                                    key={`${item.type}-${item.id}`}
+                                                                    className="rounded-xl border border-[#E2E8F0] bg-white shadow-none overflow-hidden"
+                                                                >
+                                                                    <div className="p-4 sm:p-5">
+                                                                        <div className="flex items-start justify-end gap-2 mb-3">
+                                                                            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                                                                                <span className={`h-1.5 w-1.5 rounded-full ${showOverdue ? 'bg-rose-500' : showDueSoon ? 'bg-amber-500' : showCompleted ? 'bg-emerald-500' : hasAttentionSignal ? 'bg-amber-500' : 'bg-teal-600'}`} />
+                                                                                <span>{item.statusLabel}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-4 md:gap-0 items-center">
+                                                                            <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-[#E2E8F0]">
+                                                                                <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${showOverdue ? 'bg-rose-50/50' : 'bg-teal-500/10'}`}>
+                                                                                    <FileText size={18} className="text-teal-700" />
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{item.type}</p>
+                                                                                    <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
+                                                                                    <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400 truncate">{item.className} · {item.topic}</p>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="h-full md:px-4 md:border-r md:border-[#E2E8F0]">
+                                                                                    <div className="grid h-full grid-cols-3 gap-0">
+                                                                                        <div className="pr-3">
+                                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Submissions</p>
+                                                                                        <p className="mt-1 text-lg font-bold text-slate-800 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{submittedCount}/{totalCount}</p>
+                                                                                    </div>
+                                                                                    <div className="px-3 border-l border-slate-100">
+                                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Avg Score</p>
+                                                                                        <p className="mt-1 text-lg font-bold text-slate-800 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{item.averageScore ?? '--'}%</p>
+                                                                                    </div>
+                                                                                    <div className="pl-3 border-l border-slate-100">
+                                                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due</p>
+                                                                                        <p className="mt-1 text-lg font-bold text-slate-800 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{dueDate}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="flex flex-col items-end justify-center gap-2 pl-3">
+                                                                                <div className="flex items-center justify-end gap-2 pt-1">
+                                                                                    {showOverdue ? (
+                                                                                        <div className="inline-flex items-center gap-1.5 rounded-full bg-red-500/[0.08] px-2 py-1 text-[11px] font-semibold text-red-700">
+                                                                                            <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                                                                                            <span>{item.statusLabel}</span>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <p className={`text-[11px] font-semibold ${hasAttentionSignal ? 'text-[#9F1239]' : 'text-slate-700'}`}>{item.statusLabel}</p>
+                                                                                    )}
+                                                                                </div>
+                                                                                <button
+                                                                                    onClick={handleViewDetails}
+                                                                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-600 transition-colors duration-200 hover:bg-slate-50"
+                                                                                >
+                                                                                    View details
+                                                                                    <ChevronRight size={13} />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="mt-3 border-t border-[#E2E8F0] pt-3 space-y-2">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="h-[3px] w-full rounded-full bg-teal-600/[0.08] overflow-hidden">
+                                                                                    <div
+                                                                                        className="h-full bg-teal-600 transition-all"
+                                                                                        style={{ width: `${submissionPercent}%` }}
+                                                                                    />
+                                                                                </div>
+                                                                                <span className="text-[11px] font-semibold text-slate-500 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{submissionPercent}%</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </article>
+                                                            );
+                                                        }
+
+                                                        const statusToneClass = showCompleted
+                                                            ? 'bg-emerald-500 text-emerald-700'
+                                                            : hasAttentionSignal
+                                                                ? 'bg-amber-500 text-amber-700'
+                                                                : showDueSoon
+                                                                    ? 'bg-amber-500 text-amber-700'
+                                                                    : 'bg-teal-500 text-teal-700';
+
+                                                        const statusLabelClass = showCompleted
+                                                            ? 'text-emerald-700'
+                                                            : hasAttentionSignal
+                                                                ? 'text-amber-700'
+                                                                : showDueSoon
+                                                                    ? 'text-amber-700'
+                                                                    : 'text-slate-600';
 
                                                         return (
                                                             <article
                                                                 key={`${item.type}-${item.id}`}
-                                                                className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
+                                                                className={`group rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-none transition-all duration-200 hover:-translate-y-[2px] hover:border-teal-600/40 ${isClosedItem ? 'bg-slate-50/[0.75]' : ''}`}
                                                             >
-                                                                <div className="p-4 sm:p-5">
-                                                                    <div className="flex items-start justify-end gap-2 mb-3">
-                                                                        {showCompleted && (
-                                                                            <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-                                                                                Completed
-                                                                            </span>
-                                                                        )}
-                                                                        {showDueSoon && (
-                                                                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
-                                                                                Due Soon
-                                                                            </span>
-                                                                        )}
-                                                                        {showOverdue && (
-                                                                            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#FDF2F8] border-[#F5D0E2] text-[#9F1239]">
-                                                                                Overdue
-                                                                            </span>
-                                                                        )}
-                                                                        {item.needsAttention && (
-                                                                            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#FDF2F8] border-[#F5D0E2] text-[#9F1239]">
-                                                                                Needs Attention
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
-                                                                        <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${showOverdue ? 'bg-rose-50/50' : 'bg-teal-500/10'}`}>
-                                                                                <FileText size={18} className="text-teal-700" />
+                                                                <div className="flex flex-col gap-5">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-4">
+                                                                        <div className="min-w-0 flex items-start gap-3">
+                                                                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${hasAttentionSignal ? 'border-amber-200 bg-amber-50/80 text-amber-700' : 'border-teal-100 bg-teal-50/70 text-teal-700'}`}>
+                                                                                <FileText size={18} />
                                                                             </div>
                                                                             <div className="min-w-0">
-                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">{item.type}</p>
-                                                                                <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
-                                                                                <p className="mt-1 text-sm text-slate-500 truncate">{item.className} · {item.topic}</p>
+                                                                                <h3 className="truncate text-[17px] font-semibold leading-6 tracking-tight text-slate-900">{item.title}</h3>
+                                                                                <p className="mt-1 truncate text-[11px] font-bold uppercase tracking-widest text-slate-400">{item.className} · {item.topic}</p>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                            <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
-                                                                            <div className="grid grid-cols-2 gap-y-3 gap-x-8">
-                                                                                <div>
-                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Submissions</p>
-                                                                                    <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums font-mono">{submittedCount}/{totalCount}</p>
-                                                                                </div>
-                                                                                <div>
-                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Avg Score</p>
-                                                                                    <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{item.averageScore ?? '--'}%</p>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="mt-3">
-                                                                                <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                                                                                    <div
-                                                                                        className={`h-full transition-all ${hasAttentionSignal ? 'bg-[#9F1239]' : 'bg-teal-600'}`}
-                                                                                        style={{ width: `${submissionPercent}%` }}
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
+                                                                        <div className="flex flex-col items-end justify-center gap-2 text-[12px] font-medium">
+                                                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                                                                                <span className={`h-1.5 w-1.5 rounded-full ${showOverdue ? 'bg-rose-500' : statusToneClass}`} />
+                                                                                <span className={statusLabelClass}>{item.statusLabel}</span>
+                                                                            </span>
+                                                                            <button
+                                                                                onClick={handleViewDetails}
+                                                                                className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-semibold normal-case tracking-normal text-slate-600 transition-colors duration-200 hover:bg-slate-50"
+                                                                            >
+                                                                                View details
+                                                                                <ChevronRight size={13} />
+                                                                            </button>
                                                                         </div>
-                                                                        </div>
+                                                                    </div>
 
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Due Date</p>
-                                                                            <p className="text-sm font-semibold text-slate-900 tabular-nums">{dueDate}</p>
-                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</p>
-                                                                            <p className={`text-sm font-semibold tabular-nums ${hasAttentionSignal ? 'text-[#9F1239]' : 'text-slate-900'}`}>
-                                                                                {item.statusLabel}
-                                                                            </p>
+                                                                    <div className="grid gap-2 sm:grid-cols-3">
+                                                                        <div className="sm:pr-4">
+                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Submissions</p>
+                                                                            <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{submittedCount}/{totalCount}</p>
+                                                                        </div>
+                                                                        <div className="sm:px-4 sm:border-l sm:border-slate-100">
+                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Avg score</p>
+                                                                            <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{item.averageScore ?? '--'}%</p>
+                                                                        </div>
+                                                                        <div className="sm:pl-4 sm:border-l sm:border-slate-100">
+                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due</p>
+                                                                            <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{dueDate}</p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="mt-1 border-t border-[#E2E8F0] pt-3 space-y-2">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="h-[3px] w-full overflow-hidden rounded-full bg-teal-600/[0.08]">
+                                                                                <div
+                                                                                    className="h-full bg-teal-600 transition-all duration-200"
+                                                                                    style={{ width: `${submissionPercent}%` }}
+                                                                                />
+                                                                            </div>
+                                                                            <span className="text-[11px] font-semibold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-500">{submissionPercent}%</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (item.type === 'assignment') {
-                                                                            handleViewAssignment(item.id);
-                                                                        } else {
-                                                                            setSelectedItem({
-                                                                                name: item.title,
-                                                                                class: item.className,
-                                                                                tag: item.topic,
-                                                                                status: item.statusLabel,
-                                                                            });
-                                                                        }
-                                                                    }}
-                                                                    className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
-                                                                >
-                                                                    View details
-                                                                </button>
                                                             </article>
                                                         );
                                                     })}
@@ -3043,6 +3364,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 {/* Practice Generator Drawer */}
                 <PracticeGeneratorDrawer
                     isOpen={showPracticeGeneratorDrawer}
+                    visualMode={isDemo ? 'default' : 'teacher-full'}
                     initialValues={generatorPrefill}
                     onClose={() => {
                         setShowPracticeGeneratorDrawer(false);
@@ -3062,6 +3384,12 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                     }}
                 />
             </div>
+
+            <AuthGateModal
+                isOpen={isGateOpen}
+                onClose={closeGate}
+                actionName={gateActionName}
+            />
         </div>
     );
 }

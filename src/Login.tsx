@@ -21,9 +21,56 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const buildUserIdFromEmail = (role: UserRole, rawEmail: string) => {
+        const localPart = rawEmail.split('@')[0] || 'user';
+        const slug = localPart.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        return `real_${role}_${slug || 'user'}`;
+    };
+
+    const displayNameFromEmail = (rawEmail: string) => {
+        const localPart = rawEmail.split('@')[0] || 'User';
+        const words = localPart
+            .replace(/[^a-zA-Z0-9]+/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (words.length === 0) return 'User';
+        return words.map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        login(selectedRole);
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const fallbackName = displayNameFromEmail(normalizedEmail);
+
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: buildUserIdFromEmail(selectedRole, normalizedEmail),
+                    name: fallbackName,
+                    email: normalizedEmail,
+                    role: selectedRole,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Auth request failed (${response.status})`);
+            }
+
+            const user = await response.json();
+            login(selectedRole, {
+                id: user.id,
+                name: user.name || fallbackName,
+                preferredName: user.name || fallbackName,
+            });
+        } catch (error) {
+            // Keep legacy fallback so local preview never hard-breaks.
+            login(selectedRole);
+        }
+
         navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
     };
 
@@ -44,10 +91,10 @@ export default function Login() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* Role selector – determines which dashboard to land on */}
+                    {/* Role selector - determines which dashboard to land on */}
                     <div>
                         <label className="block text-sm font-medium text-elora-400 mb-2">
-                            I am a…
+                            I am a...
                         </label>
                         <div className="flex gap-3">
                             {(['teacher', 'student', 'parent'] as UserRole[]).map((r) => (

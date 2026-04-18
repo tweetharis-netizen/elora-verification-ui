@@ -56,6 +56,7 @@ import { DashboardTour } from '../components/DashboardTour';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
+import { AuthGateModal } from '../components/auth/AuthGateModal';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
@@ -126,9 +127,9 @@ function SidebarItem({
             </div>
             {!collapsed && <span className="whitespace-nowrap">{label}</span>}
 
-            {/* Elora Gold Vertical Accent Bar */}
+            {/* Active Vertical Accent Bar */}
             {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
             )}
         </a>
     );
@@ -1042,7 +1043,13 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                 collapsed={!isSidebarOpen}
                                 onClick={() => {
                                     if (item.id === 'copilot') {
-                                        navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot');
+                                        navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot', {
+                                            state: {
+                                                source: 'parent-dashboard-overview',
+                                                preferredChildId: activeChildId,
+                                                childName: activeChild?.name ?? null,
+                                            }
+                                        });
                                     } else {
                                         setActivePage(item.id);
                                     }
@@ -1208,14 +1215,20 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                                 <DashboardTour
                                                     role="parent"
                                                     isVisible={!welcomeDismissed}
-                                                    onAction1={() => navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot')}
+                                                    onAction1={() => navigate(isDemo ? '/parent/copilot/demo' : '/parent/copilot', {
+                                                        state: {
+                                                            source: 'parent-dashboard-tour',
+                                                            preferredChildId: activeChildId,
+                                                            childName: activeChild?.name ?? null,
+                                                        }
+                                                    })}
                                                     onAction2={() => setActivePage('progress')}
                                                     onDismiss={handleDismissWelcome}
                                                 />
                                                 {/* TODAY AT A GLANCE – SUMMARY TILES */}
                                                 <div>
                                                     <h2 className="text-sm font-semibold tracking-tight text-slate-800 mt-10 mb-3">
-                                                        This week for {activeChild?.name || 'your child'}
+                                                        Overview for {activeChild?.name || 'your child'}
                                                     </h2>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                         {isLoading ? (
@@ -1704,6 +1717,11 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                         </div>
                     </div>
                 )}
+            <AuthGateModal 
+                isOpen={isGateOpen} 
+                onClose={closeGate} 
+                actionName={gateActionName} 
+            />
             </div>
         </div>
     );

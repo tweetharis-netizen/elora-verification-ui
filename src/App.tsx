@@ -20,6 +20,7 @@ import StudentClassroomPage from './pages/StudentClassroomPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
 import ParentClassroomPage from './pages/ParentClassroomPage';
 import ParentCopilotPage from './pages/ParentCopilotPage';
+import InternalCopilotInsightsPage from './pages/InternalCopilotInsightsPage';
 import StudentShellLayout from './components/layout/StudentShellLayout';
 import ParentShellLayout from './components/layout/ParentShellLayout';
 import TeacherShellLayout from './components/layout/TeacherShellLayout';
@@ -59,7 +60,7 @@ const ComingSoonBar = () => {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="absolute left-4 right-4 flex items-center"
         >
-          <Sparkles className="w-3.5 h-3.5 mr-2 text-accent-yellow shrink-0" />
+          <Sparkles className="w-3.5 h-3.5 mr-2 text-[#DDB76A] shrink-0" />
           <span className="truncate">{messages[index]}</span>
         </motion.div>
       </AnimatePresence>
@@ -284,11 +285,11 @@ const PerspectivesSection = () => {
   ];
 
   return (
-    <section id="perspectives" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
+    <section id="roles" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-40"></div>
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-20">
-          <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">One Platform</p>
+          <p className="text-[#DDB76A] text-xs font-bold uppercase tracking-widest mb-4">One Platform</p>
           <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
             One platform. <span className="font-serif italic text-accent-pink">Three perspectives.</span>
           </h2>
@@ -318,7 +319,7 @@ const PerspectivesSection = () => {
               
               <Link
                 to={p.link}
-                className="inline-flex items-center gap-2 text-accent-yellow font-bold text-sm hover:gap-3 transition-all mt-auto"
+                className="inline-flex items-center gap-2 text-[#DDB76A] font-bold text-sm hover:gap-3 transition-all mt-auto"
               >
                 {p.cta} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -472,9 +473,9 @@ const PilotProgramSection = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/10 backdrop-blur-xl rounded-3xl p-16 border border-white/20 shadow-[0_0_50px_rgba(251,191,36,0.15)] relative overflow-hidden"
+            className="bg-white/10 backdrop-blur-xl rounded-3xl p-16 border border-white/20 shadow-[0_0_50px_rgba(141,118,154,0.15)] relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-yellow to-transparent opacity-50"></div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#DDB76A] to-transparent opacity-50"></div>
             <div className="w-24 h-24 bg-accent-green/20 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-accent-green/5">
               <CheckCircle2 className="w-12 h-12 text-accent-green" />
             </div>
@@ -503,7 +504,7 @@ const PilotProgramSection = () => {
           </div>
 
           <div>
-            <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">Singapore Pilot</p>
+            <p className="text-[#DDB76A] text-xs font-bold uppercase tracking-widest mb-4">Singapore Pilot</p>
             <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight mb-6">
               The Elora <span className="font-serif italic text-accent-pink">Pilot</span> Program.
             </h2>
@@ -519,7 +520,7 @@ const PilotProgramSection = () => {
               { icon: Sparkles, label: 'Shape Elora', sub: 'Direct product input' },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                <item.icon className="w-5 h-5 text-accent-yellow mt-0.5 shrink-0" />
+                <item.icon className="w-5 h-5 text-[#DDB76A] mt-0.5 shrink-0" />
                 <div>
                   <p className="font-semibold text-sm">{item.label}</p>
                   <p className="text-white/50 text-xs mt-0.5">{item.sub}</p>
@@ -545,7 +546,7 @@ const PilotProgramSection = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-white text-elora-400 px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-accent-yellow hover:text-elora-400 transition-all hover:-translate-y-1 shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className="bg-white text-elora-400 px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-[#DDB76A] hover:text-[#28193D] transition-all hover:-translate-y-1 shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 {loading ? 'Joining...' : 'Join the Waitlist'}
               </button>
@@ -563,7 +564,7 @@ const PilotProgramSection = () => {
 
 const FounderSection = () => {
   return (
-    <section id="story" className="py-40 bg-elora-300 relative border-t border-white/10">
+    <section id="story" className="py-40 bg-elora-300 text-white relative border-t border-white/10">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -571,7 +572,7 @@ const FounderSection = () => {
           viewport={{ once: true }}
           className="space-y-8"
         >
-          <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest">Built with a Vision</p>
+          <p className="text-[#DDB76A] text-xs font-bold uppercase tracking-widest">Built with a Vision</p>
           <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight">
             A calmer way to understand <br />
             <span className="font-serif italic text-accent-pink">learning, together.</span>
@@ -763,12 +764,14 @@ export default function App() {
         <Route element={<TeacherShellLayout />}>
           <Route path="/dashboard/teacher" element={<TeacherDashboardPage embeddedInShell />} />
           <Route path="/teacher" element={<Navigate to="/dashboard/teacher" replace />} />
+          <Route path="/teacher/overview" element={<Navigate to="/dashboard/teacher" replace />} />
           <Route path="/teacher/classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
           <Route path="/teacher/assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
           <Route path="/teacher/practice" element={<TeacherPracticePage />} />
           <Route path="/teacher/classes/:classId" element={<TeacherClassroomPage embeddedInShell />} />
           <Route path="/teacher/work" element={<Navigate to="/dashboard/teacher" replace />} />
           <Route path="/teacher/copilot" element={<TeacherCopilotPage embeddedInShell />} />
+          <Route path="/teacher/reports" element={<Navigate to="/dashboard/teacher#reports" replace />} />
         </Route>
 
         <Route element={<StudentShellLayout />}>
@@ -784,6 +787,7 @@ export default function App() {
           <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
           <Route path="/parent/copilot" element={<ParentCopilotPage embeddedInShell />} />
         </Route>
+        <Route path="/internal/copilot-insights" element={<InternalCopilotInsightsPage />} />
         <Route path="/play/:packId" element={<StudentGamePage />} />
       </Route>
 

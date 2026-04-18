@@ -74,6 +74,7 @@ import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
+import { AuthGateModal } from '../components/auth/AuthGateModal';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -181,9 +182,9 @@ function SidebarItem({ icon: Icon, label, active, collapsed, onClick, className 
             </div>
             {!collapsed && <span className="whitespace-nowrap tracking-tight">{label}</span>}
 
-            {/* Elora Gold Vertical Accent Bar */}
+            {/* Active Vertical Accent Bar */}
             {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
             )}
         </a>
     );
@@ -342,7 +343,7 @@ export default function StudentDashboardPage({
 
     const getStudentWeekSummary = () => {
         if (!streakData || streakData.weeklyScores.length === 0) {
-            return "I don't see enough activity this week to give a summary yet.";
+            return "I don't see enough activity to give a summary yet.";
         }
 
         const thisWeekScore = streakData.scoreThisWeek ?? 0;
@@ -354,7 +355,7 @@ export default function StudentDashboardPage({
         const weakTopic = studentFocus.primaryWeakTopic;
         const topicString = weakTopic ? ` The main topic to watch is ${weakTopic}.` : "";
 
-        return `This week, your average score is ${thisWeekScore}% (last week it was ${priorWeekScore}%). You've submitted ${submittedCount} of ${totalCount} assignments.${topicString}`;
+        return `Your average score is ${thisWeekScore}% (last week it was ${priorWeekScore}%). You've submitted ${submittedCount} of ${totalCount} assignments.${topicString}`;
     };
 
     const handleStudentAskElora = async (prompt: string): Promise<string> => {
@@ -821,6 +822,13 @@ export default function StudentDashboardPage({
 
     // Dynamic focus chip: top weak topic (replaces hardcoded string)
     const focusChipText = topWeakTopic ?? null;
+    const copilotTopTasks = pendingAssignments.slice(0, 3).map((assignment) => ({
+        id: assignment.id,
+        title: assignment.title,
+        className: assignment.className,
+        dueDate: assignment.dueDate,
+        status: assignment.status,
+    }));
 
 
     // Map game sessions to "GamePacks" table for display
@@ -912,10 +920,10 @@ export default function StudentDashboardPage({
                         {isSidebarOpen && (
                             <button
                                 onClick={() => setIsSidebarOpen(false)}
-                                className="hidden md:flex p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                                className="hidden md:flex items-center justify-center p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
                                 title="Collapse sidebar"
                             >
-                                <PanelLeftClose size={18} />
+                                <PanelLeftClose size={22} />
                             </button>
                         )}
                     </div>
@@ -949,7 +957,14 @@ export default function StudentDashboardPage({
                             icon={Sparkles}
                             label="Copilot"
                             collapsed={!isSidebarOpen}
-                            onClick={() => navigate(isDemo ? '/student/demo/copilot' : '/student/copilot')}
+                            onClick={() => navigate(isDemo ? '/student/demo/copilot' : '/student/copilot', {
+                                state: {
+                                    source: 'student-dashboard-top-tasks',
+                                    preferredSubjectId: urgentAssignment?.className ?? 'all',
+                                    topTasks: copilotTopTasks,
+                                    weakTopic: focusChipText,
+                                }
+                            })}
                             theme={sidebarTheme}
                         />
                         <SidebarItem 
@@ -1075,7 +1090,7 @@ export default function StudentDashboardPage({
                                                     <span className="text-purple-200">Ready to shine today?</span>
                                                 </h1>
                                                 <p className="text-white/80 text-sm md:text-base max-w-xl leading-relaxed font-medium">
-                                                    You've mastered <span className="text-white font-extrabold">{performanceSummary.topicsMastered} topics</span> this week. Let's keep growing!
+                                                    You've mastered <span className="text-white font-extrabold">{performanceSummary.topicsMastered} topics</span>. Let's keep growing!
                                                 </p>
                                                 <div className="mt-auto pt-4 border-t border-purple-300/30">
                                                     <button
@@ -1144,7 +1159,7 @@ export default function StudentDashboardPage({
                                                         +12
                                                     </div>
                                                 </div>
-                                                <span className="text-[11px] font-semibold text-slate-400">Top 5% this week</span>
+                                                <span className="text-[11px] font-semibold text-slate-400">Top 5% overall</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1466,7 +1481,7 @@ export default function StudentDashboardPage({
                                                     {nudges.filter(n => !n.read).length > 0 && (
                                                         <span className="flex h-2 w-2">
                                                             <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-pink-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-pink"></span>
                                                         </span>
                                                     )}
                                                 </div>
@@ -1546,7 +1561,7 @@ export default function StudentDashboardPage({
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Due this week</span>
+                                                        <span>Due soon</span>
                                                         <span className="tabular-nums text-base font-bold text-[#7C3AED]">
                                                             {normalisedAssignments.filter(a => {
                                                                 if (a.status === 'completed' || a.status === 'success') return false;
@@ -1950,6 +1965,11 @@ export default function StudentDashboardPage({
                 );
             })()}
 
+            <AuthGateModal
+                isOpen={isGateOpen}
+                onClose={closeGate}
+                actionName={gateActionName}
+            />
         </div>
     );
 }

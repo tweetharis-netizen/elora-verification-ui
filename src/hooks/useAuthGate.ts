@@ -1,15 +1,30 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 
+export const shouldGateCopilotAccess = ({
+  isVerified,
+  isGuest,
+}: {
+  isVerified: boolean;
+  isGuest: boolean;
+}) => !isVerified || isGuest;
+
 export function useAuthGate() {
   const { isGuest, isVerified } = useAuth();
   const [isGateOpen, setIsGateOpen] = useState(false);
   const [gateActionName, setGateActionName] = useState<string | undefined>();
 
   const openGate = useCallback((actionName?: string) => {
+    if (import.meta.env.DEV) {
+      console.info('[AuthGate] Blocking gated action', {
+        actionName,
+        isVerified,
+        isGuest,
+      });
+    }
     setGateActionName(actionName);
     setIsGateOpen(true);
-  }, []);
+  }, [isGuest, isVerified]);
 
   const closeGate = useCallback(() => {
     setIsGateOpen(false);
@@ -27,7 +42,7 @@ export function useAuthGate() {
       // If not verified at all, or if they are a guest, gate the action.
       // Note: ProtectedRoute handles non-verified users for pages, 
       // but this hook handles non-verified users for component actions.
-      if (!isVerified || isGuest) {
+      if (shouldGateCopilotAccess({ isVerified, isGuest })) {
         openGate(actionName);
         return;
       }

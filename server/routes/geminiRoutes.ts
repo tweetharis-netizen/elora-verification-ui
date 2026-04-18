@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import { getSystemPrompt } from '../controllers/ai.js';
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.post('/gemini-suggest', async (req: Request, res: Response) => {
         messages: [
           {
             role: 'system',
-            content: "You are Elora, a concise teaching assistant for teachers.\nAlways respond in very short form: 2–3 sentences or up to 5 short bullet points.\nPrefer concrete, practical suggestions over long explanations.\nYou must also understand direct instruction-style commands from teachers (like assigning work to specific students/classes) and turn them into clear, short, actionable suggestions written to the teacher."
+            content: getSystemPrompt('teacher')
           },
           {
             role: 'user',

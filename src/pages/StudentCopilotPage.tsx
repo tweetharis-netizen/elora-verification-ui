@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Plus,
     CheckCircle2,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
+import { shouldGateCopilotAccess } from '../hooks/useAuthGate';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
@@ -21,19 +22,25 @@ import { askElora } from '../services/askElora';
 import {
     demoStudentData,
     demoStudentStreak,
-    demoGameSessions
+    demoGameSessions,
+    demoStudentClasses,
+    demoStudentName,
 } from '../demo/demoStudentScenarioA';
 import * as dataService from '../services/dataService';
 import { 
     CopilotLayout, 
+    CopilotLayoutShell,
     CopilotMessageBubble, 
     CopilotEmptyState, 
     CopilotMobileHeader,
     CopilotAuthGate,
+    CopilotThinkingBubble,
+    parseSuggestionsFromResponse,
     Message, 
-    ActionChip,
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
+import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
+import type { UseCase } from '../lib/llm/types';
 
 const getIsoWeekKey = (value: Date) => {
     const date = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
@@ -44,7 +51,7 @@ const getIsoWeekKey = (value: Date) => {
     return `${date.getUTCFullYear()}-${String(weekNo).padStart(2, '0')}`;
 };
 
-const buildWeeklyTitle = (subjectLabel: string) => `This week - ${subjectLabel}`;
+const buildWeeklyTitle = (subjectLabel: string) => subjectLabel;
 
 const topicExplanations: Record<string, string> = {
     'Algebra – Factorisation': "Factorisation is like 'un-multiplying'. You're taking an expression and finding simpler terms that multiply together to make it. For example, x² + 5x + 6 becomes (x+2)(x+3). It's a key skill for solving complex equations later on.",
@@ -52,6 +59,49 @@ const topicExplanations: Record<string, string> = {
     'Linear Inequalities': "Inequalities are like equations but use signs like > or < instead of =. They describe a range of possible answers rather than just one. For example, 2x > 6 means x must be any number greater than 3.",
     'Fractions': "Fractions represent parts of a whole. The top number (numerator) tells you how many parts you have, and the bottom number (denominator) tells you how many parts make up the full whole. Adding them is easiest when the denominators are the same!",
     'Kinematics': "Kinematics is the study of motion. We use terms like displacement, velocity, and acceleration to describe how objects move without worrying about the forces that cause the movement. It's the foundation of almost everything in classical physics."
+};
+
+const STUDENT_STUDY_MODE_CHIP = 'Start a maths study session';
+const STUDENT_STUDY_MODE_PROMPT = 'Let\'s start a study session for Sec 2 mathematics. Ask me questions and help me practise.';
+const STUDENT_SUMMARY_CHIP = 'Summarise what I\'ve learned';
+const STUDENT_SUMMARY_PROMPT =
+    'Summarise what I\'ve learned in this session in simple bullet points and suggest what I should practise next.';
+const STUDENT_STUDY_MODE_HINT_PATTERN = /\b(study session|ask me questions|quiz me|drill me|practice session)\b/i;
+
+const resolveStudentPromptConfig = ({
+    rawText,
+    activeUseCase,
+}: {
+    rawText: string;
+    activeUseCase: UseCase;
+}): { message: string; useCase: UseCase } => {
+    const trimmed = rawText.trim();
+
+    if (trimmed === STUDENT_STUDY_MODE_CHIP) {
+        return {
+            message: STUDENT_STUDY_MODE_PROMPT,
+            useCase: 'student_study_mode',
+        };
+    }
+
+    if (trimmed === STUDENT_SUMMARY_CHIP) {
+        return {
+            message: STUDENT_SUMMARY_PROMPT,
+            useCase: activeUseCase === 'student_study_mode' ? 'student_study_mode' : 'student_chat',
+        };
+    }
+
+    if (activeUseCase === 'student_study_mode' || STUDENT_STUDY_MODE_HINT_PATTERN.test(trimmed)) {
+        return {
+            message: trimmed,
+            useCase: 'student_study_mode',
+        };
+    }
+
+    return {
+        message: trimmed,
+        useCase: 'student_chat',
+    };
 };
 
 const HorizontalChips: React.FC<{ 
@@ -110,14 +160,28 @@ const HorizontalChips: React.FC<{
 };
 
 const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
-    const { logout, currentUser, login } = useAuth();
+    const DEMO_STUDENT_ID = 'demo-student-jordan';
+    const { logout, currentUser, login, isGuest, isVerified } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const isDemo = useDemoMode();
-    const isUnauthenticated = !isDemo && !currentUser;
+    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
+
+    type StudentCopilotNavState = {
+        source?: string;
+        preferredSubjectId?: string;
+        weakTopic?: string | null;
+        topTasks?: Array<{ title?: string; className?: string }>;
+    };
+
+    const navState = (location.state as StudentCopilotNavState | null) ?? null;
+    const initialSubjectId = navState?.preferredSubjectId && navState.preferredSubjectId !== 'all'
+        ? navState.preferredSubjectId
+        : 'all';
     
     // Context Selector State
-    const [selectedSubjectId, setSelectedSubjectId] = useState('all');
+    const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubjectId);
     const [isSubjectSelectorOpen, setIsSubjectSelectorOpen] = useState(false);
 
     // Initialise student data state
@@ -148,24 +212,38 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                         dataService.getStudentGameSessions(),
                         dataService.getStudentStreak()
                     ]);
+                    setServiceNotice(null);
                     setAssignments(studentData.assignments);
                     setRecentPerformance(studentData.recentPerformance);
                     setGameSessions(sessions);
                     setStreakData(streak);
-                } catch (err) {
-                    console.error("Failed to load live student data", err);
+                } catch (err: unknown) {
+                    if (err instanceof dataService.RedirectError) {
+                        navigate(err.to);
+                        return;
+                    }
+
+                    const normalized = dataService.toEloraServiceError(err);
+                    setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
                 }
             }
         };
         fetchData();
-    }, [isDemo]);
+    }, [isDemo, navigate]);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-    const [activeConversationTitle, setActiveConversationTitle] = useState<string>(buildWeeklyTitle('All subjects'));
+    const [activeConversationTitle, setActiveConversationTitle] = useState<string>('Active Thread');
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
+    const [serviceNotice, setServiceNotice] = useState<string | null>(null);
+    const [activeCopilotUseCase, setActiveCopilotUseCase] = useState<UseCase>('student_chat');
+    const [threads, setThreads] = useState<dataService.StudentCopilotConversation[]>([]);
+    const [isThreadsLoading, setIsThreadsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesAreaRef = useRef<HTMLDivElement>(null);
+    const isNearBottomRef = useRef(true);
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
     // Derived logic from Student Dashboard
     const primaryFocusTopic = recentPerformance?.weakTopics?.[0] ?? null;
@@ -173,21 +251,39 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     // Derived subjects list for selector
     const subjects = Array.from(new Set(assignments.map(a => a.className))).filter(Boolean);
     const selectedSubjectName = selectedSubjectId === 'all' ? 'All subjects' : selectedSubjectId;
+    const subjectFilter = selectedSubjectName === 'All subjects' ? undefined : selectedSubjectName;
     const weekKey = getIsoWeekKey(new Date());
     const weeklyTitle = buildWeeklyTitle(selectedSubjectName);
 
     // Filtered data based on context
-    const filteredAssignments = selectedSubjectId === 'all' 
-        ? assignments 
+    const filteredAssignments = selectedSubjectId === 'all'
+        ? assignments
         : assignments.filter(a => a.className === selectedSubjectId);
     
     const filteredPending = filteredAssignments.filter(a => ['not_started', 'danger', 'warning', 'info'].includes(a.status || ''));
 
+    // Thread management helpers
+    const hasMessagesInActiveThread = messages.some(m => m.role === 'user' || m.role === 'assistant');
+    const canCreateNewChat = !activeConversationId || hasMessagesInActiveThread;
+
+    useEffect(() => {
+        if (selectedSubjectId === 'all') {
+            return;
+        }
+
+        if (!subjects.includes(selectedSubjectId)) {
+            setSelectedSubjectId('all');
+        }
+    }, [selectedSubjectId, subjects]);
+
+    const weakTopic = navState?.weakTopic?.trim() || primaryFocusTopic;
+
     const currentPrompts = [
-        "Do I have any overdue or unfinished assignments?",
-        "What's the best use of my next 20 minutes?",
-        "Can you give me a summary of how I'm doing this week?",
-        "What can you do?"
+        STUDENT_STUDY_MODE_CHIP,
+        STUDENT_SUMMARY_CHIP,
+        'Explain today\'s lesson in simpler words.',
+        weakTopic ? `Quiz me on ${weakTopic}.` : 'Quiz me on this topic.',
+        'Help me plan revision for my next test.',
     ];
 
     const toUiMessage = (
@@ -217,21 +313,34 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
         let cancelled = false;
 
-        const loadConversation = async () => {
+        const loadConversations = async () => {
+            setIsThreadsLoading(true);
             try {
                 const conversations = await dataService.listStudentConversations({
                     weekKey,
+                    subject: subjectFilter,
                 });
                 if (cancelled) return;
 
-                if (conversations.length === 0) {
+                // Auto-cleanup: filter out completely empty threads
+                let filtered = conversations.length > 1
+                    ? conversations.filter((c, idx) => {
+                        if (idx === 0) return true;
+                        if (c.title === 'New Chat' && c.updatedAt === c.createdAt) return false;
+                        return true;
+                    })
+                    : conversations;
+
+                setThreads(filtered);
+
+                if (filtered.length === 0) {
                     setActiveConversationId(null);
                     setActiveConversationTitle(weeklyTitle);
                     setMessages([]);
                     return;
                 }
 
-                const currentConversation = conversations[0];
+                const currentConversation = filtered[0];
                 const resolvedTitle = currentConversation.title?.trim() || weeklyTitle;
                 setActiveConversationId(currentConversation.id);
                 setActiveConversationTitle(resolvedTitle);
@@ -240,21 +349,20 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 if (cancelled) return;
 
                 setMessages(
-                    persistedMessages.map((persisted) =>
-                        toUiMessage(persisted, currentConversation.id, resolvedTitle)
+                    persistedMessages.map((p) =>
+                        toUiMessage(p, currentConversation.id, resolvedTitle)
                     )
                 );
             } catch (error) {
-                console.error('Failed to load student copilot conversation:', error);
+                console.error('Failed to load student copilot conversations:', error);
+            } finally {
+                if (!cancelled) setIsThreadsLoading(false);
             }
         };
 
-        loadConversation();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [isDemo, currentUser?.id, currentUser?.role, weekKey, weeklyTitle]);
+        loadConversations();
+        return () => { cancelled = true; };
+    }, [isDemo, currentUser?.id, currentUser?.role, weekKey, weeklyTitle, subjectFilter]);
 
     const ensureActiveConversation = async () => {
         if (activeConversationId) {
@@ -264,7 +372,10 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             };
         }
 
-        const existing = await dataService.listStudentConversations({ weekKey });
+        const existing = await dataService.listStudentConversations({
+            weekKey,
+            subject: subjectFilter,
+        });
         if (existing.length > 0) {
             const latest = existing[0];
             const resolvedTitle = latest.title?.trim() || weeklyTitle;
@@ -278,6 +389,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
         const created = await dataService.createStudentConversation({
             weekKey,
+            subject: subjectFilter,
             title: weeklyTitle,
             threadType: 'weekly_subject',
         });
@@ -292,14 +404,164 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         };
     };
 
-    // Scroll to bottom
+    const handleSelectThread = useCallback(async (id: string) => {
+        if (id === activeConversationId) return;
+        const thread = threads.find((t) => t.id === id);
+        if (!thread) return;
+
+        setActiveCopilotUseCase('student_chat');
+        setActiveConversationId(id);
+        const title = thread.title?.trim() || weeklyTitle;
+        setActiveConversationTitle(title);
+        setMessages([]);
+
+        try {
+            const persistedMessages = await dataService.getStudentConversationMessages(id);
+            setMessages(
+                persistedMessages.map((p) =>
+                    toUiMessage(p, id, title)
+                )
+            );
+        } catch (error) {
+            console.error('Failed to load thread messages:', error);
+        }
+    }, [activeConversationId, threads, weeklyTitle]);
+
+    const handleNewThread = useCallback(async () => {
+        if (activeConversationId && messages.some(m => m.role === 'user' || m.role === 'assistant')) {
+            // Already has messages, can create new
+        } else if (activeConversationId) {
+            // No messages yet, don't create
+            return;
+        }
+
+        setMessages([]);
+        setActiveConversationTitle(weeklyTitle);
+        setActiveCopilotUseCase('student_chat');
+
+        if (isDemo) { 
+            setActiveConversationId(null); 
+            return; 
+        }
+
+        try {
+            const created = await dataService.createStudentConversation({
+                weekKey,
+                subject: subjectFilter,
+                title: weeklyTitle,
+                threadType: 'weekly_subject',
+            });
+            setActiveConversationId(created.id);
+            setActiveConversationTitle(weeklyTitle);
+            setThreads((prev) => [created, ...prev]);
+        } catch (error) {
+            console.error('Failed to create new thread:', error);
+            setActiveConversationId(null);
+        }
+    }, [isDemo, weeklyTitle, activeConversationId, messages, weekKey, subjectFilter]);
+
+    const handleDeleteThread = useCallback(async (id: string) => {
+        setThreads((prev) => prev.filter((t) => t.id !== id));
+
+        if (id === activeConversationId) {
+            const remaining = threads.filter((t) => t.id !== id);
+            if (remaining.length > 0) {
+                const next = remaining[0];
+                setActiveConversationId(next.id);
+                setActiveConversationTitle(next.title?.trim() || weeklyTitle);
+                try {
+                    const msgs = await dataService.getStudentConversationMessages(next.id);
+                    setMessages(msgs.map((p) => toUiMessage(p, next.id, next.title?.trim() || weeklyTitle)));
+                } catch { setMessages([]); }
+            } else {
+                setActiveConversationId(null);
+                setActiveConversationTitle(weeklyTitle);
+                setMessages([]);
+            }
+        }
+
+        try {
+            // Note: Student backend may not support delete yet
+            // await dataService.deleteStudentConversation(id);
+        } catch (error) {
+            console.error('Failed to delete thread:', error);
+        }
+    }, [activeConversationId, threads, weeklyTitle]);
+
+    const handleRenameThread = useCallback(async (id: string, title: string) => {
+        setThreads((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, title, updatedAt: new Date().toISOString() } : t))
+        );
+        if (id === activeConversationId) setActiveConversationTitle(title);
+
+        try {
+            // Note: Student backend may not support rename yet
+            // await dataService.updateStudentConversationTitle(id, title);
+        } catch (error) {
+            console.error('Failed to rename thread:', error);
+        }
+    }, [activeConversationId]);
+
+    const handlePinThread = useCallback(async (id: string, isPinned: boolean) => {
+        setThreads((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, isPinned } : t))
+        );
+
+        try {
+            // Note: Student backend does not support pin yet - this is a no-op
+            // await dataService.updateStudentConversationPin(id, isPinned);
+        } catch (error) {
+            console.error('Failed to pin thread:', error);
+        }
+    }, []);
+
+    const handleMessagesScroll = () => {
+        if (!messagesAreaRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current;
+        const distFromBottom = scrollHeight - scrollTop - clientHeight;
+        isNearBottomRef.current = distFromBottom <= 100;
+        setShowScrollButton(distFromBottom > 100);
+    };
+
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (!messagesAreaRef.current) return;
+        if (isNearBottomRef.current) {
+            messagesAreaRef.current.scrollTo({
+                top: messagesAreaRef.current.scrollHeight,
+                behavior: 'smooth',
+            });
+            setShowScrollButton(false);
+        }
     }, [messages, isThinking]);
 
+    const scrollToBottom = () => {
+        if (!messagesAreaRef.current) return;
+        messagesAreaRef.current.scrollTo({
+            top: messagesAreaRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
+        isNearBottomRef.current = true;
+        setShowScrollButton(false);
+    };
+
     const handleSend = async (text: string) => {
-        const query = text.trim();
-        if (!query) return;
+        const { message: normalizedMessage, useCase: resolvedUseCase } = resolveStudentPromptConfig({
+            rawText: text,
+            activeUseCase: activeCopilotUseCase,
+        });
+        const query = normalizedMessage.trim();
+        if (!query || showAuthGate) return;
+
+        if (resolvedUseCase !== activeCopilotUseCase) {
+            setActiveCopilotUseCase(resolvedUseCase);
+        }
+
+        const isFirstMessage = messages.filter((msg) => msg.role === 'user').length === 0;
+        const recentUserPrompts = messages
+            .filter((msg) => msg.role === 'user')
+            .map((msg) => msg.content.trim())
+            .filter(Boolean)
+            .slice(-3);
 
         let conversationIdForMessage: string | null = null;
         let conversationTitleForMessage = activeConversationTitle || weeklyTitle;
@@ -318,6 +580,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             id: Date.now().toString(),
             role: 'user',
             content: query,
+            useCase: resolvedUseCase,
             conversationId: conversationIdForMessage ?? undefined,
             threadContext: {
                 label: conversationTitleForMessage,
@@ -327,34 +590,68 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         setMessages(prev => [...prev, newUserMsg]);
         setInputValue('');
         setIsThinking(true);
+        setServiceNotice(null);
 
         try {
             if (conversationIdForMessage && !isDemo) {
-                await dataService.appendStudentConversationMessage(conversationIdForMessage, {
-                    role: 'user',
-                    content: query,
-                    source: 'copilot_page',
-                });
+                try {
+                    await dataService.appendStudentConversationMessage(conversationIdForMessage, {
+                        role: 'user',
+                        content: query,
+                        source: 'copilot_page',
+                    });
+                } catch (persistError) {
+                    console.error('Failed to persist student user message:', persistError);
+                }
             }
 
             // Build Context for Elora
             const contextStr = [
+                `Student profile: ${isDemo ? demoStudentName : (currentUser?.name || 'Student')}.`,
                 `Subject Selector: ${selectedSubjectName}.`,
                 primaryFocusTopic ? `Your current focus area is ${primaryFocusTopic}.` : '',
                 filteredPending[0] ? `Upcoming/Overdue task: "${filteredPending[0].title}" (Status: ${filteredPending[0].statusLabel || filteredPending[0].status}).` : 'No urgent assignments.',
                 streakData ? `Average this week: ${streakData.scoreThisWeek}%. Trend: ${streakData.trend}.` : ''
             ].filter(Boolean).join(' ');
 
+            const selectedDemoClass = isDemo
+                ? demoStudentClasses.find((cls) => cls.name === selectedSubjectId)
+                : null;
+            const resolvedStudentId = isDemo ? DEMO_STUDENT_ID : (currentUser?.id ?? null);
+            const resolvedClassId = selectedDemoClass?.id ?? null;
+
             const response = await askElora({
                 message: query,
                 role: 'student',
-                context: contextStr
+                useCase: resolvedUseCase,
+                context: contextStr,
+                contextMeta: !isDemo ? {
+                    isDemo,
+                    dashboardSource: navState?.source ?? null,
+                    roleContextId: resolvedClassId,
+                    roleContextLabel: selectedSubjectName,
+                    selectedClassId: resolvedClassId,
+                    selectedClassName: selectedSubjectId === 'all' ? null : selectedSubjectId,
+                    selectedStudentId: resolvedStudentId,
+                    selectedStudentName: currentUser?.name ?? null,
+                    selectedChildId: null,
+                    selectedSubject: selectedSubjectName,
+                } : undefined,
+                isFirstMessage,
+                recentUserPrompts,
+                lastSelectedClassId: subjectFilter ?? null,
+                lastSelectedStudentId: resolvedStudentId,
+                conversationId: conversationIdForMessage,
             });
+
+            const { cleanContent, suggestions } = parseSuggestionsFromResponse(response);
 
             const eloraMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: response,
+                content: cleanContent,
+                suggestions,
+                useCase: resolvedUseCase,
                 showFeedback: shouldShowFeedback(),
                 conversationId: conversationIdForMessage ?? undefined,
                 source: 'copilot_page',
@@ -364,16 +661,26 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             };
 
             if (conversationIdForMessage && !isDemo) {
-                await dataService.appendStudentConversationMessage(conversationIdForMessage, {
-                    role: 'assistant',
-                    content: response,
-                    source: 'copilot_page',
-                });
+                try {
+                    await dataService.appendStudentConversationMessage(conversationIdForMessage, {
+                        role: 'assistant',
+                        content: cleanContent,
+                        source: 'copilot_page',
+                    });
+                } catch (persistError) {
+                    console.error('Failed to persist student assistant message:', persistError);
+                }
             }
 
             setMessages(prev => [...prev, eloraMsg]);
-        } catch (error) {
-            console.error('Copilot Error:', error);
+        } catch (error: unknown) {
+            if (error instanceof dataService.RedirectError) {
+                navigate(error.to);
+                return;
+            }
+
+            const normalized = dataService.toEloraServiceError(error);
+            setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -385,137 +692,26 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
     };
 
-    const handleActionClick = (action: ActionChip) => {
-        if (action.actionType === 'navigate' && action.destination) {
-            navigate(action.destination);
-        }
-    };
+    const subjectObjectsForSidebar = subjects.map((name) => ({ id: name, name }));
 
-    const sidebarContent = (
-        <div className="flex flex-col h-full overflow-hidden">
-            {/* Sidebar Header - Library Style */}
-            <div className="p-6 border-b border-slate-200/60 bg-white/40">
-                <h2 className="text-xl font-bold tracking-tight text-slate-900 mb-0.5">Library</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    Suggested & History
-                </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 no-scrollbar select-none">
-                {/* Subject Selector (Premium Card Style like Teacher) */}
-                <div className="relative">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2 px-1">Active Context</h3>
-                    <button
-                        onClick={() => setIsSubjectSelectorOpen(!isSubjectSelectorOpen)}
-                        className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-[#68507B]/5 border border-slate-200 hover:border-[#68507B]/30 rounded-2xl shadow-sm transition-all group"
-                    >
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className={`p-2 rounded-xl shrink-0 transition-colors ${selectedSubjectId !== 'all' ? 'bg-[#68507B]/10 text-[#68507B] group-hover:bg-[#68507B]/15' : 'bg-slate-100 text-slate-500'}`}>
-                                {selectedSubjectId === 'all' ? <Layers size={18} /> : <BookOpen size={18} />}
-                            </div>
-                            <div className="text-left min-w-0">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Focus</p>
-                                <p className="text-sm font-bold text-slate-900 truncate">
-                                    {selectedSubjectName}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {selectedSubjectId === 'all' && primaryFocusTopic && (
-                                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.4)]" />
-                            )}
-                            <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isSubjectSelectorOpen ? 'rotate-180 text-[#68507B]' : ''}`} />
-                        </div>
-                    </button>
-
-                    {selectedSubjectId === 'all' && primaryFocusTopic && (
-                        <div className="mt-4 p-3 bg-orange-50/50 border border-orange-100 rounded-xl animate-in fade-in slide-in-from-top-2 duration-500 group cursor-help">
-                            <div className="flex items-center gap-2 text-orange-600 mb-1">
-                                <Zap size={14} className="fill-orange-600 animate-pulse" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Top Priority</span>
-                            </div>
-                            <p className="text-[11px] text-orange-800 font-medium leading-relaxed">
-                                You're currently focusing on <strong>{primaryFocusTopic}</strong>.
-                            </p>
-                        </div>
-                    )}
-
-                    {isSubjectSelectorOpen && (
-                        <>
-                            <div className="fixed inset-0 z-30" onClick={() => setIsSubjectSelectorOpen(false)} />
-                            <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200 z-40 py-2 overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-200 origin-top">
-                                <div className="px-4 py-2 mb-1 border-b border-slate-50">
-                                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Switch Focus</p>
-                                </div>
-                                <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedSubjectId('all');
-                                            setIsSubjectSelectorOpen(false);
-                                        }}
-                                        className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === 'all' ? 'bg-[#68507B]/5' : ''}`}
-                                    >
-                                        <div className={`mt-0.5 p-1.5 rounded-lg ${selectedSubjectId === 'all' ? 'bg-[#68507B]/10 text-[#68507B]' : 'bg-slate-100 text-slate-400'}`}>
-                                            <Layers size={16} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <span className={`text-[13px] font-bold ${selectedSubjectId === 'all' ? 'text-[#68507B]' : 'text-slate-700'}`}>All subjects</span>
-                                                {selectedSubjectId === 'all' && <Check size={16} className="text-[#68507B]" strokeWidth={3} />}
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 font-medium">Cross-subject synthesis</p>
-                                        </div>
-                                    </button>
-                                    <div className="my-1 border-t border-slate-100 mx-2" />
-                                    {subjects.map(subj => (
-                                        <button
-                                            key={subj}
-                                            onClick={() => {
-                                                setSelectedSubjectId(subj);
-                                                setIsSubjectSelectorOpen(false);
-                                            }}
-                                            className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors ${selectedSubjectId === subj ? 'bg-[#68507B]/5' : ''}`}
-                                        >
-                                            <div className={`mt-0.5 p-1.5 rounded-lg ${selectedSubjectId === subj ? 'bg-[#68507B]/10 text-[#68507B]' : 'bg-slate-100 text-slate-400'}`}>
-                                                <BookOpen size={16} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-[13px] font-bold truncate ${selectedSubjectId === subj ? 'text-[#68507B]' : 'text-slate-700'}`}>{subj}</span>
-                                                    {selectedSubjectId === subj && <Check size={16} className="text-[#68507B]" strokeWidth={3} />}
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Prompt Chips */}
-                <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3 px-1">Suggested Questions</h3>
-                    <div className="flex flex-col gap-2">
-                        {currentPrompts.map((prompt, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleSend(prompt)}
-                                className="text-left text-sm text-[#68507B] font-bold bg-[#68507B]/5 border border-[#68507B]/10 hover:bg-[#68507B]/10 hover:border-[#68507B]/20 transition-colors px-4 py-3 rounded-xl flex items-start gap-2 group"
-                            >
-                                <span className="flex-1 leading-snug">{prompt}</span>
-                                <ArrowRight size={16} className="shrink-0 text-[#68507B] opacity-50 group-hover:translate-x-0.5 transition-transform mt-0.5" />
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-6 border-t border-[#EAE7DD] bg-[#faf9f6]">
-                <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                    I'm best at checking pending work, suggesting what to do next, and explaining tricky topics based on your actual progress data.
-                </p>
-            </div>
+    const sidebarContent = showAuthGate ? <></> : (
+        <div className="flex-1 flex flex-col min-h-0 bg-white">
+            <CopilotThreadSidebar
+                threads={threads}
+                activeId={activeConversationId || ''}
+                onSelect={handleSelectThread}
+                onNew={handleNewThread}
+                onDelete={handleDeleteThread}
+                onRename={handleRenameThread}
+                onPin={handlePinThread}
+                role="student"
+                themeColor="#68507B"
+                isLoading={isThreadsLoading}
+                canCreateNewChat={canCreateNewChat}
+                classes={subjectObjectsForSidebar}
+                selectedClassId={selectedSubjectId === 'all' ? null : selectedSubjectId}
+                onClassSelect={(id) => setSelectedSubjectId(id === null ? 'all' : id)}
+            />
         </div>
     );
 
@@ -528,149 +724,138 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             themeColor="#68507B"
             logout={logout}
             navigate={navigate}
-            sidebar={sidebarContent}
+            hideContextSidebar={true}
+            sidebar={<></>}
             demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
             demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
-            hidePrimarySidebar={embeddedInShell}
+            hidePrimarySidebar={embeddedInShell || showAuthGate}
+            lockToViewportHeight={!embeddedInShell && !showAuthGate && !isDemo}
+            contentMaxWidth="max-w-none"
+            chatAreaClassName={isDemo ? undefined : "flex-1 h-full flex flex-col min-w-0 bg-slate-50 relative overflow-hidden"}
         >
             <CopilotMobileHeader themeColor="#68507B" />
 
-            {isUnauthenticated ? (
+            {showAuthGate ? (
                 <CopilotAuthGate role="Student" themeColor="#68507B" />
             ) : (
-                <>
-                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-                        {messages.length === 0 ? (
-                    <CopilotEmptyState
-                        themeColor="#68507B"
-                        userName={currentUser?.name}
-                        description="I can check your pending assignments, tell you what to focus on, and summarize your weekly progress."
-                        prompts={currentPrompts}
-                        handleSend={handleSend}
-                    />
-                ) : (
-                    <>
-                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#EAE7DD]">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-[#68507B]/5 p-2 rounded-xl border border-[#68507B]/10 hidden md:block group-hover:scale-105 transition-transform shadow-sm">
-                                    <Sparkles className="w-6 h-6 text-[#68507B]" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">Personal AI Guide</h1>
-                                    <p className="text-sm text-slate-500 font-semibold tracking-wide">
-                                        Elora Copilot &middot; Learning Unblocked
-                                    </p>
-                                    <p className="text-[11px] text-[#68507B] font-bold uppercase tracking-widest mt-1 opacity-80">
-                                        {activeConversationTitle}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Subject Context Selector (Synced with Teacher style) */}
-                            <div className="relative group/pill">
-                                <button
-                                    onClick={() => setIsSubjectSelectorOpen(!isSubjectSelectorOpen)}
-                                    className="flex items-center gap-3 px-4 py-2 bg-white hover:bg-[#68507B]/5 border border-slate-200 hover:border-[#68507B]/30 rounded-2xl text-slate-700 hover:text-[#68507B] transition-all w-fit shadow-sm active:scale-95 group"
-                                >
-                                    <div className="w-6 h-6 rounded-lg bg-[#68507B]/5 flex items-center justify-center text-[#68507B] group-hover:bg-[#68507B]/10 transition-colors shadow-inner">
-                                        <Layers size={14} strokeWidth={2.5} />
-                                    </div>
-                                    {selectedSubjectId === 'all' && primaryFocusTopic && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                                    )}
-                                    <div className="flex flex-col text-left mr-1">
-                                        <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-slate-400 leading-none mb-0.5">Filtering by</span>
-                                        <span className="text-[12px] font-bold whitespace-nowrap leading-none">
-                                            {selectedSubjectName}
-                                        </span>
-                                    </div>
-                                    <ChevronDown size={14} className={`shrink-0 text-slate-300 transition-transform duration-300 group-hover:text-[#68507B] ${isSubjectSelectorOpen ? 'rotate-180 text-[#68507B]' : ''}`} />
-                                </button>
-                            </div>
-                        </div>
-                        {messages.map((msg) => (
-                            <CopilotMessageBubble
-                                key={msg.id}
-                                message={msg}
-                                themeColor="#68507B"
-                                onActionClick={handleActionClick}
-                                shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
-                                copilotRole="student"
-                                showFeedback={msg.showFeedback}
-                            />
-                        ))}
-                    </>
-                )}
-
-                {isThinking && (
-                    <div className="flex w-full justify-start">
-                        <div className="max-w-[85%] md:max-w-xl">
-                            <div className="bg-white border border-[#EAE7DD] px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 rounded-full bg-[#68507B]/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 rounded-full bg-[#68507B]/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 rounded-full bg-[#68507B]/40 animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} className="h-4" />
-            </div>
-
-            {/* Input Bar */}
-            <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD]">
-                <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.length > 0 && (
-                        <div className="relative">
-                            <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#68507B" />
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => {
-                                setMessages([]);
-                                setActiveConversationId(null);
-                                setActiveConversationTitle(weeklyTitle);
-                            }}
-                            title="New conversation"
-                            className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl transition-colors shrink-0"
+                <CopilotLayoutShell role="student" leftRail={sidebarContent}>
+                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fcfbff] relative overflow-hidden">
+                        <div
+                            ref={messagesAreaRef}
+                            onScroll={handleMessagesScroll}
+                            className="flex-1 overflow-y-auto custom-scrollbar w-full scroll-smooth"
                         >
-                            <Plus size={20} />
-                        </button>
-                        <div className="flex-1 relative">
-                            <textarea
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend(inputValue);
-                                    }
-                                }}
-                                placeholder="Ask Copilot a question..."
-                                className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/30 focus:border-[#68507B] resize-none flex-1 min-h-[52px] max-h-32"
-                                rows={1}
-                                style={{ height: '52px' }}
-                            />
+                            <div className="max-w-[720px] mx-auto px-6 pt-12 pb-8 flex flex-col min-h-full">
+                                {serviceNotice && (
+                                    <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-medium text-orange-800 mb-6">
+                                        {serviceNotice}
+                                    </div>
+                                )}
+
+                                {messages.length === 0 ? (
+                                    <div className="flex-1 flex items-center justify-center">
+                                        <CopilotEmptyState
+                                            themeColor="#68507B"
+                                            userName={currentUser?.name}
+                                            description="I can explain tricky topics, quiz you, and help build a realistic revision plan."
+                                            prompts={currentPrompts}
+                                            handleSend={handleSend}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="mb-6 md:mb-8">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#68507B] mb-2">
+                                                {activeConversationTitle}
+                                            </p>
+                                        </div>
+                                        {messages.map((msg) => (
+                                            <CopilotMessageBubble
+                                                key={msg.id}
+                                                message={msg}
+                                                themeColor="#68507B"
+                                                shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
+                                                copilotRole="student"
+                                                showFeedback={msg.showFeedback}
+                                                onSuggestionClick={handleSend}
+                                            />
+                                        ))}
+                                        {isThinking && (
+                                            <CopilotThinkingBubble
+                                                themeColor="#68507B"
+                                                assistantName="Elora"
+                                            />
+                                        )}
+                                        <div ref={messagesEndRef} className="h-4" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="shrink-0 border-t border-[#EAE7DD] bg-white px-6 py-4 z-10">
+                            <div className="max-w-3xl mx-auto space-y-4">
+                                {messages.length > 0 && (
+                                    <div className="relative">
+                                        <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#68507B" />
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setMessages([]);
+                                            setActiveConversationId(null);
+                                            setActiveConversationTitle(weeklyTitle);
+                                            setActiveCopilotUseCase('student_chat');
+                                        }}
+                                        title="New conversation"
+                                        className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl transition-colors shrink-0"
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                    <div className="flex-1 relative">
+                                        <textarea
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSend(inputValue);
+                                                }
+                                            }}
+                                            placeholder="Message Elora..."
+                                            className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/30 focus:border-[#68507B] resize-none flex-1 min-h-[52px] max-h-32"
+                                            rows={1}
+                                            style={{ height: '52px' }}
+                                        />
+                                        <button
+                                            onClick={() => handleSend(inputValue)}
+                                            disabled={!inputValue.trim() || isThinking}
+                                            className="absolute right-2.5 top-3 p-1.5 bg-[#68507B] hover:bg-[#523d60] disabled:bg-slate-300 text-white rounded-lg transition-colors flex items-center justify-center"
+                                        >
+                                            <Sparkles size={16} className="ml-0.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="text-center mt-3">
+                                    <p className="text-[11px] text-slate-400">
+                                        Copilot is an AI assistant and may occasionally make mistakes.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {showScrollButton && (
                             <button
-                                onClick={() => handleSend(inputValue)}
-                                disabled={!inputValue.trim() || isThinking}
-                                className="absolute right-2.5 top-3 p-1.5 bg-[#68507B] hover:bg-[#523d60] disabled:bg-slate-300 text-white rounded-lg transition-colors flex items-center justify-center"
+                                onClick={scrollToBottom}
+                                className="fixed bottom-32 right-8 p-3 bg-white border border-slate-200 rounded-full shadow-lg text-slate-400 hover:text-[#68507B] hover:border-[#68507B]/30 transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 z-50"
+                                title="Scroll to bottom"
                             >
-                                <Sparkles size={16} className="ml-0.5" />
+                                <ChevronDown size={20} />
                             </button>
-                        </div>
+                        )}
                     </div>
-                        <div className="text-center mt-3">
-                            <p className="text-[11px] text-slate-400">
-                                Copilot is an AI assistant and may occasionally make mistakes.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                </>
+                </CopilotLayoutShell>
             )}
         </CopilotLayout>
     );

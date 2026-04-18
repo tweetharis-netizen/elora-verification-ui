@@ -42,6 +42,10 @@ function authHeaders(): Record<string, string> {
     };
 }
 
+export function getAuthHeaders(): Record<string, string> {
+    return authHeaders();
+}
+
 /** Sentinel error that components can catch to redirect unauthenticated users. */
 export class RedirectError extends Error {
     constructor(public readonly to: string) {
@@ -49,6 +53,110 @@ export class RedirectError extends Error {
         this.name = 'RedirectError';
     }
 }
+
+export type EloraServiceErrorKind = 'offline' | 'timeout' | 'server' | 'unknown';
+
+export interface EloraServiceError extends Error {
+    kind: EloraServiceErrorKind;
+    statusCode?: number;
+    cause?: unknown;
+}
+
+class ServiceError extends Error implements EloraServiceError {
+    kind: EloraServiceErrorKind;
+    statusCode?: number;
+    cause?: unknown;
+
+    constructor(kind: EloraServiceErrorKind, message: string, options?: { statusCode?: number; cause?: unknown }) {
+        super(message);
+        this.name = 'EloraServiceError';
+        this.kind = kind;
+        this.statusCode = options?.statusCode;
+        this.cause = options?.cause;
+    }
+}
+
+const REQUEST_TIMEOUT_MS = 12000;
+
+const isLikelyOffline = (): boolean => {
+    if (typeof navigator === 'undefined') return false;
+    return navigator.onLine === false;
+};
+
+const asErrorMessage = (value: unknown): string => {
+    if (value instanceof Error) return value.message;
+    if (typeof value === 'string') return value;
+    return 'Unexpected service error';
+};
+
+export const toEloraServiceError = (error: unknown): EloraServiceError => {
+    if (error instanceof RedirectError) {
+        throw error;
+    }
+
+    if (error instanceof ServiceError) {
+        return error;
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+        return new ServiceError('timeout', 'The request took too long. Please try again.', { cause: error });
+    }
+
+    const message = asErrorMessage(error);
+    if (isLikelyOffline() || /failed to fetch|networkerror|network request failed/i.test(message)) {
+        return new ServiceError('offline', 'You appear to be offline.', { cause: error });
+    }
+
+    return new ServiceError('unknown', 'Something went wrong while contacting Elora.', { cause: error });
+};
+
+export const getFriendlyServiceErrorMessage = (error: EloraServiceError): string => {
+    if (error.kind === 'offline') return 'You appear to be offline.';
+    if (error.kind === 'server') return 'Elora is having trouble contacting the server. Please try again.';
+    if (error.kind === 'timeout') return 'Elora is taking longer than expected. Please try again.';
+    return 'Something went wrong. Please try again.';
+};
+
+const parseErrorPayloadMessage = async (response: Response): Promise<string | null> => {
+    try {
+        const payload = await response.clone().json();
+        if (payload && typeof payload === 'object') {
+            const errorValue = (payload as Record<string, unknown>).error;
+            const messageValue = (payload as Record<string, unknown>).message;
+            if (typeof errorValue === 'string' && errorValue.trim()) return errorValue;
+            if (typeof messageValue === 'string' && messageValue.trim()) return messageValue;
+        }
+    } catch {
+        // Non-JSON body or no body.
+    }
+    return null;
+};
+
+const requestJson = async <T>(url: string, init: RequestInit): Promise<T> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(url, {
+            ...init,
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            const fallback = response.status >= 500
+                ? 'Elora is having trouble contacting the server. Please try again.'
+                : 'Unable to process this request right now.';
+            const message = (await parseErrorPayloadMessage(response)) ?? fallback;
+            throw new ServiceError('server', message, { statusCode: response.status });
+        }
+
+        return response.json() as Promise<T>;
+    } catch (error) {
+        throw toEloraServiceError(error);
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -337,11 +445,9 @@ export interface TeacherReviewWorkItem {
 }
 
 export const getStudentAssignments = async (): Promise<StudentDashboardData> => {
-    const response = await fetch(`${API_BASE}/assignments/student`, {
+    return requestJson<StudentDashboardData>(`${API_BASE}/assignments/student`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch student assignments');
-    return response.json();
 };
 
 export const getStudentClasses = async (): Promise<StudentClass[]> => {
@@ -376,11 +482,9 @@ export const submitAssignmentAttempt = async (attemptId: string, payload: {
 };
 
 export const getStudentGameSessions = async (): Promise<GameSession[]> => {
-    const response = await fetch(`${API_BASE}/student/game-sessions`, {
+    return requestJson<GameSession[]>(`${API_BASE}/student/game-sessions`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch game sessions');
-    return response.json();
 };
 
 export const createStudentGameSession = async (payload: {
@@ -403,11 +507,9 @@ export const createStudentGameSession = async (payload: {
 };
 
 export const getStudentStreak = async (): Promise<StudentStreak> => {
-    const response = await fetch(`${API_BASE}/student/me/streak`, {
+    return requestJson<StudentStreak>(`${API_BASE}/student/me/streak`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch student streak');
-    return response.json();
 };
 
 export const getStudentNudges = async (): Promise<ParentNudge[]> => {
@@ -493,19 +595,15 @@ export const appendStudentConversationMessage = async (
 // ── Teacher API ───────────────────────────────────────────────────────────────
 
 export const getTeacherStats = async (): Promise<TeacherStat[]> => {
-    const response = await fetch(`${API_BASE}/teacher/stats`, {
+    return requestJson<TeacherStat[]>(`${API_BASE}/teacher/stats`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch teacher stats');
-    return response.json();
 };
 
 export const getMyClasses = async (): Promise<TeacherClass[]> => {
-    const response = await fetch(`${API_BASE}/classes`, {
+    return requestJson<TeacherClass[]>(`${API_BASE}/classes`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch classes');
-    return response.json();
 };
 
 export const createTeacherClass = async (
@@ -556,11 +654,9 @@ export interface TeacherAssignmentResults {
 }
 
 export const getTeacherAssignmentResults = async (assignmentId: string): Promise<TeacherAssignmentResults> => {
-    const response = await fetch(`${API_BASE}/assignments/${assignmentId}/results`, {
+    return requestJson<TeacherAssignmentResults>(`${API_BASE}/assignments/${assignmentId}/results`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch assignment results');
-    return response.json();
 };
 
 // ── Teacher Insights ──────────────────────────────────────────────────────────
@@ -580,27 +676,25 @@ export interface TeacherInsight {
 }
 
 export const getTeacherInsights = async (): Promise<TeacherInsight[]> => {
-    const response = await fetch(`${API_BASE}/teacher/insights/needs-attention`, {
+    const data = await requestJson<any>(`${API_BASE}/teacher/insights/needs-attention`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch teacher insights');
-    const data = await response.json();
-    
+
     // Transform new backend structure back into a single flat array for the UI
     const combined: TeacherInsight[] = [...(data.needsAttention || [])];
-    
+
     if (data.weakTopics) {
         data.weakTopics.forEach((wt: any) => {
             combined.push({
                 id: `wt-${wt.topic}`,
                 type: 'weak_topic',
                 topicTag: wt.topic,
-                className: 'All classes',
+                className: 'Overview',
                 detail: `Average success rate of ${wt.successRate}% across ${wt.total} attempts.`
             });
         });
     }
-    
+
     return combined;
 };
 
@@ -667,11 +761,9 @@ export const markAllNotificationsRead = async (
 // ── Parent API ────────────────────────────────────────────────────────────────
 
 export const getParentChildren = async (): Promise<ParentChild[]> => {
-    const response = await fetch(`${API_BASE}/parent/children`, {
+    return requestJson<ParentChild[]>(`${API_BASE}/parent/children`, {
         headers: authHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch children');
-    return response.json();
 };
 
 export const getChildClasses = async (childId: string): Promise<StudentClass[]> => {
@@ -685,12 +777,10 @@ export const getChildClasses = async (childId: string): Promise<StudentClass[]> 
 export const getParentChildSummary = async (
     childId: string
 ): Promise<ParentChildSummary> => {
-    const response = await fetch(
+    return requestJson<ParentChildSummary>(
         `${API_BASE}/parent/children/${childId}/summary`,
         { headers: authHeaders() }
     );
-    if (!response.ok) throw new Error('Failed to fetch child summary');
-    return response.json();
 };
 
 export const sendParentNudge = async (
@@ -725,6 +815,7 @@ export interface TeacherCopilotConversation {
     classId?: string | null;
     studentId?: string | null;
     title?: string | null;
+    isPinned?: boolean;
     createdAt: string;
     updatedAt: string;
     lastMessageAt?: string | null;
@@ -798,6 +889,42 @@ export const appendTeacherConversationMessage = async (
     });
     if (!response.ok) throw new Error('Failed to append teacher conversation message');
     return response.json();
+};
+
+export const updateTeacherConversationTitle = async (
+    conversationId: string,
+    title: string
+): Promise<TeacherCopilotConversation> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations/${conversationId}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ title }),
+    });
+    if (!response.ok) throw new Error('Failed to update teacher conversation title');
+    return response.json();
+};
+
+export const updateTeacherConversationPin = async (
+    conversationId: string,
+    isPinned: boolean
+): Promise<TeacherCopilotConversation> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations/${conversationId}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ isPinned }),
+    });
+    if (!response.ok) throw new Error('Failed to update teacher conversation pin');
+    return response.json();
+};
+
+export const deleteTeacherConversation = async (
+    conversationId: string
+): Promise<void> => {
+    const response = await fetch(`${API_BASE}/teacher/copilot/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+    if (!response.ok && response.status !== 204) throw new Error('Failed to delete teacher conversation');
 };
 
 // ── AI Generator API & Game Packs ───────────────────────────────────────────────

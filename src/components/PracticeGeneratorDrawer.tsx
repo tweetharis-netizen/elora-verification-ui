@@ -10,6 +10,7 @@ interface PracticeGeneratorDrawerProps {
   onReview: (game: dataService.GamePack) => void;
   onAssign: (game: dataService.GamePack) => void;
   initialValues?: Partial<AiForm>;
+  visualMode?: 'default' | 'teacher-full';
 }
 
 export interface PracticeGeneratorForm {
@@ -104,6 +105,7 @@ export const PracticeGeneratorDrawer = ({
   onReview,
   onAssign,
   initialValues,
+  visualMode = 'default',
 }: PracticeGeneratorDrawerProps) => {
   const [aiForm, setAiForm] = useState<AiForm>({
     topic: initialValues?.topic ?? '',
@@ -119,6 +121,7 @@ export const PracticeGeneratorDrawer = ({
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   const isDemo = true;
+  const isTeacherFullMode = visualMode === 'teacher-full';
 
   useEffect(() => {
     if (!isOpen) {
@@ -145,6 +148,16 @@ export const PracticeGeneratorDrawer = ({
   const showDifficultyStep = aiForm.topic.trim().length > 0 && aiForm.level.trim().length > 0;
   const showCountStep = showDifficultyStep && difficultyConfirmed;
   const showGenerateStep = showCountStep && countConfirmed;
+  const hasDraftInput = aiForm.topic.trim().length > 0 || aiForm.level.trim().length > 0 || difficultyConfirmed || countConfirmed;
+  const hasUnsavedChanges = isTeacherFullMode && hasDraftInput && !generatedGame && !generating;
+
+  const handleCloseRequest = () => {
+    if (hasUnsavedChanges) {
+      const shouldDiscard = window.confirm('Discard this draft? Your current changes have not been generated yet.');
+      if (!shouldDiscard) return;
+    }
+    onClose();
+  };
 
   const handleGenerateInternal = async () => {
     setGenerating(true);
@@ -256,16 +269,20 @@ export const PracticeGeneratorDrawer = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="fixed right-0 top-0 z-[100] h-full w-[450px] max-w-[calc(100vw-1rem)] border-l border-slate-200 bg-slate-50/95 backdrop-blur-md shadow-2xl"
+          className={isTeacherFullMode
+            ? 'fixed right-0 top-0 z-[100] h-full w-[520px] max-w-[calc(100vw-1rem)] border-l border-slate-200 bg-[#F8FAFC]/95 backdrop-blur-md shadow-2xl'
+            : 'fixed right-0 top-0 z-[100] h-full w-[450px] max-w-[calc(100vw-1rem)] border-l border-slate-200 bg-slate-50/95 backdrop-blur-md shadow-2xl'}
         >
           <div className="flex h-full flex-col">
-            <div className="flex h-24 items-center justify-between border-b border-slate-200 bg-white/50 px-6">
+            <div className={isTeacherFullMode
+              ? 'flex h-24 items-center justify-between border-b border-slate-200 bg-white px-6'
+              : 'flex h-24 items-center justify-between border-b border-slate-200 bg-white/50 px-6'}>
               <div>
-                <EditorialLabel>Briefing Elora</EditorialLabel>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">New Practice Set</h2>
+                <EditorialLabel>{isTeacherFullMode ? 'Assignment creation' : 'Briefing Elora'}</EditorialLabel>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">{isTeacherFullMode ? 'Create Assignment Pack' : 'New Practice Set'}</h2>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleCloseRequest}
                 className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                 aria-label="Close panel"
               >
@@ -274,118 +291,185 @@ export const PracticeGeneratorDrawer = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
-              <form onSubmit={handleGenerate} className="space-y-5">
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                  <EditorialLabel>What topic should we target?</EditorialLabel>
-                  <input
-                    required
-                    type="text"
-                    value={aiForm.topic}
-                    onChange={(e) => setAiForm((prev) => ({ ...prev, topic: e.target.value }))}
-                    placeholder="e.g. Algebra - Factorisation"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10"
-                  />
-                </motion.div>
-
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                  <EditorialLabel>Target group</EditorialLabel>
-                  <input
-                    required
-                    type="text"
-                    value={aiForm.level}
-                    onChange={(e) => setAiForm((prev) => ({ ...prev, level: e.target.value }))}
-                    placeholder="e.g. Sec 3"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10"
-                  />
-                </motion.div>
-
-                <AnimatePresence>
-                  {showDifficultyStep && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 18 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    >
-                      <EditorialLabel>How challenging should it feel?</EditorialLabel>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {[
-                          { value: 'easy', label: 'Introductory' },
-                          { value: 'medium', label: 'Standard' },
-                          { value: 'hard', label: 'Advanced' },
-                          { value: 'mixed', label: 'Mixed' },
-                        ].map((opt) => (
-                          <React.Fragment key={opt.value}>
-                            <SmartChip
-                              label={opt.label}
-                              selected={aiForm.difficulty === opt.value && difficultyConfirmed}
-                              onClick={() => {
-                                setAiForm((prev) => ({ ...prev, difficulty: opt.value as AiForm['difficulty'] }));
-                                setDifficultyConfirmed(true);
-                              }}
-                            />
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </motion.div>
+              <form onSubmit={handleGenerate} className={isTeacherFullMode ? 'space-y-6' : 'space-y-5'}>
+                <motion.section
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={isTeacherFullMode ? 'rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgb(15,23,42,0.04)]' : ''}
+                >
+                  {isTeacherFullMode && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Assignment basics</p>
+                      <p className="mt-1 text-xs text-slate-500">Start with the core details your students will see first.</p>
+                    </div>
                   )}
-                </AnimatePresence>
 
-                <AnimatePresence>
-                  {showCountStep && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 18 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    >
-                      <EditorialLabel>How many questions should we curate?</EditorialLabel>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {[5, 8, 10].map((count) => (
-                          <React.Fragment key={count}>
-                            <SmartChip
-                              label={`${count} Questions`}
-                              selected={aiForm.questionCount === count && countConfirmed}
-                              onClick={() => {
-                                setAiForm((prev) => ({ ...prev, questionCount: count }));
-                                setCountConfirmed(true);
-                              }}
-                            />
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </motion.div>
+                  <div className={isTeacherFullMode ? 'space-y-4' : 'space-y-5'}>
+                    <div>
+                      <EditorialLabel>{isTeacherFullMode ? 'Title' : 'What topic should we target?'}</EditorialLabel>
+                      <input
+                        required
+                        type="text"
+                        value={aiForm.topic}
+                        onChange={(e) => setAiForm((prev) => ({ ...prev, topic: e.target.value }))}
+                        placeholder={isTeacherFullMode ? 'Name this assignment' : 'e.g. Algebra - Factorisation'}
+                        className={isTeacherFullMode
+                          ? 'mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-base font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10'
+                          : 'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10'}
+                      />
+                    </div>
+
+                    <div>
+                      <EditorialLabel>{isTeacherFullMode ? 'Class / level' : 'Target group'}</EditorialLabel>
+                      <input
+                        required
+                        type="text"
+                        value={aiForm.level}
+                        onChange={(e) => setAiForm((prev) => ({ ...prev, level: e.target.value }))}
+                        placeholder={isTeacherFullMode ? 'e.g. Sec 3 Mathematics' : 'e.g. Sec 3'}
+                        className={isTeacherFullMode
+                          ? 'mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10'
+                          : 'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10'}
+                      />
+                    </div>
+                  </div>
+                </motion.section>
+
+                <motion.section
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.02 }}
+                  className={isTeacherFullMode ? 'rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgb(15,23,42,0.04)]' : ''}
+                >
+                  {isTeacherFullMode && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Schedule & settings</p>
+                      <p className="mt-1 text-xs text-slate-500">Tune challenge and size before generating the first draft.</p>
+                    </div>
                   )}
-                </AnimatePresence>
 
-                <AnimatePresence>
-                  {showGenerateStep && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 18 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    >
-                      <button
-                        type="submit"
-                        disabled={generating}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-teal-600/20 transition-all duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  <div className={isTeacherFullMode ? 'space-y-4' : 'space-y-5'}>
+                    <AnimatePresence>
+                      {showDifficultyStep && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 18 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 18 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
+                          <EditorialLabel>{isTeacherFullMode ? 'Difficulty' : 'How challenging should it feel?'}</EditorialLabel>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {[
+                              { value: 'easy', label: 'Introductory' },
+                              { value: 'medium', label: 'Standard' },
+                              { value: 'hard', label: 'Advanced' },
+                              { value: 'mixed', label: 'Mixed' },
+                            ].map((opt) => (
+                              <React.Fragment key={opt.value}>
+                                <SmartChip
+                                  label={opt.label}
+                                  selected={aiForm.difficulty === opt.value && difficultyConfirmed}
+                                  onClick={() => {
+                                    setAiForm((prev) => ({ ...prev, difficulty: opt.value as AiForm['difficulty'] }));
+                                    setDifficultyConfirmed(true);
+                                  }}
+                                />
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                      {showCountStep && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 18 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 18 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
+                          <EditorialLabel>{isTeacherFullMode ? 'Question count' : 'How many questions should we curate?'}</EditorialLabel>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {[5, 8, 10].map((count) => (
+                              <React.Fragment key={count}>
+                                <SmartChip
+                                  label={`${count} Questions`}
+                                  selected={aiForm.questionCount === count && countConfirmed}
+                                  onClick={() => {
+                                    setAiForm((prev) => ({ ...prev, questionCount: count }));
+                                    setCountConfirmed(true);
+                                  }}
+                                />
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.section>
+
+                <motion.section
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.04 }}
+                  className={isTeacherFullMode ? 'rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgb(15,23,42,0.04)]' : ''}
+                >
+                  {isTeacherFullMode && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Questions</p>
+                      <p className="mt-1 text-xs text-slate-500">Generate, preview, and then assign this pack to your class.</p>
+                    </div>
+                  )}
+
+                  <AnimatePresence>
+                    {showGenerateStep && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 18 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
                       >
-                        {generating ? (
-                          <>
-                            <RefreshCw size={18} className="animate-spin" />
-                            <span className="animate-pulse">Curating questions for Jordan Lee...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={18} />
-                            Generate practice set
-                          </>
-                        )}
-                      </button>
-                    </motion.div>
+                        <button
+                          type="submit"
+                          disabled={generating}
+                          className={isTeacherFullMode
+                            ? 'flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-teal-600/20 transition-all duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70'
+                            : 'flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-teal-600/20 transition-all duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70'}
+                        >
+                          {generating ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              <span className="animate-pulse">Curating questions for Jordan Lee...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles size={18} />
+                              Generate practice set
+                            </>
+                          )}
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {generatedGame && (
+                    <div className={isTeacherFullMode ? 'mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4' : 'rounded-2xl border border-slate-200 bg-white p-4'}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <EditorialLabel>Generated</EditorialLabel>
+                        <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-teal-700">
+                          Ready
+                        </span>
+                      </div>
+                      <h3 className="text-base font-semibold tracking-tight text-slate-900">{generatedGame.title}</h3>
+                      <p className="mt-2 text-xs font-medium text-slate-600">
+                        {generatedGame.questions.length} Questions - {generatedGame.level}
+                      </p>
+                    </div>
                   )}
-                </AnimatePresence>
+                </motion.section>
 
                 {generateError && (
                   <div className="rounded-2xl border border-[#7A0D2C] bg-[#9F1239] px-4 py-3 text-sm text-white">
@@ -395,24 +479,14 @@ export const PracticeGeneratorDrawer = ({
                     </div>
                   </div>
                 )}
-
-                {generatedGame && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <EditorialLabel>Generated</EditorialLabel>
-                      <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-teal-700">
-                        Ready
-                      </span>
-                    </div>
-                    <h3 className="text-base font-semibold tracking-tight text-slate-900">{generatedGame.title}</h3>
-                    <p className="mt-2 text-xs font-medium text-slate-600">
-                      {generatedGame.questions.length} Questions - {generatedGame.level}
-                    </p>
-                  </div>
-                )}
               </form>
 
-              <div className="mt-8 border-t border-slate-200 pt-5">
+              <div className={isTeacherFullMode ? 'mt-6 border-t border-slate-200 pt-5' : 'mt-8 border-t border-slate-200 pt-5'}>
+                {isTeacherFullMode && hasUnsavedChanges && (
+                  <p className="mb-3 text-xs font-medium text-amber-700">
+                    You have unsaved changes. Use Back to discard or continue to generate.
+                  </p>
+                )}
                 <DraftPreviewMini
                   title={draftTitle}
                   topic={aiForm.topic}
@@ -423,13 +497,15 @@ export const PracticeGeneratorDrawer = ({
               </div>
             </div>
 
-            <div className="flex h-20 items-center justify-between border-t border-slate-200 bg-white/50 px-6">
+            <div className={isTeacherFullMode
+              ? 'flex h-20 items-center justify-between border-t border-slate-200 bg-white px-6'
+              : 'flex h-20 items-center justify-between border-t border-slate-200 bg-white/50 px-6'}>
               <button
-                onClick={onClose}
+                onClick={handleCloseRequest}
                 className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
               >
                 <ChevronLeft size={18} />
-                Back
+                {isTeacherFullMode ? 'Discard' : 'Back'}
               </button>
               {generatedGame ? (
                 <div className="flex items-center gap-2">

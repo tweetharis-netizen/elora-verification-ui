@@ -69,6 +69,8 @@ function loadFromStorage(): CurrentUser | null {
 interface AuthState {
     /** The currently signed-in user, or null if not logged in. */
     currentUser: CurrentUser | null;
+    /** True while auth state is hydrating on initial app load. */
+    isAuthLoading: boolean;
     /** True when a user is logged in. Convenience alias for !!currentUser. */
     isVerified: boolean;
     /** True if the user is in a temporary "guest/demo" session (not persisted). */
@@ -97,19 +99,30 @@ const AuthContext = createContext<AuthState | null>(null);
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
-        loadFromStorage
-    );
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => {
+        const storedUser = loadFromStorage();
+        // Keep dataService auth headers in sync from first render to avoid
+        // startup races where pages fetch before the effect runs.
+        dsSetCurrentUser(storedUser);
+        return storedUser;
+    });
     const [isGuest, setIsGuest] = useState<boolean>(() => {
         // Init: guest if we have a user but nothing in storage
         return !!currentUser && !localStorage.getItem(LS_KEY);
     });
+    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
     // On mount (and whenever currentUser changes), push the user into dataService
     // so all fetch helpers pick up the right headers automatically.
     useEffect(() => {
         dsSetCurrentUser(currentUser);
     }, [currentUser]);
+
+    // Explicit hydration boundary so routes can distinguish
+    // "auth unknown" from "not authenticated".
+    useEffect(() => {
+        setIsAuthLoading(false);
+    }, []);
 
     const login = (role: UserRole, data?: Partial<CurrentUser>, persist = true) => {
         // If data.id is provided and it's not a demo ID, use it for real user login
@@ -153,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const value: AuthState = {
         currentUser,
+        isAuthLoading,
         isVerified: currentUser !== null,
         isGuest: isGuest,
         role: currentUser?.role ?? null,

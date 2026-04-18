@@ -613,3 +613,64 @@ export const appendTeacherCopilotMessage = (req: AuthRequest, res: Response) => 
         res.status(500).json({ error: 'Failed to append conversation message' });
     }
 };
+
+export const updateTeacherCopilotConversationTitle = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const conversationId = req.params.id;
+    const { title } = req.body ?? {};
+
+    try {
+        if (!title || typeof title !== 'string' || !title.trim()) {
+            return res.status(400).json({ error: 'title is required and must be a non-empty string' });
+        }
+
+        const trimmedTitle = title.trim().slice(0, 80);
+
+        const conversation = getOwnedConversation(teacherId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        const now = new Date().toISOString();
+        db.run(
+            `UPDATE teacher_conversations SET title = ?, updated_at = ? WHERE id = ?`,
+            trimmedTitle,
+            now,
+            conversationId
+        );
+
+        const updated = db.get(`SELECT * FROM teacher_conversations WHERE id = ?`, conversationId) as TeacherConversationRow;
+        res.json(toConversationDto(updated));
+    } catch (error) {
+        console.error('Error updating teacher copilot conversation title:', error);
+        res.status(500).json({ error: 'Failed to update conversation title' });
+    }
+};
+
+export const deleteTeacherCopilotConversation = (req: AuthRequest, res: Response) => {
+    const teacherId = req.user!.id;
+    const conversationId = req.params.id;
+
+    try {
+        const conversation = getOwnedConversation(teacherId, conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        // Delete messages first (in case there is no cascade defined on the FK)
+        db.run(
+            `DELETE FROM teacher_conversation_messages WHERE conversation_id = ?`,
+            conversationId
+        );
+
+        db.run(
+            `DELETE FROM teacher_conversations WHERE id = ?`,
+            conversationId
+        );
+
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting teacher copilot conversation:', error);
+        res.status(500).json({ error: 'Failed to delete conversation' });
+    }
+};

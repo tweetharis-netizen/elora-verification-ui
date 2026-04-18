@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BarChart2, FileText, LayoutDashboard, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Users, X } from 'lucide-react';
-import { useAuth } from '../../auth/AuthContext';
-import { useDemoMode } from '../../hooks/useDemoMode';
-import { useSidebarState } from '../../hooks/useSidebarState';
-import { getRoleSidebarTheme, type RoleSidebarTheme } from '../../lib/roleTheme';
-import { DashboardHeader } from '../DashboardHeader';
-import { EloraLogo } from '../EloraLogo';
+import { useAuth } from '@/auth/AuthContext';
+import { useDemoMode } from '@/hooks/useDemoMode';
+import { useSidebarState } from '@/hooks/useSidebarState';
+import { shouldGateCopilotAccess } from '@/hooks/useAuthGate';
+import { getRoleSidebarTheme, type RoleSidebarTheme } from '@/lib/roleTheme';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { EloraLogo } from '@/components/EloraLogo';
+import { AuthGate } from '@/components/auth/AuthGate';
 
 type ParentNavItem = {
   id: string;
@@ -23,6 +25,7 @@ function SidebarItem({
   active,
   collapsed,
   onNavigate,
+  onClick,
   theme,
 }: {
   icon: any;
@@ -31,6 +34,7 @@ function SidebarItem({
   active?: boolean;
   collapsed?: boolean;
   onNavigate?: () => void;
+  onClick?: (event: React.MouseEvent) => void;
   theme: RoleSidebarTheme;
 }) {
   const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
@@ -39,13 +43,16 @@ function SidebarItem({
   return (
     <Link
       to={to || '#'}
-      onClick={() => onNavigate?.()}
+      onClick={(event) => {
+        onClick?.(event);
+        onNavigate?.();
+      }}
       className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all w-full ${active ? activeClasses : inactiveClasses} ${collapsed ? 'justify-center' : ''}`}
       title={collapsed ? label : undefined}
     >
-      {/* Elora Gold Vertical Accent Bar */}
+      {/* Active Vertical Accent Bar */}
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-accent-yellow rounded-r-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
       )}
       
       <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
@@ -57,7 +64,7 @@ function SidebarItem({
 export default function ParentShellLayout() {
   const navigate = useNavigate();
   const { pathname, hash } = useLocation();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isGuest, isVerified } = useAuth();
   const isDemo = useDemoMode();
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -148,18 +155,18 @@ export default function ParentShellLayout() {
           {isSidebarOpen && (
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="hidden md:flex p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="hidden md:flex items-center justify-center p-2.5 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
               title="Collapse sidebar"
             >
-              <PanelLeftClose size={18} />
+              <PanelLeftClose size={20} />
             </button>
           )}
         </div>
 
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar custom-scrollbar">
           {navItems
-            .map((item) => (
-            <React.Fragment key={item.id}>
+            .map((item) => {
+            const sidebarItem = (
               <SidebarItem
                 icon={item.icon}
                 label={item.label}
@@ -171,8 +178,23 @@ export default function ParentShellLayout() {
                 }}
                 theme={sidebarTheme}
               />
-            </React.Fragment>
-          ))}
+            );
+
+            if (item.id === 'copilot' && !isDemo && shouldGateCopilotAccess({ isVerified, isGuest })) {
+              return (
+                <AuthGate
+                  key={item.id}
+                  actionName="use Copilot"
+                  forceGate={shouldGateCopilotAccess({ isVerified, isGuest })}
+                >
+                  {sidebarItem}
+                </AuthGate>
+              );
+            }
+
+
+            return <React.Fragment key={item.id}>{sidebarItem}</React.Fragment>;
+          })}
         </nav>
 
         <div className={`mt-auto px-4 pt-5 pb-4 border-t ${sidebarTheme.footerBorder} space-y-1.5`}>

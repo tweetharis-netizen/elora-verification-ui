@@ -33,7 +33,7 @@
   --elora-success-bg: #CCFBF1;
   --elora-warning-text: #92400E;
   /* warm amber */
-  --elora-warning-bg: #FEF3C7;
+  --elora-warning-bg: #E6ECF7;
   --elora-info-text: #68507B;
   /* soft purple */
   --elora-info-bg: #EAE4F2;
@@ -50,7 +50,7 @@
 
   --color-accent-orange: #E89B71;
   --color-accent-green: #7BB099;
-  --color-accent-yellow: #FBBF24;
+  --color-accent-yellow: #8FA6CC;
   --color-accent-pink: #D98A94;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -62,8 +62,8 @@ html {
 }
 
 body {
-  background-color: var(--elora-darkest);
-  color: white;
+  background-color: var(--elora-bg);
+  color: var(--elora-text-strong);
   font-family: var(--font-sans);
   overflow-x: hidden;
   margin: 0;
@@ -162,8 +162,8 @@ body {
 /* stage-glow: A subtle, dynamic background for the main workspace area */
 .stage-glow {
   background: radial-gradient(circle at 10% 20%, rgba(20, 184, 166, 0.03) 0%, transparent 40%),
-              radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
-              #FDFBF5;
+    radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
+    #FDFBF5;
   position: relative;
   overflow: hidden;
 }
@@ -171,7 +171,10 @@ body {
 .stage-glow::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   opacity: 0.02;
   pointer-events: none;

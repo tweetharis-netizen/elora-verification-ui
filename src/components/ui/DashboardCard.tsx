@@ -19,12 +19,12 @@ export function DashboardCard({
 }: DashboardCardProps) {
     const cardClassName =
         variant === 'canonical'
-            ? 'bg-white border border-[#EAEAEA] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden'
-            : 'bg-white border border-[#EAE7DD] rounded-2xl shadow-sm overflow-hidden';
+            ? 'bg-white border border-[var(--elora-border-subtle)] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden'
+            : 'bg-white border border-[var(--elora-border-subtle)] rounded-2xl shadow-sm overflow-hidden';
     const headerClassName =
         variant === 'canonical'
-            ? 'border-b border-[#EAEAEA]'
-            : 'border-b border-[#EAE7DD] bg-slate-50/30';
+            ? 'border-b border-[var(--elora-border-subtle)]'
+            : 'border-b border-[var(--elora-border-subtle)] bg-slate-50/30';
 
     return (
         <Component className={`${cardClassName} ${className}`.trim()}>

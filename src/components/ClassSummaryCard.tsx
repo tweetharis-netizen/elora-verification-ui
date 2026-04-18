@@ -30,14 +30,14 @@ export function ClassSummaryCard({
         switch (role) {
             case 'teacher':
                 return {
-                    borderHover: 'hover:border-teal-600/30',
-                    textHover: 'group-hover:text-teal-700',
-                    text: 'text-teal-700',
-                    bgFallback: 'from-teal-600 to-teal-800',
+                    borderHover: 'hover:border-[var(--elora-primary)]/30',
+                    textHover: 'group-hover:text-[var(--elora-primary)]',
+                    text: 'text-[var(--elora-primary)]',
+                    bgFallback: 'from-[var(--elora-primary)] to-[var(--elora-deep)]',
                 };
             case 'parent':
                 return {
-                    borderHover: 'hover:border-orange-600/30',
+                    borderHover: 'hover:border-orange-500/30',
                     textHover: 'group-hover:text-orange-700',
                     text: 'text-orange-700',
                     bgFallback: 'from-orange-500 to-orange-700',
@@ -45,16 +45,16 @@ export function ClassSummaryCard({
             case 'student':
             default:
                 return {
-                    borderHover: 'hover:border-[#68507B]/30',
-                    textHover: 'group-hover:text-[#68507B]',
-                    text: 'text-[#68507B]',
-                    bgFallback: 'from-[#68507B] to-[#7B6194]',
+                    borderHover: 'hover:border-[var(--elora-secondary)]/30',
+                    textHover: 'group-hover:text-[var(--elora-secondary)]',
+                    text: 'text-[var(--elora-secondary)]',
+                    bgFallback: 'from-[var(--elora-secondary)] to-[var(--elora-primary)]',
                 };
         }
     })();
 
     const backgroundGradient = themeColor === 'blue' || themeColor === 'indigo' ? 'from-indigo-500 to-blue-600' :
-        themeColor === 'purple' ? 'from-[#68507B] to-[#7B6194]' :
+        themeColor === 'purple' ? 'from-[var(--elora-secondary)] to-[var(--elora-primary)]' :
         themeColor === 'green' || themeColor === 'emerald' ? 'from-emerald-500 to-teal-600' :
         themeColor === 'teal' ? 'from-teal-500 to-cyan-600' :
         themeColor === 'orange' || themeColor === 'amber' ? 'from-orange-500 to-amber-600' :

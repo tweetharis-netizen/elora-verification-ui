@@ -62,7 +62,7 @@ export function DashboardHeader({
           {onMobileMenuToggle && (
             <button
               onClick={onMobileMenuToggle}
-              className={`md:hidden p-2 -ml-2 text-slate-500 hover:${colors.text} rounded-xl transition-all`}
+              className={`md:hidden p-2 -ml-2 text-slate-500 hover:${colors.text} rounded-lg transition-all`}
             >
               <Menu size={24} />
             </button>
@@ -78,8 +78,11 @@ export function DashboardHeader({
               type="text"
               placeholder={searchPlaceholder}
               onChange={(e) => onSearchChange?.(e.target.value)}
-              className={`w-full pl-12 pr-4 py-2.5 bg-white border border-[#EAE7DD] rounded-full text-sm outline-none ${colors.focusRing} ${colors.focusBorder} transition-all font-medium text-slate-600 shadow-sm`}
+              className={`w-full pl-12 pr-16 py-2.5 bg-white border-[0.5px] border-[#d8e6e4] rounded-full text-sm outline-none ${colors.focusRing} ${colors.focusBorder} transition-all font-medium text-slate-600 shadow-sm`}
             />
+            <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center rounded-md border border-slate-200/80 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
+              ⌘K
+            </kbd>
           </div>
         </div>
 

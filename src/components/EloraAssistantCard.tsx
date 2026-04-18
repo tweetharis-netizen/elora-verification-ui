@@ -80,7 +80,7 @@ export const EloraAssistantCard = ({
     const effectiveError = error ?? (isDemo ? null : localError);
 
     const assistantLabel = assistantName?.trim() ? assistantName.trim() : 'Elora';
-    
+
     // roleHeading hidden by user request for cleaner layout
 
     const getInitialPlaceholder = (roleParam: Role): EloraAssistantSuggestion => {

@@ -32,20 +32,51 @@ export default function VerifyPage() {
     const { login } = useAuth();
 
     // Extract role and name from navigation state.
-    const state = location.state as { role?: UserRole; name?: string } | null;
+    const state = location.state as { role?: UserRole; name?: string; email?: string } | null;
     const selectedRole = state?.role ?? 'teacher';
     const passedName = state?.name ?? '';
+    const passedEmail = state?.email?.trim().toLowerCase() ?? '';
+
+    const buildUserIdFromEmail = (role: UserRole, rawEmail: string) => {
+        const localPart = rawEmail.split('@')[0] || 'user';
+        const slug = localPart.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        return `real_${role}_${slug || 'user'}`;
+    };
 
     const handleVerify = async () => {
         // Direct transition using the name from signup.
         const displayName = passedName.trim();
         const preferredName = displayName || (selectedRole === 'teacher' ? 'Michael' : selectedRole === 'student' ? 'Jordan' : 'Lee');
-        
-        // Login and navigate directly.
-        login(selectedRole, {
-            name: preferredName,
-            preferredName: preferredName,
-        });
+
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: buildUserIdFromEmail(selectedRole, passedEmail || `${selectedRole}@local.test`),
+                    name: preferredName,
+                    email: passedEmail || `${selectedRole}.${Date.now()}@local.test`,
+                    role: selectedRole,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Auth request failed (${response.status})`);
+            }
+
+            const user = await response.json();
+            login(selectedRole, {
+                id: user.id,
+                name: user.name || preferredName,
+                preferredName: user.name || preferredName,
+            });
+        } catch {
+            // Preserve preview fallback behavior if backend auth route is unavailable.
+            login(selectedRole, {
+                name: preferredName,
+                preferredName,
+            });
+        }
         
         navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
     };

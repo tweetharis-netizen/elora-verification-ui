@@ -9,6 +9,6 @@ const router = Router();
 router.post('/generate-game', requireAuth, requireRole('teacher'), generateGame);
 
 // POST /api/ai/ask
-router.post('/ask', askEloraHandler);
+router.post('/ask', requireAuth, askEloraHandler);
 
 export default router;

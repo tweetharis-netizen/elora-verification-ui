@@ -3,6 +3,7 @@ import React from 'react';
 export interface EloraLogoProps {
   className?: string;
   withWordmark?: boolean;
+  inverted?: boolean;
 }
 
 export function EloraLogo({ className = 'w-8 h-8', withWordmark = false }: EloraLogoProps) {

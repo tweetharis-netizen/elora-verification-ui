@@ -13,7 +13,13 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { isVerified } = useAuth();
+    const { isVerified, isAuthLoading } = useAuth();
+
+    if (isAuthLoading) {
+        return (
+            <div className="min-h-screen w-full bg-[#FDFBF5]" aria-busy="true" />
+        );
+    }
 
     if (!isVerified) {
         // Not logged in → send to /login

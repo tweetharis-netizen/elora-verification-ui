@@ -112,7 +112,7 @@ export function AssignmentFiltersPanel({
           <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
               <Clock className="w-4 h-4 text-orange-500" />
-              Due this week
+              Due soon
             </div>
             <span className="text-base font-bold tabular-nums text-orange-500">
               {thisWeekCount}

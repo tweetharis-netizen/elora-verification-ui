@@ -10,12 +10,13 @@ export default function Signup() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<UserRole>('teacher');
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Navigate to /verify and pass the chosen role and name in router state.
-    navigate('/verify', { state: { role: selectedRole, name: fullName } });
+    navigate('/verify', { state: { role: selectedRole, name: fullName, email } });
   };
 
   return (
@@ -101,6 +102,8 @@ export default function Signup() {
               <input
                 type="email"
                 id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-elora-200 focus:border-transparent transition-all"
                 placeholder="you@example.com"
                 required

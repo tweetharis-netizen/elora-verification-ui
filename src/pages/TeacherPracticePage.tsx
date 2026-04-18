@@ -35,7 +35,7 @@ export default function TeacherPracticePage() {
                 totalCount: 32,
                 averageScore: 52,
                 status: 'upcoming',
-                statusLabel: 'Recommended this week',
+                statusLabel: 'Recommended',
                 needsAttention: true,
                 studentStatus: 'upcoming',
             },
@@ -265,6 +265,7 @@ export default function TeacherPracticePage() {
             {/* Generator Drawer */}
             <PracticeGeneratorDrawer
                 isOpen={showGeneratorDrawer}
+                visualMode={isDemo ? 'default' : 'teacher-full'}
                 onClose={() => setShowGeneratorDrawer(false)}
                 onReview={(game) => {
                     // TODO: Implement review modal

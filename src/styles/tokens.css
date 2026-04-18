@@ -1,0 +1,84 @@
+/**
+ * ELORA DESIGN SYSTEM - SEMANTIC TOKENS
+ * 
+ * Documentation and semantic definitions for the Elora UI.
+ * These variables are mapped to Tailwind theme tokens in src/index.css.
+ */
+
+/* 1. SURFACE COLORS 
+   - surface-cream: Main workspace background, luminous and warm.
+   - surface-white: High-contrast surfaces like main cards or modal content.
+   - surface-card: Secondary card surfaces, slightly offset from main.
+*/
+:root {
+  --surface-cream: #FDFBF5;
+  --surface-white: #FFFFFF;
+  --surface-card: #FDFBF5; /* Matches cream but can be differentiated later */
+  --surface-alt: #F7F5ED;
+}
+
+/* 2. TEXT HIERARCHY 
+   - text-primary: Maximum contrast for headings and core information.
+   - text-secondary: Standard body text readability.
+   - text-muted: Low-emphasis for captions, labels, and timestamps.
+*/
+:root {
+  --text-primary: #1A1525;
+  --text-secondary: #5F5873;
+  --text-muted: #8E8A9E; /* Lightened version of text-muted from audit */
+}
+
+/* 3. BORDER SYSTEM 
+   - border-subtle: Default hairline borders for layout structure.
+   - border-strong: High-definition borders for focus or emphasis.
+*/
+:root {
+  --border-subtle: #EAE7DD;
+  --border-strong: #D1CDBC;
+}
+
+/* 4. COMPONENT SPECIFIC 
+   - sidebar-teacher: Deep teal for authority and focus.
+   - sidebar-student: Rich purple for creative learning.
+   - sidebar-parent: Warm orange for approachable engagement.
+*/
+:root {
+  --sidebar-teacher: #134E4A; /* Tailwind teal-900 for Teacher sidebar */
+  --sidebar-student: #68507B; /* elora-secondary */
+  --sidebar-parent: #DB844A;  /* orange-500 equivalent audited */
+}
+
+/* 5. SPECIAL SURFACES & STATUS */
+:root {
+  --surface-hero: #28193D;
+  --hero-teal: #2D6A6A;
+  --accent-teal: #0D9488;
+  --accent-teal-soft: #F0FDFA;
+  --accent-teal-border: #CCFBF1;
+  --accent-pink: #D98A94;
+  --toast-success: #7BB099;
+  --toast-error: #D98A94;
+  --toast-warning: #8FA6CC;
+}
+
+/* 6. SPACING SCALE 
+   Standardized spacing increments for consistent layout rhythm.
+*/
+:root {
+  --spacing-xs: 0.25rem;  /* 4px */
+  --spacing-sm: 0.5rem;   /* 8px */
+  --spacing-md: 1rem;     /* 16px */
+  --spacing-lg: 1.5rem;   /* 24px */
+  --spacing-xl: 2rem;     /* 32px */
+  --spacing-2xl: 3rem;    /* 48px */
+}
+
+/* 6. SHADOW SYSTEM 
+   Premium glassmorphic and depth shadows.
+*/
+:root {
+  --shadow-elora-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-elora-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-elora-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  --shadow-elora-card: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}

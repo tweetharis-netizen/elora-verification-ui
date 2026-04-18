@@ -1,4 +1,7 @@
 import { Request, Response } from 'express';
+import { DEFAULT_USE_CASE_BY_ROLE, isUseCase } from '../../src/lib/llm/config.js';
+import { llmRouter, LLMTemporarilyUnavailableError } from '../../src/lib/llm/router.js';
+import type { LLMMessage, UseCase } from '../../src/lib/llm/types.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -188,6 +191,22 @@ export const generateGame = async (req: Request, res: Response): Promise<void> =
 
 type CopilotRole = 'teacher' | 'student' | 'parent';
 
+type CopilotContextMeta = {
+  isDemo?: boolean;
+  dashboardSource?: string;
+  roleContextId?: string;
+  roleContextLabel?: string;
+  selectedClassId?: string;
+  selectedClassName?: string;
+  selectedStudentId?: string;
+  selectedStudentName?: string;
+  selectedChildId?: string;
+  selectedChildName?: string;
+  selectedSubject?: string;
+};
+
+const demoCopilotUserIds = new Set(['teacher_1', 'student_1', 'parent_1']);
+
 const truncateForPrompt = (value: string, max = 280): string => {
   const normalized = value.replace(/\s+/g, ' ').trim();
   if (normalized.length <= max) return normalized;
@@ -201,6 +220,40 @@ const normalizeRecentPrompts = (value: unknown): string[] => {
     .map((entry) => truncateForPrompt(entry, 140))
     .filter(Boolean)
     .slice(-3);
+};
+
+const normalizeContextMeta = (value: unknown): CopilotContextMeta | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const normalizeText = (entry: unknown, max = 80): string | undefined => {
+    if (typeof entry !== 'string') return undefined;
+    const normalized = truncateForPrompt(entry, max);
+    return normalized.length > 0 ? normalized : undefined;
+  };
+
+  const normalized: CopilotContextMeta = {
+    isDemo: raw.isDemo === true,
+    dashboardSource: normalizeText(raw.dashboardSource, 80),
+    roleContextId: normalizeText(raw.roleContextId, 80),
+    roleContextLabel: normalizeText(raw.roleContextLabel, 100),
+    selectedClassId: normalizeText(raw.selectedClassId, 80),
+    selectedClassName: normalizeText(raw.selectedClassName, 100),
+    selectedStudentId: normalizeText(raw.selectedStudentId, 80),
+    selectedStudentName: normalizeText(raw.selectedStudentName, 100),
+    selectedChildId: normalizeText(raw.selectedChildId, 80),
+    selectedChildName: normalizeText(raw.selectedChildName, 100),
+    selectedSubject: normalizeText(raw.selectedSubject, 100),
+  };
+
+  const hasAnyValue = Object.values(normalized).some((entry) => {
+    if (typeof entry === 'boolean') return entry;
+    return Boolean(entry);
+  });
+
+  return hasAnyValue ? normalized : null;
 };
 
 const buildSessionPrimerInstruction = (role: CopilotRole): string => {
@@ -254,6 +307,80 @@ const buildRoleFallbackText = (role: CopilotRole, firstTurn: boolean): string =>
   return "I'm having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about your child's progress.";
 };
 
+const isCopilotRole = (value: unknown): value is CopilotRole => {
+  return value === 'teacher' || value === 'student' || value === 'parent';
+};
+
+const resolveUseCase = (rawUseCase: unknown, role: CopilotRole): UseCase => {
+  if (isUseCase(rawUseCase)) {
+    return rawUseCase;
+  }
+
+  return DEFAULT_USE_CASE_BY_ROLE[role];
+};
+
+const buildUserProfileFromContextMeta = (
+  role: CopilotRole,
+  contextMeta: CopilotContextMeta | null
+): { level?: string; subjects?: string[] } | undefined => {
+  if (!contextMeta) {
+    return undefined;
+  }
+
+  const subjects = [contextMeta.selectedSubject, contextMeta.selectedClassName]
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0 && !/^all\b/i.test(entry));
+
+  const uniqueSubjects = [...new Set(subjects)].slice(0, 3);
+
+  let level: string | undefined;
+  if (role === 'student') {
+    level = contextMeta.roleContextLabel || contextMeta.selectedClassName;
+  } else if (role === 'parent') {
+    level = contextMeta.selectedChildName;
+  }
+
+  if (!level && uniqueSubjects.length === 0) {
+    return undefined;
+  }
+
+  return {
+    level,
+    subjects: uniqueSubjects.length > 0 ? uniqueSubjects : undefined,
+  };
+};
+
+const buildRouterMessages = ({
+  prompt,
+  contextText,
+  recentPrompts,
+}: {
+  prompt: string;
+  contextText: string;
+  recentPrompts: string[];
+}): LLMMessage[] => {
+  const messages: LLMMessage[] = [];
+
+  if (contextText) {
+    messages.push({
+      role: 'user',
+      content: `Context snapshot (use to personalize response, do not quote verbatim): ${contextText}`,
+    });
+  }
+
+  if (recentPrompts.length > 0) {
+    messages.push({
+      role: 'user',
+      content: `Recent user intents in this conversation: ${recentPrompts.join('; ')}`,
+    });
+  }
+
+  messages.push({ role: 'user', content: prompt });
+
+  return messages;
+};
+
 const teacherSystemPromptBase = `You are Elora Copilot, a warm and knowledgeable AI teaching assistant embedded inside the Elora platform. Your job is to help teachers understand their classes, plan lessons, draft assignments and parent messages, and reason about student progress.
 
 ## Persona
@@ -271,8 +398,15 @@ META (who are you, what is Elora, what can you do, who built you, are you an AI,
 TEACHING_TASK (anything about lessons, students, assignments, class data, parent messages, progress, planning, quizzes, weak topics, etc.)
 → Give a direct, actionable answer. Briefly restate what the teacher is asking in plain language, then lead with the most useful information. Add optional follow-up suggestions at the end.
 
-CLARIFICATION_REQUIRED (message is too vague, too short, or missing key details such as which class, subject, or student)
-→ Do NOT guess or invent details. Ask 1–2 short, specific follow-up questions. Examples: "You mentioned 'the test' — which class or topic is this for?" or "When you say 'students who are behind', do you mean assignment scores, quiz results, or something else?"
+CLARIFICATION_REQUIRED (message is too vague, too short, or missing key details such as which class, student, topic, or date)
+→ You MUST ask 1–2 short clarifying questions BEFORE giving any final advice.
+→ Do NOT answer and clarify in the same message.
+→ Clarification responses should contain only the question(s) needed.
+→ You may start with: "I need a bit more detail to help you accurately:" then ask your question(s).
+Role examples:
+- Teacher: "When you say this class is behind, which class and topic are you referring to?"
+- Student: "Do you want help with Algebra factorisation or another topic, and is this for a quiz or homework?"
+- Parent: "Are you most concerned about your child's maths test performance, missing assignments, or both this week?"
 
 OUT_OF_SCOPE (medical advice, legal advice, personal matters unrelated to teaching, controversial politics, etc.)
 → Respond kindly but briefly. Note you are focused on teaching support, and offer a classroom-related alternative they could try.
@@ -282,7 +416,7 @@ OUT_OF_SCOPE (medical advice, legal advice, personal matters unrelated to teachi
 - If a typo creates genuine ambiguity with two very different meanings, ask: "Did you mean X or Y?"
 - Single-word or very short messages (e.g., "help", "plan", "idk", "???") → treat as GREETING or CLARIFICATION_REQUIRED; respond warmly and ask what they need.
 - When the user sends a greeting with heavy typos (e.g., "hiii", "heloo", "sup"), treat it as GREETING and reply naturally; do not scold or over-correct.
-- When a message looks like emotional venting (e.g., "I'm so tired of grading"), acknowledge the feeling empathetically in one line, then offer a concrete teaching-related way to help.
+- If a message sounds like venting or stress (for example "I'm overwhelmed with grading", "I'm failing everything", or "I'm worried about my child"), acknowledge the emotion in one line first, then offer specific, practical help.
 - Vague context (e.g., "my class is behind", "a student is struggling") → ask which class and subject before giving advice; never fabricate class names or student names.
 
 ## Response Style
@@ -291,8 +425,15 @@ OUT_OF_SCOPE (medical advice, legal advice, personal matters unrelated to teachi
 - Never use hollow filler phrases like "Certainly!", "Of course!", "Absolutely!", or "Great question!".
 - For GREETING and META responses, keep to 2–4 sentences total. They should read like natural speech from a colleague, not like marketing copy.
 - Avoid repeating the same opening sentence across multiple turns in the same conversation.
+- Write clarification questions naturally, like a supportive colleague, not a form letter.
+- If the user is still unclear in later turns, rephrase your clarification instead of repeating the exact same sentence.
 - For most TEACHING_TASK responses, end with 1–3 brief follow-up suggestions written conversationally, such as: "Want me to draft a parent message for these students?" or "Should I suggest a 3-step lesson plan for this topic?"
 - Keep responses concise unless the teacher explicitly asks for detail.
+
+## Role-specific Suggestion Intent
+- Teacher suggestions should prioritize: turning plans into assignments/quizzes, drafting parent messages, or suggesting next lesson steps.
+- Student suggestions should prioritize: more practice questions, simpler explanations, or revision planning.
+- Parent suggestions should prioritize: drafting a respectful message to a teacher, summarizing recent progress, or preparing parent-teacher conference questions.
 
 ## About Elora (for META questions)
 Elora is an educational platform that helps teachers track student progress, manage assignments, and communicate with families. Elora Copilot is the AI layer inside Elora — built to give teachers instant, data-grounded support so they can spend less time on admin and more time teaching.
@@ -329,6 +470,10 @@ You are Elora Copilot for students. You can help explain topics, generate practi
 Frame advice like a study companion: encouraging, specific, and action-oriented.
 Never shame performance. Keep language simple and motivating.
 
+## Student Clarification Examples
+- "When you say you're stuck, is it Algebra factorisation or another topic?"
+- "Do you want a quick explanation first, or practice questions right now?"
+
 ## Student Suggestions Content Guardrail
 Follow-up suggestions must stay student-appropriate and learning-focused.
 Never suggest teacher-only actions such as creating assignments, grading work, or editing class settings.`;
@@ -345,6 +490,10 @@ You are Elora Copilot for parents/guardians. You can help interpret your child's
 ## Parent Tone
 Keep tone reassuring, calm, and partnership-focused.
 Use language like "we can work with the teacher" when giving next steps.
+
+## Parent Clarification Examples
+- "Which subject should we focus on first for your child this week?"
+- "Are you most worried about low scores, missing work, or motivation at home?"
 
 ## Parent Suggestions Content Guardrail
 Follow-up suggestions must remain parent-appropriate.
@@ -369,7 +518,10 @@ export const getSystemPrompt = (role: CopilotRole): string => {
 export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<void> => {
   const {
     prompt,
+    role,
+    useCase,
     context,
+    contextMeta,
     isFirstMessage,
     recentUserPrompts,
     lastSelectedClassId,
@@ -382,90 +534,72 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
     return;
   }
 
-  const userRole = authUser.role as CopilotRole;
+  const authenticatedRole = authUser.role as CopilotRole;
+  const requestedRole = isCopilotRole(role) ? role : authenticatedRole;
+  if (isCopilotRole(role) && role !== authenticatedRole) {
+    res.status(403).json({ error: 'Role mismatch for authenticated request.' });
+    return;
+  }
+
+  const userRole = requestedRole;
   const normalizedRecentPrompts = normalizeRecentPrompts(recentUserPrompts);
+  const normalizedContextMeta = normalizeContextMeta(contextMeta);
   const requestIsFirstTurn = Boolean(isFirstMessage) || (!conversationId && normalizedRecentPrompts.length === 0);
+  const isDemoContext = demoCopilotUserIds.has(authUser.id) || normalizedContextMeta?.isDemo === true;
 
   try {
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: 'A valid "prompt" string is required in the request body.' });
       return;
     }
-    
+
+    const trimmedPrompt = truncateForPrompt(prompt, 1200);
     const contextText = typeof context === 'string' ? truncateForPrompt(context, 900) : '';
-    
-    // ── Real AI Call ────────────────────────────────────────────────────────
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      res.json({ text: buildRoleFallbackText(userRole, requestIsFirstTurn) });
-      return;
-    }
 
-    const model = 'llama-3.3-70b-versatile';
-    const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-
-    const baseSystemPrompt = getSystemPrompt(userRole);
-    const promptSegments: string[] = [baseSystemPrompt];
-
-    if (contextText) {
-      promptSegments.push(`Context snapshot (use this to personalize the response, do not quote verbatim): ${contextText}`);
-    }
-
-    if (normalizedRecentPrompts.length > 0) {
-      promptSegments.push(`Recent user intents in this conversation: [${normalizedRecentPrompts.join('; ')}]. Keep continuity when helpful.`);
-    }
-
-    if (typeof lastSelectedClassId === 'string' && lastSelectedClassId.trim()) {
-      promptSegments.push(`Last selected class context id: ${truncateForPrompt(lastSelectedClassId, 60)}.`);
-    }
-
-    if (typeof lastSelectedStudentId === 'string' && lastSelectedStudentId.trim()) {
-      promptSegments.push(`Last selected student context id: ${truncateForPrompt(lastSelectedStudentId, 60)}.`);
-    }
-
-    if (requestIsFirstTurn) {
-      promptSegments.push(buildSessionPrimerInstruction(userRole));
-    }
-
-    const finalSystemPrompt = promptSegments.join('\n\n');
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: finalSystemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: userRole === 'teacher' ? 700 : 512,
-      }),
+    const resolvedUseCase = resolveUseCase(useCase, userRole);
+    const messages = buildRouterMessages({
+      prompt: trimmedPrompt,
+      contextText,
+      recentPrompts: normalizedRecentPrompts,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Groq API Error details:", JSON.stringify(errorData, null, 2));
-      
-      // Role-specific fallback for errors
-      let errorFallback = "I’m having a bit of trouble connecting right now. While I find my way back, feel free to check your main dashboard insights.";
-      if (userRole === 'teacher') {
-        errorFallback = "I’m having trouble connecting to Elora’s brain right now. Can you try again in a moment? If this keeps happening, it might be a network issue on our side.";
-      } else if (userRole === 'student') {
-        errorFallback = "I’m having a little trouble thinking right now. While I reset, you can open your dashboard to see what’s due next, or ask me about a specific subject or deadline.";
-      } else if (userRole === 'parent') {
-        errorFallback = "I’m having some trouble connecting at the moment. You can still see a quick overview in your parent dashboard, or ask me a simpler question about Jordan’s progress.";
-      }
-      
-      res.json({ text: errorFallback });
-      return;
+    const resolvedLastSelectedClassId =
+      typeof lastSelectedClassId === 'string' && lastSelectedClassId.trim().length > 0
+        ? truncateForPrompt(lastSelectedClassId, 60)
+        : null;
+    const resolvedLastSelectedStudentId =
+      typeof lastSelectedStudentId === 'string' && lastSelectedStudentId.trim().length > 0
+        ? truncateForPrompt(lastSelectedStudentId, 60)
+        : null;
+
+    if (isDemoContext) {
+      console.info('[copilot-demo-context]', JSON.stringify({
+        role: userRole,
+        userId: authUser.id,
+        conversationId: typeof conversationId === 'string' ? conversationId : null,
+        lastSelectedClassId: resolvedLastSelectedClassId,
+        lastSelectedStudentId: resolvedLastSelectedStudentId,
+        contextMeta: normalizedContextMeta,
+      }));
     }
 
-    const data = await response.json();
-    let finalOutput = data.choices?.[0]?.message?.content || "";
+    const response = await llmRouter({
+      role: userRole,
+      useCase: resolvedUseCase,
+      messages,
+      userId: authUser.id,
+      context: {
+        contextMeta: normalizedContextMeta,
+        dashboardContext: contextText || undefined,
+        isFirstMessage: requestIsFirstTurn,
+        conversationId: typeof conversationId === 'string' ? conversationId : undefined,
+        lastSelectedClassId: resolvedLastSelectedClassId,
+        lastSelectedStudentId: resolvedLastSelectedStudentId,
+        userProfile: buildUserProfileFromContextMeta(userRole, normalizedContextMeta),
+      },
+    });
+
+    let finalOutput = response.content;
 
     // ── Fallback for empty/invalid responses ──────────────────────────────────
     if (!finalOutput || finalOutput.trim().length === 0) {
@@ -482,11 +616,21 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
 
     const outputCharLimit = userRole === 'teacher' ? 1400 : 800;
     if (finalOutput.length > outputCharLimit) {
-      finalOutput = finalOutput.substring(0, outputCharLimit) + '...';
+      finalOutput = `${finalOutput.substring(0, outputCharLimit)}...`;
     }
-    
+
     res.json({ text: finalOutput });
   } catch (error) {
+    if (error instanceof LLMTemporarilyUnavailableError) {
+      console.error('[askEloraHandler] LLM temporarily unavailable', {
+        role: userRole,
+        userId: authUser.id,
+        details: error.details,
+      });
+      res.json({ text: error.userMessage });
+      return;
+    }
+
     console.error('Error in askEloraHandler:', error);
     res.json({ text: buildRoleFallbackText(userRole, requestIsFirstTurn) });
   }

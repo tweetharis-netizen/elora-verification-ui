@@ -6,6 +6,7 @@ interface AuthGateProps {
   children: React.ReactElement;
   onAuthSuccess?: () => void;
   actionName?: string;
+  forceGate?: boolean;
 }
 
 /**
@@ -15,9 +16,18 @@ interface AuthGateProps {
 export const AuthGate: React.FC<AuthGateProps> = ({
   children,
   onAuthSuccess,
-  actionName
+  actionName,
+  forceGate = false,
 }) => {
-  const { isGateOpen, gateActionName, closeGate, withGate } = useAuthGate();
+  const {
+    isGateOpen,
+    gateActionName,
+    closeGate,
+    withGate,
+    isGuest,
+    isVerified,
+    openGate,
+  } = useAuthGate();
   const gatedChild = children as React.ReactElement<{ onClick?: (event: React.MouseEvent) => unknown }>;
 
   // If children has an onClick, wrap it. Otherwise, use onAuthSuccess.
@@ -29,7 +39,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({
   // Clone the child with the gated action.
   const clonedChild = React.cloneElement(gatedChild, {
     onClick: (e: React.MouseEvent) => {
-      // Prevent original event if needed, but let withGate handle logic
+      if (forceGate || !isVerified || isGuest) {
+        // Block Link navigation when this action is gated.
+        e.preventDefault();
+        e.stopPropagation();
+        openGate(actionName || gateActionName);
+        return;
+      }
+
       gatedAction(e);
     }
   });

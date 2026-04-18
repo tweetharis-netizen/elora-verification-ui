@@ -51,6 +51,11 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
             createdAt: new Date().toISOString(),
             lastActive: 'Today',
         };
+
+        // Ensure FK-dependent writes (e.g. conversation records) do not fail.
+        sqliteDb.prepare(
+            `INSERT OR IGNORE INTO users (id, name, email, role) VALUES (?, ?, ?, ?)`
+        ).run(user.id, user.name, user.email, user.role);
     }
 
     req.user = user;

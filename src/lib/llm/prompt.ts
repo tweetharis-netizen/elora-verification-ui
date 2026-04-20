@@ -1,4 +1,4 @@
-import type { StudentMemory, UseCase, UserProfile, UserRole } from './types.js';
+import type { StudentMemory, UseCase, UserPreferenceSignals, UserProfile, UserRole } from './types.js';
 
 const ELORA_VOICE_STYLE = `Elora voice style:
 - Warm, respectful, and encouraging.
@@ -275,16 +275,52 @@ const buildPersonalizationLines = ({
   return lines;
 };
 
+const buildPreferenceSignalLines = ({
+  role,
+  signals,
+}: {
+  role: UserRole;
+  signals?: UserPreferenceSignals;
+}): string[] => {
+  if (!signals) {
+    return [];
+  }
+
+  const lines: string[] = [];
+
+  if (signals.tooLongCount >= 3) {
+    lines.push(
+      'User preference signal: This user has repeatedly said answers are too long. Keep responses concise (about 2-4 short paragraphs or compact bullets) unless they ask for more detail.'
+    );
+  }
+
+  if (role === 'student' && signals.notMyLevelCount >= 3) {
+    lines.push(
+      'User preference signal: This student has said explanations were not at the right level. If level is uncertain, ask once for level (for example: Sec 2, average or JC1, stronger in algebra), then tune difficulty and language accordingly.'
+    );
+  }
+
+  if (signals.notAccurateCount >= 3) {
+    lines.push(
+      'User preference signal: This user is sensitive to accuracy. Double-check reasoning, avoid overclaiming, and if uncertain say so briefly and suggest a concrete way to verify.'
+    );
+  }
+
+  return lines;
+};
+
 export function buildSystemPrompt({
   role,
   useCase,
   userProfile,
   userMemory,
+  preferenceSignals,
 }: {
   role: UserRole;
   useCase: UseCase;
   userProfile?: UserProfile;
   userMemory?: StudentMemory;
+  preferenceSignals?: UserPreferenceSignals;
 }): string {
   return [
     ELORA_VOICE_STYLE,
@@ -295,6 +331,10 @@ export function buildSystemPrompt({
       role,
       userProfile,
       userMemory,
+    }),
+    ...buildPreferenceSignalLines({
+      role,
+      signals: preferenceSignals,
     }),
   ]
     .filter(Boolean)

@@ -43,7 +43,7 @@ import {
     Cell,
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
-import { getDemoGamePack, getGamePackById, GamePack, getParentChildren, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
+import { getDemoGamePack, getGamePackById, GamePack, getParentChildSummary, ParentChildSummary, sendParentNudge, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '../services/dataService';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
@@ -57,6 +57,7 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
+import { useParentChildren } from '../hooks/useParentChildren';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
@@ -718,16 +719,18 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
     const [reviewQuestionIndex, setReviewQuestionIndex] = useState(0);
 
     const [childrenList, setChildrenList] = useState<{ id: string; name: string; level: string }[]>([]);
+    const {
+        data: rosterChildren,
+        isLoading: isLoadingChildren,
+        error: childrenError,
+        refetch: refetchChildren,
+    } = useParentChildren();
     const [summaryData, setSummaryData] = useState<ParentChildSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [isSendingNudge, setIsSendingNudge] = useState(false);
 
-    const loadChildren = React.useCallback(() => {
-        console.log('[ParentDashboard] Calling loadChildren...');
-        setIsLoading(true);
-        setLoadError(null);
-
+    React.useEffect(() => {
         if (isDemo) {
             const mapped = demoChildren.map((c: any, i: number) => ({
                 id: c.id,
@@ -736,51 +739,42 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
             }));
             setChildrenList(mapped);
             if (mapped.length > 0) {
-                setActiveChildId(mapped[0].id);
+                setActiveChildId((prev) => (prev && mapped.some((child) => child.id === prev) ? prev : mapped[0].id));
             }
             setIsLoading(false);
             return;
         }
 
-        getParentChildren().then(list => {
-            console.log('[ParentDashboard] Children received:', list.length);
-            const mapped = list.map((c, i) => ({
+        if (childrenError) {
+            const fallback = demoChildren.map((c: any, i: number) => ({
                 id: c.id,
                 name: c.name,
                 level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
             }));
-            setChildrenList(mapped);
-            if (mapped.length > 0) {
-                console.log('[ParentDashboard] Auto-selecting child:', mapped[0].id);
-                setActiveChildId(mapped[0].id);
-            } else {
-                setIsLoading(false);
-            }
-        }).catch(err => {
-            console.error('[ParentDashboard] Error loading children:', err);
-            // Localhost resilience: fall back to demo parent data when API is unavailable.
-            const mapped = demoChildren.map((c: any, i: number) => ({
-                id: c.id,
-                name: c.name,
-                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
-            }));
-            if (mapped.length > 0) {
-                setChildrenList(mapped);
-                setActiveChildId(mapped[0].id);
+            setChildrenList(fallback);
+            if (fallback.length > 0) {
+                setActiveChildId((prev) => (prev && fallback.some((child) => child.id === prev) ? prev : fallback[0].id));
                 setSummaryData(demoChildSummary);
                 setLastUpdated('Just now');
-                setLoadError(null);
-            } else {
-                setLoadError('Could not load children. Please try again.');
             }
+            setLoadError(null);
             setIsLoading(false);
-        });
-    }, [isDemo]);
+            return;
+        }
 
-    // 1. ADD MOUNT EFFECT
-    React.useEffect(() => {
-        loadChildren();
-    }, [loadChildren]);
+        const mapped = rosterChildren.map((child, i) => ({
+            id: child.id,
+            name: child.name,
+            level: (child as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
+        }));
+
+        setChildrenList(mapped);
+        if (mapped.length > 0) {
+            setActiveChildId((prev) => (prev && mapped.some((child) => child.id === prev) ? prev : mapped[0].id));
+        }
+        setLoadError(null);
+        setIsLoading(isLoadingChildren);
+    }, [isDemo, rosterChildren, isLoadingChildren, childrenError]);
 
     const handleRetry = () => {
         if (activeChildId) {
@@ -793,7 +787,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
             }).finally(() => setIsLoading(false));
         } else {
             setIsLoading(true);
-            loadChildren();
+            void refetchChildren().finally(() => setIsLoading(false));
         }
     };
 

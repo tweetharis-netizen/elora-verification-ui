@@ -50,10 +50,20 @@ export function getCopilotFeedbackSummary(): {
     up: number;
     down: number;
   }>;
+  reasonSignals: {
+    tooLong: number;
+    notMyLevel: number;
+    notAccurate: number;
+  };
   recent: CopilotFeedbackEvent[];
 } {
   const useCaseMap = new Map<string, { total: number; up: number; down: number }>();
   const roleMap = new Map<UserRole, { total: number; up: number; down: number }>();
+  const reasonSignals = {
+    tooLong: 0,
+    notMyLevel: 0,
+    notAccurate: 0,
+  };
 
   for (const event of feedbackEvents) {
     const useCaseEntry = useCaseMap.get(event.useCase) ?? { total: 0, up: 0, down: 0 };
@@ -67,6 +77,16 @@ export function getCopilotFeedbackSummary(): {
     if (event.rating === 'up') roleEntry.up += 1;
     if (event.rating === 'down') roleEntry.down += 1;
     roleMap.set(event.role, roleEntry);
+
+    if (event.reason === 'too_long') {
+      reasonSignals.tooLong += 1;
+    }
+    if (event.reason === 'not_my_level') {
+      reasonSignals.notMyLevel += 1;
+    }
+    if (event.reason === 'not_accurate') {
+      reasonSignals.notAccurate += 1;
+    }
   }
 
   const byUseCase = Array.from(useCaseMap.entries())
@@ -84,6 +104,7 @@ export function getCopilotFeedbackSummary(): {
   return {
     byUseCase,
     byRole,
+    reasonSignals,
     recent,
   };
 }

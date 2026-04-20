@@ -197,6 +197,7 @@ export interface TeacherClass {
     id: string;
     name: string;
     subject: string;
+    level?: string;
     studentsCount: number;
     nextTopic: string;
     time: string;
@@ -217,6 +218,11 @@ export interface ParentChild {
     score?: number;
     streak?: number;
     grade?: string;
+    classes?: Array<{
+        id: string;
+        name: string;
+        subject?: string;
+    }>;
 }
 
 export type ParentInsightType = 'weak_topic' | 'low_scores' | 'overdue_assignment';
@@ -451,11 +457,17 @@ export const getStudentAssignments = async (): Promise<StudentDashboardData> => 
 };
 
 export const getStudentClasses = async (): Promise<StudentClass[]> => {
-    const response = await fetch(`${API_BASE}/classes/mine`, {
+    const response = await fetch(`${API_BASE}/student/classes`, {
         headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch student classes');
     return response.json();
+};
+
+export const getStudentClassesV2 = async (): Promise<StudentClass[]> => {
+    return requestJson<StudentClass[]>(`${API_BASE}/student/classes`, {
+        headers: authHeaders(),
+    });
 };
 
 export const joinStudentClass = async (joinCode: string): Promise<any> => {
@@ -601,7 +613,13 @@ export const getTeacherStats = async (): Promise<TeacherStat[]> => {
 };
 
 export const getMyClasses = async (): Promise<TeacherClass[]> => {
-    return requestJson<TeacherClass[]>(`${API_BASE}/classes`, {
+    return requestJson<TeacherClass[]>(`${API_BASE}/teacher/classes`, {
+        headers: authHeaders(),
+    });
+};
+
+export const getTeacherClasses = async (): Promise<TeacherClass[]> => {
+    return requestJson<TeacherClass[]>(`${API_BASE}/teacher/classes`, {
         headers: authHeaders(),
     });
 };

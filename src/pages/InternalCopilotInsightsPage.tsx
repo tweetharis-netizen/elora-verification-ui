@@ -29,6 +29,11 @@ type InsightsResponse = {
   data?: {
     byUseCase: UseCaseSummaryRow[];
     byRole: RoleSummaryRow[];
+    reasonSignals?: {
+      tooLong: number;
+      notMyLevel: number;
+      notAccurate: number;
+    };
     recent: FeedbackEventRow[];
   };
   error?: string;
@@ -52,6 +57,11 @@ export default function InternalCopilotInsightsPage() {
   const [error, setError] = useState<string | null>(null);
   const [byUseCase, setByUseCase] = useState<UseCaseSummaryRow[]>([]);
   const [byRole, setByRole] = useState<RoleSummaryRow[]>([]);
+  const [reasonSignals, setReasonSignals] = useState({
+    tooLong: 0,
+    notMyLevel: 0,
+    notAccurate: 0,
+  });
   const [recent, setRecent] = useState<FeedbackEventRow[]>([]);
 
   useEffect(() => {
@@ -85,6 +95,11 @@ export default function InternalCopilotInsightsPage() {
 
         setByUseCase(payload.data.byUseCase ?? []);
         setByRole(payload.data.byRole ?? []);
+        setReasonSignals({
+          tooLong: payload.data.reasonSignals?.tooLong ?? 0,
+          notMyLevel: payload.data.reasonSignals?.notMyLevel ?? 0,
+          notAccurate: payload.data.reasonSignals?.notAccurate ?? 0,
+        });
         setRecent((payload.data.recent ?? []).slice(0, 50));
       } catch (loadError) {
         if (cancelled) return;
@@ -127,6 +142,24 @@ export default function InternalCopilotInsightsPage() {
 
         {!loading && !error && (
           <>
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h2 className="text-lg font-semibold tracking-tight mb-4">Preference signal reasons</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500">too_long</p>
+                  <p className="text-xl font-bold text-slate-800 mt-1">{reasonSignals.tooLong}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500">not_my_level</p>
+                  <p className="text-xl font-bold text-slate-800 mt-1">{reasonSignals.notMyLevel}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500">not_accurate</p>
+                  <p className="text-xl font-bold text-slate-800 mt-1">{reasonSignals.notAccurate}</p>
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold tracking-tight mb-4">By useCase</h2>
               <div className="overflow-x-auto">

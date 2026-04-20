@@ -55,6 +55,15 @@ export interface StudentMemory {
   lastUpdatedAt: string;
 }
 
+export interface UserPreferenceSignals {
+  userId: string;
+  role: UserRole;
+  tooLongCount: number;
+  notMyLevelCount: number;
+  notAccurateCount: number;
+  lastUpdatedAt: string;
+}
+
 export type CopilotFeedbackRating = 'up' | 'down';
 
 export type CopilotFeedbackReason =

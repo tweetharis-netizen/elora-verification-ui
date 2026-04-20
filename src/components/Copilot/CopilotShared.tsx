@@ -232,7 +232,7 @@ export const CopilotLayoutShell: React.FC<CopilotLayoutShellProps> = ({ role, le
 
     return (
         <div className={`h-[calc(100vh-var(--elora-header-offset,0px))] min-h-0 flex flex-1 overflow-hidden ${roleBgClass}`}>
-            <aside className="hidden md:flex h-full w-[260px] shrink-0 overflow-hidden border-r border-slate-100 bg-white">
+            <aside className="hidden md:flex h-full w-[280px] shrink-0 overflow-hidden border-r border-slate-100 bg-white">
                 {leftRail}
             </aside>
             <section className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">

@@ -174,7 +174,7 @@ export const users: User[] = [
     { id: "student_1", name: "Jordan Lee", email: "alex@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2450, rank: 1, streak: 5, trend: "up", trendVal: "2" },
     { id: "student_2", name: "Jordan Smith", email: "jordan@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Yesterday", score: 2310, rank: 2, trend: "neutral" },
     { id: "student_3", name: "Priya Patel", email: "priya@elora.com", role: "student", createdAt: new Date().toISOString(), lastActive: "Today", score: 2180, rank: 3, trend: "down", trendVal: "1" },
-    { id: "parent_1", name: "Mr. Lee", email: "parent@elora.com", role: "parent", createdAt: new Date().toISOString(), lastActive: "Today", childrenIds: ["student_1", "demo-student-jordan"] }
+    { id: "parent_1", name: "Mr. Lee", email: "parent@elora.com", role: "parent", createdAt: new Date().toISOString(), lastActive: "Today", childrenIds: ["student_1"] }
 ];
 
 export const classes: Classroom[] = [
@@ -214,7 +214,7 @@ export const classes: Classroom[] = [
         bannerStyle: 'science',
         teacherId: "teacher_1",
         joinCode: "SCI-11",
-        studentIds: Array(40).fill("dummy_id"),
+        studentIds: ["student_1", ...Array(39).fill("dummy_id")],
         nextTopic: "Cells & Organisms",
         scheduleTime: "Tomorrow",
         status: "success",

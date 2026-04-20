@@ -14,6 +14,7 @@ import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import TeacherClassroomPage from './pages/TeacherClassroomPage';
 import TeacherCopilotPage from './pages/TeacherCopilotPage';
 import TeacherPracticePage from './pages/TeacherPracticePage';
+import TeacherAssignmentCreatePage from './pages/TeacherAssignmentCreatePage';
 import StudentCopilotPage from './pages/StudentCopilotPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import StudentClassroomPage from './pages/StudentClassroomPage';
@@ -132,7 +133,7 @@ const Hero = () => {
             The intelligent <br />
             <span className="font-serif italic text-elora-100">platform</span> for education
           </h1>
-          <p className="text-lg text-white/70 mb-8 max-w-md leading-relaxed">
+          <p className="text-lg text-white/70 mb-8 max-w-xl leading-relaxed">
             Connect your classrooms and restore calm to the learning experience. Built to handle administrative drift so you can focus on what matters: mentoring and supporting.
           </p>
           <div className="flex flex-wrap items-center gap-4">
@@ -140,7 +141,7 @@ const Hero = () => {
               href="#roles"
               className="bg-white text-elora-400 px-8 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
             >
-              Enter Demo
+              Explore role demos
             </a>
             <Link
               to="/our-story"
@@ -256,7 +257,11 @@ const PerspectivesSection = () => {
       color: 'text-accent-orange',
       bg: 'bg-accent-orange/20',
       border: 'border-accent-orange/20',
-      desc: 'Automate admin drift, generate AI practices, and track every student with calm precision.',
+      bullets: [
+        'Draft unit plans and lesson outlines in minutes.',
+        'Triage which students are behind from messy data.',
+        'Generate respectful parent email drafts you can edit.',
+      ],
       link: '/teacher/demo',
       cta: 'Enter Teacher Demo'
     },
@@ -267,7 +272,11 @@ const PerspectivesSection = () => {
       color: 'text-accent-green',
       bg: 'bg-accent-green/20',
       border: 'border-accent-green/20',
-      desc: 'A personalised learning assistant that meets each student exactly where they are.',
+      bullets: [
+        'Ask questions and get explanations at your level.',
+        'Practise with step-by-step study mode.',
+        'Get quick recaps of what you have learned.',
+      ],
       link: '/student/demo',
       cta: 'Enter Student Demo'
     },
@@ -278,7 +287,11 @@ const PerspectivesSection = () => {
       color: 'text-accent-pink',
       bg: 'bg-accent-pink/20',
       border: 'border-accent-pink/20',
-      desc: 'No more guessing. A calm, clear window into your child\'s day and learning milestones.',
+      bullets: [
+        'Prepare for parent-teacher meetings with a simple guide.',
+        'Turn concerns into clear next steps.',
+        'Understand school updates without dashboard overload.',
+      ],
       link: '/parent/demo',
       cta: 'Enter Parent Demo'
     },
@@ -306,7 +319,7 @@ const PerspectivesSection = () => {
               whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
               viewport={{ once: true, margin: '-80px' }}
               transition={{ duration: 0.5, delay: i * 0.12 }}
-              className="group relative p-8 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all shadow-xl hover:-translate-y-2 duration-300 flex flex-col min-h-[400px]"
+              className="group relative p-8 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all shadow-xl hover:-translate-y-2 duration-300 flex flex-col min-h-[430px]"
             >
               <div className="absolute top-6 right-6 text-[10px] font-bold uppercase tracking-widest text-white/30">
                 {p.subtitle}
@@ -315,7 +328,14 @@ const PerspectivesSection = () => {
                 <p.icon className="w-6 h-6" />
               </div>
               <h3 className="text-2xl font-medium mb-3 text-white">{p.title}</h3>
-              <p className="text-white/60 text-sm leading-relaxed mb-10 flex-grow">{p.desc}</p>
+              <ul className="text-white/60 text-sm leading-relaxed mb-10 flex-grow space-y-2">
+                {p.bullets.map((bullet, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-white/60 shrink-0" />
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
               
               <Link
                 to={p.link}
@@ -342,13 +362,17 @@ const ProductUISection = () => {
           <div>
             <p className="text-elora-300 text-xs font-bold uppercase tracking-widest mb-4 opacity-60">Platform</p>
             <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
-              <span className="font-serif italic text-white">Automate</span> the routine, focus on teaching.
+              Copilot workflows that turn <span className="font-serif italic text-white">school data into action.</span>
             </h2>
             <p className="text-elora-400/80 text-lg mb-8">
-              Turn fragmented data into clear, honest, and actionable insights for every family. Elora handles grading and scheduling so you can return to core human connection.
+              Elora is a multi-role Copilot for teachers, students, and parents. It helps each role move from raw information to next steps they can actually use.
             </p>
             <ul className="space-y-4 mb-8">
-              {['Smart grading suggestions', 'Automated progress reports', 'Instant parent updates'].map((item, i) => (
+              {[
+                'Teacher Copilot: from raw assessment data to simple, human-readable summaries.',
+                'Student Copilot: guided study sessions that adjust based on your answers.',
+                'Parent Copilot: structured conversations that turn worries into action plans.',
+              ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 font-medium">
                   <div className="w-6 h-6 rounded-full bg-elora-200 flex items-center justify-center text-white">
                     <CheckCircle2 className="w-3 h-3" />
@@ -357,6 +381,9 @@ const ProductUISection = () => {
                 </li>
               ))}
             </ul>
+            <p className="text-elora-400/70 text-sm mb-8">
+              Every Copilot conversation feeds back into internal insights so teams can see what is working and where to improve.
+            </p>
             <a
               href="#pilot"
               className="inline-block bg-elora-400 text-white px-6 py-3 rounded-lg font-medium transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
@@ -424,6 +451,27 @@ const ProductUISection = () => {
               </div>
             </motion.div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const SafetyTrustSection = () => {
+  return (
+    <section className="bg-elora-300 text-white py-14 border-y border-white/10 relative">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-10">
+          <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">Safety and Trust</p>
+          <h3 className="text-2xl md:text-3xl font-sans font-medium tracking-tight mb-6">
+            Guardrails first, improvement by feedback.
+          </h3>
+          <ul className="space-y-3 text-white/80 text-sm md:text-base">
+            <li>Elora never predicts grades or exam scores.</li>
+            <li>Teacher, student, and parent spaces are role-scoped; Elora does not share one student&apos;s data in another conversation.</li>
+            <li>Your feedback helps Elora adjust how it explains and how long it responds.</li>
+            <li>Adaptation uses bounded signals and does not train on sensitive content in uncontrolled ways.</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -573,13 +621,13 @@ const FounderSection = () => {
           className="space-y-8"
         >
           <p className="text-[#DDB76A] text-xs font-bold uppercase tracking-widest">Built with a Vision</p>
-          <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight">
-            A calmer way to understand <br />
-            <span className="font-serif italic text-accent-pink">learning, together.</span>
-          </h2>
+          <h2 className="text-4xl md:text-6xl font-sans font-medium tracking-tight leading-tight">Why Elora exists</h2>
           <div className="w-20 h-px bg-white/20 mx-auto"></div>
-          <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed font-serif">
-            As a student in Singapore, I saw the gap between those who can afford help and those who can't. I founded Elora to end the era of "dashboard fatigue." Our goal is to handle the complexity of learning management so that teachers and parents can return to what they do best — mentoring and supporting.
+          <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed">
+            Elora started from a simple frustration: teachers drowning in dashboards instead of spending time with students.
+          </p>
+          <p className="text-white/60 text-sm max-w-2xl mx-auto leading-relaxed">
+            Read the full story to see how that frustration became a multi-role Copilot for teachers, students, and parents.
           </p>
           <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
             — <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder & CEO of Elora
@@ -618,7 +666,7 @@ const FinalCTA = () => {
             <span className="font-serif italic text-accent-pink">should be.</span>
           </h2>
           <p className="text-white/70 text-lg mb-12 max-w-xl mx-auto leading-relaxed">
-            From fragmented data to clear, unified insights. Restore calm to your classroom and home with Elora.
+            Start with the role that matters most to you: Teacher, Student, or Parent, and expand into the rest when you are ready.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link
@@ -713,6 +761,7 @@ const Home = () => {
         <Hero />
         <PerspectivesSection />
         <ProductUISection />
+        <SafetyTrustSection />
         <PilotProgramSection />
         <FounderSection />
         <FinalCTA />
@@ -741,6 +790,7 @@ export default function App() {
         <Route index element={<TeacherDashboardPage embeddedInShell />} />
         <Route path="classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
         <Route path="assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+        <Route path="assignments/new" element={<TeacherAssignmentCreatePage />} />
         <Route path="practice" element={<TeacherPracticePage />} />
         <Route path="class/:classId" element={<TeacherClassroomPage embeddedInShell />} />
         <Route path="copilot" element={<TeacherCopilotPage embeddedInShell />} />
@@ -767,6 +817,7 @@ export default function App() {
           <Route path="/teacher/overview" element={<Navigate to="/dashboard/teacher" replace />} />
           <Route path="/teacher/classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
           <Route path="/teacher/assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+          <Route path="/teacher/assignments/new" element={<TeacherAssignmentCreatePage />} />
           <Route path="/teacher/practice" element={<TeacherPracticePage />} />
           <Route path="/teacher/classes/:classId" element={<TeacherClassroomPage embeddedInShell />} />
           <Route path="/teacher/work" element={<Navigate to="/dashboard/teacher" replace />} />

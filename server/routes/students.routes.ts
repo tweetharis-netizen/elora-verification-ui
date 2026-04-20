@@ -12,11 +12,13 @@ import {
     listStudentCopilotMessages,
     appendStudentCopilotMessage,
 } from '../controllers/students.js';
+import { getStudentClasses } from '../controllers/classes.js';
 
 const router = Router();
 
 // /api/student
 router.get('/assignments', requireAuth, requireRole('student'), getStudentAssignments);
+router.get('/classes', requireAuth, requireRole('student'), getStudentClasses);
 router.get('/game-sessions', requireAuth, requireRole('student'), getStudentGameSessions);
 router.post('/game-sessions', requireAuth, requireRole('student'), createStudentGameSession);
 router.get('/me/streak', requireAuth, requireRole('student'), getStudentStreak);

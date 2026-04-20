@@ -116,7 +116,7 @@ export default function TeacherShellLayout() {
         label: 'Assignments',
         icon: FileText,
         to: assignments,
-        isActive: (p) => p === assignments,
+        isActive: (p) => p === assignments || p.startsWith(`${assignments}/`),
       },
       {
         id: 'practice',

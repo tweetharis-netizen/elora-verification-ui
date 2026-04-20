@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { TeacherCopilotConversation } from '../../services/dataService';
 import { ThreadSkeleton } from './CopilotShared';
+import { compactTitle } from '../../utils/text';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -122,12 +123,16 @@ const SidebarRow: React.FC<SidebarRowProps> = ({
         setIsRenaming(false);
     };
 
-    const displayTitle = thread.title?.trim() || 'Untitled Session';
-    const ts = relativeTime(thread.updatedAt ?? thread.createdAt);
+    const fullTitle = thread.title?.trim() || 'Untitled conversation';
+    const displayTitle = compactTitle(fullTitle, {
+        maxWords: 3,
+        maxChars: 24,
+        maxTokenLength: 8,
+    });
 
     return (
         <div
-            className={`group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
+            className={`group relative mr-0.5 flex items-center gap-2 px-2.5 pr-3.5 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
                 isActive
                     ? 'bg-slate-100 ring-1 ring-slate-200/60'
                     : 'hover:bg-slate-50'
@@ -147,8 +152,8 @@ const SidebarRow: React.FC<SidebarRowProps> = ({
                 )}
             </div>
 
-            {/* Title & time */}
-            <div className="flex-1 min-w-0 pr-24">
+            {/* Title */}
+            <div className="flex-1 min-w-0">
                 {isRenaming ? (
                     <input
                         ref={inputRef}
@@ -164,43 +169,41 @@ const SidebarRow: React.FC<SidebarRowProps> = ({
                         style={{ borderColor: themeColor + '40', color: themeColor }}
                     />
                 ) : (
-                    <div className="flex items-baseline justify-between gap-2 min-w-0">
-                        <span className={`text-[12px] font-bold truncate tracking-tight min-w-0 ${isActive ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}>
-                            {displayTitle}
-                        </span>
-                        <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest`} style={{ color: isActive ? themeColor : '#94a3b8' }}>
-                            {ts}
-                        </span>
-                    </div>
+                    <span
+                        title={fullTitle}
+                        className={`block w-full min-w-0 text-[12px] font-bold truncate leading-none tracking-tight ${isActive ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}
+                    >
+                        {displayTitle}
+                    </span>
                 )}
             </div>
 
-            {/* Hover actions — absolute so they don't disturb layout */}
+            {/* Actions are always visible in a fixed-width slot to prevent overlap/layout jumps */}
             {!isRenaming && (
-                <div className="absolute right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="w-[56px] flex items-center justify-end gap-0.5 shrink-0">
                     <button onClick={e => { e.stopPropagation(); onPin(!isPinned); }}
-                        className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all text-slate-400"
-                        style={isPinned ? { color: themeColor } : { color: '#94a3b8' }}
+                        className="p-1 rounded-lg hover:bg-white hover:shadow-sm transition-all text-slate-500"
+                        style={isPinned ? { color: themeColor } : { color: '#64748b' }}
                         onMouseEnter={(e) => !isPinned && (e.currentTarget.style.color = themeColor)}
-                        onMouseLeave={(e) => !isPinned && (e.currentTarget.style.color = '#94a3b8')}
+                        onMouseLeave={(e) => !isPinned && (e.currentTarget.style.color = '#64748b')}
                         title={isPinned ? 'Unpin' : 'Pin'}>
-                        <Pin size={11} className={isPinned ? 'fill-current' : ''} />
+                        <Pin size={10} className={isPinned ? 'fill-current' : ''} />
                     </button>
                     <button onClick={e => { e.stopPropagation(); setIsRenaming(true); }}
-                        className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm text-slate-400 transition-all"
-                        style={{ color: '#94a3b8' }}
+                        className="p-1 rounded-lg hover:bg-white hover:shadow-sm text-slate-500 transition-all"
+                        style={{ color: '#64748b' }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = themeColor)}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                         title="Rename">
-                        <Pencil size={11} />
+                        <Pencil size={10} />
                     </button>
                     <button onClick={e => { e.stopPropagation(); onDelete(); }}
-                        className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm text-slate-400 transition-all"
-                        style={{ color: '#94a3b8' }}
+                        className="p-1 rounded-lg hover:bg-white hover:shadow-sm text-slate-500 transition-all"
+                        style={{ color: '#64748b' }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
                         title="Delete">
-                        <Trash2 size={11} />
+                        <Trash2 size={10} />
                     </button>
                 </div>
             )}
@@ -248,7 +251,12 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({
         setIsRenaming(false);
     };
 
-    const displayTitle = thread.title?.trim() || 'Untitled Session';
+    const fullTitle = thread.title?.trim() || 'Untitled conversation';
+    const displayTitle = compactTitle(fullTitle, {
+        maxWords: 4,
+        maxChars: 30,
+        maxTokenLength: 10,
+    });
     const ts = relativeTime(thread.updatedAt ?? thread.createdAt);
     const fd = fullDate(thread.updatedAt ?? thread.createdAt);
 
@@ -295,7 +303,11 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({
                         placeholder="Conversation title..."
                     />
                 ) : (
-                    <p className={`text-[13px] font-bold leading-snug truncate min-w-0`} style={{ color: isActive ? themeColor : '#1e293b' }}>
+                    <p
+                        title={fullTitle}
+                        className="block w-full min-w-0 truncate text-[13px] font-bold leading-snug"
+                        style={{ color: isActive ? themeColor : '#1e293b' }}
+                    >
                         {displayTitle}
                     </p>
                 )}
@@ -665,20 +677,20 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
             <div className="flex flex-col h-full bg-slate-50 border-r border-slate-100 overflow-hidden select-none">
 
                 {/* ── Header ── */}
-                <div className="p-4 space-y-3 shrink-0 bg-white border-b border-slate-100 shadow-sm">
+                <div className="p-5 space-y-4 shrink-0 bg-white border-b border-slate-100 shadow-sm">
 
                     {/* Class dropdown */}
                     <div className="relative" ref={classDropdownRef}>
                         <button
                             onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                            className="w-full h-10 px-4 flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 hover:bg-white transition-all"
+                            className="w-full h-14 px-4 flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 hover:bg-white transition-all"
                             style={{ borderColor: isClassDropdownOpen ? themeColor : '#e2e8f0' }}
                         >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                 <div className="w-5 h-5 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: themeColor + '20', color: themeColor }}>
                                     <Users size={12} strokeWidth={2.5} />
                                 </div>
-                                <span className="text-[11px] font-bold text-slate-700 truncate pr-2 uppercase tracking-widest">
+                                <span className="text-[12px] font-bold text-slate-700 line-clamp-1 pr-2 uppercase tracking-widest">
                                     {selectedClass ? selectedClass.name : contextAllLabel}
                                 </span>
                             </div>
@@ -715,7 +727,7 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                     </div>
 
                     {/* Search + New chat */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full">
                         <div className="relative flex-1 group">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:transition-colors" style={{}} />
                             <input
@@ -723,7 +735,7 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                                 placeholder="Find chat..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white text-xs font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400"
+                                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white text-xs font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400"
                                 onFocus={(e) => ((e.currentTarget.style.borderColor = themeColor), (e.previousElementSibling as any).style.color = themeColor)}
                                 onBlur={(e) => ((e.currentTarget.style.borderColor = '#e2e8f0'), (e.previousElementSibling as any).style.color = '#94a3b8')}
                             />
@@ -731,23 +743,23 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                         <button
                             onClick={onNew}
                             disabled={!canCreateNewChat}
-                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shrink-0 ${
+                            className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all shrink-0 ${
                                 canCreateNewChat
                                     ? 'shadow-sm'
                                     : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50'
                             }`}
-                            style={canCreateNewChat ? { backgroundColor: themeColor + '15', borderColor: themeColor + '40', color: themeColor } : {}}
-                            onMouseEnter={(e) => canCreateNewChat && ((e.currentTarget.style.backgroundColor = themeColor), (e.currentTarget.style.color = 'white'))}
-                            onMouseLeave={(e) => canCreateNewChat && ((e.currentTarget.style.backgroundColor = themeColor + '15'), (e.currentTarget.style.color = themeColor))}
+                            style={canCreateNewChat ? { backgroundColor: themeColor, borderColor: themeColor, color: '#ffffff', boxShadow: `0 4px 10px ${themeColor}40` } : {}}
+                            onMouseEnter={(e) => canCreateNewChat && ((e.currentTarget.style.filter = 'brightness(0.95)'))}
+                            onMouseLeave={(e) => canCreateNewChat && ((e.currentTarget.style.filter = 'none'))}
                             title={canCreateNewChat ? 'New Chat Session' : 'Active chat must have messages first'}
                         >
-                            <Plus size={16} strokeWidth={3} />
+                            <Plus size={18} strokeWidth={3} />
                         </button>
                     </div>
                 </div>
 
                 {/* ── Thread list — fixed height, never grows the outer layout ── */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pl-2 pr-4 py-2 space-y-1">
                     {isLoading ? (
                         <ThreadSkeleton />
                     ) : sortedThreads.length === 0 ? (
@@ -809,7 +821,7 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                                 <div className="pt-2 px-1">
                                     <button
                                         onClick={() => setShowAllHistory(true)}
-                                        className="w-full group flex items-center justify-between px-3 py-3 rounded-xl border transition-all duration-300"
+                                        className="w-full group flex items-center justify-between px-3 pr-4 py-3 rounded-xl border transition-all duration-300"
                                         style={{ backgroundColor: themeColor + '08', borderColor: themeColor + '30' }}
                                         onMouseEnter={(e) => ((e.currentTarget.style.backgroundColor = themeColor + '15'), (e.currentTarget.style.borderColor = themeColor + '50'))}
                                         onMouseLeave={(e) => ((e.currentTarget.style.backgroundColor = themeColor + '08'), (e.currentTarget.style.borderColor = themeColor + '30'))}
@@ -820,7 +832,10 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                                                 View all chats
                                             </span>
                                         </div>
-                                        <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full transition-colors" style={{ backgroundColor: themeColor }}>
+                                        <span
+                                            className="inline-flex min-w-[34px] items-center justify-center text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full border border-white/40 shadow-sm transition-colors"
+                                            style={{ backgroundColor: themeColor }}
+                                        >
                                             +{hiddenCount}
                                         </span>
                                     </button>

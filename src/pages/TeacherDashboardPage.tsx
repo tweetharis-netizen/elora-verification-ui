@@ -50,6 +50,7 @@ import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
 import { AuthGate } from '../components/auth/AuthGate';
+import { useTeacherClasses } from '../hooks/useTeacherClasses';
 import { DashboardShell } from '../components/ui/DashboardShell';
 import { DashboardCard } from '../components/ui/DashboardCard';
 import { DashboardSectionHeader } from '../components/ui/DashboardSectionHeader';
@@ -212,11 +213,12 @@ const StatCard = ({
 
 type StatusBadgeTone = 'neutral' | 'success' | 'warning' | 'danger';
 
-const StatusBadge = ({ status, tone }: { status: string; tone?: StatusBadgeTone }) => {
+const StatusBadge = ({ status, tone }: { status?: string | null; tone?: StatusBadgeTone }) => {
     let resolvedTone: StatusBadgeTone = tone ?? 'neutral';
     let icon = null;
+    const displayStatus = (status ?? 'Unknown').toString();
 
-    const lower = status.toLowerCase();
+    const lower = displayStatus.toLowerCase();
 
     if (!tone && (lower.includes('completed') || lower.includes('done') || lower.includes('success'))) {
         resolvedTone = 'success';
@@ -240,7 +242,7 @@ const StatusBadge = ({ status, tone }: { status: string; tone?: StatusBadgeTone 
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${toneClasses[resolvedTone]}`}
         >
             {icon}
-            {status}
+            {displayStatus}
         </span>
     );
 };
@@ -519,6 +521,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
     const { initialClassId, initialClassroomTab = 'stream', forcedClassroomMode, isDemo: isDemoProp, embeddedInShell = false } = props;
     const isDemo = isDemoProp ?? routeIsDemo;
+    const assignmentsPath = isDemo ? '/teacher/demo/assignments' : '/teacher/assignments';
     const canUseDashboardHashSections = !forcedClassroomMode && (props.activeTab === undefined || props.activeTab === 'dashboard' || props.activeTab === 'work');
     const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
 
@@ -537,6 +540,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     });
     const [stats, setStats] = useState<dataService.TeacherStat[]>([]);
     const [myClasses, setMyClasses] = useState<dataService.TeacherClass[]>([]);
+    const { data: rosterTeacherClasses, refetch: refetchTeacherClasses } = useTeacherClasses();
     const [upcomingAssignments, setUpcomingAssignments] = useState<DisplayAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -615,6 +619,15 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [assignmentResults, setAssignmentResults] = useState<dataService.TeacherAssignmentResults | null>(null);
     const [loadingResults, setLoadingResults] = useState(false);
     const [availablePacks, setAvailablePacks] = useState<Partial<dataService.GamePack>[]>([]);
+
+    useEffect(() => {
+        if (isDemo) {
+            setMyClasses(demoClasses);
+            return;
+        }
+
+        setMyClasses(rosterTeacherClasses);
+    }, [isDemo, rosterTeacherClasses]);
 
     // ── Drill Down State ──
     const assignmentsSectionRef = React.useRef<HTMLElement>(null);
@@ -860,12 +873,10 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setInsightToAssign(null);
 
             // Refresh counts and dashboard
-            const [a, c] = await Promise.all([
+            const [a] = await Promise.all([
                 dataService.getUpcomingAssignments(),
-                dataService.getMyClasses()
+                refetchTeacherClasses()
             ]);
-
-            setMyClasses(c);
             setUpcomingAssignments(
                 a.map((asgn) => ({
                     id: asgn.id,
@@ -967,46 +978,95 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setLoading(true);
             setInsightsLoading(true);
 
-            // Force demo data since we are in SPA mode with no backend
-            setStats(demoStats);
-            setMyClasses(demoClasses);
-            setUpcomingAssignments(
-                demoAssignments.map((a) => ({
-                    id: a.id,
-                    title: a.title,
-                    class: a.className,
-                    due: a.statusLabel,
-                    status: a.status,
-                    submitted: 0,
-                    total: 32,
-                }))
-            );
-            if (isDemo) setTeacherName(demoTeacherName);
-            setInsights(demoInsights);
+            if (isDemo) {
+                setStats(demoStats);
+                setMyClasses(demoClasses);
+                setUpcomingAssignments(
+                    demoAssignments.map((a) => ({
+                        id: a.id,
+                        title: a.title,
+                        class: a.className,
+                        due: a.statusLabel,
+                        status: a.status,
+                        submitted: 0,
+                        total: 32,
+                    }))
+                );
+                setTeacherName(demoTeacherName);
+                setInsights(demoInsights);
 
-            // Available packs for game creation
-            try {
-                const packs = await dataService.getAvailableGamePacks();
-                setAvailablePacks(packs);
-            } catch (err) {
-                console.warn("Failed to load available packs, falling back to empty list", err);
-                setAvailablePacks([]);
+                try {
+                    const packs = await dataService.getAvailableGamePacks();
+                    setAvailablePacks(packs);
+                } catch (err) {
+                    console.warn("Failed to load available packs, falling back to empty list", err);
+                    setAvailablePacks([]);
+                }
+
+                fetchEloraSuggestion(demoInsights, demoClasses);
+                setLoading(false);
+                setInsightsLoading(false);
+                return;
             }
 
-            // Kick off the Elora suggestion immediately after data is set
-            fetchEloraSuggestion(demoInsights);
+            try {
+                const [statsData, upcomingData, insightsData, packs] = await Promise.all([
+                    dataService.getTeacherStats(),
+                    dataService.getUpcomingAssignments(),
+                    dataService.getTeacherInsights(),
+                    dataService.getAvailableGamePacks(),
+                ]);
 
-            setLoading(false);
-            setInsightsLoading(false);
+                setServiceNotice(null);
+                setTeacherName(currentUser?.preferredName || currentUser?.name || 'Teacher');
+                setStats(statsData);
+                setInsights(insightsData);
+                setAvailablePacks(packs);
+                setUpcomingAssignments(
+                    upcomingData.map((asgn) => ({
+                        id: asgn.id,
+                        title: asgn.title,
+                        class: asgn.className,
+                        due: asgn.dueDate
+                            ? new Date(asgn.dueDate).toLocaleDateString()
+                            : asgn.statusLabel ?? asgn.status ?? '',
+                        status: asgn.statusLabel ?? asgn.status ?? 'Scheduled',
+                        submitted: 0,
+                        total: 0,
+                    }))
+                );
+
+                fetchEloraSuggestion(insightsData, rosterTeacherClasses);
+            } catch (err: unknown) {
+                if (err instanceof dataService.RedirectError) {
+                    navigate(err.to);
+                    return;
+                }
+
+                const normalized = dataService.toEloraServiceError(err);
+                setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
+                setStats([]);
+                setMyClasses([]);
+                setInsights([]);
+                setAvailablePacks([]);
+                setUpcomingAssignments([]);
+            } finally {
+                setLoading(false);
+                setInsightsLoading(false);
+            }
         };
 
         // Expose fetchEloraSuggestion for the "Ask again" button.
-        const fetchEloraSuggestion = async (insightData?: dataService.TeacherInsight[]) => {
+        const fetchEloraSuggestion = async (
+            insightData?: dataService.TeacherInsight[],
+            classesData?: Array<Pick<dataService.TeacherClass, 'id' | 'name'>>
+        ) => {
             setEloraStatus('loading');
             setEloraError(null);
             try {
-                const firstClassId = 'class-1';
-                const firstClassName = 'Sec 3 Mathematics';
+                const fallbackClass = classesData?.[0];
+                const firstClassId = fallbackClass?.id || 'class-1';
+                const firstClassName = fallbackClass?.name || 'Sec 3 Mathematics';
                 const dataToUse = insightData ?? demoInsights;
                 const suggestion = await getClassSupportSuggestion(
                     firstClassId,
@@ -1023,7 +1083,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
         fetchEloraSuggestionRef.current = fetchEloraSuggestion;
 
         initializeDashboard();
-    }, [isDemo]);
+    }, [isDemo, currentUser, navigate, rosterTeacherClasses]);
 
     // ── Map real class data → performance display shape ──
     const classPerformance = myClasses.map((cls) => ({
@@ -2376,9 +2436,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
 
                                                 <button
                                                     onClick={() => {
-                                                        navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
-                                                        setActiveTab('dashboard');
-                                                        setShowPracticeGeneratorDrawer(true);
+                                                        navigate(`${assignmentsPath}/new`);
                                                     }}
                                                     className={isDemo
                                                         ? 'inline-flex items-center gap-2 rounded-lg border border-teal-500/30 border-t-white/20 bg-gradient-to-b from-teal-500 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.05)] transition-all duration-200 hover:-translate-y-[1px] hover:from-teal-400 hover:to-teal-600'
@@ -2533,9 +2591,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                     <p className="mt-2 text-sm text-slate-500">Try another filter, or create a new assignment to populate this review queue.</p>
                                                     <button
                                                         onClick={() => {
-                                                            navigate(`${isDemo ? '/teacher/demo' : '/dashboard/teacher'}#practice`);
-                                                            setActiveTab('dashboard');
-                                                            setShowPracticeGeneratorDrawer(true);
+                                                            navigate(`${assignmentsPath}/new`);
                                                         }}
                                                         className={isDemo
                                                             ? 'mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700'

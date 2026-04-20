@@ -14,6 +14,7 @@ export interface AskEloraOptions {
   useCase?: UseCase;
   context?: string;
   contextMeta?: {
+    role?: 'teacher' | 'student' | 'parent';
     isDemo?: boolean;
     dashboardSource?: string | null;
     roleContextId?: string | null;

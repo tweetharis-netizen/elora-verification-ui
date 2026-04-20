@@ -59,7 +59,10 @@ const OurStoryPage = () => {
                 <span className="font-serif italic text-accent-pink">finally speak the same language.</span>
               </h1>
               <p className="text-white/80 text-lg md:text-2xl max-w-3xl leading-relaxed font-light">
-                Learning shouldn't be a black box. We've built Elora to bring calm, clarity, and intelligence to the classroom experience.
+                Learning should not be a black box. Elora is a multi-role Copilot for teachers, students, and parents.
+              </p>
+              <p className="text-white/65 text-base md:text-lg max-w-3xl leading-relaxed mt-5">
+                Today, it sits on top of role-specific classroom workflows so each person can move from confusion to clear next steps.
               </p>
             </motion.div>
           </div>
@@ -84,18 +87,21 @@ const OurStoryPage = () => {
                   icon: Layout,
                   title: 'Overwhelming Dashboards',
                   desc: 'Endless charts and complex metrics that often hide the real human progress happening in the classroom.',
+                  mechanism: 'Teacher Copilot turns raw data into simple summaries and suggested next steps.',
                   color: 'text-accent-pink'
                 },
                 {
                   icon: FileText,
                   title: 'Ignored Parent Portals',
                   desc: 'Static, outdated reports and buried information that leave families guessing about their child’s growth.',
+                  mechanism: 'Parent Copilot prepares structured conversations instead of expecting parents to decode dashboards.',
                   color: 'text-accent-orange'
                 },
                 {
                   icon: Clock,
                   title: 'Administrative Overload',
                   desc: 'Teachers spending more time navigating clunky software and inputting data than actually teaching.',
+                  mechanism: 'Teacher Copilot helps with unit planning and triage so admin work does not swallow planning time.',
                   color: 'text-accent-yellow'
                 }
               ].map((item, i) => (
@@ -110,6 +116,7 @@ const OurStoryPage = () => {
                   <item.icon className={`w-6 h-6 ${item.color}`} />
                   <h3 className="text-xl font-medium">{item.title}</h3>
                   <p className="text-white/50 text-sm leading-relaxed">{item.desc}</p>
+                  <p className="text-white/80 text-sm leading-relaxed">{item.mechanism}</p>
                 </motion.div>
               ))}
             </div>
@@ -129,28 +136,28 @@ const OurStoryPage = () => {
                 {
                   icon: Shield,
                   title: 'Trust',
-                  desc: 'Privacy-first architecture ensures student data remains fully protected and private at all times.',
+                  desc: 'We never predict grades. Every conversation is role-scoped to reduce cross-context data exposure.',
                   color: 'text-accent-green',
                   bg: 'bg-accent-green/10'
                 },
                 {
                   icon: Sparkles,
                   title: 'Clarity',
-                  desc: 'Turning complex data into clear, honest, and actionable progress reports for every single family.',
+                  desc: 'We summarize complex school data into human-readable guidance instead of flooding families with dashboards.',
                   color: 'text-accent-yellow',
                   bg: 'bg-accent-yellow/10'
                 },
                 {
                   icon: Heart,
                   title: 'Human-first',
-                  desc: 'Empowering teachers and families to restore core human connection, not just tools.',
+                  desc: 'For serious or sensitive issues, Elora points people back to teachers, counselors, and parents for human support.',
                   color: 'text-accent-pink',
                   bg: 'bg-accent-pink/10'
                 },
                 {
                   icon: Zap,
                   title: 'Calm',
-                  desc: 'Reducing cognitive load through a decluttered, reassuring, and intentional user experience.',
+                  desc: 'Your feedback helps Elora adjust how it explains and how long it responds.',
                   color: 'text-accent-orange',
                   bg: 'bg-accent-orange/10'
                 }
@@ -190,19 +197,19 @@ const OurStoryPage = () => {
                 {
                   role: 'Teachers',
                   icon: Users,
-                  text: 'Elora handles the grading and administrative drift, giving you back hours to focus on your students.',
+                  text: 'Draft term plans, triage which students are behind, and generate respectful parent updates you can quickly edit.',
                   tag: 'Co-Pilot'
                 },
                 {
                   role: 'Students',
                   icon: BookOpen,
-                  text: 'An assistant that knows exactly where you are and what you need next to reach your goals.',
+                  text: 'Practice questions, ask for explanations when you are stuck, and get short recaps in your own words.',
                   tag: 'Guide'
                 },
                 {
                   role: 'Parents',
                   icon: Smile,
-                  text: 'No more guessing. Get a calm, clear window into your child’s day and learning milestones.',
+                  text: 'Prepare questions before meetings, clarify school communications, and turn concerns into realistic action plans.',
                   tag: 'Advocate'
                 }
               ].map((card, i) => (
@@ -264,8 +271,11 @@ const OurStoryPage = () => {
                 <span className="font-serif italic text-accent-pink">learning, together.</span>
               </h2>
               <div className="w-20 h-px bg-white/20 mx-auto"></div>
-              <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed font-serif">
-                As a student in Singapore, I saw the gap between those who can afford help and those who can’t. I founded Elora to end the era of “dashboard fatigue.” Our goal is to handle the complexity of learning management so that teachers and parents can return to what they do best — mentoring and supporting. Less data-entry, more real connection.
+              <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed">
+                As a student in Singapore, I saw how often the people who care most are separated by tools that are hard to read and hard to trust. Elora began as an attempt to close that gap.
+              </p>
+              <p className="text-white/70 text-base max-w-2xl mx-auto leading-relaxed">
+                We pay close attention to thumbs and reason signals like too long, not my level, and not accurate so Elora improves over time. That adaptation stays bounded and safety-first, without uncontrolled retraining on sensitive content.
               </p>
               <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
                 — <a href="https://www.linkedin.com/in/shaik-haris-107b45391/" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-white transition-colors">Shaik Haris</a>, Founder & CEO of Elora

@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    Sparkles,
     ArrowRight,
-    Plus,
     ChevronDown,
-    Search,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useSidebarState } from '../hooks/useSidebarState';
@@ -30,6 +27,7 @@ import {
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
 import { askElora } from '../services/askElora';
 import { useAutoTitle } from '../hooks/useAutoTitle';
+import { useTeacherClasses } from '../hooks/useTeacherClasses';
 import type { UseCase } from '../lib/llm/types';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -174,14 +172,16 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         : null;
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
-    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
+    // Auth gate: show only for non-demo unverified/guest users
+    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
 
     // ── Core chat state ──
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : initialPreferredClassId);
-    const [classList, setClassList] = useState<any[]>([]);
+    const { data: teacherClasses } = useTeacherClasses();
+    const classList = isDemo ? demoClasses : (teacherClasses.length > 0 ? teacherClasses : demoClasses);
     const [serviceNotice, setServiceNotice] = useState<string | null>(null);
     const [insights, setInsights] = useState<any[]>(isDemo ? demoInsights : []);
     const [teacherStats, setTeacherStats] = useState<any[]>([]);
@@ -221,27 +221,28 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     // ── Load context data ─────────────────────────────────────────────────────
     useEffect(() => {
         if (isDemo) {
-            setClassList(demoClasses);
-        } else {
-            const load = async () => {
-                try {
-                    const [classes, stats, rawInsights] = await Promise.all([
-                        dataService.getMyClasses(),
-                        dataService.getTeacherStats(),
-                        dataService.getTeacherInsights(),
-                    ]);
-                    setServiceNotice(null);
-                    setClassList(classes);
-                    setTeacherStats(stats);
-                    setInsights(rawInsights);
-                } catch (err: unknown) {
-                    if (err instanceof dataService.RedirectError) { navigate(err.to); return; }
-                    const normalized = dataService.toEloraServiceError(err);
-                    setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
-                }
-            };
-            load();
+            setServiceNotice(null);
+            setInsights(demoInsights);
+            return;
         }
+
+        const load = async () => {
+            try {
+                const [stats, rawInsights] = await Promise.all([
+                    dataService.getTeacherStats(),
+                    dataService.getTeacherInsights(),
+                ]);
+                setServiceNotice(null);
+                setTeacherStats(stats);
+                setInsights(rawInsights);
+            } catch (err: unknown) {
+                if (err instanceof dataService.RedirectError) { navigate(err.to); return; }
+                const normalized = dataService.toEloraServiceError(err);
+                setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
+            }
+        };
+
+        load();
     }, [isDemo, navigate]);
 
     // ── Apply navState class context ──────────────────────────────────────────
@@ -260,6 +261,17 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
         if (!navState) hasAppliedInitialContextRef.current = true;
     }, [classList, isDemo, navState]);
+
+    useEffect(() => {
+        if (!selectedClassId) {
+            return;
+        }
+
+        const hasSelectedClass = classList.some((classItem) => classItem.id === selectedClassId);
+        if (!hasSelectedClass) {
+            setSelectedClassId(null);
+        }
+    }, [classList, selectedClassId]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -300,7 +312,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
     const currentClass = classList.find((c) => c.id === selectedClassId);
     const currentClassName = currentClass?.name || 'Overview';
-    const contextPillLabel = currentClassName;
 
     // ── Load threads for current context ─────────────────────────────────────
     useEffect(() => {
@@ -311,18 +322,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         const loadThreadsForContext = async () => {
             setIsThreadsLoading(true);
             try {
-                if (classList.length === 0) {
-                    const [classes, stats, rawInsights] = await Promise.all([
-                        dataService.getMyClasses(),
-                        dataService.getTeacherStats(),
-                        dataService.getTeacherInsights(),
-                    ]);
-                    if (cancelled) return;
-                    setClassList(classes);
-                    setTeacherStats(stats);
-                    setInsights(rawInsights);
-                }
-
                 let conversations = await dataService.listTeacherConversations({
                     classId: selectedClassId ?? undefined,
                 });
@@ -683,7 +682,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             const contextStep: Step = {
                 id: `ctx-${Date.now()}`,
                 text: selectedClassId
-                    ? `Scoped to ${currentClassNameText} — ${classList.find((c) => c.id === selectedClassId)?.studentsCount ?? '?'} students`
+                    ? `Scoped to ${currentClassNameText} — ${(classList.find((c) => c.id === selectedClassId) as any)?.studentsCount ?? '?'} students`
                     : `Looking across all your classes (${classList.map((c) => c.name).join(', ')})`,
             };
 
@@ -721,12 +720,13 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 useCase: resolvedUseCase,
                 context: contextStr,
                 contextMeta: !isDemo ? {
+                    role: 'teacher',
                     isDemo,
                     dashboardSource: navState?.source ?? null,
-                    roleContextId: selectedClassId,
-                    roleContextLabel: currentClassNameText,
-                    selectedClassId,
-                    selectedClassName: currentClassNameText,
+                    roleContextId: selectedClassId ?? undefined,
+                    roleContextLabel: selectedClassId ? currentClassNameText : undefined,
+                    selectedClassId: selectedClassId ?? null,
+                    selectedClassName: selectedClassId ? currentClassNameText : null,
                     selectedStudentId: null,
                     selectedChildId: null,
                     selectedSubject: selectedClassId ? null : 'all-classes',
@@ -817,7 +817,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                     canCreateNewChat={canCreateNewChat}
                     classes={classList}
                     selectedClassId={selectedClassId}
-                    onClassSelect={setSelectedClassId}
+                    onClassSelect={handleContextChange}
                 />
         </div>
     );

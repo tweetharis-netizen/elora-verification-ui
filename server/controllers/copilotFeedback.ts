@@ -6,6 +6,7 @@ import type {
   CopilotFeedbackReason,
   UserRole,
 } from '../../src/lib/llm/types.js';
+import { updateUserPreferenceSignals } from '../../src/server/memory/copilotPreferenceStore.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { recordCopilotFeedback } from '../metrics/copilotMetricsStore.js';
 
@@ -89,6 +90,12 @@ export const submitCopilotFeedbackHandler = async (req: AuthRequest, res: Respon
       role: feedback.role,
       useCase: feedback.useCase,
       rating: feedback.rating,
+      reason: feedback.reason,
+      createdAt: feedback.createdAt,
+    });
+    updateUserPreferenceSignals({
+      userId: feedback.userId,
+      role: feedback.role,
       reason: feedback.reason,
       createdAt: feedback.createdAt,
     });

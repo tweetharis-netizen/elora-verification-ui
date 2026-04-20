@@ -33,6 +33,20 @@ export const demoClasses: dataService.TeacherClass[] = [
         playfulBackground: true,
         progress: 75,
     }),
+    applySubjectThemeDefaults({
+        id: 'demo-class-2',
+        name: 'Sec 1 Science',
+        subject: 'Science',
+        studentsCount: 36,
+        nextTopic: 'Cells and Systems',
+        time: 'Tue · Thu, 11:00 AM',
+        status: 'success',
+        statusMsg: 'Class is on track',
+        activeAssignments: 2,
+        averageScore: 74,
+        playfulBackground: true,
+        progress: 82,
+    }),
 ];
 
 // ── Assignments ───────────────────────────────────────────────────────────────

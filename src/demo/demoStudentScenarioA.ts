@@ -79,6 +79,15 @@ export const demoStudentClasses: dataService.StudentClass[] = [
         enrolledAt: new Date(Date.now() - 30 * 86400000).toISOString(),
         playfulBackground: true,
     }),
+    applySubjectThemeDefaults({
+        id: 'demo-class-2',
+        name: 'Sec 1 Science',
+        subject: 'Science',
+        teacherName: 'Mr. Michael Lee',
+        joinCode: 'SCI11A2',
+        enrolledAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+        playfulBackground: true,
+    }),
 ];
 
 export const demoStudentClassroomAssignments: dataService.ClassroomAssignmentMock[] = [

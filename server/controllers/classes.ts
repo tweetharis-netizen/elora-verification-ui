@@ -10,10 +10,13 @@ export const getClasses = (req: AuthRequest, res: Response) => {
     if (DEMO_USER_IDS.has(teacherId)) {
         // Demo path: use existing in-memory logic (unchanged)
         const myClasses = db.classes.filter(c => c.teacherId === teacherId);
+        const resolvedClasses = myClasses.length > 0
+            ? myClasses
+            : db.classes.filter((c) => c.teacherId === 'teacher_1');
         const now = new Date().toISOString();
 
         // Transform to match frontend expectations (studentsCount instead of studentIds)
-        const uiClasses = myClasses.map(c => {
+        const uiClasses = resolvedClasses.map(c => {
             const classThemeSettings = resolveClassThemeSettings({
                 subject: (c as any).subject ?? 'General',
                 themeColor: (c as any).themeColor,
@@ -210,7 +213,10 @@ export const getStudentClasses = (req: AuthRequest, res: Response) => {
 
     if (DEMO_USER_IDS.has(studentId)) {
         const myClasses = db.classes.filter(c => c.studentIds.includes(studentId));
-        return res.json(myClasses.map(c => {
+        const resolvedClasses = myClasses.length > 0
+            ? myClasses
+            : db.classes.filter((c) => c.studentIds.includes('student_1'));
+        return res.json(resolvedClasses.map(c => {
             const teacher = db.users.find(u => u.id === c.teacherId);
             const classThemeSettings = resolveClassThemeSettings({
                 subject: (c as any).subject ?? 'General',

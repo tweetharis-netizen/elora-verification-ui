@@ -2,20 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Plus,
-    CheckCircle2,
     ChevronDown,
     Sparkles,
-    ArrowRight,
-    Layers,
-    GraduationCap,
-    BookOpen,
-    Check,
-    Zap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { shouldGateCopilotAccess } from '../hooks/useAuthGate';
 import { useSidebarState } from '../hooks/useSidebarState';
+import { useStudentClasses } from '../hooks/useStudentClasses';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { askElora } from '../services/askElora';
@@ -165,7 +159,8 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const navigate = useNavigate();
     const location = useLocation();
     const isDemo = useDemoMode();
-    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
+    // Auth gate: show only for non-demo unverified/guest users
+    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     type StudentCopilotNavState = {
@@ -180,19 +175,18 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         ? navState.preferredSubjectId
         : 'all';
     
-    // Context Selector State
+    // Context selector state
     const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubjectId);
-    const [isSubjectSelectorOpen, setIsSubjectSelectorOpen] = useState(false);
 
     // Initialise student data state
     const [assignments, setAssignments] = useState<any[]>([]);
     const [recentPerformance, setRecentPerformance] = useState<any>(null);
     const [streakData, setStreakData] = useState<any>(null);
     const [gameSessions, setGameSessions] = useState<any[]>([]);
+    const { data: studentClasses } = useStudentClasses();
 
+    // Demo user auto-login
     useEffect(() => {
-        // Ensure demo user is logically "logged in" (but don't persist to localStorage)
-        // Wait: If they are unauthenticated and we show the gate, we might still want the side nav to work
         if (isDemo && currentUser?.id !== 'student_1' && typeof login === 'function') {
             login('student', undefined, false);
         }
@@ -248,8 +242,19 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     // Derived logic from Student Dashboard
     const primaryFocusTopic = recentPerformance?.weakTopics?.[0] ?? null;
 
-    // Derived subjects list for selector
-    const subjects = Array.from(new Set(assignments.map(a => a.className))).filter(Boolean);
+    // Derived subjects list for selector. For real users, include class roster names
+    // so context switching still works even before assignment data is populated.
+    const assignmentSubjects = assignments
+        .map((a) => a.className)
+        .filter((subject): subject is string => typeof subject === 'string' && subject.trim().length > 0);
+    const rosterSubjects = isDemo
+        ? demoStudentClasses.map((cls) => cls.name)
+        : studentClasses.length > 0
+            ? studentClasses
+                .map((cls) => cls.name)
+                .filter((subject): subject is string => typeof subject === 'string' && subject.trim().length > 0)
+            : demoStudentClasses.map((cls) => cls.name);
+    const subjects = Array.from(new Set([...assignmentSubjects, ...rosterSubjects]));
     const selectedSubjectName = selectedSubjectId === 'all' ? 'All subjects' : selectedSubjectId;
     const subjectFilter = selectedSubjectName === 'All subjects' ? undefined : selectedSubjectName;
     const weekKey = getIsoWeekKey(new Date());
@@ -617,8 +622,13 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             const selectedDemoClass = isDemo
                 ? demoStudentClasses.find((cls) => cls.name === selectedSubjectId)
                 : null;
+            const selectedRealClass = !isDemo
+                ? studentClasses.find((cls) => cls.name === selectedSubjectId)
+                : null;
             const resolvedStudentId = isDemo ? DEMO_STUDENT_ID : (currentUser?.id ?? null);
-            const resolvedClassId = selectedDemoClass?.id ?? null;
+            const resolvedClassId = isDemo
+                ? (selectedDemoClass?.id ?? null)
+                : (selectedRealClass?.id ?? null);
 
             const response = await askElora({
                 message: query,
@@ -626,16 +636,17 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 useCase: resolvedUseCase,
                 context: contextStr,
                 contextMeta: !isDemo ? {
+                    role: 'student',
                     isDemo,
                     dashboardSource: navState?.source ?? null,
-                    roleContextId: resolvedClassId,
-                    roleContextLabel: selectedSubjectName,
+                    roleContextId: selectedSubjectId === 'all' ? undefined : (resolvedClassId ?? selectedSubjectId),
+                    roleContextLabel: selectedSubjectId === 'all' ? undefined : selectedSubjectName,
                     selectedClassId: resolvedClassId,
                     selectedClassName: selectedSubjectId === 'all' ? null : selectedSubjectId,
                     selectedStudentId: resolvedStudentId,
                     selectedStudentName: currentUser?.name ?? null,
                     selectedChildId: null,
-                    selectedSubject: selectedSubjectName,
+                    selectedSubject: selectedSubjectId === 'all' ? undefined : selectedSubjectName,
                 } : undefined,
                 isFirstMessage,
                 recentUserPrompts,
@@ -692,8 +703,6 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
     };
 
-    const subjectObjectsForSidebar = subjects.map((name) => ({ id: name, name }));
-
     const sidebarContent = showAuthGate ? <></> : (
         <div className="flex-1 flex flex-col min-h-0 bg-white">
             <CopilotThreadSidebar
@@ -708,9 +717,9 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 themeColor="#68507B"
                 isLoading={isThreadsLoading}
                 canCreateNewChat={canCreateNewChat}
-                classes={subjectObjectsForSidebar}
+                classes={subjects.map((subject) => ({ id: subject, name: subject }))}
                 selectedClassId={selectedSubjectId === 'all' ? null : selectedSubjectId}
-                onClassSelect={(id) => setSelectedSubjectId(id === null ? 'all' : id)}
+                onClassSelect={(id) => setSelectedSubjectId(id ?? 'all')}
             />
         </div>
     );

@@ -75,6 +75,7 @@ import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
+import { useStudentClasses } from '../hooks/useStudentClasses';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -223,6 +224,7 @@ export default function StudentDashboardPage({
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
     const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed'>('all');
+    const { data: rosterStudentClasses, refetch: refetchStudentClasses } = useStudentClasses();
 
     // Synchronize activeTab state and handle hash deep-linking (e.g. from Copilot navigation)
     useEffect(() => {
@@ -410,30 +412,17 @@ export default function StudentDashboardPage({
                     setLoading(false);
                     return;
                 }
-                const [studentData, sessions, streak, nudgesData, classesData] = await Promise.all([
+                const [studentData, sessions, streak, nudgesData] = await Promise.all([
                     dataService.getStudentAssignments(),
                     dataService.getStudentGameSessions(),
                     dataService.getStudentStreak(),
-                    dataService.getStudentNudges(),
-                    dataService.getStudentClasses()
+                    dataService.getStudentNudges()
                 ]);
-
-                if (classesData.length === 0 && !isDemo) {
-                    console.log("No student classes found. Seeding with demo data.");
-                    setAssignments(demoStudentData.assignments);
-                    setRecentPerformance(demoStudentData.recentPerformance);
-                    setStreakData(demoStudentStreak);
-                    setGameSessions(demoGameSessions);
-                    setNudges(demoStudentNudges);
-                    setStudentClasses(demoStudentClasses);
-                } else {
-                    setAssignments(studentData.assignments);
-                    setRecentPerformance(studentData.recentPerformance);
-                    setGameSessions(sessions);
-                    setStreakData(streak);
-                    setNudges(nudgesData);
-                    setStudentClasses(classesData);
-                }
+                setAssignments(studentData.assignments);
+                setRecentPerformance(studentData.recentPerformance);
+                setGameSessions(sessions);
+                setStreakData(streak);
+                setNudges(nudgesData);
             } catch (err: any) {
                 // API unreachable (e.g. Vercel with no backend) — fall back to demo data for visual parity
                 console.warn('Student API unavailable, falling back to demo data:', err);
@@ -449,6 +438,24 @@ export default function StudentDashboardPage({
         };
         fetchData();
     }, [isDemo]);
+
+    useEffect(() => {
+        if (isDemo) {
+            setStudentClasses(demoStudentClasses);
+            return;
+        }
+
+        const mappedClasses: dataService.StudentClass[] = rosterStudentClasses.map((classItem) => ({
+            id: classItem.id,
+            name: classItem.name,
+            subject: classItem.subject ?? 'General',
+            teacherName: classItem.teacherName ?? 'Teacher',
+            joinCode: '',
+            enrolledAt: '',
+        }));
+
+        setStudentClasses(mappedClasses);
+    }, [isDemo, rosterStudentClasses]);
 
     // Add polling for nudges to ensure parent sends appear immediately in UI
     useEffect(() => {
@@ -589,6 +596,7 @@ export default function StudentDashboardPage({
             // Refresh assignments/classes if needed
             const studentData = await dataService.getStudentAssignments();
             setAssignments(studentData.assignments);
+            await refetchStudentClasses();
         } catch (err: any) {
             setJoinError(err.message || 'Failed to join class. Please check the code.');
         } finally {

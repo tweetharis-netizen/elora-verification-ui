@@ -2,23 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Plus,
-    CheckCircle2,
     ChevronDown,
-    Sparkles,
-    ArrowRight,
-    Layers,
-    BookOpen,
-    Check,
     Send,
-    Heart,
-    Calendar,
-    AlertCircle,
-    User,
-    TrendingUp,
-    MessageSquare,
-    Mail,
-    Info,
-    Zap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
@@ -36,16 +21,15 @@ import {
     parseSuggestionsFromResponse,
     Message,
     Step,
-    ActionChip,
     getParentGreeting,
     getPronoun,
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
-import { EloraLogo } from '../components/EloraLogo';
 import { askElora } from '../services/askElora';
 import * as dataService from '../services/dataService';
 import { demoChildren as scenarioChildren, demoChildSummary, demoParentName } from '../demo/demoParentScenarioA';
+import { useParentChildren } from '../hooks/useParentChildren';
 import type { UseCase } from '../lib/llm/types';
 
 // Mock child data for demo
@@ -54,8 +38,6 @@ const DEMO_CHILDREN = scenarioChildren.map(c => ({
     name: c.name,
     gender: 'male' as const // Jordan is male in the scenario
 }));
-
-const SUBJECTS = ['All subjects', 'Math', 'Science', 'English', 'History', 'Geography'];
 
 const PARENT_SUPPORT_MODE_CHIP = 'Prepare for a parent-teacher meeting';
 const PARENT_SUPPORT_MODE_PROMPT =
@@ -179,13 +161,14 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     
     
     // Parent Context
+    const {
+        data: rosterChildren,
+        error: parentChildrenError,
+    } = useParentChildren();
     const [children, setChildren] = useState<any[]>(isDemo ? DEMO_CHILDREN : []);
     const [selectedChildId, setSelectedChildId] = useState<string | null>(isDemo ? DEMO_CHILDREN[0].id : null);
     const [performanceData, setPerformanceData] = useState<any | null>(isDemo ? demoChildSummary : null);
     const [selectedSubject, setSelectedSubject] = useState<string>('All subjects');
-    
-    const [isChildPopupOpen, setIsChildPopupOpen] = useState(false);
-    const [isSubjectPopupOpen, setIsSubjectPopupOpen] = useState(false);
     
     useEffect(() => {
         // Ensure demo user is logically "logged in" (but don't persist to localStorage)
@@ -195,28 +178,58 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     }, [isDemo, currentUser, login]);
 
     useEffect(() => {
-        if (isDemo) return;
-        dataService.getParentChildren().then(data => {
-            setServiceNotice(null);
-            setChildren(data);
-            if (data.length > 0 && navState?.preferredChildId) {
-                const hasMatch = data.some((child) => child.id === navState.preferredChildId);
-                setSelectedChildId(hasMatch ? navState.preferredChildId : data[0].id);
-                return;
-            }
-        }).catch((err: unknown) => {
-            if (err instanceof dataService.RedirectError) {
-                navigate(err.to);
-                return;
-            }
+        if (isDemo) {
+            setChildren(DEMO_CHILDREN);
+            return;
+        }
 
-            const normalized = dataService.toEloraServiceError(err);
-            setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
-        });
-    }, [isDemo, navState?.preferredChildId, selectedChildId, navigate]);
+        // Use demo children as fallback if no real children data available
+        const childrenToSet = rosterChildren.length > 0 ? rosterChildren : DEMO_CHILDREN;
+        setChildren(childrenToSet as any[]);
+        
+        if (parentChildrenError && rosterChildren.length === 0) {
+            setServiceNotice(null); // Don't show error if using fallback demo data
+        } else if (parentChildrenError) {
+            setServiceNotice(parentChildrenError);
+        } else if (rosterChildren.length > 0) {
+            setServiceNotice(null);
+        }
+
+        if (rosterChildren.length > 0 && navState?.preferredChildId) {
+            const hasMatch = rosterChildren.some((child) => child.id === navState.preferredChildId);
+            setSelectedChildId(hasMatch ? navState.preferredChildId : rosterChildren[0].id);
+            return;
+        }
+
+        if (childrenToSet.length > 0 && !selectedChildId) {
+            setSelectedChildId(childrenToSet[0].id);
+        }
+    }, [
+        isDemo,
+        rosterChildren,
+        parentChildrenError,
+        navState?.preferredChildId,
+        selectedChildId,
+    ]);
 
     useEffect(() => {
-        if (isDemo || !selectedChildId) return;
+        if (isDemo || !selectedChildId) {
+            return;
+        }
+
+        const childStillExists = children.some((child) => child.id === selectedChildId);
+        if (!childStillExists) {
+            setSelectedChildId(children[0]?.id ?? null);
+        }
+    }, [isDemo, children, selectedChildId]);
+
+    useEffect(() => {
+        if (isDemo) return;
+        if (!selectedChildId) {
+            setPerformanceData(null);
+            return;
+        }
+
         dataService.getParentChildSummary(selectedChildId).then(summary => {
             setServiceNotice(null);
             setPerformanceData(summary);
@@ -317,10 +330,11 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                 useCase: resolvedUseCase,
                 context: contextStr,
                 contextMeta: !isDemo ? {
+                    role: 'parent',
                     isDemo,
                     dashboardSource: navState?.source ?? null,
-                    roleContextId: selectedChildId,
-                    roleContextLabel: childName,
+                    roleContextId: selectedChildId ?? undefined,
+                    roleContextLabel: selectedChildId ? childName : undefined,
                     selectedClassId: currentChild?.grade ?? null,
                     selectedClassName: currentChild?.grade ?? null,
                     selectedStudentId: selectedChildId,
@@ -387,12 +401,6 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
 
     const handleChildChange = (id: string | null) => {
         setSelectedChildId(id);
-        setIsChildPopupOpen(false);
-    };
-
-    const handleSubjectChange = (subject: string) => {
-        setSelectedSubject(subject);
-        setIsSubjectPopupOpen(false);
     };
 
     const handleMessagesScroll = () => {
@@ -487,13 +495,8 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     }, []);
 
     const currentPrompts = buildPrompts();
-
-    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
-
-    const childOptionsForSidebar = children.map((child) => ({
-        id: child.id,
-        name: child.name,
-    }));
+    // Auth gate: show only for non-demo unverified/guest users
+    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
 
     const canCreateNewChat =
         !activeConversationId || messages.some((msg) => msg.role === 'user' || msg.role === 'assistant');
@@ -512,9 +515,9 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                 onPin={handlePinThread}
                 isLoading={isThreadsLoading}
                 canCreateNewChat={canCreateNewChat}
-                classes={childOptionsForSidebar}
+                classes={children.map((child) => ({ id: child.id, name: child.name }))}
                 selectedClassId={selectedChildId}
-                onClassSelect={(id) => handleChildChange(id)}
+                onClassSelect={handleChildChange}
             />
         </div>
     );
@@ -601,20 +604,6 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                         <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD] shrink-0">
                             <div className="max-w-3xl mx-auto space-y-4">
                                 <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                    <button
-                                        onClick={() => setIsChildPopupOpen(true)}
-                                        className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-[11px] font-bold border border-orange-200 whitespace-nowrap"
-                                    >
-                                        <User size={12} />
-                                        {currentChild?.name || 'Child'}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsSubjectPopupOpen(true)}
-                                        className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-white text-slate-700 rounded-full text-[11px] font-bold border border-slate-200 whitespace-nowrap"
-                                    >
-                                        <BookOpen size={12} />
-                                        {selectedSubject}
-                                    </button>
                                     <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#DB844A" />
                                 </div>
 

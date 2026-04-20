@@ -7,11 +7,30 @@ export const getChildren = (req: AuthRequest, res: Response) => {
     const parent = req.user!;
 
     if (DEMO_USER_IDS.has(parent.id)) {
-        if (!parent.childrenIds || parent.childrenIds.length === 0) {
-            res.json([]);
-            return;
-        }
-        const children = db.users.filter(u => parent.childrenIds!.includes(u.id));
+        const childIds = parent.childrenIds && parent.childrenIds.length > 0
+            ? parent.childrenIds
+            : ['student_1'];
+
+        const children = childIds
+            .map((childId) => db.users.find((user) => user.id === childId))
+            .filter(Boolean)
+            .map((child) => {
+                const childClasses = db.classes
+                    .filter((classroom) => classroom.studentIds.includes(child!.id))
+                    .map((classroom) => ({
+                        id: classroom.id,
+                        name: classroom.name,
+                        subject: classroom.subject,
+                    }));
+
+                return {
+                    id: child!.id,
+                    name: child!.name,
+                    grade: (child as any).level ?? null,
+                    classes: childClasses,
+                };
+            });
+
         res.json(children);
         return;
     }
@@ -22,9 +41,25 @@ export const getChildren = (req: AuthRequest, res: Response) => {
         FROM parent_children pc
         JOIN users u ON u.id = pc.child_id
         WHERE pc.parent_id = ?
-    `).all(parent.id);
+    `).all(parent.id) as Array<{ id: string; name: string; email: string }>;
 
-    res.json(childrenRows);
+    const response = childrenRows.map((child) => {
+        const classes = sqliteDb.prepare(`
+            SELECT c.id, c.name, c.subject
+            FROM enrollments e
+            JOIN classes c ON c.id = e.class_id
+            WHERE e.student_id = ? AND e.status = 'active'
+        `).all(child.id) as Array<{ id: string; name: string; subject: string }>;
+
+        return {
+            id: child.id,
+            name: child.name,
+            email: child.email,
+            classes,
+        };
+    });
+
+    res.json(response);
 };
 
 export const getChildSummary = async (req: AuthRequest, res: Response) => {

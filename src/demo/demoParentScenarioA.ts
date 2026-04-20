@@ -9,11 +9,15 @@ export const demoParentName = 'Shaik Haris';
 
 export const demoChildren: dataService.ParentChild[] = [
     {
-        id: 'demo-student-jordan',
+        id: 'student_1',
         name: 'Jordan Lee',
         score: 58,
         streak: 1,
-        grade: 'Sec 3 Mathematics',
+        grade: 'Sec 3',
+        classes: [
+            { id: '1', name: 'Sec 3 Mathematics', subject: 'Mathematics' },
+            { id: '3', name: 'Sec 1 Science', subject: 'Science' },
+        ],
     },
 ];
 

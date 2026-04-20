@@ -6,6 +6,7 @@ import { callGemini } from './providers/gemini.js';
 import { callGroq } from './providers/groq.js';
 import { callOpenRouter } from './providers/openrouter.js';
 import { getStudentMemory } from '../../server/memory/studentMemoryStore.js';
+import { getUserPreferenceSignals } from '../../server/memory/copilotPreferenceStore.js';
 import type {
   LLMMessage,
   LLMResponse,
@@ -14,6 +15,7 @@ import type {
   UseCase,
   UseCaseConfig,
   StudentMemory,
+  UserPreferenceSignals,
   UserProfile,
   UserRole,
 } from './types.js';
@@ -414,6 +416,29 @@ const loadStudentMemory = ({
   }
 };
 
+const loadPreferenceSignals = ({
+  role,
+  userId,
+}: {
+  role: UserRole;
+  userId?: string;
+}): UserPreferenceSignals | undefined => {
+  if (typeof userId !== 'string' || userId.trim().length === 0) {
+    return undefined;
+  }
+
+  try {
+    return getUserPreferenceSignals({ userId: userId.trim(), role }) ?? undefined;
+  } catch (error) {
+    console.warn('[llm-router] preference signal load failed', {
+      role,
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+};
+
 export async function llmRouter({
   role,
   useCase,
@@ -440,8 +465,12 @@ export async function llmRouter({
   const normalizedContext = isRecord(context) ? { ...context } : {};
   const userProfile = parseUserProfile(normalizedContext);
   const studentMemory = loadStudentMemory({ role, userId });
+  const preferenceSignals = loadPreferenceSignals({ role, userId });
   if (studentMemory) {
     normalizedContext.userMemory = studentMemory;
+  }
+  if (preferenceSignals) {
+    normalizedContext.preferenceSignals = preferenceSignals;
   }
 
   const systemPrompt = buildSystemPrompt({
@@ -449,6 +478,7 @@ export async function llmRouter({
     useCase,
     userProfile,
     userMemory: studentMemory,
+    preferenceSignals,
   });
 
   const fullMessages: LLMMessage[] = [{ role: 'system', content: systemPrompt }, ...cleanedMessages];

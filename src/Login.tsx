@@ -21,6 +21,12 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const seededDemoEmails: Record<UserRole, string> = {
+        teacher: 'teacher@elora.com',
+        student: 'student@elora.com',
+        parent: 'parent@elora.com',
+    };
+
     const buildUserIdFromEmail = (role: UserRole, rawEmail: string) => {
         const localPart = rawEmail.split('@')[0] || 'user';
         const slug = localPart.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -43,6 +49,14 @@ export default function Login() {
 
         const normalizedEmail = email.trim().toLowerCase();
         const fallbackName = displayNameFromEmail(normalizedEmail);
+
+        // Keep seeded local accounts stable while allowing real user auth for all
+        // other emails in localhost verification.
+        if (normalizedEmail === seededDemoEmails[selectedRole]) {
+            login(selectedRole);
+            navigate(DASHBOARD_PATHS[selectedRole], { replace: true });
+            return;
+        }
 
         try {
             const response = await fetch('/api/auth/signup', {

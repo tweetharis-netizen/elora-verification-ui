@@ -11,10 +11,12 @@ import {
 	updateTeacherCopilotConversationTitle,
 	deleteTeacherCopilotConversation,
 } from '../controllers/teacher.js';
+import { getClasses as getTeacherClasses } from '../controllers/classes.js';
 
 const router = Router();
 
 router.get('/stats', requireAuth, requireRole('teacher'), getTeacherStats);
+router.get('/classes', requireAuth, requireRole('teacher'), getTeacherClasses);
 router.get('/insights/needs-attention', requireAuth, requireRole('teacher'), getInsightsNeedsAttention);
 router.post('/nudges', requireAuth, requireRole('teacher'), sendTeacherNudge);
 router.get('/copilot/conversations', requireAuth, requireRole('teacher'), listTeacherCopilotConversations);

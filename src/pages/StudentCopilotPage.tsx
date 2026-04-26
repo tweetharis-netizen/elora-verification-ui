@@ -159,8 +159,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const navigate = useNavigate();
     const location = useLocation();
     const isDemo = useDemoMode();
-    // Auth gate: show only for non-demo unverified/guest users
-    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
+    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     type StudentCopilotNavState = {

@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AssignmentCreateWizard, { type AssignmentBasicsState, type AssignmentClassOption } from '../components/assignments/AssignmentCreateWizard';
 import { useTeacherClasses } from '../hooks/useTeacherClasses';
+import { useAuth } from '../auth/AuthContext';
+import { demoClasses } from '../demo/demoTeacherScenarioA';
 
 const initialPreviewBasics: AssignmentBasicsState = {
   classId: null,
@@ -17,12 +19,20 @@ const initialPreviewBasics: AssignmentBasicsState = {
 export default function TeacherAssignmentCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, login } = useAuth();
   const isDemoRoute = location.pathname.startsWith('/teacher/demo');
   const assignmentsBasePath = isDemoRoute ? '/teacher/demo/assignments' : '/teacher/assignments';
   const [previewBasics, setPreviewBasics] = useState<AssignmentBasicsState>(initialPreviewBasics);
 
+  useEffect(() => {
+    if (isDemoRoute && currentUser?.id !== 'teacher_1') {
+      login('teacher', undefined, false);
+    }
+  }, [isDemoRoute, currentUser, login]);
+
   const { data: teacherClasses, isLoading: isLoadingClasses } = useTeacherClasses();
-  const classes: AssignmentClassOption[] = teacherClasses.map((teacherClass) => ({
+  const classSource = isDemoRoute && teacherClasses.length === 0 ? demoClasses : teacherClasses;
+  const classes: AssignmentClassOption[] = classSource.map((teacherClass) => ({
     id: teacherClass.id,
     name: teacherClass.name,
     subject: teacherClass.subject,

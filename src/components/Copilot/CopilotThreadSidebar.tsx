@@ -5,7 +5,7 @@ import {
     Search, ChevronDown, Pin, Users, X, History,
     CalendarDays, Check,
 } from 'lucide-react';
-import type { TeacherCopilotConversation } from '../../services/dataService';
+import type { StudentCopilotConversation, TeacherCopilotConversation } from '../../services/dataService';
 import { ThreadSkeleton } from './CopilotShared';
 import { compactTitle } from '../../utils/text';
 
@@ -65,8 +65,20 @@ function monthKey(dateStr: string): string {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type CopilotConversationThread =
+    | Pick<
+        TeacherCopilotConversation,
+        'id' | 'classId' | 'title' | 'isPinned' | 'createdAt' | 'updatedAt' | 'lastMessageAt'
+      >
+    | (Pick<
+        StudentCopilotConversation,
+        'id' | 'classId' | 'title' | 'createdAt' | 'updatedAt' | 'lastMessageAt'
+      > & {
+          isPinned?: boolean;
+      });
+
 export type CopilotThreadSidebarProps = {
-    threads: TeacherCopilotConversation[];
+    threads: CopilotConversationThread[];
     activeId: string | null;
     onSelect: (id: string) => void;
     onNew: () => void;
@@ -85,7 +97,7 @@ export type CopilotThreadSidebarProps = {
 // ── Compact sidebar row (used in main list) ───────────────────────────────────
 
 type SidebarRowProps = {
-    thread: TeacherCopilotConversation;
+    thread: CopilotConversationThread;
     isActive: boolean;
     themeColor: string;
     onSelect: () => void;
@@ -214,7 +226,7 @@ const SidebarRow: React.FC<SidebarRowProps> = ({
 // ── Archive row (used inside the modal — bigger, clearer) ─────────────────────
 
 type ArchiveRowProps = {
-    thread: TeacherCopilotConversation;
+    thread: CopilotConversationThread;
     isActive: boolean;
     themeColor: string;
     onSelect: () => void;
@@ -265,7 +277,7 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({
             className={`group relative flex items-start gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${
                 isActive ? 'ring-1 shadow-sm' : 'hover:bg-slate-50 hover:shadow-sm'
             }`}
-            style={isActive ? { backgroundColor: themeColor + '12', ringColor: themeColor + '40' } : {}}
+            style={isActive ? { backgroundColor: themeColor + '12', boxShadow: `0 0 0 1px ${themeColor}40` } : {}}
             onClick={() => { if (!isRenaming) onSelect(); }}
         >
             {/* Icon */}
@@ -370,7 +382,7 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({
 // ── All History Modal (portaled to body) ──────────────────────────────────────
 
 type AllHistoryModalProps = {
-    threads: TeacherCopilotConversation[];
+    threads: CopilotConversationThread[];
     activeId: string | null;
     themeColor: string;
     onSelect: (id: string) => void;
@@ -428,7 +440,7 @@ const AllHistoryModal: React.FC<AllHistoryModalProps> = ({
 
     // Group by month
     const grouped = useMemo(() => {
-        const map = new Map<string, TeacherCopilotConversation[]>();
+        const map = new Map<string, CopilotConversationThread[]>();
         sorted.forEach(t => {
             const key = monthKey(t.updatedAt ?? t.createdAt);
             if (!map.has(key)) map.set(key, []);
@@ -439,7 +451,7 @@ const AllHistoryModal: React.FC<AllHistoryModalProps> = ({
 
     const pinnedThreads = useMemo(() => sorted.filter(t => t.isPinned), [sorted]);
     const unpinnedGrouped = useMemo(() => {
-        const map = new Map<string, TeacherCopilotConversation[]>();
+        const map = new Map<string, CopilotConversationThread[]>();
         sorted.filter(t => !t.isPinned).forEach(t => {
             const key = monthKey(t.updatedAt ?? t.createdAt);
             if (!map.has(key)) map.set(key, []);
@@ -736,8 +748,16 @@ const CopilotThreadSidebar: React.FC<CopilotThreadSidebarProps> = ({
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white text-xs font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400"
-                                onFocus={(e) => ((e.currentTarget.style.borderColor = themeColor), (e.previousElementSibling as any).style.color = themeColor)}
-                                onBlur={(e) => ((e.currentTarget.style.borderColor = '#e2e8f0'), (e.previousElementSibling as any).style.color = '#94a3b8')}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = themeColor;
+                                    const icon = e.currentTarget.previousElementSibling as HTMLElement | null;
+                                    if (icon) icon.style.color = themeColor;
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.borderColor = '#e2e8f0';
+                                    const icon = e.currentTarget.previousElementSibling as HTMLElement | null;
+                                    if (icon) icon.style.color = '#94a3b8';
+                                }}
                             />
                         </div>
                         <button

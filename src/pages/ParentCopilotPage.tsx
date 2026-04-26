@@ -495,8 +495,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     }, []);
 
     const currentPrompts = buildPrompts();
-    // Auth gate: show only for non-demo unverified/guest users
-    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
+    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
 
     const canCreateNewChat =
         !activeConversationId || messages.some((msg) => msg.role === 'user' || msg.role === 'assistant');

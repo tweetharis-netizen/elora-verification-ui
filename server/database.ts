@@ -57,10 +57,53 @@ sqliteDb.exec(`
     title       TEXT NOT NULL,
     description TEXT,
     game_pack_id TEXT,
+    subject TEXT,
+    level TEXT,
+    estimated_duration_minutes INTEGER,
+    source_material TEXT,
     due_date    TEXT NOT NULL,
     status      TEXT NOT NULL DEFAULT 'draft' 
                 CHECK(status IN ('draft', 'published')),
     created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS assignment_objectives (
+    assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    objective_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    bloom_level TEXT,
+    category TEXT,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (assignment_id, objective_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS assignment_tasks (
+    assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    type TEXT,
+    estimated_minutes INTEGER,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (assignment_id, task_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS assignment_task_objectives (
+    assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    objective_id TEXT NOT NULL,
+    PRIMARY KEY (assignment_id, task_id, objective_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS assignment_attachments (
+    assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    attachment_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    mime_type TEXT,
+    size_bytes INTEGER,
+    storage_path TEXT,
+    uploaded_at TEXT,
+    PRIMARY KEY (assignment_id, attachment_id)
   );
 
   CREATE TABLE IF NOT EXISTS assignment_attempts (
@@ -139,6 +182,14 @@ sqliteDb.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_assignments_class 
     ON assignments(class_id);
+  CREATE INDEX IF NOT EXISTS idx_assignment_objectives_assignment
+    ON assignment_objectives(assignment_id);
+  CREATE INDEX IF NOT EXISTS idx_assignment_tasks_assignment
+    ON assignment_tasks(assignment_id);
+  CREATE INDEX IF NOT EXISTS idx_assignment_task_objectives_assignment
+    ON assignment_task_objectives(assignment_id);
+  CREATE INDEX IF NOT EXISTS idx_assignment_attachments_assignment
+    ON assignment_attachments(assignment_id);
   CREATE INDEX IF NOT EXISTS idx_attempts_student 
     ON assignment_attempts(student_id);
   CREATE INDEX IF NOT EXISTS idx_attempts_assignment 
@@ -164,6 +215,21 @@ sqliteDb.exec(`
   CREATE INDEX IF NOT EXISTS idx_student_messages_conversation_created
     ON student_conversation_messages(conversation_id, created_at ASC);
 `);
+
+const ensureAssignmentColumn = (columnName: string, columnSqlType: string) => {
+  const existingColumns = sqliteDb
+    .prepare(`PRAGMA table_info(assignments)`)
+    .all() as Array<{ name: string }>;
+  if (existingColumns.some((column) => column.name === columnName)) {
+    return;
+  }
+  sqliteDb.exec(`ALTER TABLE assignments ADD COLUMN ${columnName} ${columnSqlType}`);
+};
+
+ensureAssignmentColumn('subject', 'TEXT');
+ensureAssignmentColumn('level', 'TEXT');
+ensureAssignmentColumn('estimated_duration_minutes', 'INTEGER');
+ensureAssignmentColumn('source_material', 'TEXT');
 
 // Seed
 sqliteDb.prepare(`

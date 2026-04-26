@@ -1,12 +1,18 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { getAssignments, submitAssignment, createAssignment, getStudentAssignments, getAssignmentResults, submitAssignmentAttempt, getAttemptsByAssignment, publishAssignment } from '../controllers/assignments.js';
+import { getAssignments, submitAssignment, createAssignment, getStudentAssignments, getAssignmentResults, submitAssignmentAttempt, getAttemptsByAssignment, publishAssignment, uploadAssignmentAttachment } from '../controllers/assignments.js';
 
 const router = Router();
+const assignmentUpload = multer({
+	storage: multer.memoryStorage(),
+	limits: { fileSize: 15 * 1024 * 1024 },
+});
 
 // /api/assignments
 router.get('/', requireAuth, requireRole('teacher'), getAssignments);
 router.post('/', requireAuth, requireRole('teacher'), createAssignment);
+router.post('/:id/attachments', requireAuth, requireRole('teacher'), assignmentUpload.single('file'), uploadAssignmentAttachment);
 router.post('/:id/publish', requireAuth, requireRole('teacher'), publishAssignment);
 router.get('/student', requireAuth, requireRole('student'), getStudentAssignments);
 router.get('/:id/results', requireAuth, requireRole('teacher'), getAssignmentResults);

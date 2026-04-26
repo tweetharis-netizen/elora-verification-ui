@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { db, Submission, Assignment, AssignmentAttempt } from '../db.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { DEMO_USER_IDS, sqliteDb } from '../database.js';
@@ -82,7 +84,27 @@ export const submitAssignment = (req: AuthRequest, res: Response) => {
 
 export const createAssignment = async (req: AuthRequest, res: Response) => {
   const teacherId = req.user!.id;
-  const { classroomId, gamePackId, title, description, dueDate, publish } = req.body;
+  const {
+    classroomId,
+    gamePackId,
+    title,
+    description,
+    dueDate,
+    publish,
+    subject,
+    level,
+    estimatedDurationMinutes,
+    sourceMaterial,
+    objectives,
+    tasks,
+    taskObjectives,
+    attachments,
+  } = req.body;
+
+  const normalizedObjectives = Array.isArray(objectives) ? objectives : [];
+  const normalizedTasks = Array.isArray(tasks) ? tasks : [];
+  const normalizedTaskObjectives = Array.isArray(taskObjectives) ? taskObjectives : [];
+  const normalizedAttachments = Array.isArray(attachments) ? attachments : [];
 
   if (!title || !classroomId || !dueDate) {
     return res.status(400).json({ error: 'title, classroomId, and dueDate are required' });
@@ -90,6 +112,7 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
 
   // Demo path: use existing in-memory logic unchanged
   if (DEMO_USER_IDS.has(teacherId)) {
+    const isPublished = publish !== false;
     const newAssignment: Assignment = {
         id: `assign_${Date.now()}`,
         classroomId,
@@ -97,11 +120,15 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
         gamePackId,
         title,
         description,
+      subject,
+      level,
+      estimatedDurationMinutes,
+      sourceMaterial,
         dueDate,
-        isPublished: true,
+      isPublished,
         createdAt: new Date().toISOString(),
-        status: 'warning',
-        statusLabel: 'DUE SOON'
+      status: isPublished ? 'warning' : 'info',
+      statusLabel: isPublished ? 'DUE SOON' : 'DRAFT'
     };
 
     db.assignments.push(newAssignment);
@@ -112,23 +139,26 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
 
     enrolledStudents.forEach(e => studentIds.add(e.studentId));
     if (classroom && classroom.studentIds) {
-        classroom.studentIds.forEach(id => studentIds.add(id));
+      classroom.studentIds.forEach(id => studentIds.add(id));
     }
 
-    studentIds.forEach(studentId => {
+    if (isPublished) {
+      studentIds.forEach(studentId => {
         if (studentId !== 'dummy_id') {
-            const attempt: AssignmentAttempt = {
-                id: `aa_${Date.now()}_${studentId}`,
-                assignmentId: newAssignment.id,
-                studentId,
-                status: 'not_started',
-                updatedAt: new Date().toISOString()
-            };
-            db.assignmentAttempts.push(attempt);
+          const attempt: AssignmentAttempt = {
+            id: `aa_${Date.now()}_${studentId}`,
+            assignmentId: newAssignment.id,
+            studentId,
+            status: 'not_started',
+            updatedAt: new Date().toISOString()
+          };
+          db.assignmentAttempts.push(attempt);
         }
-    });
-
-    newAssignment.count = `${studentIds.size} students assigned`;
+      });
+      newAssignment.count = `${studentIds.size} students assigned`;
+    } else {
+      newAssignment.count = 'Draft - Not published yet';
+    }
 
     return res.status(201).json(newAssignment);
   }
@@ -136,36 +166,119 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
   // Real path:
   const id = `assign_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
   const status = publish ? 'published' : 'draft';
-
-  sqliteDb.prepare(`
+  const insertAssignment = sqliteDb.prepare(`
     INSERT INTO assignments 
-      (id, class_id, teacher_id, title, description, game_pack_id, due_date, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, classroomId, teacherId, title, description || null, 
-         gamePackId || null, dueDate, status);
+      (id, class_id, teacher_id, title, description, game_pack_id, subject, level, estimated_duration_minutes, source_material, due_date, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
 
-  // If publishing, auto-create attempts for all enrolled students
-  if (status === 'published') {
-    const enrolled = sqliteDb.prepare(
-      `SELECT student_id FROM enrollments WHERE class_id = ? AND status = 'active'`
-    ).all(classroomId) as { student_id: string }[];
+  const insertObjective = sqliteDb.prepare(`
+    INSERT INTO assignment_objectives
+      (assignment_id, objective_id, text, bloom_level, category, order_index)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
 
-    const insertAttempt = sqliteDb.prepare(`
-      INSERT OR IGNORE INTO assignment_attempts 
-        (id, assignment_id, student_id, status, updated_at)
-      VALUES (?, ?, ?, 'not_started', datetime('now'))
-    `);
+  const insertTask = sqliteDb.prepare(`
+    INSERT INTO assignment_tasks
+      (assignment_id, task_id, title, description, type, estimated_minutes, order_index)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
 
-    const insertMany = sqliteDb.transaction((students: { student_id: string }[]) => {
-      for (const s of students) {
-        insertAttempt.run(
-          `att_${Date.now()}_${s.student_id.slice(0,6)}`,
+  const insertTaskObjective = sqliteDb.prepare(`
+    INSERT INTO assignment_task_objectives
+      (assignment_id, task_id, objective_id)
+    VALUES (?, ?, ?)
+  `);
+
+  const insertAttachment = sqliteDb.prepare(`
+    INSERT OR IGNORE INTO assignment_attachments
+      (assignment_id, attachment_id, filename, mime_type, size_bytes, storage_path, uploaded_at)
+    VALUES (?, ?, ?, ?, ?, NULL, NULL)
+  `);
+
+  const insertAttempt = sqliteDb.prepare(`
+    INSERT OR IGNORE INTO assignment_attempts 
+      (id, assignment_id, student_id, status, updated_at)
+    VALUES (?, ?, ?, 'not_started', datetime('now'))
+  `);
+
+  try {
+    const createTx = sqliteDb.transaction(() => {
+      insertAssignment.run(
+        id,
+        classroomId,
+        teacherId,
+        title,
+        description || null,
+        gamePackId || null,
+        typeof subject === 'string' ? subject : null,
+        typeof level === 'string' ? level : null,
+        typeof estimatedDurationMinutes === 'number' ? estimatedDurationMinutes : null,
+        typeof sourceMaterial === 'string' ? sourceMaterial : null,
+        dueDate,
+        status,
+      );
+
+      for (const objective of normalizedObjectives) {
+        if (!objective || typeof objective.id !== 'string' || typeof objective.text !== 'string') continue;
+        insertObjective.run(
           id,
-          s.student_id
+          objective.id,
+          objective.text,
+          typeof objective.bloomLevel === 'string' ? objective.bloomLevel : null,
+          typeof objective.category === 'string' ? objective.category : null,
+          typeof objective.order === 'number' ? objective.order : 0,
         );
       }
+
+      for (const task of normalizedTasks) {
+        if (!task || typeof task.id !== 'string' || typeof task.title !== 'string' || typeof task.description !== 'string') continue;
+        insertTask.run(
+          id,
+          task.id,
+          task.title,
+          task.description,
+          typeof task.type === 'string' ? task.type : null,
+          typeof task.estimatedMinutes === 'number' ? task.estimatedMinutes : null,
+          typeof task.order === 'number' ? task.order : 0,
+        );
+      }
+
+      for (const taskObjective of normalizedTaskObjectives) {
+        if (!taskObjective || typeof taskObjective.taskId !== 'string' || typeof taskObjective.objectiveId !== 'string') continue;
+        insertTaskObjective.run(id, taskObjective.taskId, taskObjective.objectiveId);
+      }
+
+      for (const attachment of normalizedAttachments) {
+        if (!attachment || typeof attachment.id !== 'string' || typeof attachment.filename !== 'string') continue;
+        insertAttachment.run(
+          id,
+          attachment.id,
+          attachment.filename,
+          typeof attachment.mimeType === 'string' ? attachment.mimeType : null,
+          typeof attachment.sizeBytes === 'number' ? attachment.sizeBytes : null,
+        );
+      }
+
+      if (status === 'published') {
+        const enrolled = sqliteDb.prepare(
+          `SELECT student_id FROM enrollments WHERE class_id = ? AND status = 'active'`
+        ).all(classroomId) as { student_id: string }[];
+
+        enrolled.forEach((student, index) => {
+          insertAttempt.run(
+            `att_${Date.now()}_${student.student_id.slice(0,6)}_${index}`,
+            id,
+            student.student_id,
+          );
+        });
+      }
     });
-    insertMany(enrolled);
+
+    createTx();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create assignment';
+    return res.status(500).json({ error: message });
   }
 
   const assignment = sqliteDb.prepare(
@@ -184,12 +297,85 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
     title: assignment.title,
     description: assignment.description,
     gamePackId: assignment.game_pack_id,
+    subject: assignment.subject,
+    level: assignment.level,
+    estimatedDurationMinutes: assignment.estimated_duration_minutes,
+    sourceMaterial: assignment.source_material,
     dueDate: assignment.due_date,
     isPublished: assignment.status === 'published',
     status: assignment.status === 'published' ? 'warning' : 'info',
     statusLabel: assignment.status === 'published' ? 'DUE SOON' : 'DRAFT',
     count: `${studentCount.count} students assigned`,
     createdAt: assignment.created_at,
+  });
+};
+
+export const uploadAssignmentAttachment = async (req: AuthRequest, res: Response) => {
+  const teacherId = req.user!.id;
+  const assignmentId = req.params.id;
+  const uploadFile = (req as Request & { file?: Express.Multer.File }).file;
+  const attachmentId = typeof req.body?.attachmentId === 'string' && req.body.attachmentId.trim()
+    ? req.body.attachmentId.trim()
+    : `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+  if (!uploadFile) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  if (DEMO_USER_IDS.has(teacherId)) {
+    const assignment = db.assignments.find((item) => item.id === assignmentId && item.teacherId === teacherId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+  } else {
+    const assignment = sqliteDb.prepare(
+      `SELECT id FROM assignments WHERE id = ? AND teacher_id = ?`
+    ).get(assignmentId, teacherId);
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+  }
+
+  const uploadRoot = process.env.VERCEL
+    ? path.join('/tmp', 'elora-assignment-attachments')
+    : path.resolve(process.cwd(), 'uploads', 'assignment-attachments');
+
+  const safeFilename = uploadFile.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storedFilename = `${assignmentId}-${attachmentId}-${Date.now()}-${safeFilename}`;
+  const storagePath = path.join(uploadRoot, storedFilename);
+
+  await fs.mkdir(uploadRoot, { recursive: true });
+  await fs.writeFile(storagePath, uploadFile.buffer);
+
+  if (!DEMO_USER_IDS.has(teacherId)) {
+    sqliteDb.prepare(`
+      INSERT INTO assignment_attachments
+        (assignment_id, attachment_id, filename, mime_type, size_bytes, storage_path, uploaded_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(assignment_id, attachment_id)
+      DO UPDATE SET
+        filename = excluded.filename,
+        mime_type = excluded.mime_type,
+        size_bytes = excluded.size_bytes,
+        storage_path = excluded.storage_path,
+        uploaded_at = excluded.uploaded_at
+    `).run(
+      assignmentId,
+      attachmentId,
+      uploadFile.originalname,
+      uploadFile.mimetype || null,
+      uploadFile.size,
+      storagePath,
+    );
+  }
+
+  return res.status(201).json({
+    assignmentId,
+    attachmentId,
+    filename: uploadFile.originalname,
+    sizeBytes: uploadFile.size,
+    storagePath,
   });
 };
 

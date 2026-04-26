@@ -36,9 +36,13 @@ export interface Assignment {
     id: string;
     classroomId: string;
     teacherId: string;
-    gamePackId: string;
+    gamePackId?: string;
     title: string;
     description?: string;
+    subject?: string;
+    level?: string;
+    estimatedDurationMinutes?: number;
+    sourceMaterial?: string;
     dueDate: string;
     isPublished: boolean;
     createdAt: string;

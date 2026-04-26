@@ -1046,7 +1046,6 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                 const normalized = dataService.toEloraServiceError(err);
                 setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
                 setStats([]);
-                setMyClasses([]);
                 setInsights([]);
                 setAvailablePacks([]);
                 setUpcomingAssignments([]);

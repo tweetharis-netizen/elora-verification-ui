@@ -172,8 +172,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         : null;
 
     const displayName = isDemo ? demoTeacherName : (currentUser?.name || 'Teacher');
-    // Auth gate: show only for non-demo unverified/guest users
-    const showAuthGate = !isDemo && shouldGateCopilotAccess({ isVerified, isGuest });
+    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
 
     // ── Core chat state ──
     const [messages, setMessages] = useState<Message[]>([]);
@@ -181,7 +180,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const [isThinking, setIsThinking] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(isDemo ? 'demo-class-1' : initialPreferredClassId);
     const { data: teacherClasses } = useTeacherClasses();
-    const classList = isDemo ? demoClasses : (teacherClasses.length > 0 ? teacherClasses : demoClasses);
+    const classList = isDemo ? demoClasses : teacherClasses;
     const [serviceNotice, setServiceNotice] = useState<string | null>(null);
     const [insights, setInsights] = useState<any[]>(isDemo ? demoInsights : []);
     const [teacherStats, setTeacherStats] = useState<any[]>([]);

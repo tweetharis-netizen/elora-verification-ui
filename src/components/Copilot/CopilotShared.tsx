@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Sparkles,
     ChevronUp,
@@ -844,6 +845,91 @@ export const CopilotThinkingBubble: React.FC<{
 
 
 /**
+ * Shared content for authentication gates (used in full-page and modal variants)
+ */
+export const AuthGateContent: React.FC<{
+    themeColor?: string;
+    role: 'Teacher' | 'Student' | 'Parent';
+    title?: string;
+    description?: string;
+    onLoginClick?: () => void;
+    onSignupClick?: () => void;
+    onSecondaryClick?: () => void;
+    secondaryLabel?: string;
+}> = ({ 
+    themeColor = '#14b8a6', 
+    role,
+    title = "Unlock Elora Copilot",
+    description = "Elora Copilot uses real-time data to provide personalized assistance and automated planning. Sign up or log in to unlock the full experience.",
+    onLoginClick,
+    onSignupClick,
+    onSecondaryClick,
+    secondaryLabel = "Explore Dashboard"
+}) => {
+    const navigate = useNavigate();
+
+    const handleSignup = () => {
+        if (onSignupClick) {
+            onSignupClick();
+        } else {
+            navigate('/signup');
+        }
+    };
+
+    const handleLogin = () => {
+        if (onLoginClick) {
+            onLoginClick();
+        } else {
+            navigate('/login');
+        }
+    };
+
+    const handleSecondary = () => {
+        if (onSecondaryClick) {
+            onSecondaryClick();
+        } else {
+            navigate(`/${role.toLowerCase()}/demo`);
+        }
+    };
+
+    return (
+        <div className="bg-white border border-[#EAE7DD] rounded-2xl p-8 md:p-12 max-w-md w-full text-center shadow-sm">
+            <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-sm" style={{ backgroundColor: themeColor + '15', color: themeColor }}>
+                <Sparkles className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">
+                {title}
+            </h2>
+            <p className="text-slate-500 mb-8 leading-relaxed">
+                {description}
+            </p>
+            <div className="flex flex-col gap-3">
+                <button
+                    onClick={handleSignup}
+                    className="w-full py-3 px-4 rounded-xl font-medium text-white transition-transform hover:-translate-y-0.5 shadow-sm"
+                    style={{ backgroundColor: themeColor }}
+                >
+                    Sign up for free
+                </button>
+                <button
+                    onClick={handleLogin}
+                    className="w-full py-3 px-4 rounded-xl font-medium transition-colors border"
+                    style={{ color: themeColor, backgroundColor: themeColor + '05', borderColor: themeColor + '20' }}
+                >
+                    Log in
+                </button>
+                <button
+                    onClick={handleSecondary}
+                    className="mt-4 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors inline-block"
+                >
+                    {secondaryLabel}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+/**
  * Authentication Gate for Copilot in demo mode
  */
 export const CopilotAuthGate: React.FC<{
@@ -852,39 +938,8 @@ export const CopilotAuthGate: React.FC<{
 }> = ({ themeColor = '#14b8a6', role }) => {
     return (
         <div className="flex-1 flex items-center justify-center p-6 h-full">
-            <div className="bg-white border border-[#EAE7DD] rounded-2xl p-8 md:p-12 max-w-md w-full text-center shadow-sm">
-                <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-sm" style={{ backgroundColor: themeColor + '15', color: themeColor }}>
-                    <Sparkles className="w-8 h-8" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-3">
-                    Sign in to use Copilot
-                </h2>
-                <p className="text-slate-500 mb-8 leading-relaxed">
-                    Elora Copilot uses real-time class data to provide personalized assistance. Sign up or log in to unlock the full experience.
-                </p>
-                <div className="flex flex-col gap-3">
-                    <Link
-                        to="/signup"
-                        className="w-full py-3 px-4 rounded-xl font-medium text-white transition-transform hover:-translate-y-0.5 shadow-sm"
-                        style={{ backgroundColor: themeColor }}
-                    >
-                        Sign up for free
-                    </Link>
-                    <Link
-                        to="/login"
-                        className="w-full py-3 px-4 rounded-xl font-medium transition-colors border"
-                        style={{ color: themeColor, backgroundColor: themeColor + '05', borderColor: themeColor + '20' }}
-                    >
-                        Log in
-                    </Link>
-                    <Link
-                        to={`/${role.toLowerCase()}/demo`}
-                        className="mt-4 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors inline-block"
-                    >
-                        Explore Dashboard
-                    </Link>
-                </div>
-            </div>
+            <AuthGateContent role={role} themeColor={themeColor} />
         </div>
     );
 };
+

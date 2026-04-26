@@ -1,7 +1,7 @@
 // src/App.tsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart, Bar, Cell, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, Cell } from 'recharts';
 import {
   CheckCircle2, Clock, Users, BookOpen, MessageSquare, BarChart3, Shield,
   Sparkles, Menu, X, ChevronRight, Mail, GraduationCap, Heart
@@ -222,22 +222,24 @@ const Hero = () => {
               <h3 className="font-semibold text-sm">Weekly Engagement</h3>
               <span className="text-[10px] font-bold uppercase tracking-wider text-accent-green bg-accent-green/10 px-2 py-1 rounded">+12% vs last week</span>
             </div>
-            <div className="h-32 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
+            <div className="h-32 w-full min-w-[280px] overflow-hidden">
+              <BarChart
+                width={280}
+                height={128}
+                data={[
                   { day: 'M', val: 40 },
                   { day: 'T', val: 65 },
                   { day: 'W', val: 85 },
                   { day: 'T', val: 55 },
                   { day: 'F', val: 90 },
-                ]}>
+                ]}
+              >
                   <Bar dataKey="val" radius={[4, 4, 0, 0]}>
                     {[40, 65, 85, 55, 90].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 2 ? 'var(--color-accent-pink)' : 'var(--color-elora-100)'} />
                     ))}
                   </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              </BarChart>
             </div>
           </motion.div>
         </div>

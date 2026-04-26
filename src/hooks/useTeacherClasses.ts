@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
-import type { ClassSummary } from '../types/roster';
 
 type TeacherClassesResult = {
-  data: ClassSummary[];
+  data: dataService.TeacherClass[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -12,7 +11,7 @@ type TeacherClassesResult = {
 
 export function useTeacherClasses(): TeacherClassesResult {
   const { currentUser } = useAuth();
-  const [data, setData] = useState<ClassSummary[]>([]);
+  const [data, setData] = useState<dataService.TeacherClass[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,14 +26,7 @@ export function useTeacherClasses(): TeacherClassesResult {
     setIsLoading(true);
     try {
       const classes = await dataService.getMyClasses();
-      setData(
-        classes.map((classItem) => ({
-          id: classItem.id,
-          name: classItem.name,
-          subject: classItem.subject,
-          level: classItem.level,
-        })),
-      );
+      setData(classes);
       setError(null);
     } catch (err: unknown) {
       if (err instanceof dataService.RedirectError) {

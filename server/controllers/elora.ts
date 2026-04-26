@@ -1,4 +1,7 @@
 import { Request, Response } from 'express';
+import { generateAssignmentObjectives } from '../agents/assignmentObjectiveAgent.js';
+import { generateAssignmentTaskPlan } from '../agents/assignmentTaskPlanAgent.js';
+import { generateAssignmentQualityFeedback } from '../agents/assignmentQualityAgent.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 export type SuggestionKind = 'practice_task' | 'parent_message' | 'lesson_idea';
@@ -195,5 +198,233 @@ export const getStudentSupportSuggestion = async (req: Request, res: Response): 
     } catch (error) {
         console.error('Error generating student support suggestion:', error);
         res.status(500).json({ error: 'Failed to generate student support suggestion' });
+    }
+};
+
+type SuggestObjectivesRequest = {
+    topic?: string;
+    subject?: string | null;
+    level?: string | null;
+};
+
+type SuggestObjectivesResponse = {
+    objectives: Array<{
+        text: string;
+    }>;
+};
+
+const normalizeOptionalField = (value: unknown): string | undefined => {
+    if (value === null || typeof value === 'undefined') {
+        return undefined;
+    }
+
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+
+    const next = value.trim().replace(/\s+/g, ' ');
+    return next.length > 0 ? next.slice(0, 80) : undefined;
+};
+
+export const getAssignmentObjectiveSuggestions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const body = (req.body ?? {}) as SuggestObjectivesRequest;
+        if (typeof body.topic !== 'string') {
+            res.status(400).json({ error: 'topic is required' });
+            return;
+        }
+
+        const topic = body.topic.trim().replace(/\s+/g, ' ');
+        if (topic.length < 5) {
+            res.status(400).json({ error: 'topic must be at least 5 characters' });
+            return;
+        }
+
+        if (typeof body.subject !== 'undefined' && body.subject !== null && typeof body.subject !== 'string') {
+            res.status(400).json({ error: 'subject must be a string when provided' });
+            return;
+        }
+
+        if (typeof body.level !== 'undefined' && body.level !== null && typeof body.level !== 'string') {
+            res.status(400).json({ error: 'level must be a string when provided' });
+            return;
+        }
+
+        const result = await generateAssignmentObjectives({
+            topic: topic.slice(0, 160),
+            subject: normalizeOptionalField(body.subject),
+            level: normalizeOptionalField(body.level),
+        });
+
+        const response: SuggestObjectivesResponse = { objectives: result.objectives };
+        res.json(response);
+    } catch (error) {
+        console.error('Error generating assignment objective suggestions:', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ error: 'Failed to generate assignment objective suggestions' });
+    }
+};
+
+// ── Task plan suggestions ─────────────────────────────────────────────────────
+
+type SuggestTasksRequest = {
+    topic?: string;
+    subject?: string | null;
+    level?: string | null;
+    objectives?: unknown;
+};
+
+type SuggestTasksResponse = {
+    tasks: Array<{
+        title: string;
+        type: 'warmup' | 'main' | 'reflection';
+        minutes?: number;
+        instructions: string;
+    }>;
+};
+
+export const getAssignmentTaskSuggestions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const body = (req.body ?? {}) as SuggestTasksRequest;
+
+        // Validate topic
+        if (typeof body.topic !== 'string') {
+            res.status(400).json({ error: 'topic is required' });
+            return;
+        }
+        const topic = body.topic.trim().replace(/\s+/g, ' ');
+        if (topic.length < 5) {
+            res.status(400).json({ error: 'topic must be at least 5 characters' });
+            return;
+        }
+
+        // Validate optional subject / level
+        if (typeof body.subject !== 'undefined' && body.subject !== null && typeof body.subject !== 'string') {
+            res.status(400).json({ error: 'subject must be a string when provided' });
+            return;
+        }
+        if (typeof body.level !== 'undefined' && body.level !== null && typeof body.level !== 'string') {
+            res.status(400).json({ error: 'level must be a string when provided' });
+            return;
+        }
+
+        // Validate optional objectives array
+        let objectives: string[] | undefined;
+        if (typeof body.objectives !== 'undefined') {
+            if (!Array.isArray(body.objectives)) {
+                res.status(400).json({ error: 'objectives must be an array when provided' });
+                return;
+            }
+            objectives = (body.objectives as unknown[])
+                .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+                .map((item) => item.trim().slice(0, 220))
+                .slice(0, 10);
+        }
+
+        const result = await generateAssignmentTaskPlan({
+            topic: topic.slice(0, 160),
+            subject: normalizeOptionalField(body.subject),
+            level: normalizeOptionalField(body.level),
+            objectives,
+        });
+
+        const response: SuggestTasksResponse = { tasks: result.tasks };
+        res.json(response);
+    } catch (error) {
+        console.error('Error generating assignment task suggestions:', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ error: 'Failed to generate assignment task suggestions' });
+    }
+};
+
+// ── Review feedback (quality coach) ───────────────────────────────────────────
+
+type ReviewFeedbackRequestTask = {
+    title: string;
+    type?: string | null;
+    minutes?: number | null;
+    instructions?: string | null;
+};
+
+type ReviewFeedbackRequest = {
+    topic?: string;
+    subject?: string | null;
+    level?: string | null;
+    objectives?: unknown;
+    tasks?: unknown;
+};
+
+type ReviewFeedbackResponse = {
+    feedback: string[];
+};
+
+export const getAssignmentReviewFeedback = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const body = (req.body ?? {}) as ReviewFeedbackRequest;
+
+        // Validate topic
+        if (typeof body.topic !== 'string') {
+            res.status(400).json({ error: 'topic is required' });
+            return;
+        }
+        const topic = body.topic.trim().replace(/\s+/g, ' ');
+        if (topic.length < 5) {
+            res.status(400).json({ error: 'topic must be at least 5 characters' });
+            return;
+        }
+
+        // Validate optional subject / level
+        if (body.subject != null && typeof body.subject !== 'string') {
+            res.status(400).json({ error: 'subject must be a string when provided' });
+            return;
+        }
+        if (body.level != null && typeof body.level !== 'string') {
+            res.status(400).json({ error: 'level must be a string when provided' });
+            return;
+        }
+
+        // Validate objectives
+        if (!Array.isArray(body.objectives)) {
+            res.status(400).json({ error: 'objectives must be an array' });
+            return;
+        }
+        const objectives = (body.objectives as unknown[])
+            .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+            .map((item) => item.trim().slice(0, 300))
+            .slice(0, 10);
+
+        // Validate tasks
+        if (!Array.isArray(body.tasks)) {
+            res.status(400).json({ error: 'tasks must be an array' });
+            return;
+        }
+        const tasks: ReviewFeedbackRequestTask[] = (body.tasks as unknown[])
+            .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+            .map((item) => ({
+                title: typeof item.title === 'string' ? item.title.trim().slice(0, 200) : '',
+                type: typeof item.type === 'string' ? item.type.trim() : null,
+                minutes: typeof item.minutes === 'number' && Number.isFinite(item.minutes) ? Math.round(item.minutes) : null,
+                instructions: typeof item.instructions === 'string' ? item.instructions.trim().slice(0, 500) : null,
+            }))
+            .filter((task) => task.title.length > 0 || (task.instructions?.length ?? 0) > 0)
+            .slice(0, 10);
+
+        const result = await generateAssignmentQualityFeedback({
+            topic: topic.slice(0, 160),
+            subject: normalizeOptionalField(body.subject),
+            level: normalizeOptionalField(body.level),
+            objectives,
+            tasks,
+        });
+
+        const response: ReviewFeedbackResponse = { feedback: result.feedback };
+        res.json(response);
+    } catch (error) {
+        console.error('Error generating assignment review feedback:', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ error: 'Failed to generate assignment review feedback' });
     }
 };

@@ -638,19 +638,177 @@ export const createTeacherClass = async (
     return response.json();
 };
 
-export const createTeacherAssignment = async (payload: {
+export interface TeacherAssignmentObjectivePayload {
+    id: string;
+    text: string;
+    bloomLevel?: string;
+    category?: string;
+    order: number;
+}
+
+export interface TeacherAssignmentTaskPayload {
+    id: string;
+    title: string;
+    description: string;
+    type?: string;
+    estimatedMinutes?: number;
+    order: number;
+}
+
+export interface TeacherAssignmentTaskObjectivePayload {
+    taskId: string;
+    objectiveId: string;
+}
+
+export interface TeacherAssignmentAttachmentPayload {
+    id: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+}
+
+export interface CreateTeacherAssignmentPayload {
     classroomId: string;
-    gamePackId: string;
+    gamePackId?: string;
     title: string;
     dueDate: string;
     description?: string;
-}): Promise<any> => {
+    publish?: boolean;
+    subject?: string;
+    level?: string;
+    estimatedDurationMinutes?: number;
+    sourceMaterial?: string;
+    objectives?: TeacherAssignmentObjectivePayload[];
+    tasks?: TeacherAssignmentTaskPayload[];
+    taskObjectives?: TeacherAssignmentTaskObjectivePayload[];
+    attachments?: TeacherAssignmentAttachmentPayload[];
+}
+
+export interface SuggestAssignmentObjectivesRequest {
+    topic: string;
+    subject?: string | null;
+    level?: string | null;
+}
+
+export interface SuggestAssignmentObjectivesResponse {
+    objectives: Array<{
+        text: string;
+    }>;
+}
+
+export const createTeacherAssignment = async (payload: CreateTeacherAssignmentPayload): Promise<any> => {
     const response = await fetch(`${API_BASE}/assignments`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error('Failed to create assignment');
+    return response.json();
+};
+
+export const suggestAssignmentObjectives = async (
+    payload: SuggestAssignmentObjectivesRequest,
+): Promise<SuggestAssignmentObjectivesResponse> => {
+    const response = await fetch(`${API_BASE}/elora/assignments/suggest-objectives`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to suggest objectives');
+    }
+
+    return response.json();
+};
+
+export interface SuggestAssignmentTasksRequest {
+    topic: string;
+    subject?: string | null;
+    level?: string | null;
+    objectives?: string[];
+}
+
+export interface SuggestAssignmentTasksResponse {
+    tasks: Array<{
+        title: string;
+        type: 'warmup' | 'main' | 'reflection';
+        minutes?: number;
+        instructions: string;
+    }>;
+}
+
+export const suggestAssignmentTasks = async (
+    payload: SuggestAssignmentTasksRequest,
+): Promise<SuggestAssignmentTasksResponse> => {
+    const response = await fetch(`${API_BASE}/elora/assignments/suggest-tasks`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to suggest task plan');
+    }
+
+    return response.json();
+};
+
+export interface AssignmentReviewFeedbackRequest {
+    topic: string;
+    subject?: string | null;
+    level?: string | null;
+    objectives: string[];
+    tasks: Array<{
+        title: string;
+        type?: string | null;
+        minutes?: number | null;
+        instructions?: string | null;
+    }>;
+}
+
+export interface AssignmentReviewFeedbackResponse {
+    feedback: string[];
+}
+
+export const getAssignmentReviewFeedback = async (
+    payload: AssignmentReviewFeedbackRequest,
+): Promise<AssignmentReviewFeedbackResponse> => {
+    const response = await fetch(`${API_BASE}/elora/assignments/review-feedback`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to get assignment review feedback');
+    }
+
+    return response.json();
+};
+
+export const uploadAssignmentAttachment = async (
+    assignmentId: string,
+    attachmentId: string,
+    file: File,
+): Promise<{ attachmentId: string; storagePath: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('attachmentId', attachmentId);
+
+    const headers = authHeaders();
+    delete headers['Content-Type'];
+
+    const response = await fetch(`${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/attachments`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to upload assignment attachment');
+    }
+
     return response.json();
 };
 

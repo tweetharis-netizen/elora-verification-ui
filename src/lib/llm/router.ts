@@ -484,6 +484,7 @@ export async function llmRouter({
   const fullMessages: LLMMessage[] = [{ role: 'system', content: systemPrompt }, ...cleanedMessages];
   let activeProvider = config.provider;
   let activeModel = config.model;
+  let usedFallback = false;
   let response: LLMResponse;
 
   try {
@@ -555,6 +556,7 @@ export async function llmRouter({
 
     activeProvider = fallback.provider;
     activeModel = fallback.model;
+    usedFallback = true;
   }
 
   response = {
@@ -563,6 +565,9 @@ export async function llmRouter({
       useCase,
       content: response.content,
     }),
+    provider: activeProvider,
+    model: activeModel,
+    usedFallback,
   };
 
   try {
@@ -570,6 +575,7 @@ export async function llmRouter({
       userId,
       role,
       useCase,
+      source: typeof normalizedContext.source === 'string' ? normalizedContext.source : undefined,
       provider: activeProvider,
       model: activeModel,
       timestamp: new Date(),

@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { DEFAULT_USE_CASE_BY_ROLE, isUseCase } from '../../src/lib/llm/config.js';
 import { llmRouter, LLMTemporarilyUnavailableError } from '../../src/lib/llm/router.js';
 import type { LLMMessage, UseCase } from '../../src/lib/llm/types.js';
+import {
+  parentCopilotSystemPrompt,
+  studentCopilotSystemPrompt,
+  teacherCopilotSystemPrompt,
+} from '../../src/lib/llm/prompt.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -206,6 +212,35 @@ type CopilotContextMeta = {
 };
 
 const demoCopilotUserIds = new Set(['teacher_1', 'student_1', 'parent_1']);
+
+const resolveCopilotSource = (role: CopilotRole, contextMeta: CopilotContextMeta | null): string => {
+  const source = contextMeta?.dashboardSource?.trim();
+  if (source) {
+    return source;
+  }
+
+  if (role === 'teacher') {
+    return 'teacher_copilot';
+  }
+
+  if (role === 'student') {
+    return 'student_copilot';
+  }
+
+  return 'parent_copilot';
+};
+
+const resolveRolePromptLabel = (role: CopilotRole): string => {
+  if (role === 'teacher') {
+    return teacherCopilotSystemPrompt;
+  }
+
+  if (role === 'student') {
+    return studentCopilotSystemPrompt;
+  }
+
+  return parentCopilotSystemPrompt;
+};
 
 const truncateForPrompt = (value: string, max = 280): string => {
   const normalized = value.replace(/\s+/g, ' ').trim();
@@ -516,6 +551,7 @@ export const getSystemPrompt = (role: CopilotRole): string => {
 };
 
 export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<void> => {
+  const requestId = randomUUID();
   const {
     prompt,
     role,
@@ -546,9 +582,19 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
   const normalizedContextMeta = normalizeContextMeta(contextMeta);
   const requestIsFirstTurn = Boolean(isFirstMessage) || (!conversationId && normalizedRecentPrompts.length === 0);
   const isDemoContext = demoCopilotUserIds.has(authUser.id) || normalizedContextMeta?.isDemo === true;
+  const source = resolveCopilotSource(userRole, normalizedContextMeta);
+  const rolePromptSnippet = resolveRolePromptLabel(userRole).split('\n')[0] ?? 'role_prompt';
 
   try {
     if (!prompt || typeof prompt !== 'string') {
+      console.warn('[copilot-call]', JSON.stringify({
+        requestId,
+        role: userRole,
+        source,
+        isDemoContext,
+        outcome: 'validation_error',
+        reason: 'missing_prompt',
+      }));
       res.status(400).json({ error: 'A valid "prompt" string is required in the request body.' });
       return;
     }
@@ -574,7 +620,9 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
 
     if (isDemoContext) {
       console.info('[copilot-demo-context]', JSON.stringify({
+        requestId,
         role: userRole,
+        source,
         userId: authUser.id,
         conversationId: typeof conversationId === 'string' ? conversationId : null,
         lastSelectedClassId: resolvedLastSelectedClassId,
@@ -589,6 +637,8 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
       messages,
       userId: authUser.id,
       context: {
+        source,
+        rolePromptSnippet,
         contextMeta: normalizedContextMeta,
         dashboardContext: contextText || undefined,
         isFirstMessage: requestIsFirstTurn,
@@ -619,19 +669,51 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
       finalOutput = `${finalOutput.substring(0, outputCharLimit)}...`;
     }
 
+    console.info('[copilot-call]', JSON.stringify({
+      requestId,
+      role: userRole,
+      source,
+      useCase: resolvedUseCase,
+      isDemoContext,
+      provider: response.provider ?? 'unknown',
+      usedFallback: response.usedFallback ?? false,
+      outcome: 'success',
+    }));
+
     res.json({ text: finalOutput });
   } catch (error) {
     if (error instanceof LLMTemporarilyUnavailableError) {
       console.error('[askEloraHandler] LLM temporarily unavailable', {
+        requestId,
         role: userRole,
+        source,
         userId: authUser.id,
         details: error.details,
       });
+      console.warn('[copilot-call]', JSON.stringify({
+        requestId,
+        role: userRole,
+        source,
+        isDemoContext,
+        outcome: 'provider_error',
+      }));
       res.json({ text: error.userMessage });
       return;
     }
 
-    console.error('Error in askEloraHandler:', error);
+    console.error('Error in askEloraHandler:', {
+      requestId,
+      role: userRole,
+      source,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    console.warn('[copilot-call]', JSON.stringify({
+      requestId,
+      role: userRole,
+      source,
+      isDemoContext,
+      outcome: 'provider_error',
+    }));
     res.json({ text: buildRoleFallbackText(userRole, requestIsFirstTurn) });
   }
 };

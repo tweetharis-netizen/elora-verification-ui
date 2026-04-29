@@ -256,13 +256,18 @@ export const getAssignmentObjectiveSuggestions = async (req: Request, res: Respo
             level: normalizeOptionalField(body.level),
         });
 
+        if (result.objectives.length === 0) {
+            res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
+            return;
+        }
+
         const response: SuggestObjectivesResponse = { objectives: result.objectives };
         res.json(response);
     } catch (error) {
         console.error('Error generating assignment objective suggestions:', {
             message: error instanceof Error ? error.message : String(error),
         });
-        res.status(500).json({ error: 'Failed to generate assignment objective suggestions' });
+        res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
     }
 };
 
@@ -329,13 +334,18 @@ export const getAssignmentTaskSuggestions = async (req: Request, res: Response):
             objectives,
         });
 
+        if (result.tasks.length === 0) {
+            res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
+            return;
+        }
+
         const response: SuggestTasksResponse = { tasks: result.tasks };
         res.json(response);
     } catch (error) {
         console.error('Error generating assignment task suggestions:', {
             message: error instanceof Error ? error.message : String(error),
         });
-        res.status(500).json({ error: 'Failed to generate assignment task suggestions' });
+        res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
     }
 };
 
@@ -359,6 +369,8 @@ type ReviewFeedbackRequest = {
 type ReviewFeedbackResponse = {
     feedback: string[];
 };
+
+const ASSIGNMENT_AI_ERROR_MESSAGE = 'We could not generate this right now. Please try again or edit manually.';
 
 export const getAssignmentReviewFeedback = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -419,12 +431,17 @@ export const getAssignmentReviewFeedback = async (req: Request, res: Response): 
             tasks,
         });
 
+        if (result.feedback.length === 0) {
+            res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
+            return;
+        }
+
         const response: ReviewFeedbackResponse = { feedback: result.feedback };
         res.json(response);
     } catch (error) {
         console.error('Error generating assignment review feedback:', {
             message: error instanceof Error ? error.message : String(error),
         });
-        res.status(500).json({ error: 'Failed to generate assignment review feedback' });
+        res.status(500).json({ error: ASSIGNMENT_AI_ERROR_MESSAGE });
     }
 };

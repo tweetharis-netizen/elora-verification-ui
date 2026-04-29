@@ -604,6 +604,15 @@ export const appendStudentConversationMessage = async (
     return response.json();
 };
 
+export const summarizeStudentConversation = async (conversationId: string): Promise<{ ok: boolean; summary?: string }> => {
+    const response = await fetch(`${API_BASE}/student/copilot/conversations/${conversationId}/summarize`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to summarize conversation');
+    return response.json();
+};
+
 // ── Teacher API ───────────────────────────────────────────────────────────────
 
 export const getTeacherStats = async (): Promise<TeacherStat[]> => {
@@ -709,17 +718,11 @@ export const createTeacherAssignment = async (payload: CreateTeacherAssignmentPa
 export const suggestAssignmentObjectives = async (
     payload: SuggestAssignmentObjectivesRequest,
 ): Promise<SuggestAssignmentObjectivesResponse> => {
-    const response = await fetch(`${API_BASE}/elora/assignments/suggest-objectives`, {
+    return requestJson<SuggestAssignmentObjectivesResponse>(`${API_BASE}/elora/assignments/suggest-objectives`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-        throw new Error('Failed to suggest objectives');
-    }
-
-    return response.json();
 };
 
 export interface SuggestAssignmentTasksRequest {
@@ -741,17 +744,11 @@ export interface SuggestAssignmentTasksResponse {
 export const suggestAssignmentTasks = async (
     payload: SuggestAssignmentTasksRequest,
 ): Promise<SuggestAssignmentTasksResponse> => {
-    const response = await fetch(`${API_BASE}/elora/assignments/suggest-tasks`, {
+    return requestJson<SuggestAssignmentTasksResponse>(`${API_BASE}/elora/assignments/suggest-tasks`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-        throw new Error('Failed to suggest task plan');
-    }
-
-    return response.json();
 };
 
 export interface AssignmentReviewFeedbackRequest {
@@ -774,17 +771,11 @@ export interface AssignmentReviewFeedbackResponse {
 export const getAssignmentReviewFeedback = async (
     payload: AssignmentReviewFeedbackRequest,
 ): Promise<AssignmentReviewFeedbackResponse> => {
-    const response = await fetch(`${API_BASE}/elora/assignments/review-feedback`, {
+    return requestJson<AssignmentReviewFeedbackResponse>(`${API_BASE}/elora/assignments/review-feedback`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-        throw new Error('Failed to get assignment review feedback');
-    }
-
-    return response.json();
 };
 
 export const uploadAssignmentAttachment = async (

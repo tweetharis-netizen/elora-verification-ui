@@ -39,29 +39,29 @@ const DEMO_CHILDREN = scenarioChildren.map(c => ({
     gender: 'male' as const // Jordan is male in the scenario
 }));
 
-const PARENT_SUPPORT_MODE_CHIP = 'Prepare for a parent-teacher meeting';
-const PARENT_SUPPORT_MODE_PROMPT =
-    'Help me prepare for a meeting with my child\'s teacher. Ask about my concerns and what I want to achieve.';
-const PARENT_SUMMARY_CHIP = 'Summarise key actions';
-const PARENT_SUMMARY_PROMPT =
-    'Summarise the key points of our conversation and give me a short list of next steps I can take as a parent.';
+const PARENT_PROGRESS_CHIP = 'Summarise my child\'s progress this week';
+const PARENT_PROGRESS_PROMPT =
+    'Summarise my child\'s progress this week in plain language, then suggest the top next action at home.';
+const PARENT_HOME_SUPPORT_CHIP = 'Suggest how I can help at home with this topic';
+const PARENT_HOME_SUPPORT_PROMPT =
+    'Suggest how I can help with this topic at home in a calm, practical way.';
 const PARENT_SUPPORT_SIGNAL_PATTERN =
     /\b(parent-teacher|meeting|support plan|worried|confidence|encouragement|message to teacher|support at home)\b/i;
 
 const resolveParentPromptConfig = (rawText: string): { message: string; useCase: UseCase } => {
     const trimmed = rawText.trim();
 
-    if (trimmed === PARENT_SUPPORT_MODE_CHIP) {
+    if (trimmed === PARENT_PROGRESS_CHIP) {
         return {
-            message: PARENT_SUPPORT_MODE_PROMPT,
-            useCase: 'parent_support_mode',
+            message: PARENT_PROGRESS_PROMPT,
+            useCase: 'parent_chat',
         };
     }
 
-    if (trimmed === PARENT_SUMMARY_CHIP) {
+    if (trimmed === PARENT_HOME_SUPPORT_CHIP) {
         return {
-            message: PARENT_SUMMARY_PROMPT,
-            useCase: 'parent_chat',
+            message: PARENT_HOME_SUPPORT_PROMPT,
+            useCase: 'parent_support_mode',
         };
     }
 
@@ -183,15 +183,12 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             return;
         }
 
-        // Use demo children as fallback if no real children data available
-        const childrenToSet = rosterChildren.length > 0 ? rosterChildren : DEMO_CHILDREN;
+        const childrenToSet = rosterChildren.length > 0 ? rosterChildren : [];
         setChildren(childrenToSet as any[]);
         
-        if (parentChildrenError && rosterChildren.length === 0) {
-            setServiceNotice(null); // Don't show error if using fallback demo data
-        } else if (parentChildrenError) {
+        if (parentChildrenError) {
             setServiceNotice(parentChildrenError);
-        } else if (rosterChildren.length > 0) {
+        } else {
             setServiceNotice(null);
         }
 
@@ -203,6 +200,9 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
 
         if (childrenToSet.length > 0 && !selectedChildId) {
             setSelectedChildId(childrenToSet[0].id);
+        } else if (childrenToSet.length === 0) {
+            setSelectedChildId(null);
+            setPerformanceData(null);
         }
     }, [
         isDemo,
@@ -241,6 +241,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
 
             const normalized = dataService.toEloraServiceError(err);
             setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
+            setPerformanceData(null);
         });
     }, [selectedChildId, isDemo, navigate]);
     
@@ -252,14 +253,15 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     const currentChild = children.find(c => c.id === selectedChildId) || null;
     const childName = currentChild?.name || 'your child';
     const alertConcepts = performanceData?.alerts || [];
+    const hasParentContextData = children.length > 0 || Boolean(performanceData);
 
     const buildPrompts = (): string[] => {
         return [
-            PARENT_SUPPORT_MODE_CHIP,
-            PARENT_SUMMARY_CHIP,
-            'Summarise my child\'s recent progress.',
-            'Draft a message to ask about missing work.',
-            'Help me encourage my child about school.',
+            PARENT_PROGRESS_CHIP,
+            PARENT_HOME_SUPPORT_CHIP,
+            'Draft a respectful message to my child\'s teacher.',
+            'Help me encourage my child about school this week.',
+            'Suggest two questions for my next parent-teacher meeting.',
         ];
     };
 
@@ -332,7 +334,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                 contextMeta: !isDemo ? {
                     role: 'parent',
                     isDemo,
-                    dashboardSource: navState?.source ?? null,
+                    dashboardSource: navState?.source ?? 'parent_copilot_page',
                     roleContextId: selectedChildId ?? undefined,
                     roleContextLabel: selectedChildId ? childName : undefined,
                     selectedClassId: currentChild?.grade ?? null,
@@ -557,11 +559,22 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                                         {serviceNotice}
                                     </div>
                                 )}
+                                {!isDemo && (
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-700 mb-4">
+                                        Parent Copilot conversations are session-only for now and do not persist after refresh.
+                                    </div>
+                                )}
+                                {!isDemo && !hasParentContextData && (
+                                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-medium text-sky-800 mb-6">
+                                        We do not see child progress data yet, so Copilot will provide general support guidance.
+                                    </div>
+                                )}
                                 {messages.length === 0 ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <CopilotEmptyState
                                             themeColor="#DB844A"
                                             userName={currentUser?.name || (isDemo ? demoParentName : 'Parent')}
+                                            title={threads.length === 0 ? 'No Copilot conversations yet. Try one of the suggestions below to get started.' : undefined}
                                             customGreeting={getParentGreeting(currentChild?.name)}
                                             description={`I'm here to give you a clear, calm view of ${childName}'s progress. I'll flag what matters and help you support ${getPronoun(currentChild?.gender || 'non-binary').pObj} at home.`}
                                             prompts={currentPrompts}
@@ -586,6 +599,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                                                 copilotRole="parent"
                                                 showFeedback={msg.showFeedback}
                                                 onSuggestionClick={handleSend}
+                                                feedbackSource="parent_copilot_page"
                                             />
                                         ))}
                                         {isThinking && (

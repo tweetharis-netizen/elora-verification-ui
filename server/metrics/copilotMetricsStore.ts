@@ -5,6 +5,8 @@ export interface CopilotFeedbackEvent {
   useCase: string;
   rating: CopilotFeedbackRating;
   reason?: string;
+  source?: string;
+  isDemo?: boolean;
   createdAt: string;
 }
 
@@ -26,6 +28,8 @@ export function recordCopilotFeedback(event: CopilotFeedbackEvent): void {
       useCase: event.useCase,
       rating: event.rating,
       reason: event.reason,
+      source: event.source,
+      isDemo: event.isDemo === true,
       createdAt: event.createdAt,
     });
 
@@ -50,6 +54,16 @@ export function getCopilotFeedbackSummary(): {
     up: number;
     down: number;
   }>;
+  bySource: Array<{
+    source: string;
+    total: number;
+    up: number;
+    down: number;
+  }>;
+  byEnvironment: {
+    demo: number;
+    real: number;
+  };
   reasonSignals: {
     tooLong: number;
     notMyLevel: number;
@@ -59,6 +73,11 @@ export function getCopilotFeedbackSummary(): {
 } {
   const useCaseMap = new Map<string, { total: number; up: number; down: number }>();
   const roleMap = new Map<UserRole, { total: number; up: number; down: number }>();
+  const sourceMap = new Map<string, { total: number; up: number; down: number }>();
+  const byEnvironment = {
+    demo: 0,
+    real: 0,
+  };
   const reasonSignals = {
     tooLong: 0,
     notMyLevel: 0,
@@ -77,6 +96,19 @@ export function getCopilotFeedbackSummary(): {
     if (event.rating === 'up') roleEntry.up += 1;
     if (event.rating === 'down') roleEntry.down += 1;
     roleMap.set(event.role, roleEntry);
+
+    const sourceKey = event.source?.trim() || 'unknown';
+    const sourceEntry = sourceMap.get(sourceKey) ?? { total: 0, up: 0, down: 0 };
+    sourceEntry.total += 1;
+    if (event.rating === 'up') sourceEntry.up += 1;
+    if (event.rating === 'down') sourceEntry.down += 1;
+    sourceMap.set(sourceKey, sourceEntry);
+
+    if (event.isDemo) {
+      byEnvironment.demo += 1;
+    } else {
+      byEnvironment.real += 1;
+    }
 
     if (event.reason === 'too_long') {
       reasonSignals.tooLong += 1;
@@ -97,6 +129,10 @@ export function getCopilotFeedbackSummary(): {
     .map(([role, stats]) => ({ role, ...stats }))
     .sort((a, b) => safeNumberSortDesc(a.total, b.total));
 
+  const bySource = Array.from(sourceMap.entries())
+    .map(([source, stats]) => ({ source, ...stats }))
+    .sort((a, b) => safeNumberSortDesc(a.total, b.total));
+
   const recent = [...feedbackEvents]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, RECENT_LIMIT);
@@ -104,6 +140,8 @@ export function getCopilotFeedbackSummary(): {
   return {
     byUseCase,
     byRole,
+    bySource,
+    byEnvironment,
     reasonSignals,
     recent,
   };

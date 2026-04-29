@@ -56,12 +56,15 @@ const buildCurrentWeekTitle = (className: string) => className;
 const buildWeekOfTitle = (createdAt: string, className: string) =>
     `Week of ${formatWeekStart(createdAt)} – ${className}`;
 
-const TEACHER_UNIT_PLANNER_CHIP = 'Plan a unit for my class';
-const TEACHER_UNIT_PLANNER_PROMPT =
-    'Help me plan a unit for [level/subject] over [N weeks]. Ask me questions about syllabus and assessments first.';
-const TEACHER_SUMMARY_CHIP = 'Summarise this plan';
+const TEACHER_ASSIGNMENT_DRAFT_CHIP = 'Draft an assignment on this topic for this level';
+const TEACHER_ASSIGNMENT_DRAFT_PROMPT =
+    'Plan my next assignment on [topic] for [level]. Include objective, task flow, and one formative check.';
+const TEACHER_SUMMARY_CHIP = 'Summarise my upcoming assignments';
 const TEACHER_SUMMARY_PROMPT =
-    'Summarise our conversation so far into a short list of key points and concrete next steps.';
+    'Summarise my upcoming assignments for this week, then list priority next actions.';
+const TEACHER_DIFFERENTIATION_CHIP = 'Differentiate this task for struggling learners';
+const TEACHER_DIFFERENTIATION_PROMPT =
+    'Differentiate tasks for struggling learners while keeping standards clear and achievable.';
 
 const TEACHER_DATA_TRIAGE_PATTERN =
     /\b(behind|struggling|weak|low score|underperform|intervention|triage)\b/i;
@@ -69,10 +72,10 @@ const TEACHER_DATA_TRIAGE_PATTERN =
 const resolveTeacherPromptConfig = (rawText: string): { message: string; useCase: UseCase } => {
     const trimmed = rawText.trim();
 
-    if (trimmed === TEACHER_UNIT_PLANNER_CHIP) {
+    if (trimmed === TEACHER_ASSIGNMENT_DRAFT_CHIP) {
         return {
-            message: TEACHER_UNIT_PLANNER_PROMPT,
-            useCase: 'teacher_unit_planner',
+            message: TEACHER_ASSIGNMENT_DRAFT_PROMPT,
+            useCase: 'teacher_chat',
         };
     }
 
@@ -80,6 +83,13 @@ const resolveTeacherPromptConfig = (rawText: string): { message: string; useCase
         return {
             message: TEACHER_SUMMARY_PROMPT,
             useCase: 'teacher_chat',
+        };
+    }
+
+    if (trimmed === TEACHER_DIFFERENTIATION_CHIP) {
+        return {
+            message: TEACHER_DIFFERENTIATION_PROMPT,
+            useCase: 'teacher_data_triage',
         };
     }
 
@@ -311,6 +321,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
     const currentClass = classList.find((c) => c.id === selectedClassId);
     const currentClassName = currentClass?.name || 'Overview';
+    const hasTeacherContextData = classList.length > 0 || insights.length > 0;
 
     // ── Load threads for current context ─────────────────────────────────────
     useEffect(() => {
@@ -572,12 +583,10 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
         if (!selectedClassId) {
             return [
-                attentionPrompt,
-                TEACHER_UNIT_PLANNER_CHIP,
+                TEACHER_ASSIGNMENT_DRAFT_CHIP,
                 TEACHER_SUMMARY_CHIP,
-                weakTopic
-                    ? `Help me plan the next lesson sequence for ${weakTopic}.`
-                    : 'Give me a cross-class health summary and teaching priority.',
+                TEACHER_DIFFERENTIATION_CHIP,
+                attentionPrompt,
                 overdueItem?.assignmentTitle
                     ? `Draft a parent update for overdue work on ${overdueItem.assignmentTitle}.`
                     : 'Draft a parent update for students with overdue work.',
@@ -585,12 +594,10 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
 
         return [
-            attentionPrompt,
-            TEACHER_UNIT_PLANNER_CHIP,
+            `Draft an assignment on ${weakTopic || 'this topic'} for ${contextClassName}.`,
             TEACHER_SUMMARY_CHIP,
-            weakTopic
-                ? `Help me plan the next lesson on ${weakTopic} for ${contextClassName}.`
-                : `What should I focus on before the next ${contextClassName} lesson?`,
+            `Differentiate this task for struggling learners in ${contextClassName}.`,
+            attentionPrompt,
             overdueItem?.assignmentTitle
                 ? `Draft a message to families about overdue work on ${overdueItem.assignmentTitle}.`
                 : `Draft a progress update for families in ${contextClassName}.`,
@@ -721,7 +728,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 contextMeta: !isDemo ? {
                     role: 'teacher',
                     isDemo,
-                    dashboardSource: navState?.source ?? null,
+                    dashboardSource: navState?.source ?? 'teacher_copilot_page',
                     roleContextId: selectedClassId ?? undefined,
                     roleContextLabel: selectedClassId ? currentClassNameText : undefined,
                     selectedClassId: selectedClassId ?? null,
@@ -860,12 +867,19 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     </div>
                                 )}
 
+                                {!isDemo && !hasTeacherContextData && (
+                                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-medium text-sky-800 mb-6">
+                                        We do not see classes or assignments yet, so Copilot will provide general planning guidance.
+                                    </div>
+                                )}
+
                                 {messages.length === 0 ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <CopilotEmptyState
                                             themeColor="#14b8a6"
                                             userName={displayName}
-                                            description="I can dig into your class data, help plan lessons, spot students who need attention, and draft parent communications — just ask."
+                                            title={threads.length === 0 ? 'No Copilot conversations yet. Try one of the suggestions below to get started.' : undefined}
+                                            description="I can dig into your class data, help plan assignments, support differentiation, and draft family communications."
                                             handleSend={handleSend}
                                             prompts={currentPrompts}
                                         />
@@ -880,6 +894,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                                 copilotRole="teacher"
                                                 showFeedback={message.showFeedback}
                                                 onSuggestionClick={handleSend}
+                                                feedbackSource="teacher_copilot_page"
                                             />
                                         ))}
                                         {isThinking && (

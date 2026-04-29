@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { getDemoGamePack, getGamePackById, GamePack, createStudentGameSession, submitAssignmentAttempt, QuestionResult } from '../services/dataService';
+import { getGamePackById, GamePack, createStudentGameSession, submitAssignmentAttempt, QuestionResult } from '../services/dataService';
 import { RoleQuizGame } from '../components/RoleQuizGame';
 import { Trophy, Flame, Star, ArrowRight, RotateCcw } from 'lucide-react';
 
@@ -38,16 +38,9 @@ export default function StudentGamePage() {
                 let data: GamePack;
                 
                 if (packId) {
-                    try {
-                        data = await getGamePackById(packId);
-                    } catch (err) {
-                        console.warn(`Failed to fetch pack ${packId}, falling back to demo.`, err);
-                        // Fallback to internal/temporary demo pack
-                        data = await getDemoGamePack();
-                    }
+                    data = await getGamePackById(packId);
                 } else {
-                    // Fallback to internal/temporary demo pack
-                    data = await getDemoGamePack();
+                    throw new Error('Missing game pack id.');
                 }
                 
                 setGamePack(data);

@@ -48,6 +48,7 @@ export async function sendCopilotFeedback(payload: {
   rating: CopilotFeedbackRating;
   reason?: CopilotFeedbackReason;
   comment?: string;
+  source?: string;
 }): Promise<void> {
   try {
     const authHeaders = getAuthHeaders();

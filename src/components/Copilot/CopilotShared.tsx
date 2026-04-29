@@ -75,6 +75,8 @@ export type Message = {
     suggestions?: CopilotSuggestion[];
     /** Use case used for this response, used by feedback telemetry. */
     useCase?: string;
+    /** Optional source tag for telemetry, such as teacher_copilot_page. */
+    feedbackSource?: string;
 };
 
 export type CopilotLayoutShellProps = {
@@ -93,23 +95,52 @@ export type CopilotLayoutShellProps = {
 export const parseSuggestionsFromResponse = (
     rawText: string
 ): { cleanContent: string; suggestions: CopilotSuggestion[] } => {
-    const pattern = /\n?Suggestions:\n((?:\s*[-*]\s*.+\n?)+)$/i;
-    const match = rawText.match(pattern);
-
-    if (!match) {
+    const normalized = rawText.replace(/\r\n/g, '\n').trimEnd();
+    const sections = normalized.split('\n');
+    if (sections.length === 0) {
         return { cleanContent: rawText.trimEnd(), suggestions: [] };
     }
 
-    const bulletBlock = match[1];
-    const suggestions: CopilotSuggestion[] = bulletBlock
-        .split('\n')
-        .map((line) => line.replace(/^\s*[-*]\s*/, '').trim())
+    const suggestionHeaderIndex = sections.findIndex((line) => /^\s*(suggestions?|next steps?)\s*:\s*$/i.test(line));
+    let candidateLines: string[] = [];
+    let cleanContent = normalized;
+
+    if (suggestionHeaderIndex >= 0) {
+        candidateLines = sections.slice(suggestionHeaderIndex + 1);
+        cleanContent = sections.slice(0, suggestionHeaderIndex).join('\n').trimEnd();
+    } else {
+        const trailingLines: string[] = [];
+        for (let index = sections.length - 1; index >= 0; index -= 1) {
+            const line = sections[index];
+            if (/^\s*(?:[-*]\s+|\d+[.)]\s+).+/.test(line)) {
+                trailingLines.unshift(line);
+                continue;
+            }
+            if (trailingLines.length > 0 && line.trim().length === 0) {
+                continue;
+            }
+            break;
+        }
+        if (trailingLines.length > 0) {
+            candidateLines = trailingLines;
+            cleanContent = sections.slice(0, sections.length - trailingLines.length).join('\n').trimEnd();
+        }
+    }
+
+    const suggestions = candidateLines
+        .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim())
         .filter(Boolean)
         .slice(0, 3)
         .map((label, idx) => ({ id: `sug-${Date.now()}-${idx}`, label }));
 
-    const cleanContent = rawText.slice(0, rawText.length - match[0].length).trimEnd();
-    return { cleanContent, suggestions };
+    if (suggestions.length === 0) {
+        return { cleanContent: normalized, suggestions: [] };
+    }
+
+    return {
+        cleanContent: cleanContent || normalized,
+        suggestions,
+    };
 };
 
 const DEFAULT_USE_CASE_BY_ROLE: Record<UserRole, UseCase> = {
@@ -126,6 +157,7 @@ export const handleFeedback = (feedback: {
     rating: CopilotFeedbackRating;
     reason?: CopilotFeedbackReason;
     comment?: string;
+    source?: string;
 }) => {
     void sendCopilotFeedback({
         role: feedback.role,
@@ -135,6 +167,7 @@ export const handleFeedback = (feedback: {
         rating: feedback.rating,
         reason: feedback.reason,
         comment: feedback.comment,
+        source: feedback.source,
     });
 };
 
@@ -620,6 +653,7 @@ export const CopilotMessageBubble: React.FC<{
     /** Deprecated flag retained for backward compatibility. Feedback controls now render for every assistant answer. */
     showFeedback?: boolean;
     onSuggestionClick?: (label: string) => void;
+    feedbackSource?: string;
 }> = ({
     message,
     themeColor = '#14b8a6',
@@ -628,6 +662,7 @@ export const CopilotMessageBubble: React.FC<{
     copilotRole,
     showFeedback = false,
     onSuggestionClick,
+    feedbackSource,
 }) => {
         void showFeedback;
         if (message.role === 'system') {
@@ -680,6 +715,7 @@ export const CopilotMessageBubble: React.FC<{
                                 role={copilotRole}
                                 useCase={message.useCase ?? DEFAULT_USE_CASE_BY_ROLE[copilotRole]}
                                 threadId={message.conversationId}
+                                source={feedbackSource ?? message.feedbackSource ?? message.source}
                                 onFeedback={handleFeedback}
                             />
                         </div>

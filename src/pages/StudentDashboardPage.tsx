@@ -424,14 +424,13 @@ export default function StudentDashboardPage({
                 setStreakData(streak);
                 setNudges(nudgesData);
             } catch (err: any) {
-                // API unreachable (e.g. Vercel with no backend) — fall back to demo data for visual parity
-                console.warn('Student API unavailable, falling back to demo data:', err);
-                setAssignments(demoStudentData.assignments);
-                setRecentPerformance(demoStudentData.recentPerformance);
-                setStreakData(demoStudentStreak);
-                setGameSessions(demoGameSessions);
-                setNudges(demoStudentNudges);
-                setStudentClasses(demoStudentClasses);
+                console.warn('Student API unavailable, showing empty state:', err);
+                setAssignments([]);
+                setRecentPerformance({ scores: [], weakTopics: [] });
+                setStreakData(null);
+                setGameSessions([]);
+                setNudges([]);
+                setStudentClasses([]);
             } finally {
                 setLoading(false);
             }

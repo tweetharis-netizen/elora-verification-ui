@@ -7,6 +7,7 @@ export type CopilotFeedbackRowProps = {
     role: UserRole;
     useCase: string;
     threadId?: string;
+    source?: string;
     onFeedback: (input: {
         messageId: string;
         role: UserRole;
@@ -15,6 +16,7 @@ export type CopilotFeedbackRowProps = {
         rating: CopilotFeedbackRating;
         reason?: CopilotFeedbackReason;
         comment?: string;
+        source?: string;
     }) => void;
 };
 
@@ -30,6 +32,7 @@ export const CopilotFeedbackRow: React.FC<CopilotFeedbackRowProps> = ({
     role,
     useCase,
     threadId,
+    source,
     onFeedback,
 }) => {
     const [selected, setSelected] = useState<CopilotFeedbackRating | null>(null);
@@ -56,6 +59,7 @@ export const CopilotFeedbackRow: React.FC<CopilotFeedbackRowProps> = ({
             threadId,
             rating: 'up',
             reason: 'helpful',
+            source,
         });
     };
 
@@ -73,6 +77,7 @@ export const CopilotFeedbackRow: React.FC<CopilotFeedbackRowProps> = ({
             rating: 'down',
             reason: selectedReason,
             comment: comment.trim().slice(0, 200) || undefined,
+            source,
         });
         setShowReasonSheet(false);
     };

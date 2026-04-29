@@ -26,6 +26,9 @@ export type ProviderName = 'openrouter' | 'groq' | 'gemini' | 'cohere';
 export interface LLMResponse {
   content: string;
   raw?: unknown;
+  provider?: ProviderName;
+  model?: string;
+  usedFallback?: boolean;
 }
 
 export interface UseCaseConfig {
@@ -82,5 +85,33 @@ export interface CopilotFeedbackPayload {
   rating: CopilotFeedbackRating;
   reason?: CopilotFeedbackReason;
   comment?: string;
+  source?: string;
+  entryPoint?: string;
+  isDemo?: boolean;
   createdAt: string;
+}
+
+export interface StudentCopilotConversation {
+  id: string;
+  studentId: string;
+  classId?: string | null;
+  subject?: string | null;
+  weekKey?: string | null;
+  title?: string | null;
+  threadType?: 'weekly_subject' | 'checkpoint' | 'free_study';
+  summary?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  lastMessageAt?: string | null;
+}
+
+export interface StudentCopilotConversationMessage {
+  id: string;
+  conversationId: string;
+  role: LLMRole;
+  content: string;
+  intent?: string | null;
+  source?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
 }

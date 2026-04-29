@@ -12,6 +12,7 @@ import { recordCopilotFeedback } from '../metrics/copilotMetricsStore.js';
 
 const USER_ROLES: UserRole[] = ['teacher', 'student', 'parent'];
 const VALID_REASONS: CopilotFeedbackReason[] = ['not_accurate', 'too_long', 'not_my_level', 'other', 'helpful'];
+const DEMO_USER_IDS = new Set(['teacher_1', 'student_1', 'parent_1']);
 
 const normalize = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 
@@ -36,6 +37,12 @@ const normalizeComment = (value: unknown): string | undefined => {
   const normalized = normalize(value);
   if (!normalized) return undefined;
   return normalized.slice(0, 500);
+};
+
+const normalizeSource = (value: unknown): string | undefined => {
+  const normalized = normalize(value);
+  if (!normalized) return undefined;
+  return normalized.slice(0, 80);
 };
 
 export const submitCopilotFeedbackHandler = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -82,6 +89,9 @@ export const submitCopilotFeedbackHandler = async (req: AuthRequest, res: Respon
       rating: ratingRaw,
       reason: normalizeReason(req.body?.reason),
       comment: normalizeComment(req.body?.comment),
+      source: normalizeSource(req.body?.source),
+      entryPoint: normalizeSource(req.body?.entryPoint),
+      isDemo: DEMO_USER_IDS.has(authUserId),
       createdAt: new Date().toISOString(),
     };
 
@@ -91,6 +101,8 @@ export const submitCopilotFeedbackHandler = async (req: AuthRequest, res: Respon
       useCase: feedback.useCase,
       rating: feedback.rating,
       reason: feedback.reason,
+      source: feedback.source,
+      isDemo: feedback.isDemo,
       createdAt: feedback.createdAt,
     });
     updateUserPreferenceSignals({

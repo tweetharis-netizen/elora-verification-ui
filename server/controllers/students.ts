@@ -488,9 +488,173 @@ export const appendStudentCopilotMessage = (req: AuthRequest, res: Response) => 
         );
 
         const created = db.get(`SELECT * FROM student_conversation_messages WHERE id = ?`, id) as StudentConversationMessageRow;
-        res.status(201).json(toMessageDto(created));
+
+        // Guardrails: detect repeated wrong attempts and self-negative language
+        let wrongAttemptsCount = 0;
+        let requireWarmup = false;
+        let negativeSelfTalkDetected = false;
+
+        try {
+            const allRows = db.all(
+                `SELECT * FROM student_conversation_messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 200`,
+                conversationId
+            ) as StudentConversationMessageRow[];
+
+            // Count wrong attempts for the same concept if metadata contains attempt.conceptId
+            const newMeta = metadataJson ? JSON.parse(metadataJson) : null;
+            const conceptId = newMeta?.attempt?.conceptId ?? null;
+
+            if (conceptId) {
+                for (const r of allRows) {
+                    if (!r.metadata_json) continue;
+                    try {
+                        const m = JSON.parse(r.metadata_json);
+                        const attempt = m?.attempt;
+                        if (attempt && attempt.conceptId === conceptId && attempt.outcome === 'wrong') {
+                            wrongAttemptsCount++;
+                        }
+                    } catch (e) {
+                        // ignore malformed
+                    }
+                }
+            }
+
+            if (wrongAttemptsCount >= 3) {
+                requireWarmup = true;
+            }
+
+            // Basic negative self-talk detection on latest user message
+            if (role === 'user') {
+                const text = content.toLowerCase();
+                const negativePatterns = ["i'm stupid", "i am stupid", "i can't", "i cant", "i suck", "i'm dumb", "i am dumb", "i'm not good", "i'm hopeless", "i give up"];
+                for (const p of negativePatterns) {
+                    if (text.includes(p)) {
+                        negativeSelfTalkDetected = true;
+                        break;
+                    }
+                }
+            }
+
+            // Regenerate a short rolling summary (synchronous simple summarizer)
+            try {
+                const lastMessages = allRows.slice(0, 40).reverse();
+                const userLines: string[] = [];
+                const assistantLines: string[] = [];
+                for (const m of lastMessages) {
+                    if (m.role === 'user') userLines.push(m.content.trim());
+                    if (m.role === 'assistant') assistantLines.push(m.content.trim());
+                }
+
+                const summaryParts: string[] = [];
+                if (userLines.length > 0) summaryParts.push(`Recent asks: ${userLines.slice(-3).join(' | ')}`);
+                if (assistantLines.length > 0) summaryParts.push(`Recent guidance: ${assistantLines.slice(-3).join(' | ')}`);
+                const summaryText = summaryParts.join('\n');
+
+                db.run(`UPDATE student_conversations SET summary = ? WHERE id = ?`, summaryText, conversationId);
+            } catch (e) {
+                // non-fatal
+                console.error('Error generating inline summary:', e);
+            }
+        } catch (e) {
+            console.error('Error computing guardrails for message append:', e);
+        }
+
+        const responsePayload: any = toMessageDto(created);
+        responsePayload.guardrails = {
+            wrongAttemptsCount,
+            requireWarmup,
+            negativeSelfTalkDetected
+        };
+
+        res.status(201).json(responsePayload);
     } catch (error) {
         console.error('Error appending student copilot message:', error);
         res.status(500).json({ error: 'Failed to append conversation message' });
+    }
+};
+
+export const summarizeStudentCopilotConversation = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const conversationId = req.params.id;
+
+    try {
+        const conversation = getOwnedConversation(studentId, conversationId);
+        if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+        const rows = db.all(
+            `SELECT * FROM student_conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 200`,
+            conversationId
+        ) as StudentConversationMessageRow[];
+
+        // Simple summarizer: collect recent user asks and assistant guidance
+        const userLines: string[] = [];
+        const assistantLines: string[] = [];
+        for (const m of rows) {
+            if (m.role === 'user') userLines.push(m.content.trim());
+            if (m.role === 'assistant') assistantLines.push(m.content.trim());
+        }
+
+        const parts: string[] = [];
+        if (userLines.length > 0) parts.push(`Recent asks: ${userLines.slice(-5).join(' | ')}`);
+        if (assistantLines.length > 0) parts.push(`Recent guidance: ${assistantLines.slice(-5).join(' | ')}`);
+
+        const summaryText = parts.join('\n');
+
+        db.run(`UPDATE student_conversations SET summary = ?, updated_at = ? WHERE id = ?`, summaryText, new Date().toISOString(), conversationId);
+
+        res.json({ ok: true, summary: summaryText });
+    } catch (error) {
+        console.error('Error summarizing conversation:', error);
+        res.status(500).json({ error: 'Failed to summarize conversation' });
+    }
+};
+
+export const getWarmupExample = (req: AuthRequest, res: Response) => {
+    const studentId = req.user!.id;
+    const conversationId = req.params.id;
+    const conceptId = req.query.conceptId as string | undefined;
+
+    try {
+        const conversation = getOwnedConversation(studentId, conversationId);
+        if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+        // Simple warmup examples keyed by concept
+        const warmupExamples: Record<string, { title: string; question: string; hint: string }> = {
+            'algebra-factorisation': {
+                title: 'Warm-up: Simple Factorisation',
+                question: 'Factor this simple expression: x² + 4x + 3. (Hint: find two numbers that multiply to 3 and add to 4)',
+                hint: 'Think: what two numbers multiply to give 3 and add to give 4? Answer: 1 and 3. So the factors are (x+1) and (x+3).'
+            },
+            'quadratic-equations': {
+                title: 'Warm-up: Easy Quadratic',
+                question: 'Solve: x² = 9. What are the two solutions?',
+                hint: 'Think about what number times itself gives 9. Remember there are two answers: positive and negative.'
+            },
+            'fractions': {
+                title: 'Warm-up: Simple Fraction Addition',
+                question: 'Add these fractions: 1/4 + 2/4. Simplify your answer.',
+                hint: 'When the denominators are the same, just add the numerators: 1 + 2 = 3. So the answer is 3/4.'
+            },
+            'default': {
+                title: 'Warm-up: Take a Breath',
+                question: 'Before we try again, let\'s review the basics of this concept. What is one thing you remember about this topic?',
+                hint: 'There\'s no wrong answer here. Just think about what you already know. Once you share, I\'ll give you an easy example to build from.'
+            }
+        };
+
+        const example = conceptId && warmupExamples[conceptId]
+            ? warmupExamples[conceptId]
+            : warmupExamples['default'];
+
+        res.json({
+            ok: true,
+            warmup: {
+                conceptId: conceptId ?? 'default',
+                ...example
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching warmup example:', error);
+        res.status(500).json({ error: 'Failed to fetch warmup example' });
     }
 };

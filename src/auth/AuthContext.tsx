@@ -13,6 +13,7 @@ import React, {
     ReactNode,
 } from 'react';
 import { setCurrentUser as dsSetCurrentUser } from '../services/dataService';
+import { isDemoUserId } from '../utils/demoContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -125,9 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const login = (role: UserRole, data?: Partial<CurrentUser>, persist = true) => {
-        // If data.id is provided and it's not a demo ID, use it for real user login
-        const isReal = data?.id && !Object.values(DEMO_USERS).some(u => u.id === data.id);
-
         const baseUser = DEMO_USERS[role];
         const user: CurrentUser = {
             ...baseUser,
@@ -145,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         dsSetCurrentUser(user);
-        setIsGuest(!persist);
+        setIsGuest(!persist || isDemoUserId(user.id));
     };
 
     const updateProfile = (data: Partial<CurrentUser>) => {

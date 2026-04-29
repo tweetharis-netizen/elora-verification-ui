@@ -6,6 +6,7 @@ export interface LLMUsageLogArgs {
   userId?: string;
   role: UserRole;
   useCase: UseCase;
+  source?: string;
   provider: ProviderName;
   model: string;
   timestamp: Date;
@@ -171,6 +172,7 @@ export async function logLLMUsage(args: LLMUsageLogArgs): Promise<void> {
       userId: args.userId ?? null,
       role: args.role,
       useCase: args.useCase,
+      source: args.source ?? null,
       provider: args.provider,
       model: args.model,
       inputPreview: truncate(combinedUserInput, 200),

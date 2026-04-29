@@ -746,17 +746,10 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         }
 
         if (childrenError) {
-            const fallback = demoChildren.map((c: any, i: number) => ({
-                id: c.id,
-                name: c.name,
-                level: (c as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
-            }));
-            setChildrenList(fallback);
-            if (fallback.length > 0) {
-                setActiveChildId((prev) => (prev && fallback.some((child) => child.id === prev) ? prev : fallback[0].id));
-                setSummaryData(demoChildSummary);
-                setLastUpdated('Just now');
-            }
+            setChildrenList([]);
+            setActiveChildId(null);
+            setSummaryData(null);
+            setLastUpdated('');
             setLoadError(null);
             setIsLoading(false);
             return;
@@ -810,10 +803,9 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
             setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }).catch(err => {
             console.error('[ParentDashboard] Error loading summary:', err);
-            // Keep Parent dashboard usable on localhost without backend.
-            setSummaryData(demoChildSummary);
-            setLastUpdated('Just now');
-            setLoadError(null);
+            setSummaryData(null);
+            setLastUpdated('');
+            setLoadError(`We couldn't load ${activeChild?.name || 'this child'}'s latest data right now.`);
         }).finally(() => setIsLoading(false));
     }, [activeChildId, isDemo]);
 

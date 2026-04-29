@@ -13,6 +13,7 @@ import { useStudentClasses } from '../hooks/useStudentClasses';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { askElora } from '../services/askElora';
+import { ActionProposalModal } from '../components/StudentCopilot/ActionProposalModal';
 import {
     demoStudentData,
     demoStudentStreak,
@@ -55,11 +56,15 @@ const topicExplanations: Record<string, string> = {
     'Kinematics': "Kinematics is the study of motion. We use terms like displacement, velocity, and acceleration to describe how objects move without worrying about the forces that cause the movement. It's the foundation of almost everything in classical physics."
 };
 
-const STUDENT_STUDY_MODE_CHIP = 'Start a maths study session';
-const STUDENT_STUDY_MODE_PROMPT = 'Let\'s start a study session for Sec 2 mathematics. Ask me questions and help me practise.';
-const STUDENT_SUMMARY_CHIP = 'Summarise what I\'ve learned';
-const STUDENT_SUMMARY_PROMPT =
-    'Summarise what I\'ve learned in this session in simple bullet points and suggest what I should practise next.';
+const STUDENT_EXPLAIN_CHIP = 'Explain this concept simply';
+const STUDENT_EXPLAIN_PROMPT =
+    'Explain this concept to me in simpler language, then give one short example.';
+const STUDENT_PRACTICE_CHIP = 'Give me practice questions about this topic';
+const STUDENT_PRACTICE_PROMPT =
+    'Give me practice questions about this topic with one easy, one medium, and one challenge question.';
+const STUDENT_PREP_CHIP = 'Help me prepare for my next assignment';
+const STUDENT_PREP_PROMPT =
+    'Help me review for my next assignment or test on this topic with a short study plan.';
 const STUDENT_STUDY_MODE_HINT_PATTERN = /\b(study session|ask me questions|quiz me|drill me|practice session)\b/i;
 
 const resolveStudentPromptConfig = ({
@@ -71,17 +76,24 @@ const resolveStudentPromptConfig = ({
 }): { message: string; useCase: UseCase } => {
     const trimmed = rawText.trim();
 
-    if (trimmed === STUDENT_STUDY_MODE_CHIP) {
+    if (trimmed === STUDENT_EXPLAIN_CHIP) {
         return {
-            message: STUDENT_STUDY_MODE_PROMPT,
-            useCase: 'student_study_mode',
+            message: STUDENT_EXPLAIN_PROMPT,
+            useCase: 'student_chat',
         };
     }
 
-    if (trimmed === STUDENT_SUMMARY_CHIP) {
+    if (trimmed === STUDENT_PRACTICE_CHIP) {
         return {
-            message: STUDENT_SUMMARY_PROMPT,
-            useCase: activeUseCase === 'student_study_mode' ? 'student_study_mode' : 'student_chat',
+            message: STUDENT_PRACTICE_PROMPT,
+            useCase: 'student_study_help',
+        };
+    }
+
+    if (trimmed === STUDENT_PREP_CHIP) {
+        return {
+            message: STUDENT_PREP_PROMPT,
+            useCase: 'student_study_help',
         };
     }
 
@@ -96,6 +108,31 @@ const resolveStudentPromptConfig = ({
         message: trimmed,
         useCase: 'student_chat',
     };
+};
+
+/**
+ * Detect if a raw user message is "freeform" (not a quick-action chip).
+ * Returns true if the message does not match any quick-action pattern.
+ */
+const isFreeformMessage = (rawText: string, activeUseCase: UseCase): boolean => {
+    const trimmed = rawText.trim();
+    
+    const quickActionChips = [
+        STUDENT_EXPLAIN_CHIP,
+        STUDENT_PRACTICE_CHIP,
+        STUDENT_PREP_CHIP,
+    ];
+
+    if (quickActionChips.includes(trimmed)) {
+        return false;
+    }
+
+    // If it's detected as study mode by pattern, it's not considered "freeform" for guard purposes
+    if (STUDENT_STUDY_MODE_HINT_PATTERN.test(trimmed)) {
+        return false;
+    }
+
+    return true;
 };
 
 const HorizontalChips: React.FC<{ 
@@ -218,6 +255,10 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
 
                     const normalized = dataService.toEloraServiceError(err);
                     setServiceNotice(dataService.getFriendlyServiceErrorMessage(normalized));
+                    setAssignments([]);
+                    setRecentPerformance({ scores: [], weakTopics: [] });
+                    setGameSessions([]);
+                    setStreakData(null);
                 }
             }
         };
@@ -233,6 +274,8 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const [activeCopilotUseCase, setActiveCopilotUseCase] = useState<UseCase>('student_chat');
     const [threads, setThreads] = useState<dataService.StudentCopilotConversation[]>([]);
     const [isThreadsLoading, setIsThreadsLoading] = useState(false);
+    const [consecutiveFreeformCount, setConsecutiveFreeformCount] = useState(0);
+    const [showActionProposal, setShowActionProposal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isNearBottomRef = useRef(true);
@@ -248,11 +291,9 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         .filter((subject): subject is string => typeof subject === 'string' && subject.trim().length > 0);
     const rosterSubjects = isDemo
         ? demoStudentClasses.map((cls) => cls.name)
-        : studentClasses.length > 0
-            ? studentClasses
-                .map((cls) => cls.name)
-                .filter((subject): subject is string => typeof subject === 'string' && subject.trim().length > 0)
-            : demoStudentClasses.map((cls) => cls.name);
+        : studentClasses
+            .map((cls) => cls.name)
+            .filter((subject): subject is string => typeof subject === 'string' && subject.trim().length > 0);
     const subjects = Array.from(new Set([...assignmentSubjects, ...rosterSubjects]));
     const selectedSubjectName = selectedSubjectId === 'all' ? 'All subjects' : selectedSubjectId;
     const subjectFilter = selectedSubjectName === 'All subjects' ? undefined : selectedSubjectName;
@@ -265,6 +306,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         : assignments.filter(a => a.className === selectedSubjectId);
     
     const filteredPending = filteredAssignments.filter(a => ['not_started', 'danger', 'warning', 'info'].includes(a.status || ''));
+    const hasStudentContextData = assignments.length > 0 || subjects.length > 0;
 
     // Thread management helpers
     const hasMessagesInActiveThread = messages.some(m => m.role === 'user' || m.role === 'assistant');
@@ -283,11 +325,11 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const weakTopic = navState?.weakTopic?.trim() || primaryFocusTopic;
 
     const currentPrompts = [
-        STUDENT_STUDY_MODE_CHIP,
-        STUDENT_SUMMARY_CHIP,
-        'Explain today\'s lesson in simpler words.',
+        STUDENT_EXPLAIN_CHIP,
+        STUDENT_PRACTICE_CHIP,
+        STUDENT_PREP_CHIP,
         weakTopic ? `Quiz me on ${weakTopic}.` : 'Quiz me on this topic.',
-        'Help me plan revision for my next test.',
+        'Give me a 20-minute revision plan for tonight.',
     ];
 
     const toUiMessage = (
@@ -556,6 +598,19 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         const query = normalizedMessage.trim();
         if (!query || showAuthGate) return;
 
+        // Guardrail: track consecutive freeform messages
+        const isFreeform = isFreeformMessage(text, activeCopilotUseCase);
+        let updatedFreeformCount = isFreeform ? consecutiveFreeformCount + 1 : 0;
+        setConsecutiveFreeformCount(updatedFreeformCount);
+
+        // If we've hit 2 consecutive freeform messages, show action proposal
+        if (updatedFreeformCount >= 2) {
+            setShowActionProposal(true);
+            // Reset input but don't send the message yet
+            setInputValue('');
+            return;
+        }
+
         if (resolvedUseCase !== activeCopilotUseCase) {
             setActiveCopilotUseCase(resolvedUseCase);
         }
@@ -637,7 +692,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 contextMeta: !isDemo ? {
                     role: 'student',
                     isDemo,
-                    dashboardSource: navState?.source ?? null,
+                    dashboardSource: navState?.source ?? 'student_copilot_page',
                     roleContextId: selectedSubjectId === 'all' ? undefined : (resolvedClassId ?? selectedSubjectId),
                     roleContextLabel: selectedSubjectId === 'all' ? undefined : selectedSubjectName,
                     selectedClassId: resolvedClassId,
@@ -702,6 +757,28 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
     };
 
+    const handleSelectTask = () => {
+        setShowActionProposal(false);
+        setConsecutiveFreeformCount(0);
+        if (filteredPending[0]) {
+            handleSend(`Help me with this task: ${filteredPending[0].title}`);
+        }
+    };
+
+    const handleSelectSprint = () => {
+        setShowActionProposal(false);
+        setConsecutiveFreeformCount(0);
+        handleSend('Let\'s do a 10-minute focused drill. Quiz me on what I\'ve been working on.');
+    };
+
+    const handleSelectTopic = () => {
+        setShowActionProposal(false);
+        setConsecutiveFreeformCount(0);
+        if (weakTopic) {
+            handleSend(`Help me master ${weakTopic} with targeted practice.`);
+        }
+    };
+
     const sidebarContent = showAuthGate ? <></> : (
         <div className="flex-1 flex flex-col min-h-0 bg-white">
             <CopilotThreadSidebar
@@ -760,11 +837,18 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     </div>
                                 )}
 
+                                {!isDemo && !hasStudentContextData && (
+                                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-medium text-sky-800 mb-6">
+                                        We do not see assignments or classes yet, so Copilot will give general study guidance.
+                                    </div>
+                                )}
+
                                 {messages.length === 0 ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <CopilotEmptyState
                                             themeColor="#68507B"
                                             userName={currentUser?.name}
+                                            title={threads.length === 0 ? 'No Copilot conversations yet. Try one of the suggestions below to get started.' : undefined}
                                             description="I can explain tricky topics, quiz you, and help build a realistic revision plan."
                                             prompts={currentPrompts}
                                             handleSend={handleSend}
@@ -786,6 +870,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                                 copilotRole="student"
                                                 showFeedback={msg.showFeedback}
                                                 onSuggestionClick={handleSend}
+                                                feedbackSource="student_copilot_page"
                                             />
                                         ))}
                                         {isThinking && (
@@ -865,6 +950,15 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                     </div>
                 </CopilotLayoutShell>
             )}
+            <ActionProposalModal
+                isOpen={showActionProposal}
+                weakTopic={weakTopic}
+                nearestTask={filteredPending[0]}
+                onSelectTask={handleSelectTask}
+                onSelectSprint={handleSelectSprint}
+                onSelectTopic={handleSelectTopic}
+                themeColor="#68507B"
+            />
         </CopilotLayout>
     );
 };

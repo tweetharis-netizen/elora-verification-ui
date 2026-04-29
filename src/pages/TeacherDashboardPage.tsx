@@ -1064,9 +1064,20 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
             setEloraError(null);
             try {
                 const fallbackClass = classesData?.[0];
-                const firstClassId = fallbackClass?.id || 'class-1';
-                const firstClassName = fallbackClass?.name || 'Sec 3 Mathematics';
-                const dataToUse = insightData ?? demoInsights;
+                if (!fallbackClass || (insightData?.length ?? 0) === 0) {
+                    setEloraSuggestion({
+                        kind: 'lesson_idea',
+                        title: 'Add a class to unlock suggestions',
+                        body: 'Once you have a class and some activity, I can suggest a practical next step for your teaching flow.',
+                        suggestedTargets: ['your class'],
+                        suggestedTopic: 'your classroom',
+                    });
+                    setEloraStatus('success');
+                    return;
+                }
+                const firstClassId = fallbackClass.id;
+                const firstClassName = fallbackClass.name;
+                const dataToUse = insightData ?? [];
                 const suggestion = await getClassSupportSuggestion(
                     firstClassId,
                     firstClassName,

@@ -30,7 +30,7 @@ const OurStoryPage = () => {
 
       <main className="pt-20">
         {/* TOP BREADCRUMB */}
-        <div className="max-w-7xl mx-auto px-6 pt-12">
+        <div className="max-w-[1400px] mx-auto px-6 pt-12">
           <Link
             to="/"
             className="inline-flex items-center text-white/40 hover:text-white/80 transition-colors text-xs font-bold uppercase tracking-widest gap-2 group"
@@ -43,7 +43,7 @@ const OurStoryPage = () => {
         {/* HERO SECTION */}
         <section className="relative py-16 md:py-24 overflow-hidden">
           <div className="absolute inset-0 bg-grid pointer-events-none opacity-50"></div>
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-[1400px] mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -70,7 +70,7 @@ const OurStoryPage = () => {
 
         {/* WHY NOW SECTION */}
         <section className="py-24 bg-elora-400 border-b border-white/10 relative">
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-[1400px] mx-auto px-6 relative z-10">
             <div className="mb-16">
               <p className="text-accent-orange text-xs font-bold uppercase tracking-widest mb-4">The Challenge</p>
               <h2 className="text-3xl md:text-5xl font-sans font-medium tracking-tight mb-6">
@@ -126,7 +126,7 @@ const OurStoryPage = () => {
         {/* FOUR PILLARS */}
         <section className="py-24 bg-elora-300 border-b border-white/10 relative">
           <div className="absolute inset-0 bg-grid-dark pointer-events-none opacity-20"></div>
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-[1400px] mx-auto px-6 relative z-10">
             <div className="mb-16">
               <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">The Foundation</p>
               <h2 className="text-3xl md:text-5xl font-sans font-medium tracking-tight">Why we built Elora</h2>
@@ -185,7 +185,7 @@ const OurStoryPage = () => {
 
         {/* THE ELORA EXPERIENCE */}
         <section className="py-32 bg-elora-400 relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-[1400px] mx-auto px-6 relative z-10">
             <div className="text-center mb-20">
               <h2 className="text-4xl md:text-6xl font-sans font-medium mb-6 tracking-tight">
                 Built for every <span className="font-serif italic text-accent-pink">perspective.</span>

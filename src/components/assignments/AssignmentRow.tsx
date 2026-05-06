@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronRight, FileText } from 'lucide-react';
 
 type AssignmentRowVariant = 'teacher' | 'student' | 'parent';
 
@@ -6,7 +7,7 @@ interface AssignmentRowProps {
   variant: AssignmentRowVariant;
   title: string;
   statusLabel: string;
-  metadata: string;
+  metadata: string; // e.g. "Math • Algebra 1"
   onClick: () => void;
   isAlert?: boolean;
   teacherStats?: {
@@ -22,16 +23,9 @@ interface AssignmentRowProps {
   parentScore?: {
     score: string;
     goal: number;
+    ctaLabel?: string;
   };
 }
-
-const ROLE_ACCENT: Record<AssignmentRowVariant, string> = {
-  teacher: '#14B8A6',
-  student: '#7C3AED',
-  parent: '#F97316',
-};
-
-const ALERT_ACCENT = '#9F1239';
 
 export function AssignmentRow({
   variant,
@@ -44,103 +38,192 @@ export function AssignmentRow({
   studentProgress,
   parentScore,
 }: AssignmentRowProps) {
-  const accent = isAlert ? ALERT_ACCENT : ROLE_ACCENT[variant];
+  const isCompleted = statusLabel.toLowerCase() === 'completed' || statusLabel.toLowerCase() === 'success';
+  const isDueSoon = statusLabel.toLowerCase().includes('due soon');
+
+  // Role-specific colors
+  const roleColors = {
+    teacher: 'teal',
+    student: '#7C3AED',
+    parent: '#DB844A',
+  };
+
+  const primaryColor = roleColors[variant];
+
+  // Status Colors
+  let statusToneClass = '';
+  let statusDotClass = '';
+  let statusLabelClass = '';
+
+  if (isCompleted) {
+    statusToneClass = 'bg-emerald-500 text-emerald-700';
+    statusDotClass = 'bg-emerald-500';
+    statusLabelClass = 'text-emerald-700';
+  } else if (isAlert) {
+    statusToneClass = 'bg-rose-500 text-rose-700';
+    statusDotClass = 'bg-rose-500';
+    statusLabelClass = 'text-rose-700';
+  } else if (isDueSoon) {
+    statusToneClass = 'bg-amber-500 text-amber-700';
+    statusDotClass = 'bg-amber-500';
+    statusLabelClass = 'text-amber-700';
+  } else {
+    // Default using primary color
+    if (variant === 'teacher') {
+      statusToneClass = 'bg-teal-500 text-teal-700';
+      statusDotClass = 'bg-teal-600';
+      statusLabelClass = 'text-teal-700';
+    } else if (variant === 'student') {
+      statusToneClass = 'bg-[#7C3AED]/20 text-[#68507B]';
+      statusDotClass = 'bg-[#7C3AED]';
+      statusLabelClass = 'text-[#68507B]';
+    } else {
+      statusToneClass = 'bg-[#DB844A]/20 text-[#B26532]';
+      statusDotClass = 'bg-[#DB844A]';
+      statusLabelClass = 'text-[#B26532]';
+    }
+  }
+
+  // Parse metadata if possible (e.g., "Class • Topic" or "Class • Due Date")
+  const metaParts = metadata.split('•').map(p => p.trim());
+  const className = metaParts[0] || '';
+  const topicOrDue = metaParts[1] || '';
+
+  // Extract due date from string if it exists in metadata (for student/parent)
+  let extractedDue = '--';
+  if (topicOrDue.toLowerCase().startsWith('due ')) {
+    extractedDue = topicOrDue.substring(4);
+  }
+
+  // Progress metrics
+  let percent = 0;
+  if (variant === 'student' && studentProgress) {
+    percent = studentProgress.value;
+  } else if (variant === 'parent' && parentScore) {
+    percent = Number.parseInt(parentScore.score, 10) || 0;
+  } else if (variant === 'teacher' && teacherStats) {
+    const [sub, total] = teacherStats.submissions.split('/');
+    if (total && parseInt(total) > 0) {
+      percent = Math.round((parseInt(sub) / parseInt(total)) * 100);
+    }
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick();
+    }
+  };
 
   return (
     <article
-      onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onClick();
-        }
-      }}
-      className="group relative min-h-[72px] max-h-[90px] rounded-xl border border-white/10 bg-white/40 backdrop-blur-md px-5 py-2.5 transition-all duration-300 hover:bg-white/60 hover:shadow-lg cursor-pointer flex flex-col justify-center"
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      className={`group rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-none transition-all duration-200 hover:-translate-y-[2px] cursor-pointer ${isCompleted ? 'bg-slate-50/[0.75]' : ''}`}
+      style={{
+        // Add dynamic border color on hover based on variant
+        '--hover-border': variant === 'teacher' ? 'rgba(20, 184, 166, 0.4)' : variant === 'student' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(219, 132, 74, 0.4)'
+      } as React.CSSProperties}
     >
-      <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl opacity-80" style={{ backgroundColor: accent }} />
-
-      <div className="flex h-full items-center justify-between gap-6">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <span
-              className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em]"
-              style={{
-                color: accent,
-                borderColor: `${accent}33`,
-                backgroundColor: `${accent}1A`,
-              }}
+      <style>{`
+        article:hover { border-color: var(--hover-border) !important; }
+      `}</style>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 flex items-start gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${isAlert ? 'border-rose-200 bg-rose-50/80 text-rose-700' : 'border-slate-100 bg-slate-50 text-slate-500'}`}
+              style={!isAlert ? { color: primaryColor, backgroundColor: `${primaryColor}1A`, borderColor: `${primaryColor}33` } : {}}
             >
-              {statusLabel}
-            </span>
-            <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 truncate editorial-header italic">{title}</h3>
+              <FileText size={18} />
+            </div>
+            <div className="min-w-0 text-left">
+              <h3 className="truncate text-[17px] font-semibold leading-6 tracking-tight text-slate-900">{title}</h3>
+              <p className="mt-1 truncate text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                {className} {topicOrDue && !topicOrDue.toLowerCase().startsWith('due ') && `· ${topicOrDue}`}
+              </p>
+            </div>
           </div>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 truncate font-sans">
-            {metadata}
-          </p>
+
+          <div className="flex flex-col items-end justify-center gap-2 text-[12px] font-medium">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+              <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass}`} />
+              <span className={statusLabelClass}>{statusLabel}</span>
+            </span>
+            <button
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-semibold normal-case tracking-normal text-slate-600 transition-colors duration-200 hover:bg-slate-50"
+            >
+              {variant === 'student' ? (studentProgress?.ctaLabel || 'Start assignment') : variant === 'parent' ? (parentScore?.ctaLabel || 'View details') : 'View details'}
+              <ChevronRight size={13} />
+            </button>
+          </div>
         </div>
 
-        {variant === 'teacher' && teacherStats && (
-          <div className="w-[255px] shrink-0 text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 font-sans">
-              <span className="editorial-mono">{teacherStats.submissions}</span> Submissions
-            </p>
-            <div className="mt-1 flex items-center justify-end gap-2">
-              {teacherStats.showNeedsAttention && (
-                <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-[#9F1239] border-[#9F1239]/20 bg-[#9F1239]/10">
-                  Needs Attention
-                </span>
-              )}
-              <span className={`text-[11px] font-bold uppercase tracking-[0.15em] font-sans ${isAlert ? 'text-[#9F1239]' : 'text-teal-700'}`}>
-                Avg <span className="editorial-mono text-base">{teacherStats.avgScore}</span>
-              </span>
-            </div>
-          </div>
-        )}
+        <div className="grid gap-2 sm:grid-cols-3 text-left">
+          {variant === 'teacher' && teacherStats && (
+            <>
+              <div className="sm:pr-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Submissions</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{teacherStats.submissions}</p>
+              </div>
+              <div className="sm:px-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Avg score</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{teacherStats.avgScore}%</p>
+              </div>
+              <div className="sm:pl-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{topicOrDue.toLowerCase().startsWith('due ') ? extractedDue : '--'}</p>
+              </div>
+            </>
+          )}
 
-        {variant === 'student' && studentProgress && (
-          <div className="w-[220px] shrink-0 text-right relative">
-            <div className="h-1.5 w-full rounded-full bg-slate-200/50 overflow-hidden">
+          {variant === 'student' && studentProgress && (
+            <>
+              <div className="sm:pr-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Progress</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{studentProgress.value}%</p>
+              </div>
+              <div className="sm:px-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Goal</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{studentProgress.goal}%</p>
+              </div>
+              <div className="sm:pl-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{topicOrDue.toLowerCase().startsWith('due ') ? extractedDue : '--'}</p>
+              </div>
+            </>
+          )}
+
+          {variant === 'parent' && parentScore && (
+            <>
+              <div className="sm:pr-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Score</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{parentScore.score}</p>
+              </div>
+              <div className="sm:px-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Goal</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{parentScore.goal}%</p>
+              </div>
+              <div className="sm:pl-4 sm:border-l sm:border-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due</p>
+                <p className="mt-1 text-lg font-bold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-800">{topicOrDue.toLowerCase().startsWith('due ') ? extractedDue : '--'}</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-1 border-t border-[#EAEAEA] pt-3 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="h-[3px] w-full overflow-hidden rounded-full bg-slate-100" style={{ backgroundColor: `${primaryColor}1A` }}>
               <div
-                className="h-full transition-all"
-                style={{ width: `${Math.max(0, Math.min(100, studentProgress.value))}%`, backgroundColor: accent }}
+                className="h-full transition-all duration-200"
+                style={{ width: `${Math.max(0, Math.min(100, percent))}%`, backgroundColor: primaryColor }}
               />
             </div>
-            <div className="mt-1 flex items-center justify-end gap-3">
-              <span className={`text-[11px] font-bold uppercase tracking-[0.15em] font-sans ${isAlert ? 'text-[#9F1239]' : 'text-slate-500'}`}>
-                Goal: <span className="editorial-mono">{studentProgress.goal}%</span>
-              </span>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClick();
-                }}
-                className={`rounded-md px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] border transition-all hover:scale-105 active:scale-95 ${isAlert ? 'text-[#9F1239] border-[#9F1239]/20 bg-[#9F1239]/10' : 'text-[#7C3AED] border-[#7C3AED]/20 bg-[#7C3AED]/10'}`}
-              >
-                {studentProgress.ctaLabel || 'Submit'}
-              </button>
-            </div>
+            <span className="text-[11px] font-semibold tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] text-slate-500">{percent}%</span>
           </div>
-        )}
-
-        {variant === 'parent' && parentScore && (
-          <div className="w-[250px] shrink-0 text-right">
-            <p className={`text-[11px] font-bold uppercase tracking-[0.15em] font-sans ${isAlert ? 'text-[#9F1239]' : 'text-orange-700'}`}>
-              Score: <span className="editorial-mono text-base">{parentScore.score}</span> / Goal: <span className="editorial-mono">{parentScore.goal}%</span>
-            </p>
-            <div className="mt-1 h-1.5 w-full rounded-full bg-slate-200/50 overflow-hidden">
-              <div
-                className="h-full transition-all"
-                style={{
-                  width: `${Math.max(0, Math.min(100, Number.parseInt(parentScore.score, 10) || 0))}%`,
-                  backgroundColor: Number.parseInt(parentScore.score, 10) < parentScore.goal ? ALERT_ACCENT : ROLE_ACCENT.parent,
-                }}
-              />
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </article>
   );

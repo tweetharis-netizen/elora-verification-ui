@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { DEFAULT_USE_CASE_BY_ROLE, isUseCase } from '../../src/lib/llm/config.js';
 import { llmRouter, LLMTemporarilyUnavailableError } from '../../src/lib/llm/router.js';
 import type { LLMMessage, UseCase } from '../../src/lib/llm/types.js';
+import { normalizeReferenceMentions } from '../../src/lib/mentions/referenceMentions.js';
+import type { CopilotFileAttachment } from '../../src/lib/llm/types.js';
 import {
   parentCopilotSystemPrompt,
   studentCopilotSystemPrompt,
@@ -394,6 +396,7 @@ const buildRouterMessages = ({
   prompt: string;
   contextText: string;
   recentPrompts: string[];
+  fileAttachments?: CopilotFileAttachment[];
 }): LLMMessage[] => {
   const messages: LLMMessage[] = [];
 
@@ -563,6 +566,9 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
     lastSelectedClassId,
     lastSelectedStudentId,
     conversationId,
+    isHomework,
+    referenceMentions,
+    fileAttachments,
   } = req.body ?? {};
   const authUser = req.user;
   if (!authUser) {
@@ -581,6 +587,8 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
   const normalizedRecentPrompts = normalizeRecentPrompts(recentUserPrompts);
   const normalizedContextMeta = normalizeContextMeta(contextMeta);
   const requestIsFirstTurn = Boolean(isFirstMessage) || (!conversationId && normalizedRecentPrompts.length === 0);
+  const normalizedReferenceMentions = normalizeReferenceMentions(referenceMentions);
+  const normalizedFileAttachments = Array.isArray(fileAttachments) ? fileAttachments : [];
   const isDemoContext = demoCopilotUserIds.has(authUser.id) || normalizedContextMeta?.isDemo === true;
   const source = resolveCopilotSource(userRole, normalizedContextMeta);
   const rolePromptSnippet = resolveRolePromptLabel(userRole).split('\n')[0] ?? 'role_prompt';
@@ -603,11 +611,23 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
     const contextText = typeof context === 'string' ? truncateForPrompt(context, 900) : '';
 
     const resolvedUseCase = resolveUseCase(useCase, userRole);
+
     const messages = buildRouterMessages({
       prompt: trimmedPrompt,
       contextText,
       recentPrompts: normalizedRecentPrompts,
+      fileAttachments: normalizedFileAttachments,
     });
+
+    console.info('[copilot-input]', JSON.stringify({
+      requestId,
+      role: userRole,
+      useCase: resolvedUseCase,
+      prompt: trimmedPrompt,
+      contextText,
+      recentPrompts: normalizedRecentPrompts,
+      fileAttachments: normalizedFileAttachments,
+    }));
 
     const resolvedLastSelectedClassId =
       typeof lastSelectedClassId === 'string' && lastSelectedClassId.trim().length > 0
@@ -631,6 +651,12 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
       }));
     }
 
+    const resolvedUserName = (authUser as any)?.firstName && typeof (authUser as any).firstName === 'string'
+      ? String((authUser as any).firstName).trim()
+      : (typeof (authUser as any).name === 'string' && (authUser as any).name.trim().length > 0
+        ? String((authUser as any).name).split(' ')[0]
+        : 'there');
+
     const response = await llmRouter({
       role: userRole,
       useCase: resolvedUseCase,
@@ -645,7 +671,11 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
         conversationId: typeof conversationId === 'string' ? conversationId : undefined,
         lastSelectedClassId: resolvedLastSelectedClassId,
         lastSelectedStudentId: resolvedLastSelectedStudentId,
+        isHomework: isHomework === true,
+        referenceMentions: normalizedReferenceMentions,
+        fileAttachments: normalizedFileAttachments,
         userProfile: buildUserProfileFromContextMeta(userRole, normalizedContextMeta),
+        userName: resolvedUserName,
       },
     });
 
@@ -680,7 +710,32 @@ export const askEloraHandler = async (req: AuthRequest, res: Response): Promise<
       outcome: 'success',
     }));
 
-    res.json({ text: finalOutput });
+    console.info('[copilot-mentions]', JSON.stringify({
+      requestId,
+      role: userRole,
+      source: 'copilot',
+      hasMentions: normalizedReferenceMentions.length > 0,
+      mentionsCount: normalizedReferenceMentions.length,
+    }));
+
+    if (userRole === 'student' && response.reviewUsed) {
+      console.info('[student-copilot-review]', JSON.stringify({
+        requestId,
+        source,
+        useCase: resolvedUseCase,
+        reviewOutcome: response.reviewOutcome ?? 'unknown',
+        isHomework: isHomework === true ? 'yes' : 'no',
+      }));
+    }
+
+    res.json({
+      text: finalOutput,
+      metadata: {
+        reviewUsed: response.reviewUsed ?? false,
+        reviewOutcome: response.reviewOutcome,
+        reviewRemarks: response.reviewRemarks,
+      },
+    });
   } catch (error) {
     if (error instanceof LLMTemporarilyUnavailableError) {
       console.error('[askEloraHandler] LLM temporarily unavailable', {

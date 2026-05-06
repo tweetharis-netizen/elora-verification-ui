@@ -33,11 +33,22 @@ export async function callEloraCopilot(params: {
     throw new Error(message);
   }
 
-  if (typeof data?.content !== 'string' || !data.content.trim()) {
+  const normalizedContent = typeof data?.content === 'string' ? data.content.trim() : '';
+  if (normalizedContent) {
+    return normalizedContent;
+  }
+
+  // Backward compatibility: older deployments returned { text }.
+  const legacyText = typeof data?.text === 'string' ? data.text.trim() : '';
+  if (legacyText) {
+    return legacyText;
+  }
+
+  if (!normalizedContent && !legacyText) {
     throw new Error('Elora Copilot returned an empty response.');
   }
 
-  return data.content;
+  return normalizedContent;
 }
 
 export async function sendCopilotFeedback(payload: {

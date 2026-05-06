@@ -1,10 +1,13 @@
 import { USE_CASE_CONFIG } from './config.js';
 import { logLLMUsage, updateUserMemory } from './hooks.js';
+import { settingsService } from '../../services/settingsService.js';
 import { buildSystemPrompt } from './prompt.js';
 import { callCohere } from './providers/cohere.js';
 import { callGemini } from './providers/gemini.js';
 import { callGroq } from './providers/groq.js';
 import { callOpenRouter } from './providers/openrouter.js';
+import { reviewStudentCopilotReply } from './studentReview.js';
+import type { StudentCopilotReviewContext } from './studentReview.js';
 import { getStudentMemory } from '../../server/memory/studentMemoryStore.js';
 import { getUserPreferenceSignals } from '../../server/memory/copilotPreferenceStore.js';
 import type {
@@ -393,6 +396,243 @@ const parseUserProfile = (context: Record<string, unknown> | undefined): UserPro
   };
 };
 
+export const isGreeting = (rawMessage?: string): boolean => {
+  if (!rawMessage || typeof rawMessage !== 'string') return false;
+  const cleaned = rawMessage
+    .replace(/[!,.?;:\-()"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (cleaned.length === 0) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  // If too long, it's unlikely to be a simple greeting
+  if (words.length > 6) return false;
+
+  const greetingPatterns = new Set([
+    'hi',
+    'hello',
+    'hey',
+    'yo',
+    'hi there',
+    'hello there',
+    'how are you',
+    "how's it going",
+    "how is it going",
+  ]);
+
+  const candidate = cleaned;
+  // Exclude messages that include clear task words
+  const tasky = /\b(help|solve|question|quiz|worksheet|assignment|plan|create)\b/i;
+  if (tasky.test(candidate)) return false;
+
+  // Exact short matches or starts-with matches
+  if (greetingPatterns.has(candidate)) return true;
+
+  // also accept single-word greetings like 'hey' or 'hi'
+  if (words.length <= 3 && ['hi', 'hey', 'hello', 'yo'].includes(words[0])) return true;
+
+  // common casual forms
+  if (/^h(i|ello|ey)\b/.test(candidate)) return true;
+
+  return false;
+};
+
+export const isCapabilityQuery = (rawMessage?: string): boolean => {
+  if (!rawMessage || typeof rawMessage !== 'string') return false;
+  const cleaned = rawMessage
+    .replace(/[!,.?;:\-()"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (cleaned.length === 0) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  // Capability queries should be short (max 8 words to avoid overly complex task instructions)
+  if (words.length > 8) return false;
+
+  // Match patterns that indicate a capability/meta question
+  const capabilityPatterns = /\b(can you|what can|do you|how can|what are you|what do you|are you able|capabilities?|help me|what is elora|who are you)\b/i;
+  if (!capabilityPatterns.test(cleaned)) return false;
+
+  // Exclude actual task requests (even if phrased as capability asks, if there's a concrete task attached)
+  const taskish = /\b(explain this|this topic|this file|this assignment|this question|solve|create quiz|create a quiz|create lesson|draft|differentiate|summarize|simplify)\b/i;
+  if (taskish.test(cleaned)) return false;
+
+  // Must be primarily asking about capability/identity, not mixing with explicit task
+  return true;
+};
+
+export const isGenericHelp = (rawMessage?: string): boolean => {
+  if (!rawMessage || typeof rawMessage !== 'string') return false;
+  const cleaned = rawMessage
+    .replace(/[!,.?;:\-()"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (cleaned.length === 0) return false;
+
+  // Short, non-tasky help requests
+  const short = cleaned.split(' ').filter(Boolean);
+  if (short.length > 10) return false;
+
+  // Explicit generic help phrases
+  const helpPatterns = [
+    '^help$',
+    '^help me$',
+    "^i'?m stuck$",
+    '^i am stuck$',
+    '^i need help$',
+    '^stuck$',
+    '^can you help\\b',
+    '^need help$',
+    '^not sure what to do$',
+  ];
+
+  const joined = short.join(' ');
+
+  for (const p of helpPatterns) {
+    const re = new RegExp(p, 'i');
+    if (re.test(joined)) return true;
+  }
+
+  // If the message is very short and contains 'help' or 'stuck' without a clear task, treat as generic help
+  if (/(\bhelp\b|\bstuck\b|\bneed help\b)/i.test(joined) && !/\b(explain|solve|create|draft|summarize|summarise|quiz|assignment|question|plan)\b/i.test(joined)) {
+    return short.length <= 8;
+  }
+
+  return false;
+};
+
+const normalizeIntentText = (rawMessage?: string): string => {
+  if (!rawMessage || typeof rawMessage !== 'string') return '';
+  return rawMessage
+    .replace(/[!,.?;:\-()"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+};
+
+const CAPABILITY_META_PATTERN = /\b(what can you do|what do you do|who are you|what are you|what is elora)\b/i;
+
+export const isStudyPlanning = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+  if (CAPABILITY_META_PATTERN.test(cleaned)) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 24) return false;
+
+  const patterns = [
+    /\bstudy plan\b/i,
+    /\brevision plan\b/i,
+    /\bstudy schedule\b/i,
+    /\bstudy timetable\b/i,
+    /\bstudy calendar\b/i,
+    /\bplan (my|our|a)?\s*(study|revision)\b/i,
+    /\bschedule (my|our|a)?\s*(study|revision)\b/i,
+    /\bplan for (my|the)?\s*(exam|test|quiz)\b/i,
+    /\bschedule for (my|the)?\s*(exam|test|quiz)\b/i,
+    /\bexam (study )?plan\b/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(cleaned));
+};
+
+export const isQuizGeneration = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+  if (CAPABILITY_META_PATTERN.test(cleaned)) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 24) return false;
+
+  const patterns = [
+    /\bcreate (a )?quiz\b/i,
+    /\bmake (a )?quiz\b/i,
+    /\bgenerate (a )?quiz\b/i,
+    /\bquiz me\b/i,
+    /\btest me\b/i,
+    /\bask me (a|some)? questions\b/i,
+    /\bgive me (some )?(practice )?questions\b/i,
+    /^(practice questions|practice quiz|mock test)\b/i,
+    /\bpractice (quiz|test)\b/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(cleaned));
+};
+
+export const isReviewMyAttempt = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+  if (CAPABILITY_META_PATTERN.test(cleaned)) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 40) return false;
+
+  const attemptPatterns = [
+    /\bhere('?s| is) my (answer|attempt|work|working|solution)\b/i,
+    /\bhere('?s| is) what i got\b/i,
+    /\bmy (answer|attempt|work|working|solution)\b/i,
+    /\b(can you|could you|please) (check|review|look at) (my|this) (answer|work|attempt|solution)\b/i,
+  ];
+
+  if (attemptPatterns.some((pattern) => pattern.test(cleaned))) return true;
+
+  if (/\bi think (it'?s|it is)\b/i.test(cleaned) && /\b(because|since|so)\b/i.test(cleaned)) {
+    return true;
+  }
+
+  return false;
+};
+
+export const isLessonPlanning = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+  if (CAPABILITY_META_PATTERN.test(cleaned)) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 24) return false;
+
+  const patterns = [
+    /\blesson plan\b/i,
+    /\bplan (a|the|my)?\s*lesson\b/i,
+    /\blesson outline\b/i,
+    /\bunit plan\b/i,
+    /\bunit outline\b/i,
+    /\bplan (a|the|my)?\s*unit\b/i,
+    /\bdesign (a|an) activity\b/i,
+    /\bdesign (a|the) lesson\b/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(cleaned));
+};
+
+export const isReportExplanation = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+  if (CAPABILITY_META_PATTERN.test(cleaned)) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 24) return false;
+
+  const patterns = [
+    /\bexplain this report\b/i,
+    /\bexplain this report card\b/i,
+    /\bexplain this grade\b/i,
+    /\bexplain this progress report\b/i,
+    /\bhelp me understand (this|the)?\s*(report card|progress report|report|grade|grades)\b/i,
+    /\bwhat does this (grade|report) mean\b/i,
+    /\binterpret (this|the) report\b/i,
+    /\bexplain this (iep|504)\b/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(cleaned));
+};
+
 const loadStudentMemory = ({
   role,
   userId,
@@ -473,15 +713,54 @@ export async function llmRouter({
     normalizedContext.preferenceSignals = preferenceSignals;
   }
 
+  const userSettings = settingsService.getSettings(role);
+
+  // Detect greeting and capability query from the latest user message and surface to prompt builder
+  try {
+    const lastUser = cleanedMessages.slice().reverse().find((m) => m.role === 'user');
+    const lastText = typeof lastUser?.content === 'string' ? lastUser.content : undefined;
+    // Only treat a turn as a greeting when it is the first message in the session
+    normalizedContext.isGreeting = Boolean(normalizedContext.isFirstMessage === true && isGreeting(lastText));
+    // Detect capability query (can be any turn, but typically early)
+    normalizedContext.isCapabilityQuery = Boolean(isCapabilityQuery(lastText));
+    // Detect short generic help requests (e.g., "help", "I'm stuck")
+    normalizedContext.isGenericHelp = Boolean(isGenericHelp(lastText));
+    // Detect common task intents for learning support
+    normalizedContext.isStudyPlanning = Boolean(isStudyPlanning(lastText));
+    normalizedContext.isQuizGeneration = Boolean(isQuizGeneration(lastText));
+    normalizedContext.isReviewMyAttempt = Boolean(isReviewMyAttempt(lastText));
+    normalizedContext.isLessonPlanning = Boolean(isLessonPlanning(lastText));
+    normalizedContext.isReportExplanation = Boolean(isReportExplanation(lastText));
+  } catch (err) {
+    // non-fatal
+    normalizedContext.isGreeting = false;
+    normalizedContext.isCapabilityQuery = false;
+    normalizedContext.isGenericHelp = false;
+    normalizedContext.isStudyPlanning = false;
+    normalizedContext.isQuizGeneration = false;
+    normalizedContext.isReviewMyAttempt = false;
+    normalizedContext.isLessonPlanning = false;
+    normalizedContext.isReportExplanation = false;
+  }
+
   const systemPrompt = buildSystemPrompt({
     role,
     useCase,
     userProfile,
     userMemory: studentMemory,
     preferenceSignals,
+    userSettings,
+    context: normalizedContext,
   });
 
   const fullMessages: LLMMessage[] = [{ role: 'system', content: systemPrompt }, ...cleanedMessages];
+
+  // Quick action: analyze_sources -> add an additional system-level instruction to focus on connective tissue
+  if (normalizedContext.quickAction === 'analyze_sources') {
+    const analyzeInstruction = `QuickAction: Analyze Sources
+You are asked to analyze up to 50 provided sources. Return three sections: Connective Tissue (themes across documents), Blind Spots (missing perspectives), and Contradiction Finder (three discussion prompts where authors disagree). Cite the source id and page where relevant. Keep each section concise with bullet points.`;
+    fullMessages.unshift({ role: 'system', content: analyzeInstruction });
+  }
   let activeProvider = config.provider;
   let activeModel = config.model;
   let usedFallback = false;
@@ -569,6 +848,41 @@ export async function llmRouter({
     model: activeModel,
     usedFallback,
   };
+
+  if (role === 'student') {
+    const reviewContext: StudentCopilotReviewContext = {
+      role,
+      useCase,
+      guardrails: normalizedContext.guardrails,
+      conversationId: typeof normalizedContext.conversationId === 'string' ? normalizedContext.conversationId : undefined,
+      usedFallback,
+      isHomework: normalizedContext.isHomework === true,
+    };
+
+    const review = await reviewStudentCopilotReply({
+      candidateReply: response.content,
+      context: reviewContext,
+      primaryProvider: response.provider,
+    });
+
+    response = {
+      ...response,
+      content: review.adjustedReply,
+      reviewUsed: review.reviewUsed,
+      reviewOutcome: review.reviewOutcome,
+      reviewRemarks: review.remarks,
+    };
+
+    console.info('[student-review]', JSON.stringify({
+      role: 'student',
+      source: 'student_copilot',
+      reviewUsed: review.reviewUsed,
+      reviewOutcome: review.reviewOutcome,
+      isHomework: reviewContext.isHomework,
+      requireWarmup: reviewContext.guardrails?.requireWarmup === true,
+      negativeSelfTalkDetected: reviewContext.guardrails?.negativeSelfTalkDetected === true,
+    }));
+  }
 
   try {
     await logLLMUsage({

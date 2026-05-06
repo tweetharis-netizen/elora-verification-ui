@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { isUseCase } from '../../src/lib/llm/config.js';
 import { llmRouter, LLMTemporarilyUnavailableError } from '../../src/lib/llm/router.js';
 import type { LLMMessage, UseCase, UserRole } from '../../src/lib/llm/types.js';
+import { normalizeReferenceMentions } from '../../src/lib/mentions/referenceMentions.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
 const USER_ROLES: UserRole[] = ['teacher', 'student', 'parent'];
@@ -30,7 +31,16 @@ const isLLMMessageArray = (value: unknown): value is LLMMessage[] => {
 };
 
 const normalizeContext = (value: unknown): Record<string, unknown> | undefined => {
-  return isRecord(value) ? value : undefined;
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const context = { ...value };
+  if ('referenceMentions' in context) {
+    context.referenceMentions = normalizeReferenceMentions(context.referenceMentions);
+  }
+
+  return context;
 };
 
 const USE_CASE_SUGGESTIONS: Record<UseCase, string[]> = {
@@ -231,6 +241,10 @@ export const postUseCaseLLMHandler = async (req: AuthRequest, res: Response): Pr
   const resolvedUserId = typeof userId === 'string' && userId.trim().length > 0
     ? userId.trim()
     : req.user?.id;
+  const normalizedContext = normalizeContext(context);
+  const normalizedMentions = Array.isArray(normalizedContext?.referenceMentions)
+    ? normalizedContext.referenceMentions
+    : [];
 
   try {
     const result = await llmRouter({
@@ -238,10 +252,22 @@ export const postUseCaseLLMHandler = async (req: AuthRequest, res: Response): Pr
       useCase: rawUseCase as UseCase,
       messages,
       userId: resolvedUserId,
-      context: normalizeContext(context),
+      context: normalizedContext,
     });
 
-    res.status(200).json({ content: result.content });
+    console.info('[copilot-mentions]', JSON.stringify({
+      role,
+      source: 'copilot',
+      hasMentions: normalizedMentions.length > 0,
+      mentionsCount: normalizedMentions.length,
+    }));
+
+    res.status(200).json({
+      content: result.content,
+      reviewUsed: result.reviewUsed ?? false,
+      reviewOutcome: result.reviewOutcome,
+      reviewRemarks: result.reviewRemarks,
+    });
   } catch (error) {
     if (error instanceof LLMTemporarilyUnavailableError) {
       console.error('[llm-route] provider temporarily unavailable', {

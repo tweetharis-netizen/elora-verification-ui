@@ -879,7 +879,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                             themeColor="#14b8a6"
                                             userName={displayName}
                                             title={threads.length === 0 ? 'No Copilot conversations yet. Try one of the suggestions below to get started.' : undefined}
-                                            description="I can dig into your class data, help plan assignments, support differentiation, and draft family communications."
+                                            description="I'm your classroom partner. Analyze class data, plan lessons, differentiate activities, draft parent messages, or ask me what I can do. I work best with your class context."
                                             handleSend={handleSend}
                                             prompts={currentPrompts}
                                         />
@@ -955,11 +955,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     >
                                         <ArrowRight size={20} strokeWidth={2.5} />
                                     </button>
-                                </div>
-                                <div className="mt-3 flex items-center justify-center gap-4 opacity-50">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                                        Elora can make mistakes. Check important info.
-                                    </p>
                                 </div>
                             </div>
                         </div>

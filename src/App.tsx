@@ -30,8 +30,10 @@ import VerifyPage from './pages/VerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentGamePage from './pages/StudentGamePage';
 import AuthGateDemoPage from './pages/AuthGateDemoPage';
+import SettingsPage from './pages/SettingsPage';
 import { EloraLogo } from './components/EloraLogo';
-import { AuthProvider, useAuth } from './auth/AuthContext';
+import { useAuth } from './auth/AuthContext';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 // ─── Homepage components ──────────────────────────────────────────────────────
 
@@ -74,7 +76,7 @@ export const Header = () => {
 
   return (
     <header className="absolute top-0 left-0 right-0 z-50 border-b border-white/10 bg-elora-400/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex flex-1 items-center gap-2 cursor-pointer text-white">
           <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
             <EloraLogo className="w-8 h-8" />
@@ -126,7 +128,7 @@ const Hero = () => {
   return (
     <section id="hero" className="relative bg-elora-400 text-white pt-32 pb-24 border-b border-white/10 overflow-hidden min-h-[90vh] flex items-center">
       <div className="absolute inset-0 bg-grid pointer-events-none"></div>
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10 w-full">
+      <div className="max-w-[1400px] mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10 w-full">
         <div>
           <ComingSoonBar />
           <h1 className="text-5xl md:text-7xl font-sans font-medium tracking-tight leading-[1.05] mb-6">
@@ -302,7 +304,7 @@ const PerspectivesSection = () => {
   return (
     <section id="roles" className="bg-elora-400 text-white py-32 border-b border-white/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid pointer-events-none opacity-40"></div>
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
+      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-20">
           <p className="text-[#DDB76A] text-xs font-bold uppercase tracking-widest mb-4">One Platform</p>
           <h2 className="text-4xl md:text-5xl font-sans font-medium mb-6 tracking-tight">
@@ -359,7 +361,7 @@ const ProductUISection = () => {
   return (
     <section id="features" className="bg-elora-100 text-elora-400 py-32 border-b border-elora-400/10 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-dark pointer-events-none opacity-20"></div>
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
+      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
             <p className="text-elora-300 text-xs font-bold uppercase tracking-widest mb-4 opacity-60">Platform</p>
@@ -462,7 +464,7 @@ const ProductUISection = () => {
 const SafetyTrustSection = () => {
   return (
     <section className="bg-elora-300 text-white py-14 border-y border-white/10 relative">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-[1400px] mx-auto px-6">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-10">
           <p className="text-accent-yellow text-xs font-bold uppercase tracking-widest mb-4">Safety and Trust</p>
           <h3 className="text-2xl md:text-3xl font-sans font-medium tracking-tight mb-6">
@@ -695,7 +697,7 @@ const FinalCTA = () => {
 export const Footer = () => {
   return (
     <footer className="bg-elora-400 text-white/60 py-16 border-t border-white/10">
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+      <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
         <div>
           <h4 className="text-white font-medium mb-5">Product</h4>
           <ul className="space-y-3 text-sm">
@@ -738,7 +740,7 @@ export const Footer = () => {
           </p>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs">
+      <div className="max-w-[1400px] mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs">
         <div className="flex items-center gap-2.5 text-white mb-4 md:mb-0">
           <EloraLogo className="w-6 h-6" />
           <span className="font-bold text-lg tracking-tight">Elora</span>
@@ -776,79 +778,89 @@ const Home = () => {
 // ─── App / Router ─────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { role } = useAuth();
+
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<Home />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/verify" element={<VerifyPage />} />
-      <Route path="/our-story" element={<OurStoryPage />} />
-      <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
+    <ThemeProvider role={role}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/our-story" element={<OurStoryPage />} />
+        <Route path="/auth-gate-demo" element={<AuthGateDemoPage />} />
 
-      {/* Demo routes – no auth required */}
-      <Route path="/teacher/demo" element={<TeacherShellLayout />}>
-        <Route index element={<TeacherDashboardPage embeddedInShell />} />
-        <Route path="classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
-        <Route path="assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
-        <Route path="assignments/new" element={<TeacherAssignmentCreatePage />} />
-        <Route path="practice" element={<TeacherPracticePage />} />
-        <Route path="class/:classId" element={<TeacherClassroomPage embeddedInShell />} />
-        <Route path="copilot" element={<TeacherCopilotPage embeddedInShell />} />
-      </Route>
-      <Route path="/teacher/copilot/demo" element={<Navigate to="/teacher/demo/copilot" replace />} />
-      <Route path="/student/demo" element={<StudentShellLayout />}>
-        <Route index element={<StudentDashboardPage embeddedInShell />} />
-        <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
-        <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
-        <Route path="class/:classId" element={<StudentClassroomPage />} />
-        <Route path="copilot" element={<StudentCopilotPage embeddedInShell />} />
-      </Route>
-      <Route path="/student/copilot/demo" element={<Navigate to="/student/demo/copilot" replace />} />
-      <Route path="/parent/demo" element={<ParentShellLayout />}>
-        <Route index element={<ParentDashboardPage embeddedInShell />} />
-        <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
-        <Route path="copilot" element={<ParentCopilotPage embeddedInShell />} />
-      </Route>
-      <Route path="/parent/copilot/demo" element={<Navigate to="/parent/demo/copilot" replace />} />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<TeacherShellLayout />}>
-          <Route path="/dashboard/teacher" element={<TeacherDashboardPage embeddedInShell />} />
-          <Route path="/teacher" element={<Navigate to="/dashboard/teacher" replace />} />
-          <Route path="/teacher/overview" element={<Navigate to="/dashboard/teacher" replace />} />
-          <Route path="/teacher/classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
-          <Route path="/teacher/assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
-          <Route path="/teacher/assignments/new" element={<TeacherAssignmentCreatePage />} />
-          <Route path="/teacher/practice" element={<TeacherPracticePage />} />
-          <Route path="/teacher/classes/:classId" element={<TeacherClassroomPage embeddedInShell />} />
-          <Route path="/teacher/work" element={<Navigate to="/dashboard/teacher" replace />} />
-          <Route path="/teacher/copilot" element={<TeacherCopilotPage embeddedInShell />} />
-          <Route path="/teacher/reports" element={<Navigate to="/dashboard/teacher#reports" replace />} />
+        {/* Demo routes – no auth required */}
+        <Route path="/teacher/demo" element={<TeacherShellLayout />}>
+          <Route index element={<TeacherDashboardPage embeddedInShell />} />
+          <Route path="classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
+          <Route path="assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+          <Route path="assignments/new" element={<TeacherAssignmentCreatePage />} />
+          <Route path="practice" element={<TeacherPracticePage />} />
+          <Route path="class/:classId" element={<TeacherClassroomPage embeddedInShell />} />
+          <Route path="copilot" element={<TeacherCopilotPage embeddedInShell />} />
+          <Route path="settings" element={<SettingsPage role="teacher" />} />
+        </Route>
+        <Route path="/teacher/copilot/demo" element={<Navigate to="/teacher/demo/copilot" replace />} />
+        <Route path="/student/demo" element={<StudentShellLayout />}>
+          <Route index element={<StudentDashboardPage embeddedInShell />} />
+          <Route path="classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
+          <Route path="assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+          <Route path="class/:classId" element={<StudentClassroomPage />} />
+          <Route path="copilot" element={<StudentCopilotPage embeddedInShell />} />
+          <Route path="settings" element={<SettingsPage role="student" />} />
+        </Route>
+        <Route path="/student/copilot/demo" element={<Navigate to="/student/demo/copilot" replace />} />
+        <Route path="/parent/demo" element={<ParentShellLayout />}>
+          <Route index element={<ParentDashboardPage embeddedInShell />} />
+          <Route path="child/:childId/class/:classId" element={<ParentClassroomPage />} />
+          <Route path="copilot" element={<ParentCopilotPage embeddedInShell />} />
+          <Route path="settings" element={<SettingsPage role="parent" />} />
+        </Route>
+        <Route path="/parent/copilot/demo" element={<Navigate to="/parent/demo/copilot" replace />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<TeacherShellLayout />}>
+            <Route path="/dashboard/teacher" element={<TeacherDashboardPage embeddedInShell />} />
+            <Route path="/teacher" element={<Navigate to="/dashboard/teacher" replace />} />
+            <Route path="/teacher/overview" element={<Navigate to="/dashboard/teacher" replace />} />
+            <Route path="/teacher/classes" element={<TeacherDashboardPage activeTab="classes" embeddedInShell />} />
+            <Route path="/teacher/assignments" element={<TeacherDashboardPage activeTab="assignments" embeddedInShell />} />
+            <Route path="/teacher/assignments/new" element={<TeacherAssignmentCreatePage />} />
+            <Route path="/teacher/practice" element={<TeacherPracticePage />} />
+            <Route path="/teacher/classes/:classId" element={<TeacherClassroomPage embeddedInShell />} />
+            <Route path="/teacher/work" element={<Navigate to="/dashboard/teacher" replace />} />
+            <Route path="/teacher/copilot" element={<TeacherCopilotPage embeddedInShell />} />
+            <Route path="/teacher/settings" element={<SettingsPage role="teacher" />} />
+            <Route path="/teacher/reports" element={<Navigate to="/dashboard/teacher#reports" replace />} />
+          </Route>
+
+          <Route element={<StudentShellLayout />}>
+            <Route path="/dashboard/student" element={<StudentDashboardPage embeddedInShell />} />
+            <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
+            <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
+            <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
+            <Route path="/student/copilot" element={<StudentCopilotPage embeddedInShell />} />
+            <Route path="/student/settings" element={<SettingsPage role="student" />} />
+          </Route>
+
+          <Route element={<ParentShellLayout />}>
+            <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
+            <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
+            <Route path="/parent/copilot" element={<ParentCopilotPage embeddedInShell />} />
+            <Route path="/parent/settings" element={<SettingsPage role="parent" />} />
+          </Route>
+          <Route path="/internal/copilot-insights" element={<InternalCopilotInsightsPage />} />
+          <Route path="/play/:packId" element={<StudentGamePage />} />
         </Route>
 
-        <Route element={<StudentShellLayout />}>
-          <Route path="/dashboard/student" element={<StudentDashboardPage embeddedInShell />} />
-          <Route path="/student/classes" element={<StudentDashboardPage activeTab="classes" embeddedInShell />} />
-          <Route path="/student/class/:classId" element={<StudentClassroomPage />} />
-          <Route path="/student/assignments" element={<StudentDashboardPage activeTab="assignments" embeddedInShell />} />
-          <Route path="/student/copilot" element={<StudentCopilotPage embeddedInShell />} />
-        </Route>
+        {/* Legacy /dashboard → teacher dashboard (backward compat) */}
+        <Route path="/dashboard" element={<Navigate to="/dashboard/teacher" replace />} />
 
-        <Route element={<ParentShellLayout />}>
-          <Route path="/dashboard/parent" element={<ParentDashboardPage embeddedInShell />} />
-          <Route path="/parent/child/:childId/class/:classId" element={<ParentClassroomPage />} />
-          <Route path="/parent/copilot" element={<ParentCopilotPage embeddedInShell />} />
-        </Route>
-        <Route path="/internal/copilot-insights" element={<InternalCopilotInsightsPage />} />
-        <Route path="/play/:packId" element={<StudentGamePage />} />
-      </Route>
-
-      {/* Legacy /dashboard → teacher dashboard (backward compat) */}
-      <Route path="/dashboard" element={<Navigate to="/dashboard/teacher" replace />} />
-
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ThemeProvider>
   );
 }

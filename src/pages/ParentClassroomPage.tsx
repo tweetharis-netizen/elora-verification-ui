@@ -88,7 +88,7 @@ export default function ParentClassroomPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
             {loading ? (
                 <SectionSkeleton rows={3} />
             ) : (
@@ -100,7 +100,7 @@ export default function ParentClassroomPage() {
                             role="parent"
                             leftUtilityBadge={currentClass?.subject || 'Class Info'}
                             rightUtilityBadge="Grade"
-                            themeColor="teal"
+                            themeColor="orange"
                             bannerStyle={currentTheme?.bannerStyle}
                             playfulBackground={currentTheme?.playfulBackground}
                             sublines={[`Child: ${childName}`, `Teacher: ${currentClass?.teacher}`]}
@@ -109,7 +109,7 @@ export default function ParentClassroomPage() {
                             activeTab={activeTab}
                             onTabChange={handleTabChange}
                             role="parent"
-                            themeColor="teal"
+                            themeColor="orange"
                             bannerStyle={currentTheme?.bannerStyle}
                             subject={currentClass?.subject}
                             currentClass={currentClass}
@@ -170,7 +170,22 @@ export default function ParentClassroomPage() {
                                 <>
                                     {activeTab === 'overview' && (
                                         <div className="space-y-6">
-                                            <div className="bg-rose-50 border border-rose-100 rounded-xl p-5 shadow-sm">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                <div className="bg-white border border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+                                                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Current Grade</p>
+                                                    <p className="text-3xl font-black text-[#DB844A]">B+</p>
+                                                </div>
+                                                <div className="bg-white border border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+                                                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Completion</p>
+                                                    <p className="text-3xl font-black text-emerald-600">92%</p>
+                                                </div>
+                                                <div className="bg-white border border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+                                                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">Class Rank</p>
+                                                    <p className="text-3xl font-black text-blue-600">Top 25%</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 shadow-sm">
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <AlertCircle className="w-5 h-5 text-[#9F1239]" />
                                                     <h3 className="text-[#9F1239] font-semibold text-lg tracking-tight">Needs Attention</h3>
@@ -182,7 +197,7 @@ export default function ParentClassroomPage() {
 
                                             <div>
                                                 <h4 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
-                                                    <Sparkles className="w-4 h-4 text-teal-600" /> Elora Insights
+                                                    <Sparkles className="w-4 h-4 text-[#DB844A]" /> Elora Insights
                                                 </h4>
                                                 <EloraAssistantCard
                                                     role="parent"
@@ -190,10 +205,10 @@ export default function ParentClassroomPage() {
                                                     title={`Insights for ${childName}`}
                                                     description="Get AI-powered insights about your child's progress."
                                                     accentClasses={{
-                                                        chipBg: 'bg-teal-50 hover:bg-teal-100',
-                                                        buttonBg: 'bg-teal-600 hover:bg-teal-700',
-                                                        iconBg: 'bg-teal-100',
-                                                        text: 'text-teal-900',
+                                                        chipBg: 'bg-[#DB844A]/10 hover:bg-[#DB844A]/20',
+                                                        buttonBg: 'bg-[#DB844A] hover:bg-[#DB844A]/90',
+                                                        iconBg: 'bg-[#DB844A]/20',
+                                                        text: 'text-orange-900',
                                                     }}
                                                 />
                                             </div>

@@ -6,6 +6,25 @@ export interface LLMMessage {
 }
 
 export type UserRole = 'teacher' | 'student' | 'parent';
+export type CopilotRole = 'student' | 'teacher' | 'parent';
+
+export interface CopilotFileAttachment {
+  id: string;
+  name: string;
+  type: 'pdf' | 'image' | 'doc' | 'text' | 'other';
+  sizeBytes: number;
+  label?: string;
+}
+
+export interface CopilotMessagePayload {
+  role: CopilotRole;
+  text: string;
+  useCase?: UseCase;
+  isHomework?: boolean;
+  linkedAssignmentId?: string | null;
+  referenceMentions?: ReferenceMention[];
+  fileAttachments?: CopilotFileAttachment[];
+}
 
 export type UseCase =
   | 'teacher_chat'
@@ -23,12 +42,24 @@ export type UseCase =
 
 export type ProviderName = 'openrouter' | 'groq' | 'gemini' | 'cohere';
 
+export type ReferenceMentionType = 'question' | 'assignment' | 'resource' | 'studentWork' | 'unknown';
+
+export interface ReferenceMention {
+  raw: string;
+  type: ReferenceMentionType;
+  value: string;
+  label?: string;
+}
+
 export interface LLMResponse {
   content: string;
   raw?: unknown;
   provider?: ProviderName;
   model?: string;
   usedFallback?: boolean;
+  reviewUsed?: boolean;
+  reviewOutcome?: 'ok' | 'edited' | 'fallback' | 'error';
+  reviewRemarks?: string;
 }
 
 export interface UseCaseConfig {
@@ -115,3 +146,71 @@ export interface StudentCopilotConversationMessage {
   metadata?: Record<string, unknown> | null;
   createdAt?: string;
 }
+
+export interface CopilotPreferences {
+  explanationLength: 'short' | 'normal' | 'detailed';
+  tone: 'neutral' | 'encouraging';
+  showStepLabels: boolean; // e.g. Given/Goal/Plan/Check
+}
+
+export interface UserSettings {
+  role: UserRole;
+  displayName?: string;
+  preferredTheme?: 'system' | 'light' | 'dark';
+  copilotPreferences: CopilotPreferences;
+}
+
+export type SourceSnippetType = 'file' | 'question' | 'assignment' | 'resource';
+
+export interface SourceSnippet {
+  id: string; // file id, question id, or resource id
+  label: string; // human friendly short name
+  type: SourceSnippetType;
+  snippet?: string; // optional short preview or extracted text
+}
+
+export interface Citation {
+  sourceId: string;
+  label?: string;
+  pageNumber?: number;
+  snippet?: string;
+  boundingBox?: { x: number; y: number; w: number; h: number };
+}
+
+export interface HomeAction {
+  timeframe: string;  // e.g., "Tonight", "This week", "Next week"
+  duration: string;   // e.g., "5 minutes", "10 minutes"
+  action: string;     // Specific, conversational action
+}
+
+export type StudentQuestionMode = 'exploratory' | 'details' | 'dig_deeper' | 'wrap_up' | 'firmness';
+
+export interface CopilotContextSummary {
+  role: 'student' | 'teacher' | 'parent';
+  activeAssignmentId?: string | null;
+  activeQuestionId?: string | null;
+  sourceSnippets: SourceSnippet[];
+  studentQuestionMode?: StudentQuestionMode | null;
+}
+
+export type ArtifactKind = 'study_guide' | 'lesson_plan' | 'rubric' | 'parent_report';
+
+export interface CopilotArtifact {
+  id: string;
+  kind: ArtifactKind;
+  title: string;
+  summary: string;
+  content: string; // markdown or structured text
+}
+
+// Guardian Agent stubs for audit logging (future: full implementation)
+export interface GuardianAuditEvent {
+  id: string;
+  role: 'student' | 'teacher' | 'parent';
+  timestamp: string;
+  interactionId?: string;
+  category: 'safety' | 'privacy' | 'escalation';
+  message: string;
+}
+
+export type CopilotStyle = 'balanced' | 'more_creative' | 'more_precise';

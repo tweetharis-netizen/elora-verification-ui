@@ -19,6 +19,17 @@ export const demoChildren: dataService.ParentChild[] = [
             { id: '3', name: 'Sec 1 Science', subject: 'Science' },
         ],
     },
+    {
+        id: 'student_2',
+        name: 'Mia Lee',
+        score: 85,
+        streak: 5,
+        grade: 'Sec 1',
+        classes: [
+            { id: '4', name: 'Sec 1 Mathematics', subject: 'Mathematics' },
+            { id: '5', name: 'Sec 1 Science', subject: 'Science' },
+        ],
+    },
 ];
 
 export const demoChildSummary: any = {

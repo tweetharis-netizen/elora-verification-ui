@@ -30,6 +30,7 @@ import {
     Heart,
     Sparkles,
     Menu,
+    Plus
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -50,6 +51,8 @@ import { useNotifications } from '../hooks/useNotifications';
 import { getNotificationDefaultDestination } from '../utils/notificationUi';
 import { EloraLogo } from '../components/EloraLogo';
 import { DashboardHeader } from '../components/DashboardHeader';
+import { AssignmentRow } from '../components/assignments/AssignmentRow';
+import DashboardGreeting from '../components/DashboardGreeting';
 import { Link } from 'react-router-dom';
 import { SectionSkeleton, SectionEmpty, SectionError } from '../components/ui/SectionStates';
 import { DashboardTour } from '../components/DashboardTour';
@@ -58,17 +61,22 @@ import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
 import { useParentChildren } from '../hooks/useParentChildren';
+import { parentChildrenService } from '../services/parentChildrenService';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
+import { loadSettings } from '../services/settingsService';
 import {
     demoChildren,
     demoChildSummary
 } from '../demo/demoParentScenarioA';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
+import { AssignmentLifecycleTabs, AssignmentLifecycleFilter } from '../components/assignments/AssignmentLifecycleTabs';
+import { AssignmentSearchBar } from '../components/assignments/AssignmentSearchBar';
+import { AssignmentRowBase } from '../components/assignments/AssignmentRowBase';
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────────
-const BRAND = '#F97316';
+const BRAND = '#DB844A';
 
 const SIDEBAR_ITEMS = [
     { icon: LayoutDashboard, label: 'Overview', id: 'overview' },
@@ -166,17 +174,27 @@ function SummaryCard({
 }
 
 function StatusBadge({ status }: { status: string }) {
+    const statusMap: Record<string, string> = {
+        'at_risk': 'At Risk',
+        'success': 'Success',
+        'needs_attention': 'Needs Attention',
+        'practice': 'Practice'
+    };
+    const displayStatus = statusMap[status] || status;
+
     const styles: Record<string, string> = {
         'On track': 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
         'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+        'Success': 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
         'Due soon': 'bg-orange-50 text-orange-700 border-orange-200/60',
         'In Progress': 'bg-orange-50 text-orange-700 border-orange-200/60',
         'Overdue': 'bg-rose-50 text-[#9F1239] border-rose-200/60',
         'Needs Attention': 'bg-rose-50 text-[#9F1239] border-rose-200/60',
+        'At Risk': 'bg-rose-50 text-[#9F1239] border-rose-200/60',
     };
     return (
-        <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border whitespace-nowrap ${styles[status] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-            {status}
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap shadow-sm ${styles[displayStatus] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+            {displayStatus}
         </span>
     );
 }
@@ -362,12 +380,12 @@ function ActivityList({
                                 <div className="flex justify-between items-start gap-3">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-md">
+                                            <span className="inline-flex items-center px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
                                                 {item.type}
                                             </span>
                                             <span
-                                                className="inline-block px-2 py-0.5 text-[11px] font-medium rounded-md border"
-                                                style={{ backgroundColor: `${BRAND}12`, color: BRAND, borderColor: `${BRAND}30` }}
+                                                className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border shadow-sm"
+                                                style={{ backgroundColor: `${BRAND}10`, color: BRAND, borderColor: `${BRAND}30` }}
                                             >
                                                 {item.tag}
                                             </span>
@@ -651,14 +669,47 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
     });
     const [eloraError, setEloraError] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState('All');
-    const [parentAssignmentStatusFilter, setParentAssignmentStatusFilter] = useState<'all' | 'overdue' | 'at_risk' | 'completed' | 'active'>('all');
+    const [parentAssignmentStatusFilter, setParentAssignmentStatusFilter] = useState<AssignmentLifecycleFilter>('all');
     const [msgTab, setMsgTab] = useState('Messages');
+    const [parentAssignmentSearchQuery, setParentAssignmentSearchQuery] = useState('');
     const [nudgeOpen, setNudgeOpen] = useState(false);
     const [nudgeText, setNudgeText] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+    const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
+    const [addChildCode, setAddChildCode] = useState('');
+    const [isAddingChild, setIsAddingChild] = useState(false);
+
     const { currentUser, login, logout } = useAuth();
+    const currentRole: 'parent' = 'parent';
+    const fallbackName = currentUser?.preferredName ?? currentUser?.name ?? 'Parent';
+    const [parentName, setParentName] = useState<string>(() => {
+        if (isDemo) return 'Shaik Haris';
+        const settings = loadSettings(currentRole);
+        return settings.displayName || fallbackName;
+    });
     const parentId = currentUser?.role === 'parent' ? currentUser.id : 'parent_1';
+
+    React.useEffect(() => {
+        if (isDemo) {
+            setParentName('Shaik Haris');
+            return;
+        }
+
+        const settings = loadSettings(currentRole);
+        setParentName(settings.displayName || fallbackName);
+    }, [currentRole, fallbackName, isDemo]);
+
+    React.useEffect(() => {
+        const onSettings = (event: Event) => {
+            const detail = (event as CustomEvent).detail as { role?: string; displayName?: string } | undefined;
+            if (!detail || detail.role !== currentRole) return;
+            setParentName(detail.displayName || fallbackName);
+        };
+
+        window.addEventListener('elora-settings-updated', onSettings as EventListener);
+        return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+    }, [currentRole, fallbackName]);
 
     React.useEffect(() => {
         const hash = location.hash.replace('#', '').toLowerCase();
@@ -725,6 +776,20 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         error: childrenError,
         refetch: refetchChildren,
     } = useParentChildren();
+
+    // Listen for child updates
+    React.useEffect(() => {
+        const updateList = () => {
+            const list = parentChildrenService.getChildren();
+            setChildrenList(list);
+            if (list.length > 0 && !activeChildId) {
+                setActiveChildId(list[0].id);
+            }
+        };
+        updateList();
+        window.addEventListener('elora-children-updated', updateList);
+        return () => window.removeEventListener('elora-children-updated', updateList);
+    }, [activeChildId]);
     const [summaryData, setSummaryData] = useState<ParentChildSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -745,25 +810,14 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
             return;
         }
 
-        if (childrenError) {
-            setChildrenList([]);
-            setActiveChildId(null);
-            setSummaryData(null);
-            setLastUpdated('');
-            setLoadError(null);
-            setIsLoading(false);
-            return;
-        }
-
-        const mapped = rosterChildren.map((child, i) => ({
-            id: child.id,
-            name: child.name,
-            level: (child as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
-        }));
-
-        setChildrenList(mapped);
-        if (mapped.length > 0) {
-            setActiveChildId((prev) => (prev && mapped.some((child) => child.id === prev) ? prev : mapped[0].id));
+        // Sync roster children if they exist and we're not in demo
+        if (!isDemo && rosterChildren.length > 0) {
+            const mapped = rosterChildren.map((child, i) => ({
+                id: child.id,
+                name: child.name,
+                level: (child as any).level || (i === 0 ? 'Sec 3 Express' : 'Sec 2NA'),
+            }));
+            setChildrenList(mapped);
         }
         setLoadError(null);
         setIsLoading(isLoadingChildren);
@@ -803,9 +857,15 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
             setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }).catch(err => {
             console.error('[ParentDashboard] Error loading summary:', err);
-            setSummaryData(null);
-            setLastUpdated('');
-            setLoadError(`We couldn't load ${activeChild?.name || 'this child'}'s latest data right now.`);
+            // Fallback for mock children
+            if (activeChildId === 'student_1' || activeChildId === 'student_2') {
+                setSummaryData(demoChildSummary);
+                setLastUpdated('Just now');
+            } else {
+                setSummaryData(null);
+                setLastUpdated('');
+                setLoadError(`We couldn't load ${activeChild?.name || 'this child'}'s latest data right now.`);
+            }
         }).finally(() => setIsLoading(false));
     }, [activeChildId, isDemo]);
 
@@ -873,7 +933,6 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         ];
     }, [activeChildId, activeChild?.name, weakTopics]);
 
-    const parentName = isDemo ? 'Shaik Haris' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
     const parentInitials = parentName
         .split(' ')
         .map((word) => word.charAt(0).toUpperCase())
@@ -1057,7 +1116,18 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                             </button>
                         )}
 
-                        <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <SidebarItem
+                            icon={Settings}
+                            label="Settings"
+                            active={activePage === 'settings'}
+                            onClick={() => {
+                                setIsMobileMenuOpen(false);
+                                navigate(isDemo ? '/parent/demo/settings' : '/parent/settings');
+                                setActivePage('settings');
+                            }}
+                            collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
+                        />
                         <button
                             onClick={logout}
                             className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -1092,11 +1162,10 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                         }
                     />}
                     <div className="flex-1 overflow-y-auto p-6 lg:p-8">
-
-                        <div className="max-w-7xl mx-auto space-y-6">
+                        <div className="max-w-[1400px] mx-auto space-y-6">
 
                             {activePage === 'overview' && (
-                                <div className="bg-[#F97316] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-lg border border-[#F97316] flex flex-col min-h-[140px]">
+                                <div className="bg-[#DB844A] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-lg border border-[#DB844A] flex flex-col min-h-[140px]">
                                     <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
                                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
 
@@ -1105,10 +1174,12 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                             <Heart size={12} className="text-orange-200" />
                                             <span>Tracking {childrenList.length} children</span>
                                         </div>
-                                        <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold mb-2 leading-tight tracking-tight">
-                                            Hi, {parentName.split(' ')[0]}! <br />
-                                            <span className="text-orange-100">See what {activeChild?.name} is learning today.</span>
-                                        </h1>
+                                        <DashboardGreeting 
+                                            displayName={parentName}
+                                            subtext={`See what ${activeChild?.name} is learning today.`}
+                                            subtextClass="text-orange-100"
+                                            className="mb-2"
+                                        />
                                         <p className="text-white/80 text-sm max-w-xl leading-relaxed font-medium">
                                             {activeChild?.name} is currently working on {activeChild?.level}. Stay engaged with real-time updates and supportive nudges.
                                         </p>
@@ -1116,7 +1187,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                         <div className="mt-4 flex flex-wrap gap-3">
                                             <button
                                                 onClick={() => handleOpenNudge()}
-                                                className="px-5 py-2 bg-white text-[#F97316] rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                                                className="px-5 py-2 bg-white text-[#DB844A] rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                                             >
                                                 <Send size={16} />
                                                 Send a Nudge
@@ -1134,7 +1205,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                 </div>
                             )}
 
-                            {activePage !== 'overview' && (
+                            {activePage !== 'overview' && activePage !== 'settings' && (
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                                     <div>
                                         <h1 className="text-[24px] lg:text-[26px] font-semibold text-slate-900 tracking-tight">
@@ -1144,13 +1215,30 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                             {activePage === 'children' && 'My Children'}
                                         </h1>
                                         {activeChild && (
-                                            <p className="text-[15px] text-slate-500 mt-1">
-                                                Viewing{' '}
-                                                <span className="font-medium" style={{ color: BRAND }}>
-                                                    {activeChild.name}
-                                                </span>{' '}
-                                                – {activeChild.level}
-                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-[15px] text-slate-500">Viewing</p>
+                                                {childrenList.length > 1 ? (
+                                                    <select
+                                                        value={activeChildId || ''}
+                                                        onChange={(e) => setActiveChildId(e.target.value)}
+                                                        className="text-[15px] font-medium bg-transparent outline-none cursor-pointer hover:opacity-80 transition-opacity"
+                                                        style={{ color: BRAND }}
+                                                    >
+                                                        {childrenList.map((c) => (
+                                                            <option key={c.id} value={c.id} className="text-slate-900">
+                                                                {c.name} – {c.level}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <p className="text-[15px] text-slate-500">
+                                                        <span className="font-medium" style={{ color: BRAND }}>
+                                                            {activeChild.name}
+                                                        </span>{' '}
+                                                        – {activeChild.level}
+                                                    </p>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3">
@@ -1358,10 +1446,10 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                                             </div>
                                                             <div className="flex flex-col gap-0.5">
                                                                 <span className="text-[14px] font-medium text-slate-900">
-                                                                    Looking great overall
+                                                                    Everything looks great
                                                                 </span>
                                                                 <span className="text-[13px] text-slate-500 leading-relaxed">
-                                                                    Everyone is on track in the current topics.
+                                                                    {activeChild?.name} is making steady progress.
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1370,66 +1458,40 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                             </div>
                                         )}
 
-                                        {/* ── ASSIGNMENTS & QUIZZES ─────────────────────────────────── */}
+                                        {/* ── ASSIGNMENTS ───────────────────────────────────────────── */}
                                         {activePage === 'assignments' && (
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <p className="text-xs text-slate-500 font-medium">Classes &gt; {activeChild?.level || 'Learning Overview'}</p>
-                                                    <h2 className="text-xl font-semibold tracking-tight text-slate-900">Assignments & Quizzes</h2>
-                                                    <p className="text-sm text-slate-500 mt-1">Review your child's current work, deadlines, and learning outcomes.</p>
+                                            <div className="flex flex-col gap-6">
+                                                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                                    <div>
+                                                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
+                                                        <p className="text-[14px] text-slate-500 mt-1">Review your child's current work, deadlines, and learning outcomes.</p>
+                                                    </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
-                                                    <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 lg:sticky lg:top-6">
-                                                        <div className="space-y-2">
-                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Child Progress Summary</p>
-                                                            <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
-                                                                <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                                    <span>Avg score</span>
-                                                                    <span className="tabular-nums text-base font-bold text-[#F97316]">
-                                                                        {(() => {
-                                                                            const numericScores = recentActivity
-                                                                                .map((activity) => {
-                                                                                    const parsed = Number.parseInt(String(activity.score ?? ''), 10);
-                                                                                    return Number.isFinite(parsed) ? parsed : null;
-                                                                                })
-                                                                                .filter((value): value is number => value !== null);
 
-                                                                            if (numericScores.length === 0) return '--';
-                                                                            return `${Math.round(numericScores.reduce((sum, score) => sum + score, 0) / numericScores.length)}%`;
-                                                                        })()}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                                    <span>Missing work</span>
-                                                                    <span className="tabular-nums text-base font-bold text-[#F97316]">
-                                                                        {upcoming.filter((item) => {
-                                                                            const status = String(item.status || '').toLowerCase();
-                                                                            return status.includes('overdue') || status.includes('needs attention') || status.includes('missing') || status.includes('at risk');
-                                                                        }).length}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                        <div className="w-full md:max-w-md">
+                                                            <AssignmentSearchBar 
+                                                                value={parentAssignmentSearchQuery}
+                                                                onChange={setParentAssignmentSearchQuery}
+                                                                placeholder={`Search ${activeChild?.name || 'child'}'s assignments...`}
+                                                            />
                                                         </div>
-
-                                                        <div className="space-y-2">
-                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
-                                                            <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
-                                                                <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
-                                                                <select
-                                                                    value={parentAssignmentStatusFilter}
-                                                                    onChange={(event) => setParentAssignmentStatusFilter(event.target.value as 'all' | 'overdue' | 'at_risk' | 'completed' | 'active')}
-                                                                    className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
-                                                                >
-                                                                    <option value="all">All statuses</option>
-                                                                    <option value="overdue">Overdue</option>
-                                                                    <option value="at_risk">At risk</option>
-                                                                    <option value="active">Active</option>
-                                                                    <option value="completed">Completed</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                    </aside>
+                                                        <AssignmentLifecycleTabs
+                                                            role="parent"
+                                                            activeFilter={parentAssignmentStatusFilter as AssignmentLifecycleFilter}
+                                                            onFilterChange={(f) => setParentAssignmentStatusFilter(f)}
+                                                            counts={{
+                                                                all: upcoming.length + recentActivity.length,
+                                                                active: upcoming.filter(a => { const s = String(a.status || '').toLowerCase(); return !s.includes('overdue') && !s.includes('at_risk') && !s.includes('at risk'); }).length,
+                                                                // Attention = incomplete items that need action (overdue or at risk, not yet submitted)
+                                                                attention: upcoming.filter(a => { const s = String(a.status || '').toLowerCase(); return s.includes('overdue') || s.includes('at_risk') || s.includes('at risk'); }).length,
+                                                                // Closed = all completed activity items (regardless of at_risk flag)
+                                                                closed: recentActivity.length
+                                                            }}
+                                                        />
+                                                    </div>
 
                                                     <section>
                                                         {(() => {
@@ -1456,106 +1518,81 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                                                 })),
                                                             ];
 
-                                                            const filteredMergedItems = mergedItems.filter((item) => {
+                                                            const filtered = mergedItems.filter((item) => {
+                                                                const matchesSearch = parentAssignmentSearchQuery === '' || 
+                                                                    item.title.toLowerCase().includes(parentAssignmentSearchQuery.toLowerCase()) ||
+                                                                    item.subject.toLowerCase().includes(parentAssignmentSearchQuery.toLowerCase());
+
                                                                 const statusLower = String(item.status || '').toLowerCase();
+                                                                const isAtRisk = statusLower.includes('at_risk') || statusLower.includes('at risk');
+                                                                const isOverdue = statusLower.includes('overdue');
+                                                                const isCompleted = item.source === 'activity';
+                                                                let matchesLifecycle = true;
+                                                                if (parentAssignmentStatusFilter === 'active')
+                                                                    // Active: upcoming items that are NOT overdue or at_risk
+                                                                    matchesLifecycle = item.source === 'upcoming' && !isOverdue && !isAtRisk;
+                                                                else if (parentAssignmentStatusFilter === 'attention')
+                                                                    // Attention: upcoming items that need action (overdue or at_risk but not yet submitted)
+                                                                    matchesLifecycle = item.source === 'upcoming' && (isOverdue || isAtRisk);
+                                                                else if (parentAssignmentStatusFilter === 'closed')
+                                                                    // Closed: all completed items (including at-risk ones)
+                                                                    matchesLifecycle = isCompleted;
 
-                                                                if (parentAssignmentStatusFilter === 'overdue') return statusLower.includes('overdue');
-                                                                if (parentAssignmentStatusFilter === 'at_risk') return statusLower.includes('at_risk') || statusLower.includes('at risk') || statusLower.includes('needs attention');
-                                                                if (parentAssignmentStatusFilter === 'completed') return statusLower.includes('success') || statusLower.includes('completed');
-                                                                if (parentAssignmentStatusFilter === 'active') return !statusLower.includes('overdue') && !statusLower.includes('at_risk') && !statusLower.includes('at risk') && !statusLower.includes('needs attention') && !statusLower.includes('success') && !statusLower.includes('completed');
-
-                                                                return true;
+                                                                return matchesSearch && matchesLifecycle;
                                                             });
 
-                                                            if (filteredMergedItems.length === 0) {
+                                                            if (filtered.length === 0) {
                                                                 return (
-                                                                    <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10">
-                                                                        <SectionEmpty
-                                                                            headline="No assignments yet"
-                                                                            detail={`Any assignments and quiz records for ${activeChild?.name || 'your child'} will appear here.`}
-                                                                        />
+                                                                    <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center shadow-sm">
+                                                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                                                            <Inbox size={32} />
+                                                                        </div>
+                                                                        <h3 className="text-lg font-semibold text-slate-900">No assignments found</h3>
+                                                                        <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Try adjusting your filters or search query.</p>
                                                                     </div>
                                                                 );
                                                             }
 
                                                             return (
-                                                                <div className="space-y-4">
-                                                                    {filteredMergedItems.map((item) => {
+                                                                <div className="space-y-3">
+                                                                    {filtered.map((item) => {
                                                                         const statusLower = String(item.status || '').toLowerCase();
-                                                                        const isUrgent = statusLower.includes('overdue') || statusLower.includes('at risk') || statusLower.includes('at_risk') || statusLower.includes('needs attention');
+                                                                        let statusType: 'overdue' | 'due_soon' | 'completed' | 'active' | 'attention' = 'active';
+                                                                        if (statusLower.includes('overdue')) statusType = 'overdue';
+                                                                        else if (item.source === 'activity') statusType = 'completed';
+                                                                        else if (statusLower.includes('at_risk') || statusLower.includes('at risk')) statusType = 'attention';
+                                                                        
                                                                         const parsedScore = Number.parseInt(String(item.score || ''), 10);
                                                                         const hasNumericScore = Number.isFinite(parsedScore);
-                                                                        const progressValue = hasNumericScore ? Math.max(0, Math.min(100, parsedScore)) : (isUrgent ? 30 : 55);
 
                                                                         return (
-                                                                            <article
+                                                                            <AssignmentRowBase
                                                                                 key={item.id}
-                                                                                className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
-                                                                            >
-                                                                                <div className="p-4 sm:p-5">
-                                                                                    <div className="flex items-start justify-end gap-2 mb-3">
-                                                                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isUrgent ? 'bg-rose-50 border-rose-200 text-[#9F1239]' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
-                                                                                            {item.status}
-                                                                                        </span>
-                                                                                    </div>
-
-                                                                                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
-                                                                                        <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isUrgent ? 'bg-rose-50/50' : 'bg-orange-500/10'}`}>
-                                                                                                <FileText size={16} className={`${isUrgent ? 'text-[#9F1239]' : 'text-[#F97316]'}`} />
-                                                                                            </div>
-                                                                                            <div className="min-w-0">
-                                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Assignment</p>
-                                                                                                <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
-                                                                                                <p className="mt-1 text-sm text-slate-500 truncate">{item.subject}</p>
-                                                                                            </div>
-                                                                                        </div>
-
-                                                                                        <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                                            <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
-                                                                                                <div className="grid grid-cols-2 gap-y-3 gap-x-8">
-                                                                                                    <div>
-                                                                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Your child's score</p>
-                                                                                                        <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{item.score}</p>
-                                                                                                    </div>
-                                                                                                    <div>
-                                                                                                        <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Result status</p>
-                                                                                                        <p className={`mt-1 text-sm font-semibold ${isUrgent ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.status}</p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                <div className="mt-3">
-                                                                                                    <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                                                                                                        <div
-                                                                                                            className={`h-full transition-all ${isUrgent ? 'bg-[#9F1239]' : 'bg-[#F97316]'}`}
-                                                                                                            style={{ width: `${progressValue}%` }}
-                                                                                                        />
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </div>
-
-                                                                                        <div className="space-y-2">
-                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Date</p>
-                                                                                            <p className="text-sm font-semibold text-slate-900 tabular-nums">{item.dueDate}</p>
-                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Context</p>
-                                                                                            <p className={`text-sm font-semibold ${isUrgent ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.source === 'activity' ? 'Performance record' : 'Upcoming work'}</p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        if (item.source === 'activity') {
-                                                                                            void handleActivityClick(item.original);
-                                                                                        } else {
-                                                                                            setActivePage('progress');
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
-                                                                                >
-                                                                                    {item.score !== '--' ? 'Review Child Submission' : 'View Detailed Report'}
-                                                                                </button>
-                                                                            </article>
+                                                                                role="parent"
+                                                                                title={item.title}
+                                                                                typeLabel={item.source === 'activity' ? 'COMPLETED' : 'UPCOMING'}
+                                                                                className={item.subject}
+                                                                                topic={item.title.split(' ')[0]} // Mock topic
+                                                                                status={statusType}
+                                                                                statusLabel={item.status || (item.source === 'activity' ? 'Completed' : 'Active')}
+                                                                                dueDate={item.dueDate}
+                                                                                metrics={{
+                                                                                    label1: 'SCORE',
+                                                                                    value1: hasNumericScore ? `${parsedScore}%` : '--',
+                                                                                    label2: 'AVG. TIME',
+                                                                                    value2: '12m',
+                                                                                    label3: 'STATUS',
+                                                                                    value3: statusType.toUpperCase()
+                                                                                }}
+                                                                                progressPercent={hasNumericScore ? parsedScore : (statusType === 'completed' ? 100 : 30)}
+                                                                                onClick={() => {
+                                                                                    if (item.source === 'activity') {
+                                                                                        void handleActivityClick(item.original);
+                                                                                    } else {
+                                                                                        setActivePage('progress');
+                                                                                    }
+                                                                                }}
+                                                                            />
                                                                         );
                                                                     })}
                                                                 </div>
@@ -1617,6 +1654,20 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                                                         }
                                                     />
                                                 ))}
+
+                                                {/* Add Child Card */}
+                                                <div 
+                                                    onClick={() => setIsAddChildModalOpen(true)}
+                                                    className="group cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-white p-6 flex flex-col items-center justify-center text-center gap-4 hover:border-[#DB844A] hover:bg-[#DB844A]/5 transition-all min-h-[220px]"
+                                                >
+                                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#DB844A]/10 group-hover:text-[#DB844A] transition-colors">
+                                                        <Plus size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-[14px] font-bold text-slate-900">Add a Child</h3>
+                                                        <p className="text-[12px] text-slate-500 mt-1">Connect your child's Elora account to see their progress.</p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
 
@@ -1703,6 +1754,73 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                         </div>
                     </div>
                 )}
+
+                {/* ── ADD CHILD MODAL ──────────────────────────────────────────── */}
+                {isAddChildModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-[20px] font-semibold text-slate-900">Add a Child</h2>
+                                    <p className="text-[13px] text-slate-500 mt-1">Enter the connection code provided by your child's school.</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsAddChildModalOpen(false)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <input
+                                    type="text"
+                                    value={addChildCode}
+                                    onChange={(e) => setAddChildCode(e.target.value.toUpperCase())}
+                                    placeholder="e.g. A7B9-C3D4"
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[16px] text-center font-mono tracking-widest text-slate-700 focus:outline-none placeholder:text-slate-400 focus:ring-2 uppercase"
+                                    style={{ '--tw-ring-color': `${BRAND}40` } as any}
+                                    maxLength={9}
+                                />
+                            </div>
+
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setIsAddChildModalOpen(false)}
+                                    className="px-4 py-2 text-[14px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                                    disabled={isAddingChild}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!addChildCode.trim()) return;
+                                        setIsAddingChild(true);
+                                        // Simulate API call and connect a mock child
+                                        setTimeout(() => {
+                                            setIsAddingChild(false);
+                                            setIsAddChildModalOpen(false);
+                                            
+                                            // Realistically, different codes could link different mock profiles
+                                            // For now, we'll just add "Wei Ting" as a new connected child
+                                            const newChild = parentChildrenService.addChild('Wei Ting', 'Sec 3 Express');
+                                            
+                                            setActiveChildId(newChild.id);
+                                            setAddChildCode('');
+                                            // No alert, just smooth UI transition
+                                        }, 1200);
+                                    }}
+                                    disabled={!addChildCode.trim() || isAddingChild}
+                                    className="px-5 py-2 text-white rounded-lg text-[14px] font-medium transition-colors shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+                                    style={{ backgroundColor: BRAND }}
+                                >
+                                    {isAddingChild ? 'Connecting...' : 'Connect Child'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             <AuthGateModal 
                 isOpen={isGateOpen} 
                 onClose={closeGate} 

@@ -1,5 +1,6 @@
 // src/pages/TeacherDashboardPage.tsx
 import React, { useState, useEffect } from 'react';
+import { loadSettings } from '../services/settingsService';
 import {
     LayoutDashboard,
     BookOpen,
@@ -54,6 +55,7 @@ import { useTeacherClasses } from '../hooks/useTeacherClasses';
 import { DashboardShell } from '../components/ui/DashboardShell';
 import { DashboardCard } from '../components/ui/DashboardCard';
 import { DashboardSectionHeader } from '../components/ui/DashboardSectionHeader';
+import DashboardGreeting from '../components/DashboardGreeting';
 import {
     demoStats,
     demoClasses,
@@ -523,7 +525,8 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const isDemo = isDemoProp ?? routeIsDemo;
     const assignmentsPath = isDemo ? '/teacher/demo/assignments' : '/teacher/assignments';
     const canUseDashboardHashSections = !forcedClassroomMode && (props.activeTab === undefined || props.activeTab === 'dashboard' || props.activeTab === 'work');
-    const displayName = isDemo ? demoTeacherName : (currentUser?.preferredName ?? currentUser?.name ?? 'Teacher');
+    const currentRole: 'teacher' = 'teacher';
+    const fallbackName = currentUser?.preferredName ?? currentUser?.name ?? 'Teacher';
 
     // Ensure demo user is "logged in" for backend headers (but don't persist to localStorage)
     React.useEffect(() => {
@@ -536,8 +539,32 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     // ── Real data state ──
     const [teacherName, setTeacherName] = useState<string>(() => {
         if (isDemo) return demoTeacherName;
-        return currentUser?.preferredName || currentUser?.name || 'Teacher';
+        const settings = loadSettings(currentRole);
+        return settings.displayName || fallbackName;
     });
+
+    useEffect(() => {
+        if (isDemo) {
+            setTeacherName(demoTeacherName);
+            return;
+        }
+
+        const settings = loadSettings(currentRole);
+        setTeacherName(settings.displayName || fallbackName);
+    }, [currentRole, fallbackName, isDemo]);
+
+    React.useEffect(() => {
+        const onSettings = (e: Event) => {
+            const ev = e as CustomEvent;
+            const detail = ev.detail as any;
+            if (detail && detail.role === 'teacher' && typeof detail.displayName === 'string') {
+                setTeacherName(detail.displayName || fallbackName);
+            }
+        };
+        window.addEventListener('elora-settings-updated', onSettings as EventListener);
+        return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+    }, [fallbackName]);
+    const displayName = teacherName;
     const [stats, setStats] = useState<dataService.TeacherStat[]>([]);
     const [myClasses, setMyClasses] = useState<dataService.TeacherClass[]>([]);
     const { data: rosterTeacherClasses, refetch: refetchTeacherClasses } = useTeacherClasses();
@@ -680,7 +707,7 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
     const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
     const [generatorPrefill, setGeneratorPrefill] = useState<Partial<PracticeGeneratorForm> | undefined>(undefined);
     const [showPracticeGeneratorDrawer, setShowPracticeGeneratorDrawer] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom' | 'assignments'>(() => {
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'classroom' | 'assignments' | 'settings'>(() => {
         if (forcedClassroomMode) return 'classroom';
         if (props.activeTab === 'classes') return 'classes';
         if (props.activeTab === 'assignments') return 'assignments';
@@ -1714,13 +1741,13 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 label="Copilot"
                                 onClick={() => {
                                     setIsMobileMenuOpen(false);
-                                        navigate('/teacher/copilot', {
-                                            state: {
-                                                source: selectedClassroomId ? 'teacher-class-context' : 'teacher-overview-context',
-                                                preferredClassId: selectedClassroomId ?? null,
-                                                contextMode: selectedClassroomId ? 'class' : 'all-classes',
-                                            }
-                                        });
+                                    navigate('/teacher/copilot', {
+                                        state: {
+                                            source: selectedClassroomId ? 'teacher-class-context' : 'teacher-overview-context',
+                                            preferredClassId: selectedClassroomId ?? null,
+                                            contextMode: selectedClassroomId ? 'class' : 'all-classes',
+                                        }
+                                    });
                                     setShowPracticeGeneratorDrawer(false);
                                 }}
                                 theme={sidebarTheme}
@@ -1759,7 +1786,17 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                 <PanelLeftOpen size={20} />
                             </button>
                         )}
-                        <NavItem icon={<Settings size={20} />} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <NavItem
+                            icon={<Settings size={20} />}
+                            label="Settings"
+                            active={activeTab === 'settings'}
+                            onClick={() => {
+                                navigate(isDemo ? '/teacher/demo/settings' : '/teacher/settings');
+                                setActiveTab('settings');
+                            }}
+                            collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
+                        />
                         <button
                             onClick={logout}
                             className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-teal-100 hover:bg-teal-800/50 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
@@ -1831,10 +1868,12 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                 <Users size={12} className="text-teal-200" />
                                                 <span>{myClasses.length} Active Classes</span>
                                             </div>
-                                            <h1 className="text-[28px] md:text-[30px] leading-tight font-semibold text-white mb-1 tracking-tight">
-                                                Welcome back, {teacherName.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?)\s+/i, '').split(' ')[0]}! <br />
-                                                <span className="text-teal-100">Your classroom is ready for learning.</span>
-                                            </h1>
+                                            <DashboardGreeting 
+                                                displayName={displayName}
+                                                subtext="Your classroom is ready for learning."
+                                                subtextClass="text-teal-100"
+                                                className="mb-1"
+                                            />
                                             <p className="text-white/90 text-sm max-w-2xl leading-relaxed font-semibold">
                                                 Jordan Lee just finished Algebra Quiz 1. He might need a nudge.
                                             </p>
@@ -2723,13 +2762,13 @@ export default function TeacherDashboardPage(props: TeacherDashboardProps = {}) 
                                                                             </div>
 
                                                                             <div className="h-full md:px-4 md:border-r md:border-[#E2E8F0]">
-                                                                                    <div className="grid h-full grid-cols-3 gap-0">
-                                                                                        <div className="pr-3">
-                                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Submissions</p>
+                                                                                <div className="grid h-full grid-cols-3 gap-0">
+                                                                                    <div className="pr-3">
+                                                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Submissions</p>
                                                                                         <p className="mt-1 text-lg font-bold text-slate-800 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{submittedCount}/{totalCount}</p>
                                                                                     </div>
                                                                                     <div className="px-3 border-l border-slate-100">
-                                                                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Avg Score</p>
+                                                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Avg Score</p>
                                                                                         <p className="mt-1 text-lg font-bold text-slate-800 tabular-nums font-mono [font-family:'JetBrains_Mono','Geist_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">{item.averageScore ?? '--'}%</p>
                                                                                     </div>
                                                                                     <div className="pl-3 border-l border-slate-100">

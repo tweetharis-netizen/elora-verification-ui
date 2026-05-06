@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    Plus,
     ChevronDown,
     Send,
 } from 'lucide-react';
+import { ArtifactStudio, CopilotContextBar } from '../components/Copilot/CopilotShared';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
 import { shouldGateCopilotAccess } from '../hooks/useAuthGate';
@@ -23,14 +23,18 @@ import {
     Step,
     getParentGreeting,
     getPronoun,
-    shouldShowFeedback
+    shouldShowFeedback,
+    HorizontalChips
 } from '../components/Copilot/CopilotShared';
+import { CopilotInputBar } from '../components/Copilot/CopilotInputBar';
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
 import { askElora } from '../services/askElora';
 import * as dataService from '../services/dataService';
 import { demoChildren as scenarioChildren, demoChildSummary, demoParentName } from '../demo/demoParentScenarioA';
 import { useParentChildren } from '../hooks/useParentChildren';
-import type { UseCase } from '../lib/llm/types';
+import { loadSettings } from '../services/settingsService';
+import type { UseCase, CopilotFileAttachment } from '../lib/llm/types';
+import { uploadCopilotFile } from '../services/fileUploadService';
 
 // Mock child data for demo
 const DEMO_CHILDREN = scenarioChildren.map(c => ({
@@ -78,60 +82,6 @@ const resolveParentPromptConfig = (rawText: string): { message: string; useCase:
     };
 };
 
-const HorizontalChips: React.FC<{ 
-    prompts: string[], 
-    onSend: (p: string) => void, 
-    themeColor: string 
-}> = ({ prompts, onSend, themeColor }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const [showOverlay, setShowOverlay] = useState(false);
-
-    const checkScroll = () => {
-        if (scrollRef.current) {
-            const { scrollWidth, clientWidth } = scrollRef.current;
-            setShowOverlay(scrollWidth > clientWidth);
-        }
-    };
-
-    useEffect(() => {
-        checkScroll();
-        window.addEventListener('resize', checkScroll);
-        return () => window.removeEventListener('resize', checkScroll);
-    }, [prompts]);
-
-    return (
-        <div className="relative flex-1 min-w-0">
-            <div 
-                ref={scrollRef}
-                onScroll={checkScroll}
-                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pr-8"
-            >
-                {prompts.map((prompt, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => onSend(prompt)}
-                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
-                        style={{
-                            backgroundColor: themeColor + '0d',
-                            borderColor: themeColor + '33',
-                            color: themeColor
-                        }}
-                    >
-                        {prompt}
-                    </button>
-                ))}
-            </div>
-            {showOverlay && (
-                <div 
-                    className="absolute right-0 top-0 h-[calc(100%-4px)] w-8 pointer-events-none rounded-r-full"
-                    style={{ 
-                        background: `linear-gradient(to right, transparent, white)`
-                    }}
-                />
-            )}
-        </div>
-    );
-};
 
 const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedInShell = false }) => {
     const { logout, currentUser, login, isGuest, isVerified } = useAuth();
@@ -139,6 +89,33 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     const location = useLocation();
     const isDemo = useDemoMode();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    const currentRole: 'parent' = 'parent';
+    const fallbackName = currentUser?.preferredName ?? currentUser?.name ?? 'Parent';
+    const [parentDisplayName, setParentDisplayName] = useState<string>(() => {
+        if (isDemo) return demoParentName;
+        const settings = loadSettings(currentRole);
+        return settings.displayName || fallbackName;
+    });
+
+    useEffect(() => {
+        if (isDemo) {
+            setParentDisplayName(demoParentName);
+            return;
+        }
+        const settings = loadSettings(currentRole);
+        setParentDisplayName(settings.displayName || fallbackName);
+    }, [currentRole, fallbackName, isDemo]);
+
+    useEffect(() => {
+        const onSettings = (event: Event) => {
+            const detail = (event as CustomEvent).detail as { role?: string; displayName?: string } | undefined;
+            if (!detail || detail.role !== currentRole) return;
+            setParentDisplayName(detail.displayName || fallbackName);
+        };
+        window.addEventListener('elora-settings-updated', onSettings as EventListener);
+        return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+    }, [currentRole, fallbackName]);
 
     type ParentCopilotNavState = {
         source?: string;
@@ -149,17 +126,21 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     const navState = (location.state as ParentCopilotNavState | null) ?? null;
 
     const [messages, setMessages] = useState<Message[]>([]);
+    const [hasShownGreeting, setHasShownGreeting] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [serviceNotice, setServiceNotice] = useState<string | null>(null);
+    const [attachedFiles, setAttachedFiles] = useState<CopilotFileAttachment[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [artifacts, setArtifacts] = useState<Array<{ id: string; title: string; summary: string; content: string; kind?: string }>>([]);
 
     // Thread management (frontend-only for now - parent conversations not yet in backend)
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [activeConversationTitle, setActiveConversationTitle] = useState<string>('Active Thread');
     const [threads, setThreads] = useState<any[]>([]);
     const [isThreadsLoading] = useState(false);
-    
-    
+
+
     // Parent Context
     const {
         data: rosterChildren,
@@ -169,13 +150,15 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     const [selectedChildId, setSelectedChildId] = useState<string | null>(isDemo ? DEMO_CHILDREN[0].id : null);
     const [performanceData, setPerformanceData] = useState<any | null>(isDemo ? demoChildSummary : null);
     const [selectedSubject, setSelectedSubject] = useState<string>('All subjects');
-    
+
     useEffect(() => {
         // Ensure demo user is logically "logged in" (but don't persist to localStorage)
         if (isDemo && currentUser?.id !== 'parent_1' && typeof login === 'function') {
             login('parent', undefined, false);
         }
     }, [isDemo, currentUser, login]);
+
+
 
     useEffect(() => {
         if (isDemo) {
@@ -185,7 +168,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
 
         const childrenToSet = rosterChildren.length > 0 ? rosterChildren : [];
         setChildren(childrenToSet as any[]);
-        
+
         if (parentChildrenError) {
             setServiceNotice(parentChildrenError);
         } else {
@@ -244,7 +227,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             setPerformanceData(null);
         });
     }, [selectedChildId, isDemo, navigate]);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isNearBottomRef = useRef(true);
@@ -262,6 +245,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             'Draft a respectful message to my child\'s teacher.',
             'Help me encourage my child about school this week.',
             'Suggest two questions for my next parent-teacher meeting.',
+            'Explain the importance of algebra to my middle-schooler.',
         ];
     };
 
@@ -298,6 +282,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             role: 'user',
             content: query,
             useCase: resolvedUseCase,
+            fileAttachments: [...attachedFiles],
         };
 
         setMessages(prev => [...prev, newUserMsg]);
@@ -350,9 +335,10 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                 lastSelectedClassId: null,
                 lastSelectedStudentId: selectedChildId,
                 conversationId: null,
+                fileAttachments: attachedFiles,
             });
 
-            const { cleanContent, suggestions } = parseSuggestionsFromResponse(response);
+            const { cleanContent, suggestions } = parseSuggestionsFromResponse(response, query);
 
             const assistantMsg: Message = {
                 id: Date.now().toString() + '-a',
@@ -365,6 +351,22 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             };
 
             setMessages(prev => [...prev, assistantMsg]);
+            setAttachedFiles([]);
+
+            // Parse artifact payload if present (---ARTIFACT---)
+            const marker = '---ARTIFACT---';
+            const idx = response.indexOf(marker);
+            if (idx >= 0) {
+                const tail = response.slice(idx + marker.length).trim();
+                try {
+                    const obj = JSON.parse(tail);
+                    if (obj && obj.title && obj.content) {
+                        setArtifacts((prev) => [{ id: String(Date.now()), title: obj.title, summary: obj.summary || '', content: obj.content, kind: obj.kind || 'parent_report' }, ...prev]);
+                    }
+                } catch (err) {
+                    // not JSON — ignore
+                }
+            }
 
             // Keep thread history synced for parent role.
             const finalThreadId = threadId;
@@ -399,6 +401,22 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
         } finally {
             setIsThinking(false);
         }
+    };
+
+    const handleFileAttach = async (file: File) => {
+        if (attachedFiles.length >= 5) return;
+        setIsUploading(true);
+        const res = await uploadCopilotFile(file);
+        setIsUploading(false);
+        if (res.success && res.file) {
+            setAttachedFiles(prev => [...prev, res.file!]);
+        } else {
+            console.error('Upload failed:', res.error);
+        }
+    };
+
+    const handleFileRemove = (fileId: string) => {
+        setAttachedFiles(prev => prev.filter(f => f.id !== fileId));
     };
 
     const handleChildChange = (id: string | null) => {
@@ -444,6 +462,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
         const title = thread.title?.trim() || 'Active Thread';
         setActiveConversationTitle(title);
         setMessages(thread.messages || []);
+        setHasShownGreeting(false);
     }, [activeConversationId, threads]);
 
     const handleNewThread = useCallback(() => {
@@ -460,6 +479,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
         setActiveConversationId(id);
         setActiveConversationTitle('New Chat');
         setMessages([]);
+        setHasShownGreeting(false);
     }, []);
 
     const handleDeleteThread = useCallback((id: string) => {
@@ -506,7 +526,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
         <div className="h-full">
             <CopilotThreadSidebar
                 role="parent"
-                themeColor="#DB844A"
+                themeColor="#D97706"
                 threads={threads}
                 activeId={activeConversationId}
                 onSelect={handleSelectThread}
@@ -529,7 +549,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             setIsSidebarOpen={setIsSidebarOpen}
             isDemo={isDemo}
             role="Parent"
-            themeColor="#DB844A" // Brand Orange
+            themeColor="#D97706" // Brand Orange
             logout={logout}
             navigate={navigate}
             demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
@@ -541,59 +561,52 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
             contentMaxWidth="max-w-none"
             chatAreaClassName={isDemo ? undefined : "flex-1 h-full flex flex-col min-w-0 bg-slate-50 relative overflow-hidden"}
         >
-            <CopilotMobileHeader themeColor="#DB844A" />
+            <CopilotMobileHeader themeColor="#D97706" />
 
             {showAuthGate ? (
-                <CopilotAuthGate role="Parent" themeColor="#DB844A" />
+                <CopilotAuthGate role="Parent" themeColor="#D97706" />
             ) : (
                 <CopilotLayoutShell role="parent" leftRail={sidebarContent}>
-                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fffaf6] relative overflow-hidden">
+                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fbfcf8] dark:bg-[var(--elora-chat-canvas)] relative overflow-hidden transition-colors duration-500">
                         <div
                             ref={messagesAreaRef}
                             onScroll={handleMessagesScroll}
                             className="flex-1 overflow-y-auto custom-scrollbar w-full scroll-smooth"
                         >
-                            <div className="max-w-[720px] mx-auto px-6 pt-12 pb-8 flex flex-col min-h-full">
+                            <div className="max-w-[720px] mx-auto px-6 pt-4 sm:pt-10 pb-8 flex flex-col min-h-full">
                                 {serviceNotice && (
-                                    <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-medium text-orange-800 mb-6">
+                                    <div className="rounded-xl border border-orange-200 dark:border-orange-900/50 bg-orange-50 dark:bg-orange-950/30 px-4 py-2 text-xs font-medium text-orange-800 dark:text-orange-400 mb-6 transition-colors duration-500">
                                         {serviceNotice}
                                     </div>
                                 )}
                                 {!isDemo && (
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-700 mb-4">
+                                    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/20 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 mb-4 transition-colors duration-500">
                                         Parent Copilot conversations are session-only for now and do not persist after refresh.
                                     </div>
                                 )}
                                 {!isDemo && !hasParentContextData && (
-                                    <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-medium text-sky-800 mb-6">
+                                    <div className="rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50 dark:bg-sky-950/30 px-4 py-2 text-xs font-medium text-sky-800 dark:text-sky-400 mb-6 transition-colors duration-500">
                                         We do not see child progress data yet, so Copilot will provide general support guidance.
                                     </div>
                                 )}
                                 {messages.length === 0 ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <CopilotEmptyState
-                                            themeColor="#DB844A"
-                                            userName={currentUser?.name || (isDemo ? demoParentName : 'Parent')}
-                                            title={threads.length === 0 ? 'No Copilot conversations yet. Try one of the suggestions below to get started.' : undefined}
-                                            customGreeting={getParentGreeting(currentChild?.name)}
-                                            description={`I'm here to give you a clear, calm view of ${childName}'s progress. I'll flag what matters and help you support ${getPronoun(currentChild?.gender || 'non-binary').pObj} at home.`}
+                                            themeColor="#D97706"
+                                            userName={parentDisplayName}
+                                            description={`I'm your partner in supporting ${childName}'s learning. Understand progress reports, get specific home actions, plan conversations with teachers, or ask me what I can do.`}
                                             prompts={currentPrompts}
                                             handleSend={handleSend}
                                         />
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="mb-6 md:mb-8">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#DB844A] mb-2">
-                                                {childName}
-                                            </p>
-                                        </div>
 
                                         {messages.map((msg) => (
                                             <CopilotMessageBubble
                                                 key={msg.id}
                                                 message={msg}
-                                                themeColor="#DB844A"
+                                                themeColor="#D97706"
                                                 thinkingStripHeader="How I found this"
                                                 shouldAutoExpandSteps={messages.filter(m => m.role === 'assistant' && m.steps && m.steps.length > 0).findIndex(m => m.id === msg.id) < 3}
                                                 copilotRole="parent"
@@ -604,7 +617,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                                         ))}
                                         {isThinking && (
                                             <CopilotThinkingBubble
-                                                themeColor="#DB844A"
+                                                themeColor="#D97706"
                                                 assistantName="Elora"
                                             />
                                         )}
@@ -614,50 +627,96 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                             </div>
                         </div>
 
-                        <div className="p-4 md:p-6 bg-white border-t border-[#EAE7DD] shrink-0">
+                        <div className="shrink-0 border-t border-slate-200/80 bg-gradient-to-t from-slate-50 via-slate-50/90 to-slate-50/80 px-6 py-4 z-10">
                             <div className="max-w-3xl mx-auto space-y-4">
-                                <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                    <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#DB844A" />
-                                </div>
 
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={handleNewThread}
-                                        className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl shrink-0"
-                                    >
-                                        <Plus size={20} />
-                                    </button>
-                                    <div className="flex-1 relative">
-                                        <textarea
-                                            value={inputValue}
-                                            onChange={(e) => setInputValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleSend(inputValue);
-                                                }
-                                            }}
-                                            placeholder={`Ask about ${childName}'s learning...`}
-                                            className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 resize-none min-h-[52px] max-h-32"
-                                            rows={1}
-                                            style={{ height: '52px' }}
-                                        />
-                                        <button
-                                            onClick={() => handleSend(inputValue)}
-                                            disabled={!inputValue.trim() || isThinking}
-                                            className="absolute right-2.5 top-3 p-1.5 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-300 text-white rounded-lg transition-colors"
-                                        >
-                                            <Send size={16} />
-                                        </button>
+                                {/* Context chips and micro-status */}
+                                {attachedFiles.length > 0 && (
+                                    <div className="mb-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div>
+                                                <span className="text-[12px] text-slate-400">Context:</span>
+                                            </div>
+                                            <div className="text-[12px] text-slate-400">
+                                                {isThinking ? (attachedFiles.length > 0 ? 'Reading your materials…' : 'Got it — thinking…') : ''}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <CopilotContextBar sources={attachedFiles.map(f => ({ id: f.id, label: f.name, type: 'File' }))} />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {messages.length > 0 && (
+                                    <div className="flex items-center justify-between">
+                                        <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#D97706" />
+                                        {attachedFiles.length > 0 && (
+                                            <button
+                                                onClick={async () => {
+                                                    setIsThinking(true);
+                                                    try {
+                                                        const prompt = `Simplify the attached report and provide home actions. Use plain language. Structure: Big picture (2-3 sentences), then Strengths / Things to work on / How you can help at home. Provide 2-4 concrete home actions. Output artifact JSON after ---ARTIFACT--- with {title, summary, content, kind}.`;
+                                                        const resp = await askElora({
+                                                            message: prompt,
+                                                            role: 'parent',
+                                                            useCase: 'parent_support_mode',
+                                                            context: `Child: ${childName}. Files: ${attachedFiles.map(f => f.name).join(', ')}.`,
+                                                            contextMeta: {
+                                                                role: 'parent',
+                                                                isDemo,
+                                                                selectedChildId,
+                                                                selectedChildName: childName,
+                                                            },
+                                                            fileAttachments: attachedFiles,
+                                                        });
+                                                        const marker = '---ARTIFACT---';
+                                                        const idx = resp.indexOf(marker);
+                                                        if (idx >= 0) {
+                                                            const tail = resp.slice(idx + marker.length).trim();
+                                                            try {
+                                                                const obj = JSON.parse(tail);
+                                                                if (obj && obj.title && obj.content) {
+                                                                    setArtifacts((prev) => [{ id: String(Date.now()), title: obj.title, summary: obj.summary || '', content: obj.content, kind: obj.kind || 'parent_report' }, ...prev]);
+                                                                }
+                                                            } catch (err) {
+                                                                // ignore
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        console.error('Report simplification failed', err);
+                                                    } finally {
+                                                        setIsThinking(false);
+                                                    }
+                                                }}
+                                                className="text-xs px-1 py-1 text-[#D97706] hover:text-[#b45309] font-semibold transition-colors ml-3"
+                                            >
+                                                Simplify + Actions
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                <CopilotInputBar
+                                    value={inputValue}
+                                    onChange={setInputValue}
+                                    onSend={() => handleSend(inputValue)}
+                                    isThinking={isThinking}
+                                    themeColor="#D97706"
+                                    placeholder={`Ask about ${childName}'s learning...`}
+                                    microcopy="Elora will anchor help to this item"
+                                    files={attachedFiles}
+                                    onFileAttach={handleFileAttach}
+                                    onFileRemove={handleFileRemove}
+                                    isUploading={isUploading}
+                                    role="parent"
+                                />
                             </div>
                         </div>
 
                         {showScrollButton && (
                             <button
                                 onClick={scrollToBottom}
-                                className="fixed bottom-32 right-8 p-3 bg-white border border-slate-200 rounded-full shadow-lg text-slate-400 hover:text-[#DB844A] hover:border-orange-200 transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 z-50"
+                                className="fixed bottom-32 right-8 p-3 bg-white border border-slate-200 rounded-full shadow-lg text-slate-400 hover:text-[#D97706] hover:border-orange-200 transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 z-50"
                                 title="Scroll to bottom"
                             >
                                 <ChevronDown size={20} />
@@ -666,6 +725,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                     </div>
                 </CopilotLayoutShell>
             )}
+            <ArtifactStudio artifacts={artifacts} onClose={() => setArtifacts([])} />
         </CopilotLayout>
     );
 };

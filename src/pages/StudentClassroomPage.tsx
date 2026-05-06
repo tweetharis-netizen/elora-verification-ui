@@ -132,7 +132,7 @@ export default function StudentClassroomPage() {
     const currentClassWithPeople = { ...currentClass, students: classroomPeople };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6 pb-24 w-full">
             {loading ? (
                 <SectionSkeleton rows={3} />
             ) : (

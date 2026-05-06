@@ -141,7 +141,7 @@ export default function InternalCopilotInsightsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <p className="text-[11px] uppercase tracking-[0.2em] font-semibold text-slate-500">Internal</p>
           <h1 className="text-2xl font-bold tracking-tight mt-1">Copilot Insights</h1>

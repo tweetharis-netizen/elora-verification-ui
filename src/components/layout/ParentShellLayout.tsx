@@ -7,8 +7,10 @@ import { useSidebarState } from '@/hooks/useSidebarState';
 import { shouldGateCopilotAccess } from '@/hooks/useAuthGate';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '@/lib/roleTheme';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { settingsService } from '@/services/settingsService';
 import { EloraLogo } from '@/components/EloraLogo';
 import { AuthGate } from '@/components/auth/AuthGate';
+import { useEloraTheme } from '@/theme/ThemeProvider';
 
 type ParentNavItem = {
   id: string;
@@ -27,6 +29,7 @@ function SidebarItem({
   onNavigate,
   onClick,
   theme,
+  roleAccent,
 }: {
   icon: any;
   label: string;
@@ -36,6 +39,7 @@ function SidebarItem({
   onNavigate?: () => void;
   onClick?: (event: React.MouseEvent) => void;
   theme: RoleSidebarTheme;
+  roleAccent: string;
 }) {
   const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
   const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
@@ -52,7 +56,10 @@ function SidebarItem({
     >
       {/* Active Vertical Accent Bar */}
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]"
+          style={{ backgroundColor: roleAccent }}
+        />
       )}
       
       <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
@@ -69,6 +76,7 @@ export default function ParentShellLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sidebarTheme = getRoleSidebarTheme('parent');
+  const { theme } = useEloraTheme();
 
   const dashboardPath = isDemo ? '/parent/demo' : '/dashboard/parent';
 
@@ -116,10 +124,33 @@ export default function ParentShellLayout() {
         to: `${dashboardPath}#messages`,
         isActive: (p, h) => p === dashboardPath && h === '#messages',
       },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        to: '/settings',
+        isActive: (p) => p === '/settings',
+      },
     ];
   }, [dashboardPath, isDemo]);
 
-  const parentName = isDemo ? 'Shaik Haris' : (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
+  const [parentNameState, setParentNameState] = React.useState<string>(() => {
+    if (isDemo) return 'Shaik Haris';
+    const ss = settingsService.getSettings('parent');
+    return ss.displayName || (currentUser?.preferredName ?? currentUser?.name ?? 'Parent');
+  });
+  React.useEffect(() => {
+    const onSettings = (e: Event) => {
+      const ev = e as CustomEvent;
+      const detail = ev.detail as any;
+      if (detail && detail.role === 'parent' && typeof detail.displayName === 'string') {
+        setParentNameState(detail.displayName);
+      }
+    };
+    window.addEventListener('elora-settings-updated', onSettings as EventListener);
+    return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+  }, []);
+  const parentName = parentNameState;
   const parentInitials = parentName
     .split(' ')
     .map((word) => word.charAt(0).toUpperCase())
@@ -127,7 +158,7 @@ export default function ParentShellLayout() {
     .join('');
 
   return (
-    <div className="flex min-h-screen bg-[#FDFBF5] text-slate-900 overflow-x-hidden">
+    <div className="flex min-h-screen overflow-x-hidden" style={{ backgroundColor: theme.appBg, color: theme.textPrimary }}>
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-30 md:hidden"
@@ -138,6 +169,10 @@ export default function ParentShellLayout() {
       <aside
         id="parent-shell-sidebar"
         className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
+        style={{
+          backgroundColor: theme.roleSidebar.parent,
+          color: theme.sidebarText,
+        }}
       >
         <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           <Link to={isDemo ? '/parent/demo' : '/dashboard/parent'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
@@ -177,6 +212,7 @@ export default function ParentShellLayout() {
                   setIsMobileMenuOpen(false);
                 }}
                 theme={sidebarTheme}
+                roleAccent={theme.roleAccents.parent}
               />
             );
 
@@ -207,20 +243,10 @@ export default function ParentShellLayout() {
               <PanelLeftOpen size={20} />
             </button>
           )}
-
-          <SidebarItem icon={Settings} label="Settings" active={false} collapsed={!isSidebarOpen} theme={sidebarTheme} />
-          <button
-            onClick={logout}
-            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
-            title={!isSidebarOpen ? 'Sign out' : undefined}
-          >
-            <LogOut size={20} className="shrink-0" />
-            {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
-          </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: theme.appBgMuted }}>
         <DashboardHeader
           role="parent"
           displayName={parentName}
@@ -228,6 +254,10 @@ export default function ParentShellLayout() {
           avatarInitials={parentInitials || 'P'}
           searchPlaceholder="Search kids' progress..."
           onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+          onLogout={() => {
+            logout();
+            navigate('/login');
+          }}
         />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Outlet />

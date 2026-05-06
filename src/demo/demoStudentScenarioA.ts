@@ -23,6 +23,26 @@ export const demoStudentData: dataService.StudentDashboardData = {
             score: 43,
             maxScore: 100,
         },
+        {
+            id: 'demo-asgn-2',
+            attemptId: 'demo-att-2',
+            classroomId: 'demo-class-1',
+            title: 'Linear Equations Worksheet',
+            dueDate: new Date(Date.now() + 2 * 86400000).toISOString(),
+            status: 'active',
+            statusLabel: 'Due in 2 days',
+            className: 'Sec 3 Mathematics',
+        },
+        {
+            id: 'demo-asgn-3',
+            attemptId: 'demo-att-3',
+            classroomId: 'demo-class-2',
+            title: 'Science Lab Safety',
+            dueDate: new Date(Date.now() - 3 * 86400000).toISOString(),
+            status: 'danger',
+            statusLabel: '3 days overdue',
+            className: 'Sec 1 Science',
+        }
     ],
     recentPerformance: {
         scores: [

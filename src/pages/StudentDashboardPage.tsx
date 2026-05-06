@@ -56,10 +56,15 @@ import {
     Area
 } from 'recharts';
 import MotivationBanner from '../components/MotivationBanner';
+import DashboardGreeting from '../components/DashboardGreeting';
 import { useAuth } from '../auth/AuthContext';
 import * as dataService from '../services/dataService';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { AssignmentLifecycleTabs, AssignmentLifecycleFilter } from '../components/assignments/AssignmentLifecycleTabs';
+import { AssignmentSearchBar } from '../components/assignments/AssignmentSearchBar';
+import { AssignmentRowBase } from '../components/assignments/AssignmentRowBase';
 import { ClassSummaryCard } from '../components/ClassSummaryCard';
+import { AssignmentRow } from '../components/assignments/AssignmentRow';
 import { getStudentSuggestion, StudentSuggestion } from '../services/studentSuggestionService';
 import { NotificationsPopover, PopoverNotificationItem } from '../components/NotificationsPopover';
 import { useNotifications } from '../hooks/useNotifications';
@@ -72,6 +77,7 @@ import { useDemoMode } from '../hooks/useDemoMode';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
+import { loadSettings } from '../services/settingsService';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
@@ -221,7 +227,7 @@ export default function StudentDashboardPage({
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const sidebarTheme = getRoleSidebarTheme('student');
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes' | 'settings'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
     const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed'>('all');
     const { data: rosterStudentClasses, refetch: refetchStudentClasses } = useStudentClasses();
@@ -282,6 +288,35 @@ export default function StudentDashboardPage({
     const [isTasksExpanded, setIsTasksExpanded] = useState(false);
     const [isComingUpExpanded, setIsComingUpExpanded] = useState(false);
     const INITIAL_VISIBLE_COUNT = 3;
+
+    const currentRole: 'student' = 'student';
+    const fallbackName = currentUser?.preferredName ?? currentUser?.name ?? 'Student';
+    const [displayName, setDisplayName] = useState<string>(() => {
+        if (isDemo) return 'Jordan';
+        const settings = loadSettings(currentRole);
+        return settings.displayName || fallbackName;
+    });
+
+    useEffect(() => {
+        if (isDemo) {
+            setDisplayName('Jordan');
+            return;
+        }
+
+        const settings = loadSettings(currentRole);
+        setDisplayName(settings.displayName || fallbackName);
+    }, [currentRole, fallbackName, isDemo]);
+
+    useEffect(() => {
+        const onSettings = (event: Event) => {
+            const detail = (event as CustomEvent).detail as { role?: string; displayName?: string } | undefined;
+            if (!detail || detail.role !== currentRole) return;
+            setDisplayName(detail.displayName || fallbackName);
+        };
+
+        window.addEventListener('elora-settings-updated', onSettings as EventListener);
+        return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+    }, [currentRole, fallbackName]);
 
     // ── Student Copilot Handlers ──
     const getStudentAssignmentsList = () => {
@@ -437,6 +472,9 @@ export default function StudentDashboardPage({
         };
         fetchData();
     }, [isDemo]);
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [reviewLifecycleFilter, setReviewLifecycleFilter] = useState('all');
 
     useEffect(() => {
         if (isDemo) {
@@ -614,7 +652,6 @@ export default function StudentDashboardPage({
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
-    const displayName = isDemo ? 'Jordan' : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
     const studentInitial = displayName.charAt(0).toUpperCase();
 
     // ── Status normalisation ───────────────────────────────────────────────────
@@ -1028,7 +1065,17 @@ export default function StudentDashboardPage({
                             </button>
                         )}
 
-                        <SidebarItem icon={Settings} label="Settings" collapsed={!isSidebarOpen} theme={sidebarTheme} />
+                        <SidebarItem
+                            icon={Settings}
+                            label="Settings"
+                            active={activeTab === 'settings'}
+                            onClick={() => {
+                                navigate(isDemo ? '/student/demo/settings' : '/student/settings');
+                                setActiveTab('settings');
+                            }}
+                            collapsed={!isSidebarOpen}
+                            theme={sidebarTheme}
+                        />
 
                         <button
                             onClick={logout}
@@ -1067,7 +1114,7 @@ export default function StudentDashboardPage({
                         />}
 
                         {/* CONTENT SHELL AREA */}
-                        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+                        <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
                             {activeTab === 'dashboard' && (
                                 <DashboardTour
                                     role="student"
@@ -1092,10 +1139,12 @@ export default function StudentDashboardPage({
                                                     <Flame size={12} className="text-orange-400" />
                                                     <span>{studentProfile.streak} Day Streak</span>
                                                 </div>
-                                                <h1 className="text-2xl md:text-3xl font-semibold text-white mb-2 leading-tight tracking-tight">
-                                                    Hi, {studentProfile.firstName}! <br />
-                                                    <span className="text-purple-200">Ready to shine today?</span>
-                                                </h1>
+                                                <DashboardGreeting 
+                                                    displayName={displayName}
+                                                    subtext="Ready to shine today?"
+                                                    subtextClass="text-purple-200"
+                                                    className="mb-2"
+                                                />
                                                 <p className="text-white/80 text-sm md:text-base max-w-xl leading-relaxed font-medium">
                                                     You've mastered <span className="text-white font-extrabold">{performanceSummary.topicsMastered} topics</span>. Let's keep growing!
                                                 </p>
@@ -1532,202 +1581,180 @@ export default function StudentDashboardPage({
                                     </div>
                                 </div>
                             ) : activeTab === 'assignments' ? (
-                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700" id="assignments-section">
-                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                        <div>
-                                            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
-                                            <p className="text-[13px] text-slate-500 mt-0.5">A focused command center for your active and completed work.</p>
-                                        </div>
-                                        {activeClassFilter && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[12px] text-slate-400 font-semibold uppercase tracking-wider">Filtered by:</span>
-                                                <span className="px-3 py-1.5 bg-[#7C3AED] text-white rounded-xl text-[12px] font-semibold border border-[#7C3AED] flex items-center gap-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                                                    <BookOpen className="w-3.5 h-3.5" />
-                                                    {activeClassFilter}
-                                                    <button
-                                                        onClick={() => setActiveClassFilter(null)}
-                                                        className="ml-1 p-0.5 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
-                                                        title="Clear filter"
-                                                    >
-                                                        <X className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700" id="assignments-section">
+                                    {(() => {
+                                        const normalisedAssignments = assignments.map(a => ({
+                                            ...a,
+                                            type: (a as any).type || 'ASSIGNMENT',
+                                            topic: (a as any).topic || 'General Practice'
+                                        }));
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,25%)_minmax(0,75%)] gap-6 items-start">
-                                        <aside className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 lg:sticky lg:top-6">
-                                            <div className="space-y-2">
-                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Active Tasks Summary</p>
-                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/60 px-4 py-3.5">
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>To-do</span>
-                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
-                                                            {normalisedAssignments.filter(a => a.status !== 'completed' && a.status !== 'success' && (!activeClassFilter || a.className === activeClassFilter)).length}
-                                                        </span>
+                                        return (
+                                            <div className="flex flex-col gap-6">
+                                                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                                    <div>
+                                                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Assignments & Quizzes</h2>
+                                                        <p className="text-[14px] text-slate-500 mt-1">A focused command center for your active and completed work.</p>
                                                     </div>
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Due soon</span>
-                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
-                                                            {normalisedAssignments.filter(a => {
-                                                                if (a.status === 'completed' || a.status === 'success') return false;
-                                                                if (activeClassFilter && a.className !== activeClassFilter) return false;
-                                                                const dueDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-                                                                const now = Date.now();
-                                                                return dueDate >= now && dueDate <= now + (7 * 24 * 60 * 60 * 1000);
-                                                            }).length}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-widest text-slate-600">
-                                                        <span>Overdue</span>
-                                                        <span className="tabular-nums text-base font-bold text-[#7C3AED]">
-                                                            {normalisedAssignments.filter(a => a.status === 'danger' && (!activeClassFilter || a.className === activeClassFilter)).length}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Filters</p>
-                                                <div className="space-y-2 rounded-lg border border-[#EAEAEA] bg-slate-50/40 px-4 py-3.5">
-                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Subject</label>
-                                                    <select
-                                                        value={activeClassFilter ?? 'all'}
-                                                        onChange={(event) => setActiveClassFilter(event.target.value === 'all' ? null : event.target.value)}
-                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
-                                                    >
-                                                        <option value="all">All subjects</option>
-                                                        {Array.from(new Set(normalisedAssignments.map((assignment) => assignment.className))).map((className) => (
-                                                            <option key={className} value={className}>{className}</option>
-                                                        ))}
-                                                    </select>
-
-                                                    <label className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Status</label>
-                                                    <select
-                                                        value={assignmentStatusFilter}
-                                                        onChange={(event) => setAssignmentStatusFilter(event.target.value as 'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed')}
-                                                        className="w-full bg-white border border-[#EAEAEA] rounded-lg px-3 py-2 text-sm"
-                                                    >
-                                                        <option value="all">All statuses</option>
-                                                        <option value="overdue">Overdue</option>
-                                                        <option value="in_progress">In progress</option>
-                                                        <option value="not_started">Not started</option>
-                                                        <option value="completed">Completed</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </aside>
-
-                                        <section>
-                                            {normalisedAssignments.filter((a) => {
-                                                if (activeClassFilter && a.className !== activeClassFilter) return false;
-
-                                                if (assignmentStatusFilter === 'overdue') return a.status === 'danger';
-                                                if (assignmentStatusFilter === 'in_progress') return a.status === 'warning';
-                                                if (assignmentStatusFilter === 'not_started') return a.status === 'info';
-                                                if (assignmentStatusFilter === 'completed') return a.status === 'completed' || a.status === 'success';
-
-                                                return true;
-                                            }).length === 0 ? (
-                                                <div className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10">
-                                                    <SectionEmpty
-                                                        headline="No assignments found"
-                                                        detail="Try another class filter, or head back to your classes to pick up new work."
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-4">
-                                                    {normalisedAssignments
-                                                        .filter((a) => {
-                                                            if (activeClassFilter && a.className !== activeClassFilter) return false;
-
-                                                            if (assignmentStatusFilter === 'overdue') return a.status === 'danger';
-                                                            if (assignmentStatusFilter === 'in_progress') return a.status === 'warning';
-                                                            if (assignmentStatusFilter === 'not_started') return a.status === 'info';
-                                                            if (assignmentStatusFilter === 'completed') return a.status === 'completed' || a.status === 'success';
-
-                                                            return true;
-                                                        })
-                                                        .map((item) => {
-                                                            const isOverdue = item.status === 'danger';
-                                                            const isCompleted = item.status === 'completed' || item.status === 'success';
-                                                            const isInProgress = item.status === 'warning';
-                                                            const isAtRisk = isOverdue;
-                                                            const statusText = isCompleted ? 'Completed' : isOverdue ? 'Overdue' : isInProgress ? 'In Progress' : 'Not Started';
-                                                            const completionValue = isCompleted ? '100%' : isOverdue ? '20%' : isInProgress ? '55%' : '0%';
-                                                            const progressValue = isCompleted ? 100 : isOverdue ? 30 : isInProgress ? 60 : 15;
-                                                            const dueText = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'No due date';
-
-                                                            return (
-                                                                <article
-                                                                    key={item.id}
-                                                                    className="rounded-xl border border-[#EAEAEA] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden"
+                                                    <div className="flex items-center gap-3">
+                                                        {activeClassFilter && (
+                                                            <span className="px-3 py-1.5 bg-[#7C3AED]/10 text-[#7C3AED] rounded-full text-[12px] font-bold border border-[#7C3AED]/20 flex items-center gap-2">
+                                                                <BookOpen size={14} className="w-3.5 h-3.5" />
+                                                                {activeClassFilter}
+                                                                <button
+                                                                    onClick={() => setActiveClassFilter(null)}
+                                                                    className="ml-1 p-0.5 hover:bg-[#7C3AED]/20 rounded-full transition-colors flex items-center justify-center"
                                                                 >
-                                                                    <div className="p-4 sm:p-5">
-                                                                        <div className="flex items-start justify-end gap-2 mb-3">
-                                                                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isOverdue ? 'bg-rose-50 border-rose-200 text-[#9F1239]' : isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : isInProgress ? 'bg-purple-50 border-purple-200 text-[#7C3AED]' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                                                                                {statusText}
-                                                                            </span>
-                                                                        </div>
-
-                                                                        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)_minmax(150px,0.9fr)] gap-4 md:gap-0 items-stretch">
-                                                                            <div className="min-w-0 flex items-start gap-3 h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isAtRisk ? 'bg-rose-50/50' : 'bg-purple-500/10'}`}>
-                                                                                    <FileText size={16} className={`${isAtRisk ? 'text-[#9F1239]' : 'text-[#7C3AED]'}`} />
-                                                                                </div>
-                                                                                <div className="min-w-0">
-                                                                                    <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Assignment</p>
-                                                                                    <h3 className="mt-1 text-base font-semibold tracking-tight text-slate-900 truncate">{item.title}</h3>
-                                                                                    <p className="mt-1 text-sm text-slate-500 truncate">{item.className}</p>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="h-full md:pr-4 md:mr-4 md:border-r md:border-slate-200/60">
-                                                                                <div className="h-full rounded-lg border border-[#EAEAEA] bg-slate-50/60 p-3 pl-2">
-                                                                                    <div className="grid grid-cols-2 gap-y-3 gap-x-8">
-                                                                                        <div>
-                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Completion</p>
-                                                                                            <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">{completionValue}</p>
-                                                                                        </div>
-                                                                                        <div>
-                                                                                            <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Score Goal</p>
-                                                                                            <p className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">70%</p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="mt-3">
-                                                                                        <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                                                                                            <div
-                                                                                                className={`h-full transition-all ${isAtRisk ? 'bg-[#9F1239]' : 'bg-[#7C3AED]'}`}
-                                                                                                style={{ width: `${progressValue}%` }}
-                                                                                            />
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="space-y-2">
-                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Due Date</p>
-                                                                                <p className="text-sm font-semibold text-slate-900 tabular-nums">{dueText}</p>
-                                                                                <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Class</p>
-                                                                                <p className={`text-sm font-semibold ${isAtRisk ? 'text-[#9F1239]' : 'text-slate-900'}`}>{item.className}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <button
-                                                                        onClick={() => navigate(`/play/${item.gamePackId || 'practice-general'}?attemptId=${item.attemptId}`)}
-                                                                        className="w-full border-t border-[#EAEAEA] px-4 py-2.5 text-sm font-semibold tracking-tight text-slate-600 transition-all duration-200 hover:bg-slate-50/80 hover:text-slate-800 flex items-center justify-center"
-                                                                    >
-                                                                        {isCompleted ? 'View Assignment' : 'Submit Assignment'}
-                                                                    </button>
-                                                                </article>
-                                                            );
-                                                        })}
+                                                                    <X size={14} className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </span>
+                                                        )}
+                                                        <div className="relative group">
+                                                            <select
+                                                                value={activeClassFilter ?? 'all'}
+                                                                onChange={(event) => setActiveClassFilter(event.target.value === 'all' ? null : event.target.value)}
+                                                                className="appearance-none bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 outline-none hover:border-slate-300 transition-all cursor-pointer pr-10 shadow-sm"
+                                                            >
+                                                                <option value="all">All Classes</option>
+                                                                {studentClasses.map(c => (
+                                                                    <option key={c.id} value={c.name}>{c.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-slate-500 transition-colors" />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </section>
-                                    </div>
+
+
+
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                        <div className="w-full md:max-w-md">
+                                                            <AssignmentSearchBar 
+                                                                value={searchQuery}
+                                                                onChange={setSearchQuery}
+                                                            />
+                                                        </div>
+                                                        <AssignmentLifecycleTabs
+                                                            role="student"
+                                                            activeFilter={reviewLifecycleFilter as AssignmentLifecycleFilter}
+                                                            onFilterChange={(f) => setReviewLifecycleFilter(f)}
+                                                            counts={{
+                                                                all: normalisedAssignments.length,
+                                                                // Active = in-progress or not-started work (not yet submitted/done, not attention)
+                                                                active: normalisedAssignments.filter(a => {
+                                                                    const s = String(a.status || '').toLowerCase();
+                                                                    return s !== 'completed' && s !== 'success' && s !== 'submitted' && s !== 'scored' && s !== 'danger' && s !== 'at_risk' && s !== 'overdue';
+                                                                }).length,
+                                                                // Attention = overdue or at_risk items
+                                                                attention: normalisedAssignments.filter(a => {
+                                                                    const s = String(a.status || '').toLowerCase();
+                                                                    return s === 'danger' || s === 'at_risk' || s === 'overdue';
+                                                                }).length,
+                                                                // Closed = completed, submitted, or scored items
+                                                                closed: normalisedAssignments.filter(a => {
+                                                                    const s = String(a.status || '').toLowerCase();
+                                                                    return s === 'completed' || s === 'success' || s === 'submitted' || s === 'scored';
+                                                                }).length
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        {(() => {
+                                                            const filtered = normalisedAssignments.filter(a => {
+                                                                const matchesSearch = searchQuery === '' || 
+                                                                    a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                                    a.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                                    a.topic.toLowerCase().includes(searchQuery.toLowerCase());
+                                                                
+                                                                const matchesClass = !activeClassFilter || a.className === activeClassFilter;
+
+                                                                const statusLower = String(a.status || '').toLowerCase();
+                                                                const isSubmitted = statusLower === 'submitted' || statusLower === 'scored';
+                                                                const isCompleted = statusLower === 'completed' || statusLower === 'success';
+                                                                const isAttention = statusLower === 'danger' || statusLower === 'at_risk' || statusLower === 'overdue';
+                                                                let matchesLifecycle = true;
+                                                                if (reviewLifecycleFilter === 'active')
+                                                                    // Active: work not yet submitted, not done, not needing attention
+                                                                    matchesLifecycle = !isCompleted && !isSubmitted && !isAttention;
+                                                                else if (reviewLifecycleFilter === 'attention')
+                                                                    // Attention: overdue or at risk
+                                                                    matchesLifecycle = isAttention;
+                                                                else if (reviewLifecycleFilter === 'closed')
+                                                                    // Closed: submitted or fully completed
+                                                                    matchesLifecycle = isCompleted || isSubmitted;
+
+                                                                return matchesSearch && matchesClass && matchesLifecycle;
+                                                            });
+
+                                                            if (filtered.length === 0) {
+                                                                return (
+                                                                    <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center shadow-sm">
+                                                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                                                            <Inbox size={32} />
+                                                                        </div>
+                                                                        <h3 className="text-lg font-semibold text-slate-900">No assignments found</h3>
+                                                                        <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Try adjusting your filters or search query to find what you're looking for.</p>
+                                                                        {(searchQuery !== '' || activeClassFilter || reviewLifecycleFilter !== 'all') && (
+                                                                            <button 
+                                                                                onClick={() => {
+                                                                                    setSearchQuery('');
+                                                                                    setActiveClassFilter(null);
+                                                                                    setReviewLifecycleFilter('all');
+                                                                                }}
+                                                                                className="mt-6 text-sm font-bold text-[#7C3AED] hover:underline"
+                                                                            >
+                                                                                Clear all filters
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            }
+
+                                                            return filtered.map(a => {
+                                                                const statusLower = String(a.status || '').toLowerCase();
+                                                                let statusType: 'overdue' | 'due_soon' | 'completed' | 'active' | 'attention' = 'active';
+                                                                if (statusLower === 'danger') statusType = 'overdue';
+                                                                else if (statusLower === 'completed' || statusLower === 'success') statusType = 'completed';
+                                                                else if (statusLower === 'at_risk') statusType = 'attention';
+                                                                
+                                                                // Check if due soon (within 2 days)
+                                                                const dueDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+                                                                if (statusType === 'active' && dueDate <= Date.now() + (48 * 60 * 60 * 1000)) {
+                                                                    statusType = 'due_soon';
+                                                                }
+
+                                                                return (
+                                                                    <AssignmentRowBase
+                                                                        key={a.id}
+                                                                        role="student"
+                                                                        title={a.title}
+                                                                        typeLabel={a.type}
+                                                                        className={a.className}
+                                                                        topic={a.topic}
+                                                                        status={statusType}
+                                                                        statusLabel={a.statusLabel || a.status || 'Active'}
+                                                                        dueDate={a.dueDate || 'No date'}
+                                                                        metrics={{
+                                                                            label1: 'QUESTIONS',
+                                                                            value1: '12',
+                                                                            label2: 'AVG. TIME',
+                                                                            value2: '8m',
+                                                                            label3: 'POINTS',
+                                                                            value3: '150'
+                                                                        }}
+                                                                        progressPercent={statusType === 'completed' ? 100 : 45}
+                                                                        onClick={() => navigate(`/play/${a.gamePackId || 'practice-general'}?attemptId=${(a as any).attemptId}`)}
+                                                                    />
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             ) : activeTab === 'classes' ? (
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

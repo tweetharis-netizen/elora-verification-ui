@@ -38,8 +38,50 @@
   /* soft purple */
   --elora-info-bg: #EAE4F2;
 
+  /* Role hero tones and chat UI surfaces */
+  --elora-hero-teacher: #2D6A6A;
+  --elora-hero-student: #68507B;
+  --elora-hero-parent: #DB844A;
+  --elora-chat-shell: #F8FAFC;
+  --elora-chat-canvas: #fbfcf8;
+  --elora-chip-bg: rgba(255, 255, 255, 0.8);
+  --elora-chip-text: #475569;
+  --elora-chip-border: #e2e8f0;
+
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-heading: "Nunito", sans-serif;
+}
+
+[data-theme="dark"] {
+  --elora-primary: #a58ec9;
+  --elora-secondary: #8f7daa;
+  --elora-deep: #6a5b82;
+  --elora-darkest: #2f253f;
+
+  --elora-surface-main: #101826;
+  --elora-surface-alt: #131f32;
+  --elora-bg: #060b16;
+  --elora-border-subtle: #243244;
+
+  --elora-text-strong: #f8fafc;
+  --elora-text-muted: #cbd5e1;
+  --elora-text-on-primary: #f8fafc;
+
+  --elora-success-text: #7ce7df;
+  --elora-success-bg: #113b3a;
+  --elora-warning-text: #f9bb84;
+  --elora-warning-bg: #402916;
+  --elora-info-text: #cbb5ec;
+  --elora-info-bg: #2d2440;
+
+  --elora-hero-teacher: #1d4745;
+  --elora-hero-student: #443458;
+  --elora-hero-parent: #704126;
+  --elora-chat-shell: #0b1220;
+  --elora-chat-canvas: #091321;
+  --elora-chip-bg: #101826;
+  --elora-chip-text: #cbd5e1;
+  --elora-chip-border: #243244;
 }
 
 @theme {
@@ -57,16 +99,116 @@
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background-color: var(--elora-bg);
   color: var(--elora-text-strong);
   font-family: var(--font-sans);
+  line-height: 1.5;
   overflow-x: hidden;
-  margin: 0;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+[data-theme="dark"] .bg-white {
+  background-color: var(--elora-surface-main) !important;
+}
+
+[data-theme="dark"] .bg-white\/80,
+[data-theme="dark"] .bg-white\/70 {
+  background-color: #101826 !important;
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-50\/50,
+[data-theme="dark"] .bg-slate-50\/30 {
+  background-color: var(--elora-surface-alt) !important;
+}
+
+[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] .bg-slate-100\/50 {
+  background-color: #182538 !important;
+}
+
+[data-theme="dark"] .bg-\[\#FDFBF5\],
+[data-theme="dark"] .bg-\[\#fbfcf8\],
+[data-theme="dark"] .bg-\[\#F8FAFC\] {
+  background-color: var(--elora-chat-canvas) !important;
+}
+
+[data-theme="dark"] .bg-\[\#2D6A6A\],
+[data-theme="dark"] .border-\[\#2D6A6A\] {
+  background-color: var(--elora-hero-teacher) !important;
+  border-color: var(--elora-hero-teacher) !important;
+}
+
+[data-theme="dark"] .bg-\[\#68507B\],
+[data-theme="dark"] .border-\[\#68507B\] {
+  background-color: var(--elora-hero-student) !important;
+  border-color: var(--elora-hero-student) !important;
+}
+
+[data-theme="dark"] .bg-\[\#DB844A\],
+[data-theme="dark"] .border-\[\#DB844A\] {
+  background-color: var(--elora-hero-parent) !important;
+  border-color: var(--elora-hero-parent) !important;
+}
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-\[\#EAE7DD\],
+[data-theme="dark"] .border-\[\#d8e6e4\],
+[data-theme="dark"] .border-\[var\(--elora-border-subtle\)\] {
+  border-color: var(--elora-border-subtle) !important;
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700 {
+  color: var(--elora-text-strong) !important;
+}
+
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400 {
+  color: var(--elora-text-muted) !important;
+}
+
+[data-theme="dark"] .text-teal-100,
+[data-theme="dark"] .text-teal-200,
+[data-theme="dark"] .text-purple-100,
+[data-theme="dark"] .text-purple-200,
+[data-theme="dark"] .text-orange-100,
+[data-theme="dark"] .text-orange-200 {
+  color: #d7e3f4 !important;
+}
+
+[data-theme="dark"] .sidebar-editorial {
+  /* Keep original translucent editorial feel in dark mode to match light layout */
+  background: rgba(253, 251, 245, 0.06);
+  border-right: 1px solid rgba(255,255,255,0.02);
+}
+
+[data-theme="dark"] .stage-glow {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(52, 198, 186, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(165, 142, 201, 0.08) 0%, transparent 40%),
+    var(--elora-chat-canvas);
 }
 
 @keyframes demo-role-cross-fade {
@@ -1742,4 +1884,45 @@ body {
 .elora-sidebar-logout:hover {
   background-color: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* Citation highlight + pulse */
+.elora-citation-highlight {
+  background-color: rgba(250, 244, 153, 0.6); /* soft yellow */
+  transition: background-color 220ms ease, box-shadow 220ms ease;
+}
+
+@keyframes elora-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(250,244,153,0.8); }
+  50% { box-shadow: 0 0 14px 6px rgba(250,244,153,0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(250,244,153,0); }
+}
+
+.elora-citation-pulse {
+  animation: elora-pulse 1.4s ease-out 1;
+}
+
+/* Jargon tooltip */
+[data-jargon-term] {
+  position: relative;
+}
+
+[data-jargon-term]::after {
+  content: attr(data-jargon-term);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  white-space: pre-wrap;
+  display: none;
+  background: #111827;
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  z-index: 60;
+  max-width: 320px;
+}
+
+[data-jargon-term]:hover::after {
+  display: block;
 }

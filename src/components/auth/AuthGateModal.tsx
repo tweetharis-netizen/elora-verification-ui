@@ -28,7 +28,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
   const displayRole = (role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Teacher') as 'Teacher' | 'Student' | 'Parent';
   
   // Theme color based on role
-  const themeColor = role === 'student' ? '#68507B' : (role === 'parent' ? '#4F46E5' : '#0d9488');
+  const themeColor = role === 'student' ? '#68507B' : (role === 'parent' ? '#DB844A' : '#0d9488');
 
   return (
     <AnimatePresence>

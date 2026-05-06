@@ -10,6 +10,8 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { EloraLogo } from '@/components/EloraLogo';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { demoStudentName } from '@/demo/demoStudentScenarioA';
+import { settingsService } from '@/services/settingsService';
+import { useEloraTheme } from '@/theme/ThemeProvider';
 
 type NavItemConfig = {
   id: string;
@@ -28,6 +30,7 @@ function SidebarItem({
   onNavigate,
   onClick,
   theme,
+  roleAccent,
 }: {
   icon: any;
   label: string;
@@ -37,6 +40,7 @@ function SidebarItem({
   onNavigate?: () => void;
   onClick?: (event: React.MouseEvent) => void;
   theme: RoleSidebarTheme;
+  roleAccent: string;
 }) {
   const activeClasses = `${theme.navActiveBg} ${theme.navActiveText}`;
   const inactiveClasses = `${theme.navInactiveText} ${theme.navHoverBg} ${theme.navHoverText}`;
@@ -53,7 +57,10 @@ function SidebarItem({
     >
       {/* Active Vertical Accent Bar */}
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-white/85 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.35)]"
+          style={{ backgroundColor: roleAccent }}
+        />
       )}
       
       <Icon size={20} className="shrink-0 transition-transform group-hover:scale-110" />
@@ -70,6 +77,7 @@ export default function StudentShellLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sidebarTheme = getRoleSidebarTheme('student');
+  const { theme } = useEloraTheme();
 
   const navItems: NavItemConfig[] = useMemo(() => {
     const base = isDemo ? '/student/demo' : '/dashboard/student';
@@ -120,10 +128,33 @@ export default function StudentShellLayout() {
         to: `${base}#reports`,
         isActive: (p, h) => p === base && h === '#reports',
       },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        to: '/settings',
+        isActive: (p) => p === '/settings',
+      },
     ];
   }, [isDemo]);
 
-  const displayName = isDemo ? demoStudentName : (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
+  const [displayNameState, setDisplayNameState] = React.useState<string>(() => {
+    if (isDemo) return demoStudentName;
+    const ss = settingsService.getSettings('student');
+    return ss.displayName || (currentUser?.preferredName ?? currentUser?.name ?? 'Student');
+  });
+  React.useEffect(() => {
+    const onSettings = (e: Event) => {
+      const ev = e as CustomEvent;
+      const detail = ev.detail as any;
+      if (detail && detail.role === 'student' && typeof detail.displayName === 'string') {
+        setDisplayNameState(detail.displayName);
+      }
+    };
+    window.addEventListener('elora-settings-updated', onSettings as EventListener);
+    return () => window.removeEventListener('elora-settings-updated', onSettings as EventListener);
+  }, []);
+  const displayName = displayNameState;
   const initials = displayName
     .split(' ')
     .map((part) => part[0])
@@ -132,7 +163,7 @@ export default function StudentShellLayout() {
     .toUpperCase();
 
   return (
-    <div className="flex min-h-screen bg-[#FDFBF5] text-slate-900 overflow-x-hidden">
+    <div className="flex min-h-screen overflow-x-hidden" style={{ backgroundColor: theme.appBg, color: theme.textPrimary }}>
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-30 md:hidden"
@@ -143,6 +174,10 @@ export default function StudentShellLayout() {
       <aside
         id="student-shell-sidebar"
         className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{
+          backgroundColor: theme.roleSidebar.student,
+          color: theme.sidebarText,
+        }}
       >
         <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
           <Link to={isDemo ? '/student/demo' : '/dashboard/student'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
@@ -182,6 +217,7 @@ export default function StudentShellLayout() {
                   setIsMobileMenuOpen(false);
                 }}
                 theme={sidebarTheme}
+                roleAccent={theme.roleAccents.student}
               />
             );
 
@@ -212,27 +248,20 @@ export default function StudentShellLayout() {
               <PanelLeftOpen size={22} className="group-hover:scale-110 transition-transform" />
             </button>
           )}
-
-          <SidebarItem icon={Settings} label="Settings" active={false} collapsed={!isSidebarOpen} theme={sidebarTheme} />
-
-          <button
-            onClick={logout}
-            className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors ${!isSidebarOpen ? 'justify-center' : ''}`}
-            title={!isSidebarOpen ? 'Sign out' : undefined}
-          >
-            <LogOut size={20} className="shrink-0" />
-            {isSidebarOpen && <span className="whitespace-nowrap">Sign out</span>}
-          </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#FDFBF5]/50 overflow-x-hidden">
+      <main className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden" style={{ backgroundColor: theme.appBgMuted }}>
         <DashboardHeader
           role="student"
           displayName={displayName}
           roleLabel="STUDENT"
           avatarInitials={initials || 'S'}
           onMobileMenuToggle={() => setIsMobileMenuOpen(true)}
+          onLogout={() => {
+            logout();
+            navigate('/login');
+          }}
         />
         <div className="flex-1 flex flex-col">
           <Outlet />

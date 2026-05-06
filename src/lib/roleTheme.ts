@@ -14,7 +14,7 @@ export type RoleSidebarTheme = {
 
 export const ROLE_SIDEBAR_THEMES: Record<EloraRole, RoleSidebarTheme> = {
     teacher: {
-        asideBg: 'bg-teal-900',
+        asideBg: 'bg-[#164e4a]',
         text: 'text-teal-50',
         headerBorder: 'border-teal-800/50',
         footerBorder: 'border-teal-800/50',
@@ -25,7 +25,7 @@ export const ROLE_SIDEBAR_THEMES: Record<EloraRole, RoleSidebarTheme> = {
         navHoverText: 'hover:text-white',
     },
     student: {
-        asideBg: 'bg-[#68507B]',
+        asideBg: 'bg-[#362c45]',
         text: 'text-white',
         headerBorder: 'border-white/10',
         footerBorder: 'border-white/10',
@@ -36,7 +36,7 @@ export const ROLE_SIDEBAR_THEMES: Record<EloraRole, RoleSidebarTheme> = {
         navHoverText: 'hover:text-white',
     },
     parent: {
-        asideBg: 'bg-[#DB844A]',
+        asideBg: 'bg-[#6e4225]',
         text: 'text-white',
         headerBorder: 'border-white/10',
         footerBorder: 'border-white/10',

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useSidebarState } from '@/hooks/useSidebarState';
 import { DashboardHeader } from '../DashboardHeader';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { navigationConfig, type EloraRole } from '@/config/navigation';
+import { useEloraTheme } from '@/theme/ThemeProvider';
 
 interface AppShellProps {
   role: EloraRole;
@@ -16,10 +18,12 @@ interface AppShellProps {
 
 export function AppShell({ role, searchPlaceholder, showCopilot }: AppShellProps) {
   const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
   const isDemo = useDemoMode();
   const { pathname } = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { theme } = useEloraTheme();
 
   // Derive user info
   const userName = isDemo 
@@ -35,7 +39,7 @@ export function AppShell({ role, searchPlaceholder, showCopilot }: AppShellProps
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-[#FDFBF5] text-slate-900 overflow-x-hidden">
+    <div className="flex min-h-screen overflow-x-hidden" style={{ backgroundColor: theme.appBg, color: theme.textPrimary }}>
       {/* Desktop Sidebar - Hidden on mobile */}
       <div className="hidden lg:flex">
         <Sidebar
@@ -45,7 +49,10 @@ export function AppShell({ role, searchPlaceholder, showCopilot }: AppShellProps
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           isDemo={isDemo}
-          logout={logout}
+          logout={() => {
+            logout();
+            navigate('/login');
+          }}
           userName={userName}
         />
       </div>

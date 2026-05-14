@@ -82,7 +82,7 @@ export default function TeacherShellLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sidebarTheme = getRoleSidebarTheme('teacher');
   const { theme } = useEloraTheme();
-  const isTeacherCopilotFullMode = !isDemo && pathname.startsWith('/teacher/copilot');
+  const isTeacherCopilotFullMode = pathname.includes('/copilot');
 
   const classContextId = useMemo(() => {
     const classPrefix = isDemo ? '/teacher/demo/class/' : '/teacher/classes/';

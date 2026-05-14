@@ -24,7 +24,6 @@ import {
     getParentGreeting,
     getPronoun,
     shouldShowFeedback,
-    HorizontalChips
 } from '../components/Copilot/CopilotShared';
 import { CopilotInputBar } from '../components/Copilot/CopilotInputBar';
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
@@ -517,7 +516,7 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
     }, []);
 
     const currentPrompts = buildPrompts();
-    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
+    const showAuthGate = shouldGateCopilotAccess({ isVerified, isGuest });
 
     const canCreateNewChat =
         !activeConversationId || messages.some((msg) => msg.role === 'user' || msg.role === 'assistant');
@@ -627,17 +626,15 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                             </div>
                         </div>
 
-                        <div className="shrink-0 border-t border-slate-200/80 bg-gradient-to-t from-slate-50 via-slate-50/90 to-slate-50/80 px-6 py-4 z-10">
+                        <div className="shrink-0 border-t border-slate-200/80 dark:border-[var(--elora-border-subtle)] bg-white dark:bg-[var(--elora-surface-main)] px-6 py-4 z-10 transition-colors duration-500">
                             <div className="max-w-3xl mx-auto space-y-4">
-
-                                {/* Context chips and micro-status */}
                                 {attachedFiles.length > 0 && (
                                     <div className="mb-3">
                                         <div className="flex items-center justify-between mb-2">
                                             <div>
-                                                <span className="text-[12px] text-slate-400">Context:</span>
+                                                <span className="text-[12px] text-slate-400 dark:text-[var(--elora-text-muted)]">Context:</span>
                                             </div>
-                                            <div className="text-[12px] text-slate-400">
+                                            <div className="text-[12px] text-slate-400 dark:text-[var(--elora-text-muted)]">
                                                 {isThinking ? (attachedFiles.length > 0 ? 'Reading your materials…' : 'Got it — thinking…') : ''}
                                             </div>
                                         </div>
@@ -647,68 +644,21 @@ const ParentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedIn
                                     </div>
                                 )}
 
-                                {messages.length > 0 && (
-                                    <div className="flex items-center justify-between">
-                                        <HorizontalChips prompts={currentPrompts} onSend={handleSend} themeColor="#D97706" />
-                                        {attachedFiles.length > 0 && (
-                                            <button
-                                                onClick={async () => {
-                                                    setIsThinking(true);
-                                                    try {
-                                                        const prompt = `Simplify the attached report and provide home actions. Use plain language. Structure: Big picture (2-3 sentences), then Strengths / Things to work on / How you can help at home. Provide 2-4 concrete home actions. Output artifact JSON after ---ARTIFACT--- with {title, summary, content, kind}.`;
-                                                        const resp = await askElora({
-                                                            message: prompt,
-                                                            role: 'parent',
-                                                            useCase: 'parent_support_mode',
-                                                            context: `Child: ${childName}. Files: ${attachedFiles.map(f => f.name).join(', ')}.`,
-                                                            contextMeta: {
-                                                                role: 'parent',
-                                                                isDemo,
-                                                                selectedChildId,
-                                                                selectedChildName: childName,
-                                                            },
-                                                            fileAttachments: attachedFiles,
-                                                        });
-                                                        const marker = '---ARTIFACT---';
-                                                        const idx = resp.indexOf(marker);
-                                                        if (idx >= 0) {
-                                                            const tail = resp.slice(idx + marker.length).trim();
-                                                            try {
-                                                                const obj = JSON.parse(tail);
-                                                                if (obj && obj.title && obj.content) {
-                                                                    setArtifacts((prev) => [{ id: String(Date.now()), title: obj.title, summary: obj.summary || '', content: obj.content, kind: obj.kind || 'parent_report' }, ...prev]);
-                                                                }
-                                                            } catch (err) {
-                                                                // ignore
-                                                            }
-                                                        }
-                                                    } catch (err) {
-                                                        console.error('Report simplification failed', err);
-                                                    } finally {
-                                                        setIsThinking(false);
-                                                    }
-                                                }}
-                                                className="text-xs px-1 py-1 text-[#D97706] hover:text-[#b45309] font-semibold transition-colors ml-3"
-                                            >
-                                                Simplify + Actions
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
                                 <CopilotInputBar
                                     value={inputValue}
                                     onChange={setInputValue}
                                     onSend={() => handleSend(inputValue)}
                                     isThinking={isThinking}
                                     themeColor="#D97706"
-                                    placeholder={`Ask about ${childName}'s learning...`}
+                                    placeholder={`Ask about ${childName}'s progress or what to do at home...`}
                                     microcopy="Elora will anchor help to this item"
                                     files={attachedFiles}
                                     onFileAttach={handleFileAttach}
                                     onFileRemove={handleFileRemove}
                                     isUploading={isUploading}
                                     role="parent"
+                                    showPrivacyNote={false}
+                                    containerClassName="rounded-[32px]"
                                 />
                             </div>
                         </div>

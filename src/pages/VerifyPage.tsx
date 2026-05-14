@@ -13,6 +13,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth, UserRole } from '../auth/AuthContext';
 import { ShieldCheck, Mail } from 'lucide-react';
+import { settingsService } from '../services/settingsService';
 
 const ROLE_LABELS: Record<UserRole, string> = {
     teacher: 'Teacher',
@@ -47,6 +48,9 @@ export default function VerifyPage() {
         // Direct transition using the name from signup.
         const displayName = passedName.trim();
         const preferredName = displayName || (selectedRole === 'teacher' ? 'Michael' : selectedRole === 'student' ? 'Jordan' : 'Lee');
+        const persistDisplayName = () => {
+            settingsService.updateSettings(selectedRole, { displayName: preferredName });
+        };
 
         try {
             const response = await fetch('/api/auth/signup', {
@@ -70,12 +74,14 @@ export default function VerifyPage() {
                 name: user.name || preferredName,
                 preferredName: user.name || preferredName,
             });
+            persistDisplayName();
         } catch {
             // Preserve preview fallback behavior if backend auth route is unavailable.
             login(selectedRole, {
                 name: preferredName,
                 preferredName,
             });
+            persistDisplayName();
         }
         
         navigate(DASHBOARD_PATHS[selectedRole], { replace: true });

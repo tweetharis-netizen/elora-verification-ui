@@ -5,8 +5,6 @@ import { darkTheme, lightTheme, ThemeName, ThemeTokens } from './colors';
 
 type ThemePreference = 'system' | 'light' | 'dark';
 
-const ACTIVE_THEME_KEY = 'elora-active-theme';
-
 interface ThemeContextValue {
   themeName: ThemeName;
   theme: ThemeTokens;
@@ -34,10 +32,7 @@ function applyThemeToDocument(themeName: ThemeName, theme: ThemeTokens) {
 
 export function ThemeProvider({ role, children }: { role?: UserRole | null; children: React.ReactNode }) {
   const [preferredTheme, setPreferredTheme] = useState<ThemePreference>('system');
-  const [themeName, setThemeName] = useState<ThemeName>(() => {
-    const saved = localStorage.getItem(ACTIVE_THEME_KEY);
-    return saved === 'dark' || saved === 'light' ? saved : resolveTheme('system');
-  });
+  const [themeName, setThemeName] = useState<ThemeName>(() => resolveTheme('system'));
 
   useEffect(() => {
     if (!role) {
@@ -69,19 +64,30 @@ export function ThemeProvider({ role, children }: { role?: UserRole | null; chil
     if (preferredTheme !== 'system') return;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const handleChange = () => {
-      setThemeName(mediaQuery.matches ? 'dark' : 'light');
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setThemeName(e.matches ? 'dark' : 'light');
     };
 
-    handleChange();
+    // Check current state first
+    setThemeName(mediaQuery.matches ? 'dark' : 'light');
+
+    // Use both addListener (legacy) and addEventListener (modern) for compatibility
+    if (mediaQuery.addListener) {
+      mediaQuery.addListener(handleChange);
+    }
     mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+
+    return () => {
+      if (mediaQuery.removeListener) {
+        mediaQuery.removeListener(handleChange as any);
+      }
+      mediaQuery.removeEventListener('change', handleChange as any);
+    };
   }, [preferredTheme]);
 
   const theme = themeName === 'dark' ? darkTheme : lightTheme;
 
   useEffect(() => {
-    localStorage.setItem(ACTIVE_THEME_KEY, themeName);
     applyThemeToDocument(themeName, theme);
   }, [themeName, theme]);
 

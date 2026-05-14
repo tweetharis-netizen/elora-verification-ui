@@ -529,6 +529,7 @@ export const isStudyPlanning = (rawMessage?: string): boolean => {
   const patterns = [
     /\bstudy plan\b/i,
     /\brevision plan\b/i,
+    /\brevision schedule\b/i,
     /\bstudy schedule\b/i,
     /\bstudy timetable\b/i,
     /\bstudy calendar\b/i,
@@ -582,7 +583,7 @@ export const isReviewMyAttempt = (rawMessage?: string): boolean => {
 
   if (attemptPatterns.some((pattern) => pattern.test(cleaned))) return true;
 
-  if (/\bi think (it'?s|it is)\b/i.test(cleaned) && /\b(because|since|so)\b/i.test(cleaned)) {
+  if (/\bi think\b/i.test(cleaned) && /\b(because|since|so)\b/i.test(cleaned)) {
     return true;
   }
 
@@ -631,6 +632,79 @@ export const isReportExplanation = (rawMessage?: string): boolean => {
   ];
 
   return patterns.some((pattern) => pattern.test(cleaned));
+};
+
+export const shouldPrioritizeClarification = (rawMessage?: string): boolean => {
+  const cleaned = normalizeIntentText(rawMessage);
+  if (!cleaned) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length === 0) return false;
+
+  if (isGenericHelp(rawMessage)) {
+    return true;
+  }
+
+  if (isStudyPlanning(rawMessage) && words.length <= 6 && !/\b(on|about|for|with)\b/i.test(cleaned)) {
+    return true;
+  }
+
+  if (isQuizGeneration(rawMessage) && words.length <= 4 && !/\b(on|about|for|with)\b/i.test(cleaned)) {
+    return true;
+  }
+
+  if (isLessonPlanning(rawMessage) && words.length <= 4 && !/\b(on|about|for|with)\b/i.test(cleaned)) {
+    return true;
+  }
+
+  if (isReportExplanation(rawMessage) && words.length <= 3 && !/\b(card|report card|progress report)\b/i.test(cleaned)) {
+    return true;
+  }
+
+  return words.length <= 3 && /^(plan|create|make|build|explain|review|check|draft)\b/i.test(cleaned) && !/\b(on|about|for|with|in)\b/i.test(cleaned);
+};
+
+export const shouldUseWebSearch = (params: {
+  role: UserRole;
+  lastUserMessage?: string;
+  isHomework?: boolean;
+  isFirstMessage?: boolean;
+}): boolean => {
+  const { role, lastUserMessage, isHomework, isFirstMessage } = params;
+
+  // Never use web search for homework
+  if (isHomework === true) return false;
+
+  // Never use for initial greeting or capability queries
+  if (isFirstMessage === true || isGreeting(lastUserMessage) || isCapabilityQuery(lastUserMessage)) {
+    return false;
+  }
+
+  // Never use for clarification-only turns
+  if (shouldPrioritizeClarification(lastUserMessage)) return false;
+
+  // Never use for review/quiz contexts (homework-adjacent)
+  if (isReviewMyAttempt(lastUserMessage) || isQuizGeneration(lastUserMessage)) return false;
+
+  // Teacher: can use web search for research, planning, and pedagogical queries
+  if (role === 'teacher') {
+    return (
+      isLessonPlanning(lastUserMessage) ||
+      /\b(research|strategy|evidence|study|approach|framework|example|case study|best practice)\b/i.test(lastUserMessage || '')
+    );
+  }
+
+  // Student: for broad knowledge queries (definitions, concepts, explanations)
+  if (role === 'student') {
+    return /\b(definition|what is|what does|mean|meaning|term|example|how does|why|concept|theory)\b/i.test(lastUserMessage || '');
+  }
+
+  // Parent: for definitions and jargon clarification
+  if (role === 'parent') {
+    return /\b(definition|mean|what is|what does|explain term|jargon|acronym|grade|rubric)\b/i.test(lastUserMessage || '');
+  }
+
+  return false;
 };
 
 const loadStudentMemory = ({
@@ -731,6 +805,16 @@ export async function llmRouter({
     normalizedContext.isReviewMyAttempt = Boolean(isReviewMyAttempt(lastText));
     normalizedContext.isLessonPlanning = Boolean(isLessonPlanning(lastText));
     normalizedContext.isReportExplanation = Boolean(isReportExplanation(lastText));
+    normalizedContext.shouldPrioritizeClarification = Boolean(shouldPrioritizeClarification(lastText));
+    // Detect if web search could be eligible for this query (honesty: may not have live access)
+    normalizedContext.shouldUseWebSearch = Boolean(
+      shouldUseWebSearch({
+        role,
+        lastUserMessage: lastText,
+        isHomework: normalizedContext.isHomework === true,
+        isFirstMessage: normalizedContext.isFirstMessage === true,
+      })
+    );
   } catch (err) {
     // non-fatal
     normalizedContext.isGreeting = false;
@@ -741,6 +825,8 @@ export async function llmRouter({
     normalizedContext.isReviewMyAttempt = false;
     normalizedContext.isLessonPlanning = false;
     normalizedContext.isReportExplanation = false;
+    normalizedContext.shouldPrioritizeClarification = false;
+    normalizedContext.shouldUseWebSearch = false;
   }
 
   const systemPrompt = buildSystemPrompt({

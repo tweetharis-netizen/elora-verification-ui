@@ -156,8 +156,8 @@ export function DashboardHeader({
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="group inline-flex items-center gap-3 rounded-full bg-[var(--elora-surface-main)] shadow-sm px-4 py-1.5 border border-[var(--elora-border-subtle)] hover:shadow-md hover:border-[var(--elora-border-muted)] transition-all active:scale-95"
             >
-              <div className="text-right hidden sm:block">
-                  <div className="text-sm font-semibold text-[var(--elora-text-strong)] leading-tight group-hover:text-[var(--elora-text-strong)]">{localDisplayName || displayName}</div>
+              <div className="min-w-0 text-right">
+                  <div className="truncate text-sm font-semibold text-[var(--elora-text-strong)] leading-tight group-hover:text-[var(--elora-text-strong)]">{localDisplayName || displayName}</div>
                 <div className={`text-[10px] font-medium tracking-[0.15em] uppercase leading-tight text-[var(--elora-text-muted)] opacity-70`}>{roleLabel}</div>
               </div>
               <div className={`w-10 h-10 md:w-11 md:h-11 rounded-2xl ${colors.avatarBg} border-white text-white flex items-center justify-center font-bold border-2 shadow-lg ${colors.shadow} transform group-hover:scale-105 transition-transform`}>

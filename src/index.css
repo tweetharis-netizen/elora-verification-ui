@@ -82,6 +82,28 @@
   --elora-chip-bg: #101826;
   --elora-chip-text: #cbd5e1;
   --elora-chip-border: #243244;
+
+  /* Tailwind color remaps for dark mode */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  /* Dark mode background colors */
+  --slate-50-dark: #1e293b;
+  --slate-100-dark: #0f172a;
+  --slate-200-dark: #1e293b;
+
+  /* Border colors for dark mode */
+  --border-slate-50-dark: #334155;
+  --border-slate-100-dark: #475569;
+  --border-slate-200-dark: #334155;
 }
 
 @theme {
@@ -98,6 +120,190 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
 }
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* DARK MODE COMPREHENSIVE STYLING                                      */
+/* ─────────────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  background-color: #060b16;
+  color: #f8fafc;
+}
+
+/* Comprehensive dark mode background color remapping */
+[data-theme="dark"] .bg-white {
+  background-color: #1e293b !important;
+}
+
+[data-theme="dark"] .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+[data-theme="dark"] .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+[data-theme="dark"] .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Opacity variants */
+[data-theme="dark"] .bg-slate-50\/5 {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\/10 {
+  background-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\/20 {
+  background-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\/30 {
+  background-color: rgba(15, 23, 42, 0.3) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\/40 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+}
+
+[data-theme="dark"] .bg-slate-50\/50 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+[data-theme="dark"] .bg-slate-100\/50 {
+  background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+[data-theme="dark"] .hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+
+[data-theme="dark"] .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+/* Dark mode border color remapping */
+[data-theme="dark"] .border-slate-100 {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .border-\[\#EAE7DD\] {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .border-\[\#E2E8F0\] {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .border-white {
+  border-color: #e2e8f0 !important;
+}
+
+/* Dark mode text color remapping */
+[data-theme="dark"] .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .text-slate-700 {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .text-white {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .text-slate-900 {
+  color: #e2e8f0 !important;
+}
+
+/* Purple color variants for dark mode */
+[data-theme="dark"] .bg-purple-50 {
+  background-color: rgba(147, 51, 234, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-purple-100 {
+  background-color: rgba(147, 51, 234, 0.15) !important;
+}
+
+[data-theme="dark"] .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+[data-theme="dark"] .text-purple-700 {
+  color: #d8b4fe !important;
+}
+
+[data-theme="dark"] .bg-purple-400\/10 {
+  background-color: rgba(192, 132, 250, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-purple-500\/10 {
+  background-color: rgba(168, 85, 247, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-purple-50\/20 {
+  background-color: rgba(243, 232, 255, 0.05) !important;
+}
+
+/* Opacity variants */
+[data-theme="dark"] .bg-slate-900\/60 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+/* Teal variants for teacher */
+[data-theme="dark"] .bg-teal-50 {
+  background-color: rgba(0, 128, 128, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-teal-100 {
+  background-color: rgba(0, 128, 128, 0.15) !important;
+}
+
+/* Orange variants for parent */
+[data-theme="dark"] .bg-orange-50 {
+  background-color: rgba(234, 88, 12, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-orange-100 {
+  background-color: rgba(234, 88, 12, 0.15) !important;
+}
+
+/* Emerald/Green variants */
+[data-theme="dark"] .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Amber/Yellow variants */
+[data-theme="dark"] .bg-amber-500\/10 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+/* Rose/Pink variants */
+[data-theme="dark"] .bg-rose-500\/10 {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+}
+
+/* Ensure proper contrast in dark mode for interactive elements - removed global button bg to avoid box effect on tabs */
+[data-theme="dark"] button:not([class*="bg-"]) {
+  background-color: transparent;
+}
+
+
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -130,9 +336,16 @@ body {
 }
 
 [data-theme="dark"] .bg-white\/80,
-[data-theme="dark"] .bg-white\/70 {
-  background-color: #101826 !important;
+[data-theme="dark"] .bg-white\/70,
+[data-theme="dark"] button.bg-white,
+[data-theme="dark"] .bg-white[role="button"],
+[data-theme="dark"] .bg-white\/20,
+[data-theme="dark"] .bg-white\/14,
+[data-theme="dark"] .bg-white\/10,
+[data-theme="dark"] .bg-white\/5 {
+  background-color: transparent !important;
 }
+
 
 [data-theme="dark"] .bg-slate-50,
 [data-theme="dark"] .bg-slate-50\/50,

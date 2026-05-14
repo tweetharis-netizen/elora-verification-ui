@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart2, FileText, LayoutDashboard, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Users, X } from 'lucide-react';
+import { BarChart2, FileText, LayoutDashboard, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Sparkles, Users, X } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useSidebarState } from '@/hooks/useSidebarState';
@@ -124,13 +124,6 @@ export default function ParentShellLayout() {
         to: `${dashboardPath}#messages`,
         isActive: (p, h) => p === dashboardPath && h === '#messages',
       },
-      {
-        id: 'settings',
-        label: 'Settings',
-        icon: Settings,
-        to: '/settings',
-        isActive: (p) => p === '/settings',
-      },
     ];
   }, [dashboardPath, isDemo]);
 
@@ -168,14 +161,14 @@ export default function ParentShellLayout() {
 
       <aside
         id="parent-shell-sidebar"
-        className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl shadow-slate-900/20 md:sticky md:top-0 md:min-h-screen md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
+        className={`fixed inset-y-0 left-0 z-[120] flex flex-col transition-all transition-colors duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'w-20'} ${sidebarTheme.asideBg} shadow-2xl md:sticky md:top-0 md:min-h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarTheme.text}`}
         style={{
           backgroundColor: theme.roleSidebar.parent,
           color: theme.sidebarText,
         }}
       >
         <div className={`h-16 flex items-center border-b ${sidebarTheme.headerBorder} px-8 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          <Link to={isDemo ? '/parent/demo' : '/dashboard/parent'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden">
+          <Link to={isDemo ? '/parent/demo' : '/dashboard/parent'} className="flex items-center text-white/90 hover:text-white transition-colors overflow-hidden shrink-0">
             <EloraLogo className="w-10 h-10 text-current" withWordmark={isSidebarOpen} />
           </Link>
 

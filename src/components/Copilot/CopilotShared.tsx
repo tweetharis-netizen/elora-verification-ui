@@ -94,16 +94,22 @@ export const CopilotPrivacyNote: React.FC<{
     themeColor: string;
     role?: 'teacher' | 'student' | 'parent';
 }> = ({ themeColor, role = 'student' }) => {
+    // Keep this intentionally minimal and skip rendering for roles that do not need footer guidance.
     const roleMessageByRole: Record<'teacher' | 'student' | 'parent', string> = {
-        teacher: '',
+        teacher: 'Attach class materials when needed. Elora only uses them to answer this thread.',
         student: '',
         parent: '',
     };
+    const note = roleMessageByRole[role];
+
+    if (!note) {
+        return null;
+    }
 
     return (
     <div className="w-full flex items-start gap-2 px-4 py-2 rounded-lg bg-slate-50 dark:bg-[var(--elora-surface-alt)] border border-slate-100 dark:border-[var(--elora-border-subtle)] text-[11px] leading-relaxed text-slate-500 dark:text-[var(--elora-text-muted)] transition-colors duration-500">
         <Sparkles size={12} className="shrink-0 mt-0.5" style={{ color: themeColor }} />
-        <></>
+        <span>{note}</span>
     </div>
     );
 };
@@ -580,7 +586,7 @@ export const CopilotLayoutShell: React.FC<CopilotLayoutShellProps> = ({ role, le
     const roleBgClass = 'bg-[#fbfcf8]';
 
     return (
-        <div className={`h-[calc(100vh-var(--elora-header-offset,0px))] min-h-[calc(100dvh-var(--elora-header-offset,0px))] min-w-0 flex flex-1 overflow-hidden ${roleBgClass} dark:bg-[var(--elora-surface-alt)] transition-colors duration-500`}>
+        <div className={`flex flex-1 h-full min-h-0 min-w-0 overflow-hidden ${roleBgClass} dark:bg-[var(--elora-surface-alt)] transition-colors duration-500`}>
             <aside className="hidden md:flex h-full w-[280px] shrink-0 overflow-hidden border-r border-slate-100 dark:border-[var(--elora-border-subtle)] bg-white dark:bg-[var(--elora-surface-main)] transition-colors duration-500">
                 {leftRail}
             </aside>
@@ -1132,7 +1138,7 @@ export const CopilotEmptyState: React.FC<{
         const finalTitle = title || `${buildUnifiedGreeting(userName)}!`;
 
         return (
-            <div className="flex-1 flex flex-col items-center justify-center w-full px-6 py-6 md:py-10 animate-in fade-in zoom-in-95 duration-700">
+            <div className="flex flex-col items-center justify-center w-full px-6 py-6 md:py-10 animate-in fade-in zoom-in-95 duration-700">
                 <div className="w-full max-w-[660px] flex flex-col items-center">
                     <div className="relative mb-4 md:mb-6 group shrink-0">
                         <div className="absolute -inset-4 bg-gradient-to-tr from-[#14b8a6]/20 to-teal-500/0 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-1000 opacity-70 dark:from-[#14b8a6]/10 dark:to-teal-500/0" />

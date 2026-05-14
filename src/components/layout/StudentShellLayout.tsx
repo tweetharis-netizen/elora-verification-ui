@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, Gamepad2, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, TrendingUp, X } from 'lucide-react';
+import { BookOpen, FileText, Gamepad2, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Sparkles, TrendingUp, X } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useSidebarState } from '@/hooks/useSidebarState';
 import { useDemoMode } from '@/hooks/useDemoMode';
@@ -127,13 +127,6 @@ export default function StudentShellLayout() {
         icon: TrendingUp,
         to: `${base}#reports`,
         isActive: (p, h) => p === base && h === '#reports',
-      },
-      {
-        id: 'settings',
-        label: 'Settings',
-        icon: Settings,
-        to: '/settings',
-        isActive: (p) => p === '/settings',
       },
     ];
   }, [isDemo]);

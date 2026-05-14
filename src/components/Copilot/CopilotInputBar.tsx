@@ -15,6 +15,8 @@ export const CopilotInputBar: React.FC<{
     onFileRemove?: (fileId: string) => void;
     isUploading?: boolean;
     role?: 'teacher' | 'student' | 'parent';
+    showPrivacyNote?: boolean;
+    containerClassName?: string;
 }> = ({ 
     value, 
     onChange, 
@@ -28,6 +30,7 @@ export const CopilotInputBar: React.FC<{
     onFileRemove,
     isUploading = false,
     role = 'student'
+    , showPrivacyNote = true, containerClassName,
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,26 +101,26 @@ export const CopilotInputBar: React.FC<{
                 </div>
             )}
 
-            <div className="relative group shadow-2xl shadow-slate-200/50 rounded-2xl bg-white border border-slate-200 focus-within:border-slate-300 focus-within:ring-4 focus-within:ring-slate-500/5 transition-all duration-300">
+            <div className={`relative group shadow-2xl shadow-slate-200/50 dark:shadow-sm dark:shadow-black/30 rounded-2xl bg-white dark:bg-[var(--elora-surface-main)] border border-slate-200 dark:border-[var(--elora-border-subtle)] focus-within:border-slate-300 dark:focus-within:border-[#14b8a6] focus-within:ring-4 focus-within:ring-slate-500/5 dark:focus-within:ring-teal-500/10 transition-all duration-300 ${containerClassName ?? ''}`}>
                 {/* File Attachments Area */}
                 {files.length > 0 && (
                     <div className="flex flex-wrap gap-2 px-4 pt-3 animate-in fade-in slide-in-from-top-1 duration-300">
                         {files.map((file) => (
                             <div 
                                 key={file.id}
-                                className="group/file flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all shadow-sm"
+                                className="group/file flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-slate-50 dark:bg-[var(--elora-surface-alt)] border border-slate-100 dark:border-[var(--elora-border-subtle)] hover:border-slate-200 dark:hover:border-[#14b8a6] transition-all shadow-sm"
                             >
                                 {file.type === 'image' ? (
-                                    <ImageIcon size={14} className="text-slate-400" />
+                                    <ImageIcon size={14} className="text-slate-400 dark:text-[var(--elora-text-muted)]" />
                                 ) : (
-                                    <FileText size={14} className="text-slate-400" />
+                                    <FileText size={14} className="text-slate-400 dark:text-[var(--elora-text-muted)]" />
                                 )}
-                                <span className="text-[11px] font-bold text-slate-600 max-w-[120px] truncate">
+                                <span className="text-[11px] font-bold text-slate-600 dark:text-[var(--elora-text-secondary)] max-w-[120px] truncate">
                                     {file.name}
                                 </span>
                                 <button
                                     onClick={() => onFileRemove?.(file.id)}
-                                    className="p-1 rounded-md text-slate-300 hover:text-slate-600 hover:bg-slate-200/50 transition-all"
+                                    className="p-1 rounded-md text-slate-300 dark:text-[var(--elora-text-muted)] hover:text-slate-600 dark:hover:text-[var(--elora-text-strong)] hover:bg-slate-200/50 dark:hover:bg-[var(--elora-border-subtle)] transition-all"
                                 >
                                     <X size={12} strokeWidth={3} />
                                 </button>
@@ -149,11 +152,11 @@ export const CopilotInputBar: React.FC<{
                             }
                         }}
                         placeholder={placeholder}
-                        className="w-full bg-transparent px-5 py-4 text-[15px] font-medium outline-none pr-24 resize-none min-h-[56px] max-h-32 z-10 placeholder:text-slate-400"
+                        className="w-full bg-transparent px-5 py-4 text-base font-medium outline-none pr-24 resize-none min-h-[56px] max-h-32 z-10 placeholder:text-slate-500 dark:placeholder:text-[var(--elora-text-secondary)]"
                         rows={1}
                         style={{ 
-                            color: hasMentions ? 'transparent' : '#1e293b', 
-                            caretColor: '#1e293b' 
+                            color: hasMentions ? 'transparent' : 'var(--elora-text-strong, #1e293b)', 
+                            caretColor: 'var(--elora-text-strong, #1e293b)'
                         }}
                     />
                 </div>
@@ -165,6 +168,7 @@ export const CopilotInputBar: React.FC<{
                             fileInputRef.current?.click();
                         }}
                         disabled={isThinking || isUploading || files.length >= 5}
+                        aria-label={files.length >= 5 ? "File attachment limit reached" : "Attach a file"}
                         className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all duration-300 active:scale-90 disabled:opacity-50"
                         title={files.length >= 5 ? "Max 5 files per message" : "Attach a file (max 5)"}
                     >
@@ -180,6 +184,7 @@ export const CopilotInputBar: React.FC<{
                             }
                         }}
                         disabled={(!value.trim() && files.length === 0) || isThinking || isUploading}
+                        aria-label="Send message"
                         className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 shadow-sm ${
                             (value.trim() || files.length > 0) && !isThinking && !isUploading
                                 ? 'text-white shadow-lg active:scale-90'
@@ -200,14 +205,14 @@ export const CopilotInputBar: React.FC<{
                 />
 
                 {hasMentions && microcopy && (
-                    <div className="absolute -top-8 left-4 px-3 py-1 rounded-md text-[11px] font-bold text-slate-600 bg-white border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 fade-in flex items-center gap-1.5 z-30">
+                    <div className="absolute -top-8 left-4 px-3 py-1 rounded-md text-[11px] font-bold text-slate-600 dark:text-[var(--elora-text-secondary)] bg-white dark:bg-[var(--elora-surface-main)] border border-slate-200 dark:border-[var(--elora-border-subtle)] shadow-sm dark:shadow-md animate-in slide-in-from-bottom-2 fade-in flex items-center gap-1.5 z-30">
                         <Sparkles size={12} style={{ color: themeColor }} />
                         {microcopy}
                     </div>
                 )}
             </div>
             
-            <CopilotPrivacyNote themeColor={themeColor} role={role} />
+            {showPrivacyNote && <CopilotPrivacyNote themeColor={themeColor} role={role} />}
         </div>
     );
 };

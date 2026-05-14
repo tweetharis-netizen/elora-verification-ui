@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { loadSettings, saveSettings } from '../services/settingsService';
 import { UserSettings, UserRole } from '../lib/llm/types';
+import { useAuth } from '../auth/AuthContext';
 
 interface SettingsPageProps {
   role: UserRole;
@@ -35,6 +36,7 @@ function areSettingsEqual(a: UserSettings | null, b: UserSettings | null): boole
 }
 
 export default function SettingsPage({ role }: SettingsPageProps) {
+  const { currentUser, updateProfile } = useAuth();
   const [initialSettings, setInitialSettings] = useState<UserSettings | null>(null);
   const [currentSettings, setCurrentSettings] = useState<UserSettings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -95,6 +97,11 @@ export default function SettingsPage({ role }: SettingsPageProps) {
     if (!currentSettings) return;
     setIsSaving(true);
     saveSettings(currentSettings);
+    if (currentUser?.role === role) {
+      updateProfile({
+        preferredName: currentSettings.displayName?.trim() || undefined,
+      });
+    }
     setInitialSettings(currentSettings);
     setShowSuccess(true);
     setTimeout(() => {

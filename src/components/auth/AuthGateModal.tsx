@@ -30,6 +30,40 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
   // Theme color based on role
   const themeColor = role === 'student' ? '#68507B' : (role === 'parent' ? '#DB844A' : '#0d9488');
 
+  const normalizedAction = actionName.toLowerCase();
+  const gateCopy = (() => {
+    if (normalizedAction.includes('assignment')) {
+      return {
+        title: 'Unlock Elora Assignments',
+        product: 'Elora Assignments',
+      };
+    }
+    if (normalizedAction.includes('class')) {
+      return {
+        title: 'Unlock Elora Classes',
+        product: 'Elora Classes',
+      };
+    }
+    if (normalizedAction.includes('practice') || normalizedAction.includes('generate')) {
+      return {
+        title: 'Unlock Elora Practice',
+        product: 'Elora Practice',
+      };
+    }
+    if (normalizedAction.includes('report')) {
+      return {
+        title: 'Unlock Elora Reports',
+        product: 'Elora Reports',
+      };
+    }
+    return {
+      title: 'Unlock Elora Copilot',
+      product: 'Elora Copilot',
+    };
+  })();
+
+  const description = `${gateCopy.product} is required to ${actionName}. Sign up or log in to unlock the full experience.`;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -62,8 +96,8 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
             <AuthGateContent 
               role={displayRole}
               themeColor={themeColor}
-              title="Unlock Elora Copilot"
-              description={actionName ? `Elora Copilot is required to ${actionName}. Sign up or log in to unlock the full experience.` : undefined}
+              title={gateCopy.title}
+              description={description}
               onSignupClick={() => handleAuth('/signup')}
               onLoginClick={() => handleAuth('/login')}
               onSecondaryClick={onClose}

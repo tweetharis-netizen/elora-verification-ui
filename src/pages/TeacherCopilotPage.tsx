@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    ArrowRight,
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
@@ -24,6 +23,7 @@ import {
     Message,
     Step,
 } from '../components/Copilot/CopilotShared';
+import { CopilotInputBar } from '../components/Copilot/CopilotInputBar';
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
 import { askElora } from '../services/askElora';
 import { useAutoTitle } from '../hooks/useAutoTitle';
@@ -130,21 +130,29 @@ const HorizontalChips: React.FC<{
     }, [prompts]);
 
     return (
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0 mb-2">
             <div
                 ref={scrollRef}
                 onScroll={checkScroll}
-                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pr-8"
+                className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar pr-10"
             >
                 {prompts.map((prompt, idx) => (
                     <button
                         key={idx}
                         onClick={() => onSend(prompt)}
-                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
+                        className="shrink-0 px-4 py-2 rounded-full text-[12px] font-semibold border whitespace-nowrap transition-all hover:scale-105 active:scale-95 shadow-sm"
                         style={{
-                            backgroundColor: themeColor + '0d',
-                            borderColor: themeColor + '33',
-                            color: themeColor,
+                            backgroundColor: 'var(--elora-surface-alt)',
+                            borderColor: 'var(--elora-border-subtle)',
+                            color: 'var(--elora-text-strong)',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = themeColor;
+                            e.currentTarget.style.color = themeColor;
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--elora-border-subtle)';
+                            e.currentTarget.style.color = 'var(--elora-text-strong)';
                         }}
                     >
                         {prompt}
@@ -153,8 +161,8 @@ const HorizontalChips: React.FC<{
             </div>
             {showOverlay && (
                 <div
-                    className="absolute right-0 top-0 h-[calc(100%-4px)] w-8 pointer-events-none rounded-r-full"
-                    style={{ background: 'linear-gradient(to right, transparent, white)' }}
+                    className="absolute right-0 top-0 h-[calc(100%-8px)] w-12 pointer-events-none rounded-r-full"
+                    style={{ background: 'linear-gradient(to right, transparent, var(--elora-surface-main))' }}
                 />
             )}
         </div>
@@ -209,7 +217,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isNearBottomRef = useRef(true);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const shouldShowFeedback = () => {
         dataMessageCountRef.current += 1;
@@ -281,6 +288,8 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             setSelectedClassId(null);
         }
     }, [classList, selectedClassId]);
+
+
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -655,11 +664,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         setMessages((prev) => [...prev, newUserMsg]);
         setInputValue('');
         setIsThinking(true);
-        // Reset textarea height
-        if (textareaRef.current) {
-            textareaRef.current.style.height = '52px';
-        }
-
         if (!isDemo && ensuredConversationId) {
             try {
                 const persisted = await dataService.appendTeacherConversationMessage(ensuredConversationId, {
@@ -800,13 +804,6 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
     };
 
-    // ── Input auto-resize ─────────────────────────────────────────────────────
-    const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-        const el = e.currentTarget;
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 128) + 'px'; // 128 = max-h-32
-    };
-
     // ── Sidebar content ───────────────────────────────────────────────────────
     const sidebarContent = showAuthGate ? <></> : (
         <div className="flex-1 flex flex-col min-h-0 bg-white">
@@ -841,11 +838,11 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
             demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
             hidePrimarySidebar={embeddedInShell || showAuthGate}
-            lockToViewportHeight={!embeddedInShell && !showAuthGate && !isDemo}
+            lockToViewportHeight={!embeddedInShell && !showAuthGate}
             hideContextSidebar={true}
             sidebar={<></>}
             contentMaxWidth="max-w-none"
-            chatAreaClassName={isDemo ? undefined : "flex-1 h-full flex flex-col min-w-0 bg-slate-50 relative overflow-hidden"}
+            chatAreaClassName={isDemo ? undefined : "flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[var(--elora-chat-canvas)] relative overflow-hidden transition-colors duration-500"}
         >
             <CopilotMobileHeader themeColor="#14b8a6" />
 
@@ -853,12 +850,12 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 <CopilotAuthGate role="Teacher" themeColor="#14b8a6" />
             ) : (
                 <CopilotLayoutShell role="teacher" leftRail={sidebarContent}>
-                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fbfcf8] relative overflow-hidden">
+                    <div className="flex-1 flex flex-col min-h-0 bg-[#fbfcf8] dark:bg-[var(--elora-chat-canvas)] relative overflow-hidden transition-colors duration-500">
                         {/* Messages viewport (primary scroll area) */}
                         <div
                             ref={messagesAreaRef}
                             onScroll={handleMessagesScroll}
-                            className="flex-1 overflow-y-auto custom-scrollbar w-full scroll-smooth"
+                            className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
                         >
                             <div className="max-w-[720px] mx-auto px-6 pt-12 pb-8 flex flex-col min-h-full">
                                 {serviceNotice && (
@@ -909,52 +906,32 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                             </div>
                         </div>
 
-                        {/* Composer footer (pinned to bottom of chat column) */}
-                        <div className="shrink-0 border-t border-slate-200/80 bg-gradient-to-t from-slate-50 via-slate-50/90 to-slate-50/80 px-6 py-4 z-10">
-                            <div className="max-w-3xl mx-auto">
+                        <div className="shrink-0 border-t border-slate-200/80 dark:border-[var(--elora-border-subtle)] bg-white dark:bg-[var(--elora-surface-main)] px-6 py-4 z-10 transition-colors duration-500">
+                            <div className="max-w-3xl mx-auto space-y-4">
 
-                                {/* Suggestion Chips - Floating above input */}
+                                {/* Suggestion Chips - row above input */}
                                 {!isThinking && messages.length > 0 && (
-                                    <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-1 animate-in slide-in-from-bottom-2 fade-in duration-500">
-                                        {currentPrompts.map((prompt, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => handleSend(prompt)}
-                                                className="shrink-0 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm text-[11px] font-bold text-slate-600 hover:bg-[#14b8a6] hover:text-white hover:border-[#14b8a6] transition-all whitespace-nowrap active:scale-95"
-                                            >
-                                                {prompt}
-                                            </button>
-                                        ))}
+                                    <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-500">
+                                        <HorizontalChips 
+                                            prompts={currentPrompts} 
+                                            onSend={handleSend} 
+                                            themeColor="#14b8a6" 
+                                        />
                                     </div>
                                 )}
 
-                                <div className="relative group shadow-2xl shadow-slate-200/50 rounded-2xl bg-white border border-slate-200 focus-within:border-[#14b8a6] focus-within:ring-4 focus-within:ring-teal-500/5 transition-all duration-300">
-                                    <textarea
-                                        ref={textareaRef}
+                                <div className="flex-1">
+                                    <CopilotInputBar
                                         value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onInput={handleTextareaInput}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleSend(inputValue);
-                                            }
-                                        }}
-                                        placeholder="Message Elora..."
-                                        className="w-full bg-transparent px-5 py-4 text-[15px] font-medium outline-none pr-14 resize-none min-h-[56px] max-h-32 text-slate-800 placeholder:text-slate-400"
-                                        rows={1}
+                                        onChange={setInputValue}
+                                        onSend={() => handleSend(inputValue)}
+                                        isThinking={isThinking}
+                                        themeColor="#14b8a6"
+                                        placeholder="Ask about class progress, lesson ideas, or student support..."
+                                        role="teacher"
+                                        showPrivacyNote={false}
+                                        containerClassName="rounded-[32px]"
                                     />
-                                    <button
-                                        onClick={() => handleSend(inputValue)}
-                                        disabled={!inputValue.trim() || isThinking}
-                                        className={`absolute right-2 top-2 w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 shadow-sm ${
-                                            inputValue.trim() && !isThinking
-                                                ? 'bg-[#14b8a6] text-white shadow-lg shadow-teal-500/20 active:scale-90'
-                                                : 'bg-slate-50 text-slate-300'
-                                        }`}
-                                    >
-                                        <ArrowRight size={20} strokeWidth={2.5} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -963,7 +940,7 @@ const TeacherCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                         {showScrollButton && (
                             <button
                                 onClick={scrollToBottom}
-                                className="fixed bottom-32 right-8 p-3 bg-white border border-slate-200 rounded-full shadow-lg text-slate-400 hover:text-[#14b8a6] hover:border-teal-100 transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 z-50 hover:shadow-teal-500/10"
+                                className="fixed bottom-32 right-8 p-3 bg-white dark:bg-[var(--elora-surface-main)] border border-slate-200 dark:border-[var(--elora-border-subtle)] rounded-full shadow-lg dark:shadow-md text-slate-400 dark:text-[var(--elora-text-muted)] hover:text-[#14b8a6] hover:border-teal-100 dark:hover:text-[#14b8a6] dark:hover:border-[#14b8a6] transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 z-50 hover:shadow-teal-500/10"
                                 title="Scroll to bottom"
                             >
                                 <ChevronDown size={20} />

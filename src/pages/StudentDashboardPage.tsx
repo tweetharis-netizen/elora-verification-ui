@@ -78,6 +78,7 @@ import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { getRoleSidebarTheme, type RoleSidebarTheme } from '../lib/roleTheme';
 import { loadSettings } from '../services/settingsService';
+import { useEloraTheme } from '@/theme/ThemeProvider';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthGateModal } from '../components/auth/AuthGateModal';
@@ -210,7 +211,7 @@ export default function StudentDashboardPage({
     const { currentUser, logout, login } = useAuth();
     const navigate = useNavigate();
     const { hash } = useLocation();
-    const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
+    const { isGateOpen, closeGate, gateActionName } = useAuthGate();
     const routeIsDemo = useDemoMode();
     const isDemo = isDemoProp ?? routeIsDemo;
 
@@ -227,6 +228,7 @@ export default function StudentDashboardPage({
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const sidebarTheme = getRoleSidebarTheme('student');
+    const { theme } = useEloraTheme();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'assignments' | 'classes' | 'settings'>(initialTab);
     const [activeClassFilter, setActiveClassFilter] = useState<string | null>(null);
     const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'overdue' | 'in_progress' | 'not_started' | 'completed'>('all');
@@ -267,10 +269,10 @@ export default function StudentDashboardPage({
         navigate(`${route}?tab=${tab}`);
     };
 
-    const handleLaunchGame = withGate((gamePackId: string, attemptId?: string) => {
+    const handleLaunchGame = (gamePackId: string, attemptId?: string) => {
         const url = attemptId ? `/play/${gamePackId}?attemptId=${attemptId}` : `/play/${gamePackId}`;
         navigate(url);
-    }, "start practice tasks");
+    };
 
     type AskEloraStatus = 'idle' | 'loading' | 'success' | 'error';
     const [eloraStatus, setEloraStatus] = useState<AskEloraStatus>('idle');
@@ -621,7 +623,7 @@ export default function StudentDashboardPage({
         );
     }
 
-    const handleJoinClass = withGate(async (e: React.FormEvent) => {
+    const handleJoinClass = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!joinCode.trim()) return;
         setJoiningClass(true);
@@ -639,16 +641,16 @@ export default function StudentDashboardPage({
         } finally {
             setJoiningClass(false);
         }
-    }, "join a new class");
+    };
 
-    const handleMarkNudgeRead = withGate(async (id: string) => {
+    const handleMarkNudgeRead = async (id: string) => {
         try {
             await dataService.markNudgeAsRead(id);
             setNudges(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         } catch (error) {
             console.error("Failed to mark nudge as read", error);
         }
-    }, "interact with teacher nudges");
+    };
 
     // (handleMarkBackendNotificationRead is now handled by the useNotifications hook)
 
@@ -923,7 +925,7 @@ export default function StudentDashboardPage({
     const useLocalShell = !embeddedInShell;
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#FDFBF5] font-sans text-slate-900 overflow-x-hidden">
+        <div className="flex flex-col min-h-screen font-sans overflow-x-hidden" style={{ backgroundColor: theme.appBg, color: theme.textPrimary }}>
             {isDemo && <DemoRoleSwitcher />}
 
             <div className="flex flex-1">
@@ -1089,7 +1091,7 @@ export default function StudentDashboardPage({
                 </aside>}
 
                 {/* MAIN CONTENT AREA - Surface 2 (Calm Content) */}
-                <main id="main-content" className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#FDFBF5]/50 overflow-x-hidden">
+                <main id="main-content" className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden" style={{ backgroundColor: theme.appBgMuted }}>
                     <div className="flex-1 flex flex-col">
 
                         {/* FIXED TOP HEADER - Standard Elora Shell Pattern */}
@@ -1130,12 +1132,10 @@ export default function StudentDashboardPage({
                                     {/* ── [Row 1] Hero & Performance ── */}
                                     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1.1fr] gap-6">
                                         {/* Left: Hero (Welcome) */}
-                                        <div className="bg-[#68507B] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-xl border border-[#68507B] flex flex-col min-h-[140px]">
-                                            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-50" />
-                                            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-50" />
+                                        <div className="rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-xl border flex flex-col min-h-[140px]" style={{ backgroundColor: theme.roleAccents.student, borderColor: theme.roleAccents.student }}>
 
                                             <div className="relative z-10 flex flex-col h-full">
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-950/20 text-white/90 mb-4 border border-white/10 uppercase tracking-[0.2em] w-fit">
                                                     <Flame size={12} className="text-orange-400" />
                                                     <span>{studentProfile.streak} Day Streak</span>
                                                 </div>
@@ -1165,14 +1165,14 @@ export default function StudentDashboardPage({
                                         </div>
 
                                         {/* Right: Performance Snapshot (Teacher Style Stats) */}
-                                        <div className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+                                        <div className="border rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
                                             <div>
                                                 <div className="flex items-center justify-between mb-8">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                                                             <Activity size={18} className="text-[#68507B]" />
                                                         </div>
-                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Performance Snapshot</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>Performance Snapshot</h3>
                                                     </div>
                                                     <div className="bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-tight">On Track</div>
                                                 </div>
@@ -1224,13 +1224,13 @@ export default function StudentDashboardPage({
                                     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6">
                                         <div className="space-y-6 xl:order-2">
                                             {/* TODAY'S TASKS - Moved Higher as First Priority Card */}
-                                            <section id="tasks-section" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-md transition-all mt-10">
-                                                <div className="px-4 py-4 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/30">
+                                            <section id="tasks-section" className="border rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col hover:shadow-md transition-all mt-10" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                                                <div className="px-4 py-4 border-b flex items-center justify-between" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBgMuted }}>
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-[#68507B] flex items-center justify-center">
                                                             <ListTodo size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Next Steps</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>Next Steps</h3>
                                                     </div>
                                                     <span className="text-[11px] font-medium text-[#68507B] px-2 py-0.5 bg-purple-100/50 rounded-md border border-purple-200/50 uppercase tracking-widest">
                                                         Merged Focus
@@ -1250,7 +1250,8 @@ export default function StudentDashboardPage({
                                                                             <div
                                                                                 key={item.id}
                                                                                 onClick={() => navigate(item.href)}
-                                                                                className="flex items-center gap-4 p-4 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl transition-all group cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-[#68507B]/20"
+                                                                                className="flex items-center gap-4 p-4 rounded-xl transition-all group cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                                                                                style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}
                                                                             >
                                                                                 <div className="w-10 h-10 rounded-lg bg-[#68507B] flex items-center justify-center text-white shadow-lg shadow-purple-900/10 transition-transform group-hover:scale-110">
                                                                                     {item.icon === 'retry' ? <RotateCcw size={16} /> : item.icon === 'improve' ? <Zap size={16} /> : <Play size={16} fill="currentColor" />}
@@ -1267,7 +1268,8 @@ export default function StudentDashboardPage({
                                                                         {hasMoreTasks && (
                                                                             <button
                                                                                 onClick={() => setIsTasksExpanded(!isTasksExpanded)}
-                                                                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-slate-50/50 border border-slate-100 rounded-xl transition-all"
+                                                                                className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider transition-all rounded-xl"
+                                                                                style={{ backgroundColor: theme.cardBgMuted, border: `1px solid ${theme.cardBorder}`, color: theme.textMuted }}
                                                                             >
                                                                                 {isTasksExpanded ? (
                                                                                     <> <ChevronUp size={14} /> Show less </>
@@ -1294,13 +1296,13 @@ export default function StudentDashboardPage({
 
                                             {/* MY CLASSES - Now Higher and More Central */}
                                             {studentClasses.length > 0 && (
-                                                <section id="student-my-classes" className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10">
-                                                    <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/30">
+                                                <section id="student-my-classes" className="border rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                                                    <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBgMuted }}>
                                                         <div className="flex items-center gap-2.5">
                                                             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                                                                 <BookOpen size={18} />
                                                             </div>
-                                                            <h3 className="text-sm font-semibold tracking-tight text-slate-800">My Classes</h3>
+                                                            <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>My Classes</h3>
                                                         </div>
                                                         <button 
                                                             onClick={() => {
@@ -1330,8 +1332,8 @@ export default function StudentDashboardPage({
                                                                         onEnter={() => handleClassClick(cls.id)}
                                                                         metaPrimaryNode={
                                                                             <div className="grid grid-cols-2 gap-3">
-                                                                                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                                                                                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1 leading-none">
+                                                                                <div className="p-3 rounded-xl border" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
+                                                                                    <div className="text-[10px] font-semibold uppercase tracking-widest mb-1 leading-none" style={{ color: theme.textMuted }}>
                                                                                         To Do
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1.5">
@@ -1341,8 +1343,8 @@ export default function StudentDashboardPage({
                                                                                         <span className="text-[12px] text-slate-400 font-medium">{pendingCount === 1 ? 'Task' : 'Tasks'}</span>
                                                                                     </div>
                                                                                 </div>
-                                                                                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                                                                                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1 leading-none">
+                                                                                <div className="p-3 rounded-xl border" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
+                                                                                    <div className="text-[10px] font-semibold uppercase tracking-widest mb-1 leading-none" style={{ color: theme.textMuted }}>
                                                                                         Avg Score
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1.5">
@@ -1369,18 +1371,18 @@ export default function StudentDashboardPage({
                                             )}
 
                                             {/* MASTERY TREND */}
-                                            <section id="mastery-section" className="bg-white rounded-2xl border border-[#EAE7DD] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-7 hover:shadow-md transition-all mt-10">
+                                            <section id="mastery-section" className="rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-7 hover:shadow-md transition-all mt-10" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
                                                 <div className="flex items-center justify-between mb-8">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                                             <TrendingUp size={18} />
                                                         </div>
                                                         <div>
-                                                            <h3 className="text-sm font-semibold tracking-tight text-slate-800">Mastery Trend</h3>
-                                                            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Recent Performance</p>
+                                                            <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>Mastery Trend</h3>
+                                                            <p className="text-[11px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: theme.textMuted }}>Recent Performance</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+                                                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{ backgroundColor: theme.cardBgMuted, border: `1px solid ${theme.cardBorder}` }}>
                                                         <div className="w-2 h-2 rounded-full bg-[#68507B]" />
                                                         <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter">Avg Accuracy</span>
                                                     </div>
@@ -1438,13 +1440,13 @@ export default function StudentDashboardPage({
                                         {/* RIGHT SIDEBAR COLUMN */}
                                         <div className="space-y-6 xl:order-1">
                                             {/* FULL SCHEDULE (Upcoming Assignments) - Moved to Sidebar for balance */}
-                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10">
-                                                <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-slate-50/10">
+                                            <section className="border rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all mt-10" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                                                <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBgMuted }}>
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-purple-50 text-[#68507B] flex items-center justify-center">
                                                             <CalendarDays size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Upcoming</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>Upcoming</h3>
                                                     </div>
                                                     <button
                                                         onClick={() => setActiveTab('assignments')}
@@ -1476,11 +1478,12 @@ export default function StudentDashboardPage({
                                                                         <div
                                                                             key={item.id}
                                                                             onClick={() => handleLaunchGame(item.gamePackId || 'practice-general', (item as any).attemptId)}
-                                                                            className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                                            className="p-5 transition-colors cursor-pointer group"
+                                                                            style={{ backgroundColor: 'transparent' }}
                                                                         >
                                                                             <div className="flex justify-between items-start gap-4">
                                                                                 <div className="flex-1 min-w-0">
-                                                                                    <h4 className="text-[14px] font-semibold text-slate-900 group-hover:text-[#68507B] transition-colors leading-snug">{item.title}</h4>
+                                                                                    <h4 className="text-[14px] font-semibold transition-colors leading-snug" style={{ color: theme.textPrimary }}>{item.title}</h4>
                                                                                     <div className="flex items-center gap-2 mt-1.5">
                                                                                         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{item.subjectClass}</span>
                                                                                         <div className="w-1 h-1 rounded-full bg-slate-200" />
@@ -1498,10 +1501,11 @@ export default function StudentDashboardPage({
                                                                 })}
 
                                                                 {hasMoreUpcoming && (
-                                                                    <div className="p-3 bg-slate-50/20">
+                                                                    <div className="p-3" style={{ backgroundColor: theme.cardBgMuted }}>
                                                                         <button
                                                                             onClick={() => setIsComingUpExpanded(!isComingUpExpanded)}
-                                                                            className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-[#68507B] bg-white border border-slate-100 rounded-xl transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                                                                            className="w-full py-2.5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-wider rounded-xl transition-all"
+                                                                            style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}`, color: theme.textMuted }}
                                                                         >
                                                                             {isComingUpExpanded ? (
                                                                                 <> <ChevronUp size={14} /> Show less </>
@@ -1526,13 +1530,13 @@ export default function StudentDashboardPage({
                                             </section>
 
                                             {/* MESSAGES FROM HOME */}
-                                            <section className="bg-white border border-[#EAE7DD] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all">
-                                                <div className="px-6 py-5 border-b border-[#EAE7DD] flex items-center justify-between bg-pink-50/10">
+                                            <section className="border rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                                                <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBgMuted }}>
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
                                                             <Heart size={18} />
                                                         </div>
-                                                        <h3 className="text-sm font-semibold tracking-tight text-slate-800">Messages from Home</h3>
+                                                        <h3 className="text-sm font-semibold tracking-tight" style={{ color: theme.textPrimary }}>Messages from Home</h3>
                                                     </div>
                                                     {nudges.filter(n => !n.read).length > 0 && (
                                                         <span className="flex h-2 w-2">
@@ -1569,7 +1573,7 @@ export default function StudentDashboardPage({
                                                             ))
                                                     ) : (
                                                         <div className="p-8 text-center">
-                                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-300">
+                                                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: theme.cardBg, color: theme.textMuted }}>
                                                                 <Inbox size={24} />
                                                             </div>
                                                             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">No recent messages</p>
@@ -1613,7 +1617,8 @@ export default function StudentDashboardPage({
                                                             <select
                                                                 value={activeClassFilter ?? 'all'}
                                                                 onChange={(event) => setActiveClassFilter(event.target.value === 'all' ? null : event.target.value)}
-                                                                className="appearance-none bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 outline-none hover:border-slate-300 transition-all cursor-pointer pr-10 shadow-sm"
+                                                                className="appearance-none rounded-full px-5 py-2.5 text-sm font-semibold outline-none transition-all cursor-pointer pr-10 shadow-sm"
+                                                                style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}`, color: theme.textPrimary }}
                                                             >
                                                                 <option value="all">All Classes</option>
                                                                 {studentClasses.map(c => (
@@ -1690,11 +1695,11 @@ export default function StudentDashboardPage({
 
                                                             if (filtered.length === 0) {
                                                                 return (
-                                                                    <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center shadow-sm">
-                                                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                                                                            <Inbox size={32} />
-                                                                        </div>
-                                                                        <h3 className="text-lg font-semibold text-slate-900">No assignments found</h3>
+                                                                    <div className="rounded-2xl border p-16 text-center shadow-sm" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                                                                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: theme.cardBgMuted, color: theme.textMuted }}>
+                                                                                    <Inbox size={32} />
+                                                                                </div>
+                                                                                <h3 className="text-lg font-semibold" style={{ color: theme.textPrimary }}>No assignments found</h3>
                                                                         <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Try adjusting your filters or search query to find what you're looking for.</p>
                                                                         {(searchQuery !== '' || activeClassFilter || reviewLifecycleFilter !== 'all') && (
                                                                             <button 
@@ -1778,7 +1783,7 @@ export default function StudentDashboardPage({
                                                     <SectionSkeleton rows={3} />
                                                 </div>
                                             ) : studentClasses.length === 0 ? (
-                                                <div className="col-span-full py-12 bg-white rounded-2xl border border-[#EAE7DD] border-dashed">
+                                                <div className="col-span-full py-12 rounded-2xl border border-dashed" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
                                                     <SectionEmpty
                                                         headline="No classes yet"
                                                         detail='You haven&apos;t joined any classes yet. Click "Join New Class" and enter your class code to get started.'
@@ -1797,7 +1802,7 @@ export default function StudentDashboardPage({
                                                         metaPrimaryNode={
                                                             <div className="flex flex-col gap-2.5">
                                                                 <div className="flex items-center gap-2.5">
-                                                                    <div className="w-8 h-8 rounded-full bg-[#FDFBF5] flex items-center justify-center text-[12px] font-semibold text-[#68507B] border border-[#EAE7DD] shrink-0">
+                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0" style={{ backgroundColor: theme.cardBg, color: theme.roleAccents.student, border: `1px solid ${theme.cardBorder}` }}>
                                                                         {cls.teacherName.charAt(0)}
                                                                     </div>
                                                                     <div className="min-w-0">
@@ -1805,8 +1810,8 @@ export default function StudentDashboardPage({
                                                                         <p className="text-[13px] font-semibold text-slate-700 truncate leading-none">{cls.teacherName}</p>
                                                                     </div>
                                                                 </div>
-                                                                <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
-                                                                    <div className="flex items-center gap-2 text-slate-500">
+                                                                <div className="rounded-xl p-3 border flex items-center justify-between" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
+                                                                    <div className="flex items-center gap-2" style={{ color: theme.textMuted }}>
                                                                         <Calendar size={14} />
                                                                         <span className="text-[11px] font-semibold uppercase tracking-wider">Joined</span>
                                                                     </div>
@@ -1840,8 +1845,8 @@ export default function StudentDashboardPage({
             {
                 selectedGamePack && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                        <div className="rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
+                            <div className="p-6 flex justify-between items-start" style={{ borderBottom: `1px solid ${theme.cardBorder}` }}>
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-md">
@@ -1872,18 +1877,18 @@ export default function StudentDashboardPage({
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <p className="text-[12px] font-medium text-slate-500 mb-1">Progress</p>
-                                        <p className="text-[18px] font-semibold text-slate-900">{selectedGamePack.progress}%</p>
+                                    <div className="p-4 rounded-xl border" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
+                                        <p className="text-[12px] font-medium mb-1" style={{ color: theme.textMuted }}>Progress</p>
+                                        <p className="text-[18px] font-semibold" style={{ color: theme.textPrimary }}>{selectedGamePack.progress}%</p>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <p className="text-[12px] font-medium text-slate-500 mb-1">Last Score</p>
-                                        <p className="text-[18px] font-semibold text-slate-900">{selectedGamePack.score}</p>
+                                    <div className="p-4 rounded-xl border" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
+                                        <p className="text-[12px] font-medium mb-1" style={{ color: theme.textMuted }}>Last Score</p>
+                                        <p className="text-[18px] font-semibold" style={{ color: theme.textPrimary }}>{selectedGamePack.score}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <div className="p-6 border-t flex justify-end gap-3" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
                                 <button
                                     onClick={() => setSelectedGamePack(null)}
                                     className="px-4 py-2 text-[14px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
@@ -1916,15 +1921,16 @@ export default function StudentDashboardPage({
             {
                 showJoinClass && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <div className="rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                            <div className="p-6 border-b flex justify-between items-center" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
                                 <div>
-                                    <h2 className="text-xl font-semibold text-slate-900">Join a Class</h2>
-                                    <p className="text-[13px] text-slate-500 mt-1">Ask your teacher for the class join code.</p>
+                                    <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>Join a Class</h2>
+                                    <p className="text-[13px] mt-1" style={{ color: theme.textMuted }}>Ask your teacher for the class join code.</p>
                                 </div>
                                 <button
                                     onClick={() => setShowJoinClass(false)}
-                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
+                                    className="p-2 rounded-xl transition-colors"
+                                    style={{ color: theme.textMuted }}
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -1932,13 +1938,13 @@ export default function StudentDashboardPage({
                             <form onSubmit={handleJoinClass}>
                                 <div className="p-6 space-y-4">
                                     {joinError && (
-                                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-red-700 text-sm">
+                                        <div className="p-3 rounded-xl flex items-start gap-2 text-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.28)', color: '#fca5a5' }}>
                                             <AlertCircle className="w-5 h-5 shrink-0" />
                                             <p>{joinError}</p>
                                         </div>
                                     )}
                                     <div>
-                                        <label htmlFor="joinCode" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                        <label htmlFor="joinCode" className="block text-sm font-semibold mb-1.5" style={{ color: theme.textPrimary }}>
                                             Join Code
                                         </label>
                                         <input
@@ -1946,7 +1952,8 @@ export default function StudentDashboardPage({
                                             type="text"
                                             value={joinCode}
                                             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#68507B] focus:ring-2 focus:ring-[#68507B]/20 outline-none transition-all font-mono text-center text-lg tracking-widest uppercase"
+                                            className="w-full px-4 py-3 rounded-xl outline-none transition-all font-mono text-center text-lg tracking-widest uppercase"
+                                            style={{ backgroundColor: theme.cardBgMuted, border: `1px solid ${theme.cardBorder}`, color: theme.textPrimary }}
                                             placeholder="e.g. X7B9Q2M"
                                             maxLength={8}
                                             autoFocus
@@ -1955,11 +1962,12 @@ export default function StudentDashboardPage({
                                         />
                                     </div>
                                 </div>
-                                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                                <div className="p-6 border-t flex justify-end gap-3" style={{ backgroundColor: theme.cardBgMuted, borderColor: theme.cardBorder }}>
                                     <button
                                         type="button"
                                         onClick={() => setShowJoinClass(false)}
-                                        className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                                        className="px-4 py-2 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+                                        style={{ color: theme.textMuted }}
                                         disabled={joiningClass}
                                     >
                                         Cancel
@@ -1982,16 +1990,16 @@ export default function StudentDashboardPage({
             {nudges.some(n => !n.read) && (() => {
                 const unreadNudge = nudges.find(n => !n.read)!;
                 return (
-                    <div className="fixed bottom-6 right-6 bg-white border border-[#68507B]/20 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-xl p-4 w-80 z-50 animate-in slide-in-from-bottom-4 duration-300">
+                    <div className="fixed bottom-6 right-6 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-xl p-4 w-80 z-50 animate-in slide-in-from-bottom-4 duration-300" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
                         <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: theme.cardBgMuted, color: theme.roleAccents.student }}>
                                 <Heart className="w-4 h-4" />
                             </div>
                             <div className="flex-1">
-                                <h4 className="text-[14px] font-semibold text-slate-900">Message from your parent</h4>
-                                <p className="text-[13px] text-slate-600 mt-1">{unreadNudge.message}</p>
+                                <h4 className="text-[14px] font-semibold" style={{ color: theme.textPrimary }}>Message from your parent</h4>
+                                <p className="text-[13px] mt-1" style={{ color: theme.textMuted }}>{unreadNudge.message}</p>
                             </div>
-                            <button onClick={() => handleMarkNudgeRead(unreadNudge.id)} className="text-slate-400 hover:text-slate-600 p-1 -mt-1 -mr-1 rounded-full bg-white transition-colors">
+                            <button onClick={() => handleMarkNudgeRead(unreadNudge.id)} className="p-1 -mt-1 -mr-1 rounded-full transition-colors" style={{ color: theme.textMuted, backgroundColor: theme.cardBgMuted }}>
                                 <X className="w-4 h-4" />
                             </button>
                         </div>

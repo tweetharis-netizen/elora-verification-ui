@@ -639,7 +639,7 @@ function MessageFeed({
 export default function ParentDashboardPage({ embeddedInShell = false, isDemo: isDemoProp }: { embeddedInShell?: boolean; isDemo?: boolean } = {}) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { isGateOpen, closeGate, gateActionName, withGate } = useAuthGate();
+    const { isGateOpen, closeGate, gateActionName } = useAuthGate();
     const routeIsDemo = useDemoMode();
     const isDemo = isDemoProp ?? routeIsDemo;
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
@@ -939,11 +939,11 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         .slice(0, 2)
         .join('');
 
-    const handleOpenNudge = withGate(() => setNudgeOpen(true), "send supportive nudges");
+    const handleOpenNudge = () => setNudgeOpen(true);
 
-    const handleViewReports = withGate(() => setActivePage('progress'), "view detailed student reports");
+    const handleViewReports = () => setActivePage('progress');
 
-    const handleActivityClick = withGate(async (activity: any) => {
+    const handleActivityClick = async (activity: any) => {
         if (activity.type === 'quiz' && activity.status === 'at_risk') {
             try {
                 // Fetch demo pack to show in review mode
@@ -955,7 +955,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
                 console.error("Failed to load game pack for review", error);
             }
         }
-    }, "review student assessments");
+    };
 
     const [showNudgeSuccess, setShowNudgeSuccess] = useState(false);
 
@@ -967,7 +967,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         }
     }, [activePage]);
 
-    const handleSendNudge = withGate(async () => {
+    const handleSendNudge = async () => {
         if (!activeChildId || !nudgeText.trim()) return;
         setIsSendingNudge(true);
         try {
@@ -984,7 +984,7 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
         } finally {
             setIsSendingNudge(false);
         }
-    }, "send supportive nudges");
+    };
 
     if (reviewGamePack && reviewActivity) {
         const question = reviewGamePack.questions[reviewQuestionIndex];
@@ -1166,11 +1166,9 @@ export default function ParentDashboardPage({ embeddedInShell = false, isDemo: i
 
                             {activePage === 'overview' && (
                                 <div className="bg-[#DB844A] rounded-3xl px-6 md:px-8 py-4 md:py-5 relative overflow-hidden shadow-lg border border-[#DB844A] flex flex-col min-h-[140px]">
-                                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl opacity-40" />
-                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl opacity-40" />
 
                                     <div className="relative z-10 flex flex-col h-full text-white">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-white/90 mb-4 border border-white/20 uppercase tracking-[0.2em] w-fit">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-950/20 text-white/90 mb-4 border border-white/10 uppercase tracking-[0.2em] w-fit">
                                             <Heart size={12} className="text-orange-200" />
                                             <span>Tracking {childrenList.length} children</span>
                                         </div>

@@ -1,10 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GraduationCap, UserRound, Heart } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { settingsService } from '../services/settingsService';
 
 const SIDEBAR_STATE_KEY = 'elora_sidebar_open';
 const SIDEBAR_OPEN_WIDTH_PX = 256;
 const SIDEBAR_COLLAPSED_WIDTH_PX = 80;
+
+type RoleId = 'teacher' | 'student' | 'parent';
+
+type RoleFallback = {
+  label: string;
+  path: string;
+  fallbackName: string;
+  icon: LucideIcon;
+  accent: string;
+};
+
+const ROLE_DEMO_FALLBACKS: Record<RoleId, RoleFallback> = {
+  teacher: { label: 'Teacher', path: '/teacher/demo', fallbackName: 'Mr. Michael Lee', icon: GraduationCap, accent: 'text-teal-700' },
+  student: { label: 'Student', path: '/student/demo', fallbackName: 'Jordan Lee', icon: UserRound, accent: 'text-[#7C3AED]' },
+  parent: { label: 'Parent', path: '/parent/demo', fallbackName: 'Shaik Haris', icon: Heart, accent: 'text-[#F97316]' },
+};
 
 export const FloatingExperienceController = () => {
   const navigate = useNavigate();
@@ -18,12 +36,11 @@ export const FloatingExperienceController = () => {
     return window.localStorage.getItem(SIDEBAR_STATE_KEY) !== 'false';
   });
   const [isInitialRender, setIsInitialRender] = useState(true);
-
-  const roles = [
-    { id: 'teacher', label: 'Teacher', path: '/teacher/demo', person: 'Mr. Michael Lee', icon: GraduationCap, accent: 'text-teal-700' },
-    { id: 'student', label: 'Student', path: '/student/demo', person: 'Jordan Lee', icon: UserRound, accent: 'text-[#7C3AED]' },
-    { id: 'parent', label: 'Parent', path: '/parent/demo', person: 'Shaik Haris', icon: Heart, accent: 'text-[#F97316]' },
-  ] as const;
+  const [displayNames, setDisplayNames] = useState<Record<RoleId, string>>(() => ({
+    teacher: settingsService.getSettings('teacher').displayName || ROLE_DEMO_FALLBACKS.teacher.fallbackName,
+    student: settingsService.getSettings('student').displayName || ROLE_DEMO_FALLBACKS.student.fallbackName,
+    parent: settingsService.getSettings('parent').displayName || ROLE_DEMO_FALLBACKS.parent.fallbackName,
+  }));
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -51,6 +68,41 @@ export const FloatingExperienceController = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const syncDisplayNames = () => {
+      setDisplayNames({
+        teacher: settingsService.getSettings('teacher').displayName || ROLE_DEMO_FALLBACKS.teacher.fallbackName,
+        student: settingsService.getSettings('student').displayName || ROLE_DEMO_FALLBACKS.student.fallbackName,
+        parent: settingsService.getSettings('parent').displayName || ROLE_DEMO_FALLBACKS.parent.fallbackName,
+      });
+    };
+
+    const onSettingsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ role?: RoleId; displayName?: string }>).detail;
+
+      if (!detail?.role) {
+        syncDisplayNames();
+        return;
+      }
+
+      setDisplayNames((current) => ({
+        ...current,
+        [detail.role as RoleId]: detail.displayName?.trim() || ROLE_DEMO_FALLBACKS[detail.role as RoleId].fallbackName,
+      }));
+    };
+
+    syncDisplayNames();
+    window.addEventListener('elora-settings-updated', onSettingsUpdated as EventListener);
+    window.addEventListener('storage', syncDisplayNames);
+
+    return () => {
+      window.removeEventListener('elora-settings-updated', onSettingsUpdated as EventListener);
+      window.removeEventListener('storage', syncDisplayNames);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const interval = window.setInterval(() => {
       setIsSidebarOpen(window.localStorage.getItem(SIDEBAR_STATE_KEY) !== 'false');
     }, 300);
@@ -63,6 +115,17 @@ export const FloatingExperienceController = () => {
     const sidebarOffset = (isSidebarOpen ? SIDEBAR_OPEN_WIDTH_PX : SIDEBAR_COLLAPSED_WIDTH_PX) / 2;
     return `calc(50% + ${sidebarOffset}px)`;
   }, [isDesktop, isSidebarOpen]);
+
+  const roles = useMemo(() => (
+    (Object.entries(ROLE_DEMO_FALLBACKS) as Array<[RoleId, RoleFallback]>).map(([id, role]) => ({
+      id,
+      label: role.label,
+      path: role.path,
+      person: displayNames[id] || role.fallbackName,
+      icon: role.icon,
+      accent: role.accent,
+    }))
+  ), [displayNames]);
 
   const runCrossFade = () => {
     if (typeof document === 'undefined') return;

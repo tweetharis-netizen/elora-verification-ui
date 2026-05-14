@@ -28,11 +28,11 @@ export function AssignmentLifecycleTabs({
         },
         student: {
             text: 'text-[#68507B]',
-            pill: 'bg-white border-slate-200'
+            pill: 'bg-white border-slate-200 dark:bg-transparent dark:border-transparent dark:shadow-none'
         },
         parent: {
             text: 'text-[#DB844A]',
-            pill: 'bg-white border-slate-200'
+            pill: 'bg-white border-slate-200 dark:bg-transparent dark:border-transparent dark:shadow-none'
         }
     };
 
@@ -46,8 +46,8 @@ export function AssignmentLifecycleTabs({
     ];
 
     return (
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-2 shadow-none">
-            <div className="relative grid grid-cols-4 rounded-lg bg-slate-100/50 p-1">
+        <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent p-2 shadow-none">
+            <div className="relative grid grid-cols-4 rounded-lg bg-slate-100/50 dark:bg-slate-900/50 p-1">
                 {tabs.map((segment) => {
                     const selected = activeFilter === segment.key;
                     return (

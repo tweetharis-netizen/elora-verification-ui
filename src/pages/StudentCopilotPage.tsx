@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    Plus,
     ChevronDown,
-    Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useDemoMode } from '../hooks/useDemoMode';
@@ -13,6 +11,7 @@ import { useStudentClasses } from '../hooks/useStudentClasses';
 import { DemoBanner } from '../components/DemoBanner';
 import { DemoRoleSwitcher } from '../components/DemoRoleSwitcher';
 import { askElora } from '../services/askElora';
+import { uploadCopilotFile } from '../services/fileUploadService';
 import { ActionProposalModal } from '../components/StudentCopilot/ActionProposalModal';
 import {
     demoStudentData,
@@ -34,8 +33,9 @@ import {
     Message, 
     shouldShowFeedback
 } from '../components/Copilot/CopilotShared';
+import { CopilotInputBar } from '../components/Copilot/CopilotInputBar';
 import CopilotThreadSidebar from '../components/Copilot/CopilotThreadSidebar';
-import type { UseCase } from '../lib/llm/types';
+import type { UseCase, CopilotFileAttachment } from '../lib/llm/types';
 
 const getIsoWeekKey = (value: Date) => {
     const date = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
@@ -167,9 +167,9 @@ const HorizontalChips: React.FC<{
                     <button
                         key={idx}
                         onClick={() => onSend(prompt)}
-                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
+                        className="shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-all duration-200 border shadow-sm hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0"
                         style={{
-                            backgroundColor: themeColor + '0d',
+                            backgroundColor: themeColor + '10',
                             borderColor: themeColor + '33',
                             color: themeColor
                         }}
@@ -181,9 +181,7 @@ const HorizontalChips: React.FC<{
             {showOverlay && (
                 <div 
                     className="absolute right-0 top-0 h-[calc(100%-4px)] w-10 pointer-events-none rounded-r-full"
-                    style={{ 
-                        background: `linear-gradient(to right, transparent, white)`
-                    }}
+                    style={{ background: 'linear-gradient(to right, transparent, var(--elora-surface-main))' }}
                 />
             )}
         </div>
@@ -196,7 +194,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const navigate = useNavigate();
     const location = useLocation();
     const isDemo = useDemoMode();
-    const showAuthGate = isDemo || shouldGateCopilotAccess({ isVerified, isGuest });
+    const showAuthGate = shouldGateCopilotAccess({ isVerified, isGuest });
     const [isSidebarOpen, setIsSidebarOpen] = useSidebarState(true);
 
     type StudentCopilotNavState = {
@@ -271,6 +269,8 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [serviceNotice, setServiceNotice] = useState<string | null>(null);
+    const [attachedFiles, setAttachedFiles] = useState<CopilotFileAttachment[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
     const [activeCopilotUseCase, setActiveCopilotUseCase] = useState<UseCase>('student_chat');
     const [threads, setThreads] = useState<dataService.StudentCopilotConversation[]>([]);
     const [isThreadsLoading, setIsThreadsLoading] = useState(false);
@@ -707,6 +707,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 lastSelectedClassId: subjectFilter ?? null,
                 lastSelectedStudentId: resolvedStudentId,
                 conversationId: conversationIdForMessage,
+                fileAttachments: attachedFiles,
             });
 
             const { cleanContent, suggestions } = parseSuggestionsFromResponse(response);
@@ -738,6 +739,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             }
 
             setMessages(prev => [...prev, eloraMsg]);
+            setAttachedFiles([]);
         } catch (error: unknown) {
             if (error instanceof dataService.RedirectError) {
                 navigate(error.to);
@@ -779,6 +781,25 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
         }
     };
 
+    const handleFileAttach = async (file: File) => {
+        if (attachedFiles.length >= 5) return;
+        setIsUploading(true);
+        try {
+            const result = await uploadCopilotFile(file);
+            if (result.success && result.file) {
+                setAttachedFiles((prev) => [...prev, result.file!]);
+            } else if (result.error) {
+                setServiceNotice(result.error);
+            }
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleFileRemove = (fileId: string) => {
+        setAttachedFiles((prev) => prev.filter((file) => file.id !== fileId));
+    };
+
     const sidebarContent = showAuthGate ? <></> : (
         <div className="flex-1 flex flex-col min-h-0 bg-white">
             <CopilotThreadSidebar
@@ -814,9 +835,9 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
             demoBanner={!embeddedInShell && isDemo && <DemoBanner />}
             demoRoleSwitcher={!embeddedInShell && isDemo && <DemoRoleSwitcher />}
             hidePrimarySidebar={embeddedInShell || showAuthGate}
-            lockToViewportHeight={!embeddedInShell && !showAuthGate && !isDemo}
+            lockToViewportHeight={!embeddedInShell && !showAuthGate}
             contentMaxWidth="max-w-none"
-            chatAreaClassName={isDemo ? undefined : "flex-1 h-full flex flex-col min-w-0 bg-slate-50 relative overflow-hidden"}
+            chatAreaClassName={isDemo ? undefined : "flex-1 h-full flex flex-col min-w-0 bg-slate-50 dark:bg-[var(--elora-chat-canvas)] relative overflow-hidden transition-colors duration-500"}
         >
             <CopilotMobileHeader themeColor="#68507B" />
 
@@ -824,7 +845,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                 <CopilotAuthGate role="Student" themeColor="#68507B" />
             ) : (
                 <CopilotLayoutShell role="student" leftRail={sidebarContent}>
-                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fcfbff] relative overflow-hidden">
+                    <div className="flex-1 h-full flex flex-col min-h-0 bg-[#fbfcf8] dark:bg-[var(--elora-chat-canvas)] relative overflow-hidden transition-colors duration-500">
                         <div
                             ref={messagesAreaRef}
                             onScroll={handleMessagesScroll}
@@ -885,7 +906,7 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                             </div>
                         </div>
 
-                        <div className="shrink-0 border-t border-[#EAE7DD] bg-white px-6 py-4 z-10">
+                        <div className="shrink-0 border-t border-slate-200/80 dark:border-[var(--elora-border-subtle)] bg-white dark:bg-[var(--elora-surface-main)] px-6 py-4 z-10 transition-colors duration-500">
                             <div className="max-w-3xl mx-auto space-y-4">
                                 {messages.length > 0 && (
                                     <div className="relative">
@@ -893,47 +914,22 @@ const StudentCopilotPage: React.FC<{ embeddedInShell?: boolean }> = ({ embeddedI
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => {
-                                            setMessages([]);
-                                            setActiveConversationId(null);
-                                            setActiveConversationTitle(weeklyTitle);
-                                            setActiveCopilotUseCase('student_chat');
-                                        }}
-                                        title="New conversation"
-                                        className="h-[52px] w-[52px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl transition-colors shrink-0"
-                                    >
-                                        <Plus size={20} />
-                                    </button>
-                                    <div className="flex-1 relative">
-                                        <textarea
-                                            value={inputValue}
-                                            onChange={(e) => setInputValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleSend(inputValue);
-                                                }
-                                            }}
-                                            placeholder="Message Elora..."
-                                            className="w-full bg-[#F8F9FA] border border-[#EAE7DD] rounded-xl pl-4 pr-12 py-3.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#68507B]/30 focus:border-[#68507B] resize-none flex-1 min-h-[52px] max-h-32"
-                                            rows={1}
-                                            style={{ height: '52px' }}
-                                        />
-                                        <button
-                                            onClick={() => handleSend(inputValue)}
-                                            disabled={!inputValue.trim() || isThinking}
-                                            className="absolute right-2.5 top-3 p-1.5 bg-[#68507B] hover:bg-[#523d60] disabled:bg-slate-300 text-white rounded-lg transition-colors flex items-center justify-center"
-                                        >
-                                            <Sparkles size={16} className="ml-0.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="text-center mt-3">
-                                    <p className="text-[11px] text-slate-400">
-                                        Copilot is an AI assistant and may occasionally make mistakes.
-                                    </p>
+                                <div className="flex-1">
+                                    <CopilotInputBar
+                                        value={inputValue}
+                                        onChange={setInputValue}
+                                        onSend={() => handleSend(inputValue)}
+                                        isThinking={isThinking}
+                                        themeColor="#68507B"
+                                        placeholder="Ask about a topic, assignment, or study plan..."
+                                        files={attachedFiles}
+                                        onFileAttach={handleFileAttach}
+                                        onFileRemove={handleFileRemove}
+                                        isUploading={isUploading}
+                                        role="student"
+                                        showPrivacyNote={false}
+                                        containerClassName="rounded-[32px]"
+                                    />
                                 </div>
                             </div>
                         </div>

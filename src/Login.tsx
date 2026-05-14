@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth, UserRole } from './auth/AuthContext';
+import { settingsService } from './services/settingsService';
 
 const DASHBOARD_PATHS: Record<UserRole, string> = {
     teacher: '/dashboard/teacher',
@@ -80,6 +81,7 @@ export default function Login() {
                 name: user.name || fallbackName,
                 preferredName: user.name || fallbackName,
             });
+            settingsService.updateSettings(selectedRole, { displayName: user.name || fallbackName });
         } catch (error) {
             // Keep legacy fallback so local preview never hard-breaks.
             login(selectedRole);
